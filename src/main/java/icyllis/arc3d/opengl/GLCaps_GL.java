@@ -25,8 +25,10 @@ import icyllis.arc3d.engine.*;
 import org.jetbrains.annotations.VisibleForTesting;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.opengl.*;
+import org.lwjgl.system.APIUtil;
 import org.lwjgl.system.MemoryStack;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.slf4j.helpers.NOPLogger;
 
 import java.nio.*;
@@ -53,10 +55,59 @@ public final class GLCaps_GL extends GLCaps implements GLInterface {
         super(options);
         GLCapabilities caps = (GLCapabilities) capabilities;
         // OpenGL 3.3 is the minimum requirement
+        // but we also allow OpenGL 3.2 with extensions
+        if (!caps.OpenGL32) {
+            throw new UnsupportedOperationException("OpenGL 3.2 is unavailable");
+        }
         if (!caps.OpenGL33) {
-            throw new UnsupportedOperationException("OpenGL 3.3 is unavailable");
+            if (!caps.GL_ARB_sampler_objects) {
+                MISSING_EXTENSIONS.add("ARB_sampler_objects");
+            }
+            if (!caps.GL_ARB_explicit_attrib_location) {
+                MISSING_EXTENSIONS.add("ARB_explicit_attrib_location");
+            }
+            if (!caps.GL_ARB_instanced_arrays) {
+                MISSING_EXTENSIONS.add("ARB_instanced_arrays");
+            }
+            if (!caps.GL_ARB_texture_swizzle) {
+                MISSING_EXTENSIONS.add("ARB_texture_swizzle");
+            }
+            // OpenGL 3.3 is the minimum requirement
+            // Note that having these extensions does not mean OpenGL 3.3 is available
+            // But these are required and they are available in OpenGL ES 3.0
+            if (!MISSING_EXTENSIONS.isEmpty()) {
+                throw new UnsupportedOperationException("Missing required extensions: " + MISSING_EXTENSIONS);
+            }
         }
         Logger logger = Objects.requireNonNullElse(options.mLogger, NOPLogger.NOP_LOGGER);
+
+        int glslVersion;
+        String glslVersionString = glGetString(GL_SHADING_LANGUAGE_VERSION);
+        try {
+            assert glslVersionString != null;
+            var ver = APIUtil.apiParseVersion(glslVersionString);
+            glslVersion = ver.major * 100 + (ver.minor < 10 ? ver.minor * 10 : ver.minor);
+        } catch (Throwable e) {
+            if (caps.OpenGL46) {
+                glslVersion = 460;
+            } else if (caps.OpenGL45) {
+                glslVersion = 450;
+            } else if (caps.OpenGL44) {
+                glslVersion = 440;
+            } else if (caps.OpenGL43) {
+                glslVersion = 430;
+            } else if (caps.OpenGL42) {
+                glslVersion = 420;
+            } else if (caps.OpenGL41) {
+                glslVersion = 410;
+            } else if (caps.OpenGL40) {
+                glslVersion = 400;
+            } else {
+                glslVersion = 330;
+            }
+            logger.error("Malformed GLSL version string", e);
+        }
+        logger.debug("GLSL version string: {}, using {}", glslVersionString, glslVersion);
 
         /*if (!caps.GL_ARB_draw_elements_base_vertex) {
                     missingExtensions.add("ARB_draw_elements_base_vertex");
@@ -80,7 +131,7 @@ public final class GLCaps_GL extends GLCaps implements GLInterface {
             // macOS supports this
             mTextureBarrierSupport = true;
             mTextureBarrierNV = true;
-            logger.info("Use NV_texture_barrier");
+            logger.debug("Use NV_texture_barrier");
         } else {
             mTextureBarrierSupport = false;
         }
@@ -110,8 +161,6 @@ public final class GLCaps_GL extends GLCaps implements GLInterface {
         String vendorString = glGetString(GL_VENDOR);
         mVendor = GLUtil.findVendor(vendorString);
         mDriver = GLUtil.findDriver(mVendor, vendorString, versionString);
-        logger.info("Identified OpenGL vendor: {}", mVendor);
-        logger.info("Identified OpenGL driver: {}", mDriver);
 
         // macOS supports this
         if (caps.OpenGL41 || caps.GL_ARB_ES2_compatibility) {
@@ -162,51 +211,28 @@ public final class GLCaps_GL extends GLCaps implements GLInterface {
         } else {
             shaderCaps.mTargetApi = TargetApi.OPENGL_3_3;
         }
-        final int glslVersion;
-        if (caps.OpenGL46) {
-            glslVersion = 460;
-            logger.info("Using OpenGL 4.6 and GLSL 4.50");
-        } else if (caps.OpenGL45) {
-            glslVersion = 450;
-            logger.info("Using OpenGL 4.5 and GLSL 4.50");
-        } else if (caps.OpenGL44) {
-            glslVersion = 440;
-            logger.info("Using OpenGL 4.4 and GLSL 4.40");
-        } else if (caps.OpenGL43) {
-            glslVersion = 430;
-            logger.info("Using OpenGL 4.3 and GLSL 4.30");
-        } else if (caps.OpenGL42) {
-            glslVersion = 420;
-            logger.info("Using OpenGL 4.2 and GLSL 4.20");
-        } else if (caps.OpenGL41) {
-            glslVersion = 410;
-            logger.info("Using OpenGL 4.1 and GLSL 4.00");
-        } else if (caps.OpenGL40) {
-            glslVersion = 400;
-            logger.info("Using OpenGL 4.0 and GLSL 4.00");
-        } else {
-            glslVersion = 330;
-            logger.info("Using OpenGL 3.3 and GLSL 3.30");
-        }
         mGLSLVersion = glslVersion;
         // round down the version
         if (glslVersion >= 450) {
             shaderCaps.mGLSLVersion = GLSLVersion.GLSL_450;
-        } else if (glslVersion == 440) {
+        } else if (glslVersion >= 440) {
             shaderCaps.mGLSLVersion = GLSLVersion.GLSL_440;
-        } else if (glslVersion == 430) {
+        } else if (glslVersion >= 430) {
             shaderCaps.mGLSLVersion = GLSLVersion.GLSL_430;
-        } else if (glslVersion == 420) {
+        } else if (glslVersion >= 420) {
             shaderCaps.mGLSLVersion = GLSLVersion.GLSL_420;
         } else if (glslVersion >= 400) {
             shaderCaps.mGLSLVersion = GLSLVersion.GLSL_400;
         } else {
+            // we just assume it supports GLSL 3.30
+            // when requesting 3.2 context on some drivers, it only reports 1.50,
+            // but it can actually compile 3.30 shaders
             shaderCaps.mGLSLVersion = GLSLVersion.GLSL_330;
         }
         initGLSL(caps, shaderCaps.mGLSLVersion);
 
         // OpenGL 3.3
-        shaderCaps.mDualSourceBlendingSupport = true;
+        shaderCaps.mDualSourceBlendingSupport = caps.OpenGL33 || caps.GL_ARB_blend_func_extended;
 
         if (caps.GL_NV_conservative_raster) {
             mConservativeRasterSupport = true;
@@ -314,9 +340,13 @@ public final class GLCaps_GL extends GLCaps implements GLInterface {
         // GLSL 400
         shaderCaps.mTextureQueryLod = version.isAtLeast(GLSLVersion.GLSL_400);
 
-        shaderCaps.mUseUniformBinding = caps.OpenGL42;
-        shaderCaps.mUseVaryingLocation = caps.OpenGL44;
-        shaderCaps.mUseBlockMemberOffset = caps.OpenGL44;
+        // GLSL 420
+        shaderCaps.mUseUniformBinding = (caps.OpenGL42 || caps.GL_ARB_shading_language_420pack) &&
+                version.isAtLeast(GLSLVersion.GLSL_420);
+        // GLSL 440
+        shaderCaps.mUseVaryingLocation = (caps.OpenGL44 || caps.GL_ARB_enhanced_layouts) &&
+                version.isAtLeast(GLSLVersion.GLSL_440);
+        shaderCaps.mUseBlockMemberOffset = shaderCaps.mUseVaryingLocation;
         shaderCaps.mUsePrecisionModifiers = false;
     }
 

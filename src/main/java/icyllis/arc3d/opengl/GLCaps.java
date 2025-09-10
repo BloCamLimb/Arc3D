@@ -1031,9 +1031,9 @@ public abstract class GLCaps extends Caps {
     }
 
     /**
-     * Returns the minimum GLSL version that supported by the OpenGL device,
-     * this is based on OpenGL version. May return 300, 310, 320 for es profile,
-     * 330 or above for core profile.
+     * Returns the raw GLSL version that supported by the OpenGL device.
+     * This value is derived from reported GL_SHADING_LANGUAGE_VERSION string.
+     * May return 300, 310, 320 for es profile, 330 or above for core profile.
      * <p>
      * The effective GLSL version that used by our pipeline and shader builder
      * is {@link ShaderCaps#mGLSLVersion}.
