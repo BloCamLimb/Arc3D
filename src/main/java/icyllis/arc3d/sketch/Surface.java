@@ -304,7 +304,7 @@ public abstract class Surface extends RefCnt {
             return null;
         }
         assert !bounds.isEmpty();
-        if (bounds.mLeft == 0 && bounds.mTop == 0 && bounds.mRight == mWidth && bounds.mBottom == mHeight) {
+        if (bounds.left() == 0 && bounds.top() == 0 && bounds.right() == mWidth && bounds.bottom() == mHeight) {
             return makeImageSnapshot();
         } else {
             return onNewImageSnapshot(bounds);

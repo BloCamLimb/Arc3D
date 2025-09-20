@@ -19,6 +19,7 @@
 
 package icyllis.arc3d.core;
 
+import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -41,10 +42,10 @@ public non-sealed class Rect2i implements Rect2ic {
 
     private static final Rect2ic EMPTY = new Rect2i();
 
-    public int mLeft;
-    public int mTop;
-    public int mRight;
-    public int mBottom;
+    protected int mLeft;
+    protected int mTop;
+    protected int mRight;
+    protected int mBottom;
 
     /**
      * Create a new rectangle with all coordinates initialized to 0.
@@ -212,6 +213,38 @@ public non-sealed class Rect2i implements Rect2ic {
         dst.mTop = mTop;
         dst.mRight = mRight;
         dst.mBottom = mBottom;
+    }
+
+    /**
+     * Set the rectangle's left.
+     */
+    @Contract(mutates = "this")
+    public final void left(int left) {
+        mLeft = left;
+    }
+
+    /**
+     * Set the rectangle's top.
+     */
+    @Contract(mutates = "this")
+    public final void top(int top) {
+        mTop = top;
+    }
+
+    /**
+     * Set the rectangle's right.
+     */
+    @Contract(mutates = "this")
+    public final void right(int right) {
+        mRight = right;
+    }
+
+    /**
+     * Set the rectangle's bottom.
+     */
+    @Contract(mutates = "this")
+    public final void bottom(int bottom) {
+        mBottom = bottom;
     }
 
     /**

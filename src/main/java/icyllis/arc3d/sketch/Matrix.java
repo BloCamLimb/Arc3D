@@ -1897,28 +1897,25 @@ public non-sealed class Matrix implements Matrixc, Cloneable {
     //@formatter:off
     public boolean mapRect(@NonNull Rect2fc src, @NonNull Rect2f dst) {
         int typeMask = getType();
-        final float left   = src.left();
-        final float top    = src.top();
-        final float right  = src.right();
-        final float bottom = src.bottom();
         if (typeMask <= kTranslate_Mask) {
-            dst.mLeft   = left   + m41;
-            dst.mTop    = top    + m42;
-            dst.mRight  = right  + m41;
-            dst.mBottom = bottom + m42;
+            dst.offset(m41, m42);
             return true;
         }
         if ((typeMask & ~(kScale_Mask | kTranslate_Mask)) == 0) {
-            float x1 = left   * m11 + m41;
-            float y1 = top    * m22 + m42;
-            float x2 = right  * m11 + m41;
-            float y2 = bottom * m22 + m42;
-            dst.mLeft   = Math.min(x1, x2);
-            dst.mTop    = Math.min(y1, y2);
-            dst.mRight  = Math.max(x1, x2);
-            dst.mBottom = Math.max(y1, y2);
+            float x1 = src.left()   * m11 + m41;
+            float y1 = src.top()    * m22 + m42;
+            float x2 = src.right()  * m11 + m41;
+            float y2 = src.bottom() * m22 + m42;
+            dst.set(Math.min(x1, x2),
+                    Math.min(y1, y2),
+                    Math.max(x1, x2),
+                    Math.max(y1, y2));
             return true;
         }
+        final float left   = src.left()  ;
+        final float top    = src.top()   ;
+        final float right  = src.right() ;
+        final float bottom = src.bottom();
         float x1 = m11 * left +  m21 * top    + m41;
         float y1 = m12 * left +  m22 * top    + m42;
         float x2 = m11 * right + m21 * top    + m41;
@@ -1942,10 +1939,10 @@ public non-sealed class Matrix implements Matrixc, Cloneable {
             x4 *= w;
             y4 *= w;
         }
-        dst.mLeft   = MathUtil.min(x1, x2, x3, x4);
-        dst.mTop    = MathUtil.min(y1, y2, y3, y4);
-        dst.mRight  = MathUtil.max(x1, x2, x3, x4);
-        dst.mBottom = MathUtil.max(y1, y2, y3, y4);
+        dst.set(MathUtil.min(x1, x2, x3, x4),
+                MathUtil.min(y1, y2, y3, y4),
+                MathUtil.max(x1, x2, x3, x4),
+                MathUtil.max(y1, y2, y3, y4));
         return (typeMask & kAxisAligned_Mask) != 0;
     }
     //@formatter:on
@@ -1959,17 +1956,17 @@ public non-sealed class Matrix implements Matrixc, Cloneable {
     public void mapRect(float left, float top, float right, float bottom, @NonNull Rect2i dst) {
         int typeMask = getType();
         if (typeMask <= kTranslate_Mask) {
-            dst.mLeft   = Math.round(left   + m41);
-            dst.mTop    = Math.round(top    + m42);
-            dst.mRight  = Math.round(right  + m41);
-            dst.mBottom = Math.round(bottom + m42);
+            dst.set(Math.round(left   + m41),
+                    Math.round(top    + m42),
+                    Math.round(right  + m41),
+                    Math.round(bottom + m42));
             return;
         }
         if ((typeMask & ~(kScale_Mask | kTranslate_Mask)) == 0) {
-            dst.mLeft =   Math.round(left   * m11 + m41);
-            dst.mTop =    Math.round(top    * m22 + m42);
-            dst.mRight =  Math.round(right  * m11 + m41);
-            dst.mBottom = Math.round(bottom * m22 + m42);
+            dst.set(Math.round(left   * m11 + m41),
+                    Math.round(top    * m22 + m42),
+                    Math.round(right  * m11 + m41),
+                    Math.round(bottom * m22 + m42));
             dst.sort();
             return;
         }
@@ -1996,10 +1993,10 @@ public non-sealed class Matrix implements Matrixc, Cloneable {
             x4 *= w;
             y4 *= w;
         }
-        dst.mLeft   = Math.round(MathUtil.min(x1, x2, x3, x4));
-        dst.mTop    = Math.round(MathUtil.min(y1, y2, y3, y4));
-        dst.mRight  = Math.round(MathUtil.max(x1, x2, x3, x4));
-        dst.mBottom = Math.round(MathUtil.max(y1, y2, y3, y4));
+        dst.set(Math.round(MathUtil.min(x1, x2, x3, x4)),
+                Math.round(MathUtil.min(y1, y2, y3, y4)),
+                Math.round(MathUtil.max(x1, x2, x3, x4)),
+                Math.round(MathUtil.max(y1, y2, y3, y4)));
     }
     //@formatter:on
 
@@ -2012,17 +2009,17 @@ public non-sealed class Matrix implements Matrixc, Cloneable {
     public void mapRectOut(float left, float top, float right, float bottom, @NonNull Rect2i dst) {
         int typeMask = getType();
         if (typeMask <= kTranslate_Mask) {
-            dst.mLeft   = (int) Math.floor(left   + m41);
-            dst.mTop    = (int) Math.floor(top    + m42);
-            dst.mRight  = (int) Math.ceil (right  + m41);
-            dst.mBottom = (int) Math.ceil (bottom + m42);
+            dst.set((int) Math.floor(left   + m41),
+                    (int) Math.floor(top    + m42),
+                    (int) Math.ceil (right  + m41),
+                    (int) Math.ceil (bottom + m42));
             return;
         }
         if ((typeMask & ~(kScale_Mask | kTranslate_Mask)) == 0) {
-            dst.mLeft =   (int) Math.floor(left   * m11 + m41);
-            dst.mTop =    (int) Math.floor(top    * m22 + m42);
-            dst.mRight =  (int) Math.ceil (right  * m11 + m41);
-            dst.mBottom = (int) Math.ceil (bottom * m22 + m42);
+            dst.set((int) Math.floor(left   * m11 + m41),
+                    (int) Math.floor(top    * m22 + m42),
+                    (int) Math.ceil (right  * m11 + m41),
+                    (int) Math.ceil (bottom * m22 + m42));
             dst.sort();
             return;
         }
@@ -2049,10 +2046,10 @@ public non-sealed class Matrix implements Matrixc, Cloneable {
             x4 *= w;
             y4 *= w;
         }
-        dst.mLeft   = (int) Math.floor(MathUtil.min(x1, x2, x3, x4));
-        dst.mTop    = (int) Math.floor(MathUtil.min(y1, y2, y3, y4));
-        dst.mRight  = (int) Math.ceil (MathUtil.max(x1, x2, x3, x4));
-        dst.mBottom = (int) Math.ceil (MathUtil.max(y1, y2, y3, y4));
+        dst.set((int) Math.floor(MathUtil.min(x1, x2, x3, x4)),
+                (int) Math.floor(MathUtil.min(y1, y2, y3, y4)),
+                (int) Math.ceil (MathUtil.max(x1, x2, x3, x4)),
+                (int) Math.ceil (MathUtil.max(y1, y2, y3, y4)));
     }
     //@formatter:on
 

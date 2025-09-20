@@ -168,14 +168,14 @@ public class OpsTask extends RenderTask {
             int msaaTop;
             int msaaBottom;
             if (mWriteView.getOrigin() == SurfaceOrigin.kLowerLeft) {
-                msaaTop = rtHeight - mContentBounds.mBottom;
-                msaaBottom = rtHeight - mContentBounds.mTop;
+                msaaTop = rtHeight - mContentBounds.bottom();
+                msaaBottom = rtHeight - mContentBounds.top();
             } else {
-                msaaTop = mContentBounds.mTop;
-                msaaBottom = mContentBounds.mBottom;
+                msaaTop = mContentBounds.top();
+                msaaBottom = mContentBounds.bottom();
             }
-            renderTargetProxy.setResolveRect(mContentBounds.mLeft, msaaTop,
-                    mContentBounds.mRight, msaaBottom);
+            renderTargetProxy.setResolveRect(mContentBounds.left(), msaaTop,
+                    mContentBounds.right(), msaaBottom);
         }
         ImageViewProxy imageViewProxy = target.asImageProxy();
         if (imageViewProxy != null && imageViewProxy.isMipmapped()) {
@@ -318,8 +318,8 @@ public class OpsTask extends RenderTask {
                 assert mHead.validateChain(mTail);
             }
             for (Op op = mHead; op != null; op = op.nextInChain()) {
-                assert (mLeft <= op.mLeft && mTop <= op.mTop &&
-                        mRight >= op.mRight && mBottom >= op.mBottom);
+                assert (mLeft <= op.left() && mTop <= op.top() &&
+                        mRight >= op.right() && mBottom >= op.bottom());
             }
             return true;
         }

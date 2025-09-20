@@ -37,10 +37,10 @@ public non-sealed class Rect2f implements Rect2fc {
 
     private static final Rect2fc EMPTY = new Rect2f();
 
-    public float mLeft;
-    public float mTop;
-    public float mRight;
-    public float mBottom;
+    protected float mLeft;
+    protected float mTop;
+    protected float mRight;
+    protected float mBottom;
 
     /**
      * Create a new empty rectangle. All coordinates are initialized to 0.
@@ -268,6 +268,38 @@ public non-sealed class Rect2f implements Rect2fc {
         dst.mTop = (int) mTop;
         dst.mRight = (int) mRight;
         dst.mBottom = (int) mBottom;
+    }
+
+    /**
+     * Set the rectangle's left.
+     */
+    @Contract(mutates = "this")
+    public final void left(float left) {
+        mLeft = left;
+    }
+
+    /**
+     * Set the rectangle's top.
+     */
+    @Contract(mutates = "this")
+    public final void top(float top) {
+        mTop = top;
+    }
+
+    /**
+     * Set the rectangle's right.
+     */
+    @Contract(mutates = "this")
+    public final void right(float right) {
+        mRight = right;
+    }
+
+    /**
+     * Set the rectangle's bottom.
+     */
+    @Contract(mutates = "this")
+    public final void bottom(float bottom) {
+        mBottom = bottom;
     }
 
     /**

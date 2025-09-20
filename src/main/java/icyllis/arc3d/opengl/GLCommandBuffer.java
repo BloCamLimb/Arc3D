@@ -257,8 +257,8 @@ public final class GLCommandBuffer extends CommandBuffer {
                 mDevice.getGL().glBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer.getResolveFramebuffer());
                 var b = mContentBounds;
                 mDevice.getGL().glBlitFramebuffer(
-                        b.mLeft, b.mTop, b.mRight, b.mBottom, // src rect
-                        b.mLeft, b.mTop, b.mRight, b.mBottom, // dst rect
+                        b.left(), b.top(), b.right(), b.bottom(), // src rect
+                        b.left(), b.top(), b.right(), b.bottom(), // dst rect
                         GL_COLOR_BUFFER_BIT, GL_NEAREST);
             }
         }

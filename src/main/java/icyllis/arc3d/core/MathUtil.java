@@ -468,7 +468,7 @@ public class MathUtil {
      *
      * @return true if no member is infinite or NaN
      */
-    @SuppressWarnings("PointlessArithmeticExpression")
+    @SuppressWarnings({"PointlessArithmeticExpression", "ExpressionComparedToItself"})
     public static boolean isFinite(float v0, float v1, float v2, float v3) {
         float prod = v0 - v0;
         prod = prod * v1 * v2 * v3;
@@ -481,7 +481,7 @@ public class MathUtil {
      *
      * @return true if no member is infinite or NaN
      */
-    @SuppressWarnings("PointlessArithmeticExpression")
+    @SuppressWarnings({"PointlessArithmeticExpression", "ExpressionComparedToItself"})
     public static boolean isFinite(float v0, float v1, float v2,
                                    float v3, float v4, float v5) {
         float prod = v0 - v0;
@@ -495,7 +495,7 @@ public class MathUtil {
      *
      * @return true if no member is infinite or NaN
      */
-    @SuppressWarnings("PointlessArithmeticExpression")
+    @SuppressWarnings({"PointlessArithmeticExpression", "ExpressionComparedToItself"})
     public static boolean isFinite(float v0, float v1, float v2,
                                    float v3, float v4, float v5,
                                    float v6, float v7, float v8) {
@@ -510,7 +510,7 @@ public class MathUtil {
      *
      * @return true if no member is infinite or NaN
      */
-    @SuppressWarnings("PointlessArithmeticExpression")
+    @SuppressWarnings({"PointlessArithmeticExpression", "ExpressionComparedToItself"})
     public static boolean isFinite(float[] values, int offset, int count) {
         assert count > 0;
         // Subtracting a value from itself will result in zero, except for NAN or ±Inf, which make NAN.

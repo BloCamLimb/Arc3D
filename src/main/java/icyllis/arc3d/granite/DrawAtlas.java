@@ -520,10 +520,9 @@ public class DrawAtlas implements AutoCloseable {
             }
             // Clamp to 4-byte aligned boundaries
             int clearBits = 0x3 / mBytesPerPixel;
-            mDirtyRect.mLeft &= ~clearBits;
-            mDirtyRect.mRight += clearBits;
-            mDirtyRect.mRight &= ~clearBits;
-            assert (mDirtyRect.mRight <= mWidth);
+            mDirtyRect.left ( mDirtyRect.left() & ~clearBits);
+            mDirtyRect.right((mDirtyRect.right() + clearBits) & ~clearBits);
+            assert (mDirtyRect.right() <= mWidth);
             // Set up pointer
             long dstAddr = mData;
             dstAddr += (long) mBytesPerPixel * mWidth * mDirtyRect.y();

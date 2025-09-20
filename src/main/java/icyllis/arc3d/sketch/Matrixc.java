@@ -360,7 +360,7 @@ public sealed interface Matrixc permits Matrix {
      * Map a rectangle points in the X-Y plane to get the maximum bounds.
      */
     default void mapRect(@NonNull Rect2i r) {
-        mapRect(r.mLeft, r.mTop, r.mRight, r.mBottom, r);
+        mapRect(r.left(), r.top(), r.right(), r.bottom(), r);
     }
 
     /**
@@ -392,7 +392,7 @@ public sealed interface Matrixc permits Matrix {
      * Map a rectangle points in the X-Y plane to get the maximum bounds.
      */
     default void mapRectOut(@NonNull Rect2i r) {
-        mapRectOut(r.mLeft, r.mTop, r.mRight, r.mBottom, r);
+        mapRectOut(r.left(), r.top(), r.right(), r.bottom(), r);
     }
 
     /**
