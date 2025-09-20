@@ -28,6 +28,7 @@ import org.jspecify.annotations.NonNull;
  *
  * @see System#identityHashCode(Object)
  */
+@Deprecated
 public final class UniqueID {
 
     public UniqueID() {

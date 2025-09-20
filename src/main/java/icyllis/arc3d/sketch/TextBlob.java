@@ -433,7 +433,7 @@ public final class TextBlob {
 
     /**
      * Special implementation of equals. In addition to strong reference equality,
-     * it can also be compared with Reference.
+     * it can also be compared with Reference. See {@link icyllis.arc3d.core.WeakIdentityKey}.
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Override

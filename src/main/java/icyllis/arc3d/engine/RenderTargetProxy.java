@@ -143,9 +143,9 @@ public final class RenderTargetProxy extends SurfaceProxy {
 
     @Override
     public UniqueID getBackingUniqueID() {
-        if (mGpuSurface != null) {
+        /*if (mGpuSurface != null) {
             return mGpuSurface.getUniqueID();
-        }
+        }*/
         return mUniqueID;
     }
 

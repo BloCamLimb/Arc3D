@@ -156,7 +156,7 @@ public abstract class Resource implements RefCounted {
 
     @NonNull
     private volatile String mLabel = "";
-    private final UniqueID mUniqueID = new UniqueID();
+    private final WeakIdentityKey<@RawPtr Resource> mUniqueID;
 
     @SuppressWarnings("AssertWithSideEffects")
     protected Resource(Context context,
@@ -166,6 +166,7 @@ public abstract class Resource implements RefCounted {
         mContext = context;
         mWrapped = wrapped;
         mMemorySize = memorySize;
+        mUniqueID = new WeakIdentityKey<>(this);
         assert TRACKER.put(this, Boolean.TRUE) == null;
     }
 
@@ -354,11 +355,11 @@ public abstract class Resource implements RefCounted {
     /**
      * Gets a tag that is unique for this Resource object. It is static in that it does
      * not change when the content of the Resource object changes. It has identity and
-     * never hold a reference to this Resource object, so it can be used to track state
+     * never hold a strong reference to this Resource object, so it can be used to track state
      * changes through '=='.
      */
     @NonNull
-    public UniqueID getUniqueID() {
+    public final WeakIdentityKey<@RawPtr Resource> getUniqueID() {
         return mUniqueID;
     }
 

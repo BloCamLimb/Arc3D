@@ -19,11 +19,13 @@
 
 package icyllis.arc3d.granite;
 
+import icyllis.arc3d.core.WeakIdentityKey;
 import icyllis.arc3d.sketch.Canvas;
 import icyllis.arc3d.sketch.GlyphRunList;
 import icyllis.arc3d.sketch.Matrixc;
 import icyllis.arc3d.sketch.Paint;
 import icyllis.arc3d.sketch.StrikeCache;
+import icyllis.arc3d.sketch.TextBlob;
 import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
 
@@ -49,7 +51,7 @@ public final class BakedTextBlob {
     BakedTextBlob mPrev;
     BakedTextBlob mNext;
     // accessed by cache
-    TextBlobCache.PrimaryKey mPrimaryKey;
+    WeakIdentityKey<TextBlob> mPrimaryKey;
     TextBlobCache.FeatureKey mFeatureKey;
 
     private final SubRunContainer mSubRuns;

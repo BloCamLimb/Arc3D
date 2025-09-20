@@ -19,6 +19,7 @@
 
 package icyllis.arc3d.granite;
 
+import icyllis.arc3d.core.WeakIdentityKey;
 import icyllis.arc3d.sketch.GlyphRunList;
 import icyllis.arc3d.sketch.Matrixc;
 import icyllis.arc3d.sketch.Paint;
@@ -178,39 +179,11 @@ public final class TextBlobCache {
         }
     }
 
+    private final Object mLock = new Object();
+
     /**
      * Primary cache key, identity weak reference, see {@link TextBlob#equals(Object)}
      */
-    static final class PrimaryKey extends WeakReference<TextBlob> {
-
-        private final int hash;
-
-        PrimaryKey(TextBlob referent, ReferenceQueue<TextBlob> q) {
-            super(referent, q);
-            hash = referent.hashCode();
-        }
-
-        @Override
-        public int hashCode() {
-            return hash;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            // use WeakReference identity
-            if (this == o) {
-                return true;
-            }
-            // use TextBlob identity
-            if (o instanceof Reference<?> r) {
-                return get() == r.get();
-            }
-            return false;
-        }
-    }
-
-    private final Object mLock = new Object();
-
     private final HashMap<Object, Bucket> mMap = new HashMap<>();
     private final ReferenceQueue<TextBlob> mQueue = new ReferenceQueue<>();
 
@@ -260,7 +233,7 @@ public final class TextBlobCache {
                                          @NonNull BakedTextBlob entry) {
         Bucket bucket = mMap.get(blob);
         if (bucket == null) {
-            PrimaryKey primaryKey = new PrimaryKey(blob, mQueue);
+            WeakIdentityKey<TextBlob> primaryKey = new WeakIdentityKey<>(blob, mQueue);
             bucket = new Bucket(primaryKey);
             mMap.put(primaryKey, bucket);
             assert mMap.get(blob) == bucket;
@@ -386,13 +359,13 @@ public final class TextBlobCache {
 
     private static class Bucket {
 
-        final PrimaryKey mPrimaryKey;
+        final WeakIdentityKey<TextBlob> mPrimaryKey;
 
         // If there are not too many entries, use linear search, otherwise use HashMap
         private ObjectArrayList<BakedTextBlob> mList = new ObjectArrayList<>(8);
         private HashMap<FeatureKey, BakedTextBlob> mMap;
 
-        Bucket(PrimaryKey primaryKey) {
+        Bucket(WeakIdentityKey<TextBlob> primaryKey) {
             mPrimaryKey = primaryKey;
         }
 

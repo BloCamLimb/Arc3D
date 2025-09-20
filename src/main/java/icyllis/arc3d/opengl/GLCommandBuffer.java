@@ -94,8 +94,8 @@ public final class GLCommandBuffer extends CommandBuffer {
     private int mHWActiveTextureUnit;
 
     // [Unit][ImageType]
-    private final UniqueID[][] mHWTextureStates;
-    private final UniqueID[] mHWSamplerStates;
+    private final WeakIdentityKey<?>[][] mHWTextureStates;
+    private final WeakIdentityKey<?>[] mHWSamplerStates;
 
     // current pipeline state
     @RawPtr
@@ -121,8 +121,8 @@ public final class GLCommandBuffer extends CommandBuffer {
         mResourceProvider = resourceProvider;
 
         int maxTextureUnits = device.getCaps().shaderCaps().mMaxFragmentSamplers;
-        mHWTextureStates = new UniqueID[maxTextureUnits][Engine.ImageType.kCount];
-        mHWSamplerStates = new UniqueID[maxTextureUnits];
+        mHWTextureStates = new WeakIdentityKey<?>[maxTextureUnits][Engine.ImageType.kCount];
+        mHWSamplerStates = new WeakIdentityKey<?>[maxTextureUnits];
 
         resetStates();
     }
@@ -156,7 +156,7 @@ public final class GLCommandBuffer extends CommandBuffer {
         mHWBackStencil = null;
 
         mHWActiveTextureUnit = -1;
-        for (UniqueID[] textures : mHWTextureStates) {
+        for (var textures : mHWTextureStates) {
             Arrays.fill(textures, null);
         }
         Arrays.fill(mHWSamplerStates, null);

@@ -21,12 +21,12 @@ package icyllis.arc3d.engine;
 
 import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.Size;
+import icyllis.arc3d.core.WeakIdentityKey;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.jetbrains.annotations.ApiStatus;
 
 import javax.annotation.concurrent.Immutable;
-import java.lang.ref.WeakReference;
 import java.util.Objects;
 
 /**
@@ -63,21 +63,15 @@ public final class FramebufferDesc {
     @Immutable
     public static final class ColorAttachmentDesc {
         @Nullable
-        public final WeakReference<@RawPtr Image> mAttachment;
+        public final WeakIdentityKey<@RawPtr Resource> mAttachment;
         @Nullable
-        public final WeakReference<@RawPtr Image> mResolveAttachment;
-        @Nullable
-        public final UniqueID mAttachmentID;
-        @Nullable
-        public final UniqueID mResolveAttachmentID;
+        public final WeakIdentityKey<@RawPtr Resource> mResolveAttachment;
         public final int mMipLevel;
         public final int mArraySlice;
 
         public ColorAttachmentDesc() {
             mAttachment = null;
-            mAttachmentID = null;
             mResolveAttachment = null;
-            mResolveAttachmentID = null;
             mMipLevel = 0;
             mArraySlice = 0;
         }
@@ -86,35 +80,30 @@ public final class FramebufferDesc {
                                    @Nullable @RawPtr Image resolveAttachment,
                                    int mipLevel, int arraySlice) {
             if (attachment != null) {
-                mAttachment = new WeakReference<>(attachment);
-                mAttachmentID = attachment.getUniqueID();
+                mAttachment = attachment.getUniqueID();
             } else {
                 mAttachment = null;
-                mAttachmentID = null;
             }
             if (resolveAttachment != null) {
-                mResolveAttachment = new WeakReference<>(resolveAttachment);
-                mResolveAttachmentID = resolveAttachment.getUniqueID();
+                mResolveAttachment = resolveAttachment.getUniqueID();
             } else {
                 mResolveAttachment = null;
-                mResolveAttachmentID = null;
             }
             assert mipLevel >= 0 && arraySlice >= 0;
             mMipLevel = mipLevel;
             mArraySlice = arraySlice;
         }
 
-        @SuppressWarnings("DataFlowIssue")
         public boolean isStale() {
-            Image e;
-            return (mAttachmentID != null && ((e = mAttachment.get()) == null || e.isDestroyed())) ||
-                    (mResolveAttachmentID != null && ((e = mResolveAttachment.get()) == null || e.isDestroyed()));
+            @RawPtr Resource e;
+            return (mAttachment != null && ((e = mAttachment.get()) == null || e.isDestroyed())) ||
+                    (mResolveAttachment != null && ((e = mResolveAttachment.get()) == null || e.isDestroyed()));
         }
 
         @Override
         public int hashCode() {
-            int result = Objects.hashCode(mAttachmentID);
-            result = 31 * result + Objects.hashCode(mResolveAttachmentID);
+            int result = Objects.hashCode(mAttachment);
+            result = 31 * result + Objects.hashCode(mResolveAttachment);
             result = 31 * result + mMipLevel;
             result = 31 * result + mArraySlice;
             return result;
@@ -126,8 +115,8 @@ public final class FramebufferDesc {
             if (o instanceof ColorAttachmentDesc that) {
                 return mMipLevel == that.mMipLevel &&
                         mArraySlice == that.mArraySlice &&
-                        mAttachmentID == that.mAttachmentID &&
-                        mResolveAttachmentID == that.mResolveAttachmentID;
+                        mAttachment == that.mAttachment &&
+                        mResolveAttachment == that.mResolveAttachment;
             }
             return false;
         }
@@ -140,41 +129,35 @@ public final class FramebufferDesc {
     @Immutable
     public static final class DepthStencilAttachmentDesc {
         @Nullable
-        public final WeakReference<@RawPtr Image> mAttachment;
-        @Nullable
-        public final UniqueID mAttachmentID;
+        public final WeakIdentityKey<@RawPtr Resource> mAttachment;
 
         public DepthStencilAttachmentDesc() {
             mAttachment = null;
-            mAttachmentID = null;
         }
 
         public DepthStencilAttachmentDesc(@Nullable @RawPtr Image attachment) {
             if (attachment != null) {
-                mAttachment = new WeakReference<>(attachment);
-                mAttachmentID = attachment.getUniqueID();
+                mAttachment = attachment.getUniqueID();
             } else {
                 mAttachment = null;
-                mAttachmentID = null;
             }
         }
 
-        @SuppressWarnings("DataFlowIssue")
         public boolean isStale() {
-            Image e;
-            return (mAttachmentID != null && ((e = mAttachment.get()) == null || e.isDestroyed()));
+            @RawPtr Resource e;
+            return (mAttachment != null && ((e = mAttachment.get()) == null || e.isDestroyed()));
         }
 
         @Override
         public int hashCode() {
-            return Objects.hashCode(mAttachmentID);
+            return Objects.hashCode(mAttachment);
         }
 
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
             if (o instanceof DepthStencilAttachmentDesc that) {
-                return mAttachmentID == that.mAttachmentID;
+                return mAttachment == that.mAttachment;
             }
             return false;
         }
@@ -204,8 +187,7 @@ public final class FramebufferDesc {
     }
 
     public FramebufferDesc(int width, int height, int sampleCount,
-                           @NonNull @Size(max = Caps.MAX_COLOR_TARGETS) ColorAttachmentDesc
-                           @Nullable [] colorAttachments,
+                           @NonNull @Size(max = Caps.MAX_COLOR_TARGETS) ColorAttachmentDesc @Nullable [] colorAttachments,
                            @Nullable DepthStencilAttachmentDesc depthStencilAttachment) {
         mWidth = width;
         mHeight = height;

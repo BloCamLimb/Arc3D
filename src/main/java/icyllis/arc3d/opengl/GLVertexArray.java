@@ -55,10 +55,10 @@ public final class GLVertexArray extends ManagedResource {
 
     // this is the binding state stored in VAO, not context
     // (we don't care about context's binding state)
-    private UniqueID mBoundIndexBuffer;
+    private WeakIdentityKey<?> mBoundIndexBuffer;
 
     // per-binding binding state
-    private final UniqueID[] mBoundBuffers;
+    private final WeakIdentityKey<?>[] mBoundBuffers;
     private final long[] mBoundOffsets;
 
     private GLVertexArray(GLDevice device,
@@ -74,7 +74,7 @@ public final class GLVertexArray extends ManagedResource {
         mStrides = strides;
         mInputRates = inputRates;
         mAttributes = attributes;
-        mBoundBuffers = new UniqueID[strides.length];
+        mBoundBuffers = new WeakIdentityKey<?>[strides.length];
         mBoundOffsets = new long[strides.length];
     }
 

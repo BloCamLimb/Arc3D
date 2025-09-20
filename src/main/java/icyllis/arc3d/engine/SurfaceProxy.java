@@ -142,7 +142,7 @@ public abstract class SurfaceProxy extends RefCnt {
         mHeight = surface.getHeight();
         mSurfaceFlags = surface.getSurfaceFlags() | surfaceFlags;
         assert (mSurfaceFlags & ISurface.FLAG_APPROX_FIT) == 0;
-        mUniqueID = surface.getUniqueID(); // converting from unique resource ID to a surface ID
+        mUniqueID = new UniqueID();//surface.getUniqueID(); // converting from unique resource ID to a surface ID
     }
 
     public static class LazyCallbackResult {
