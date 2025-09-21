@@ -121,8 +121,8 @@ public class VaryingHandler {
         int locationIndex = 0;
         for (var v : mVaryings) {
             String layoutQualifier;
-            if (mShaderCaps.mUseVaryingLocation) {
-                // ARB_enhanced_layouts or GLSL 440
+            if (mShaderCaps.mVaryingLocationSupport) {
+                // ARB_separate_shader_objects or GLSL 4.10 or GLSL ES 3.1
                 layoutQualifier = "location = " + locationIndex;
             } else {
                 layoutQualifier = "";

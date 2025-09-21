@@ -28,10 +28,10 @@ import org.lwjgl.opengl.*;
 import org.lwjgl.system.APIUtil;
 import org.lwjgl.system.MemoryStack;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.slf4j.helpers.NOPLogger;
 
 import java.nio.*;
+import java.util.ArrayList;
 import java.util.Objects;
 
 import static org.lwjgl.opengl.GL11C.*;
@@ -60,52 +60,59 @@ public final class GLCaps_GL extends GLCaps implements GLInterface {
             throw new UnsupportedOperationException("OpenGL 3.2 is unavailable");
         }
         if (!caps.OpenGL33) {
+            ArrayList<String> missingExtensions = new ArrayList<>();
             if (!caps.GL_ARB_sampler_objects) {
-                MISSING_EXTENSIONS.add("ARB_sampler_objects");
+                missingExtensions.add("ARB_sampler_objects");
             }
             if (!caps.GL_ARB_explicit_attrib_location) {
-                MISSING_EXTENSIONS.add("ARB_explicit_attrib_location");
+                missingExtensions.add("ARB_explicit_attrib_location");
             }
             if (!caps.GL_ARB_instanced_arrays) {
-                MISSING_EXTENSIONS.add("ARB_instanced_arrays");
+                missingExtensions.add("ARB_instanced_arrays");
             }
             if (!caps.GL_ARB_texture_swizzle) {
-                MISSING_EXTENSIONS.add("ARB_texture_swizzle");
+                missingExtensions.add("ARB_texture_swizzle");
             }
             // OpenGL 3.3 is the minimum requirement
             // Note that having these extensions does not mean OpenGL 3.3 is available
             // But these are required and they are available in OpenGL ES 3.0
-            if (!MISSING_EXTENSIONS.isEmpty()) {
-                throw new UnsupportedOperationException("Missing required extensions: " + MISSING_EXTENSIONS);
+            if (!missingExtensions.isEmpty()) {
+                throw new UnsupportedOperationException("Missing required extensions: " + missingExtensions);
             }
         }
         Logger logger = Objects.requireNonNullElse(options.mLogger, NOPLogger.NOP_LOGGER);
 
-        int glslVersion;
+        int glslVersion = 0;
         String glslVersionString = glGetString(GL_SHADING_LANGUAGE_VERSION);
         try {
             assert glslVersionString != null;
             var ver = APIUtil.apiParseVersion(glslVersionString);
-            glslVersion = ver.major * 100 + (ver.minor < 10 ? ver.minor * 10 : ver.minor);
+            glslVersion = ver.major * 100 + ver.minor;
         } catch (Throwable e) {
-            if (caps.OpenGL46) {
-                glslVersion = 460;
-            } else if (caps.OpenGL45) {
-                glslVersion = 450;
-            } else if (caps.OpenGL44) {
-                glslVersion = 440;
-            } else if (caps.OpenGL43) {
-                glslVersion = 430;
-            } else if (caps.OpenGL42) {
-                glslVersion = 420;
-            } else if (caps.OpenGL41) {
-                glslVersion = 410;
-            } else if (caps.OpenGL40) {
-                glslVersion = 400;
-            } else {
-                glslVersion = 330;
-            }
             logger.error("Malformed GLSL version string", e);
+        }
+        {
+            int glslVersionFromGL;
+            if (caps.OpenGL46) {
+                glslVersionFromGL = 460;
+            } else if (caps.OpenGL45) {
+                glslVersionFromGL = 450;
+            } else if (caps.OpenGL44) {
+                glslVersionFromGL = 440;
+            } else if (caps.OpenGL43) {
+                glslVersionFromGL = 430;
+            } else if (caps.OpenGL42) {
+                glslVersionFromGL = 420;
+            } else if (caps.OpenGL41) {
+                glslVersionFromGL = 410;
+            } else if (caps.OpenGL40) {
+                glslVersionFromGL = 400;
+            } else if (caps.OpenGL33) {
+                glslVersionFromGL = 330;
+            } else {
+                glslVersionFromGL = 150;
+            }
+            glslVersion = Math.max(glslVersion, glslVersionFromGL);
         }
         logger.debug("GLSL version string: {}, using {}", glslVersionString, glslVersion);
 
@@ -221,6 +228,8 @@ public final class GLCaps_GL extends GLCaps implements GLInterface {
             shaderCaps.mGLSLVersion = GLSLVersion.GLSL_430;
         } else if (glslVersion >= 420) {
             shaderCaps.mGLSLVersion = GLSLVersion.GLSL_420;
+        } else if (glslVersion >= 410) {
+            shaderCaps.mGLSLVersion = GLSLVersion.GLSL_410;
         } else if (glslVersion >= 400) {
             shaderCaps.mGLSLVersion = GLSLVersion.GLSL_400;
         } else {
@@ -243,19 +252,19 @@ public final class GLCaps_GL extends GLCaps implements GLInterface {
         shaderCaps.mMaxFragmentSamplers = Math.min(32, glGetInteger(GL_MAX_TEXTURE_IMAGE_UNITS));
 
         if (caps.GL_NV_blend_equation_advanced_coherent) {
-            mBlendEquationSupport = Caps.BlendEquationSupport.ADVANCED_COHERENT;
+            mBlendEquationSupport = BlendEquationSupport.ADVANCED_COHERENT;
             shaderCaps.mAdvBlendEqInteraction = ShaderCaps.Automatic_AdvBlendEqInteraction;
             logger.info("Use NV_blend_equation_advanced_coherent");
         } else if (caps.GL_KHR_blend_equation_advanced_coherent) {
-            mBlendEquationSupport = Caps.BlendEquationSupport.ADVANCED_COHERENT;
+            mBlendEquationSupport = BlendEquationSupport.ADVANCED_COHERENT;
             mShaderCaps.mAdvBlendEqInteraction = ShaderCaps.GeneralEnable_AdvBlendEqInteraction;
             logger.info("Use KHR_blend_equation_advanced_coherent");
         } else if (caps.GL_NV_blend_equation_advanced) {
-            mBlendEquationSupport = Caps.BlendEquationSupport.ADVANCED;
+            mBlendEquationSupport = BlendEquationSupport.ADVANCED;
             mShaderCaps.mAdvBlendEqInteraction = ShaderCaps.Automatic_AdvBlendEqInteraction;
             logger.info("Use NV_blend_equation_advanced");
         } else if (caps.GL_KHR_blend_equation_advanced) {
-            mBlendEquationSupport = Caps.BlendEquationSupport.ADVANCED;
+            mBlendEquationSupport = BlendEquationSupport.ADVANCED;
             mShaderCaps.mAdvBlendEqInteraction = ShaderCaps.GeneralEnable_AdvBlendEqInteraction;
             logger.info("Use KHR_blend_equation_advanced");
         }
@@ -334,19 +343,42 @@ public final class GLCaps_GL extends GLCaps implements GLInterface {
         // Desktop
         shaderCaps.mNonConstantArrayIndexSupport = true;
         // GLSL 400
-        shaderCaps.mBitManipulationSupport = version.isAtLeast(GLSLVersion.GLSL_400);
-        // GLSL 400
-        shaderCaps.mFMASupport = version.isAtLeast(GLSLVersion.GLSL_400);
+        if (version.isAtLeast(GLSLVersion.GLSL_400)) {
+            shaderCaps.mBitManipulationSupport = true;
+            shaderCaps.mFMASupport = true;
+        } else if (caps.GL_ARB_gpu_shader5) {
+            shaderCaps.mBitManipulationSupport = true;
+            shaderCaps.mBitManipulationExtension = "GL_ARB_gpu_shader5";
+            shaderCaps.mFMASupport = true;
+            shaderCaps.mFMAExtension = "GL_ARB_gpu_shader5";
+        } else {
+            shaderCaps.mBitManipulationSupport = false;
+            shaderCaps.mFMASupport = false;
+        }
         // GLSL 400
         shaderCaps.mTextureQueryLod = version.isAtLeast(GLSLVersion.GLSL_400);
 
+        // GLSL 410
+        if (version.isAtLeast(GLSLVersion.GLSL_410)) {
+            shaderCaps.mVaryingLocationSupport = true;
+        } else if (caps.GL_ARB_separate_shader_objects) {
+            shaderCaps.mVaryingLocationSupport = true;
+            shaderCaps.mVaryingLocationExtension = "GL_ARB_separate_shader_objects";
+        } else {
+            shaderCaps.mVaryingLocationSupport = false;
+        }
+
         // GLSL 420
-        shaderCaps.mUseUniformBinding = (caps.OpenGL42 || caps.GL_ARB_shading_language_420pack) &&
-                version.isAtLeast(GLSLVersion.GLSL_420);
+        if (version.isAtLeast(GLSLVersion.GLSL_420)) {
+            shaderCaps.mUniformBindingSupport = true;
+        } else if (caps.GL_ARB_shading_language_420pack) {
+            shaderCaps.mUniformBindingSupport = true;
+            shaderCaps.mUniformBindingExtension = "GL_ARB_shading_language_420pack";
+        } else {
+            shaderCaps.mUniformBindingSupport = false;
+        }
         // GLSL 440
-        shaderCaps.mUseVaryingLocation = (caps.OpenGL44 || caps.GL_ARB_enhanced_layouts) &&
-                version.isAtLeast(GLSLVersion.GLSL_440);
-        shaderCaps.mUseBlockMemberOffset = shaderCaps.mUseVaryingLocation;
+        shaderCaps.mUseBlockMemberOffset = version.isAtLeast(GLSLVersion.GLSL_440);
         shaderCaps.mUsePrecisionModifiers = false;
     }
 

@@ -21,7 +21,9 @@ package icyllis.arc3d.test;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;
+import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
@@ -34,6 +36,7 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 import java.util.ArrayList;
 import java.util.List;
 
+@Fork(2)
 @Warmup(iterations = 3, time = 1)
 @Measurement(iterations = 5, time = 1)
 @State(Scope.Thread)
@@ -48,16 +51,19 @@ public class TestIterator {
                 .run();
     }
 
+    @Param({"10", "100", "1000"})
+    private int size;
+
     private List<String> list;
     private List<String> list2;
 
     @Setup
     public void setup() {
         list = new ArrayList<>();
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < size; i++) {
             list.add(String.valueOf(i));
         }
-        list = (List<String>) (List) List.of(list.toArray());
+        //list = (List<String>) (List) List.of(list.toArray());
         list2 = new ObjectArrayList<>(list);
     }
 
@@ -68,12 +74,27 @@ public class TestIterator {
         }
     }
 
-    @Benchmark
-    public void foriObject(Blackhole blackhole) {
-        for (int i = 0, e = list2.size(); i < e; i++) {
-            blackhole.consume(list2.get(i));
+    /*@Benchmark
+    public void fori_nocache(Blackhole blackhole) {
+        for (int i = 0; i < list.size(); i++) {
+            blackhole.consume(list.get(i));
         }
     }
+
+    @Benchmark
+    public void fori_stack(Blackhole blackhole) {
+        List<String> list = this.list;
+        for (int i = 0; i < list.size(); i++) {
+            blackhole.consume(list.get(i));
+        }
+    }
+
+    @Benchmark
+    public void foriObject(Blackhole blackhole) {
+        for (int i = 0; i < list2.size(); i++) {
+            blackhole.consume(list2.get(i));
+        }
+    }*/
 
     @Benchmark
     public void enhancedFor(Blackhole blackhole) {
@@ -82,7 +103,7 @@ public class TestIterator {
         }
     }
 
-    @Benchmark
+    /*@Benchmark
     public void enhancedForObject(Blackhole blackhole) {
         for (var s : list2) {
             blackhole.consume(s);
@@ -95,5 +116,5 @@ public class TestIterator {
         for (int i = 0, e = list2.size(); i < e; i++) {
             blackhole.consume(es[i]);
         }
-    }
+    }*/
 }

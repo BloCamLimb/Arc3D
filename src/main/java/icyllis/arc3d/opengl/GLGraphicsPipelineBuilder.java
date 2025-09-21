@@ -28,6 +28,7 @@ import icyllis.arc3d.core.SharedPtr;
 import icyllis.arc3d.engine.BlendInfo;
 import icyllis.arc3d.engine.DepthStencilSettings;
 import icyllis.arc3d.engine.PipelineDesc;
+import icyllis.arc3d.engine.ShaderCaps;
 import icyllis.arc3d.engine.VertexInputLayout;
 import org.jspecify.annotations.NonNull;
 import org.lwjgl.BufferUtils;
@@ -36,6 +37,7 @@ import org.lwjgl.system.MemoryUtil;
 
 import java.lang.ref.Reference;
 import java.nio.ByteBuffer;
+import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
 
 import static org.lwjgl.opengl.GL20C.*;
@@ -93,7 +95,22 @@ public class GLGraphicsPipelineBuilder {
         mPipelineLabel = info.mPipelineLabel;
         ShaderCompiler compiler = new ShaderCompiler();
         CompileOptions options = new CompileOptions();
-        options.mUsePrecisionQualifiers = mDevice.getCaps().shaderCaps().mUsePrecisionModifiers;
+        ShaderCaps shaderCaps = mDevice.getCaps().shaderCaps();
+        options.mUsePrecisionQualifiers = shaderCaps.mUsePrecisionModifiers;
+        HashMap<String, String> extensions = new HashMap<>();
+        if (shaderCaps.mBitManipulationExtension != null) {
+            extensions.put(shaderCaps.mBitManipulationExtension, "require");
+        }
+        if (shaderCaps.mFMAExtension != null) {
+            extensions.put(shaderCaps.mFMAExtension, "require");
+        }
+        if (shaderCaps.mUniformBindingExtension != null) {
+            extensions.put(shaderCaps.mUniformBindingExtension, "require");
+        }
+        if (shaderCaps.mVaryingLocationExtension != null) {
+            extensions.put(shaderCaps.mVaryingLocationExtension, "require");
+        }
+        options.mExtensions = extensions;
 
         boolean success = true;
         if (!info.mFragSource.isEmpty()) {
@@ -105,9 +122,9 @@ public class GLGraphicsPipelineBuilder {
                 success = false;
             } else {
                 if (mDevice.getCaps().hasSPIRVSupport()) {
-                    mFinalizedFragSPIRV = compiler.generateSPIRV(fragmentProgram, mDevice.getCaps().shaderCaps());
+                    mFinalizedFragSPIRV = compiler.generateSPIRV(fragmentProgram, shaderCaps);
                 } else {
-                    mFinalizedFragGLSL = compiler.generateGLSL(fragmentProgram, mDevice.getCaps().shaderCaps());
+                    mFinalizedFragGLSL = compiler.generateGLSL(fragmentProgram, shaderCaps);
                 }
                 if (mFinalizedFragGLSL == null && mFinalizedFragSPIRV == null) {
                     GLUtil.handleCompileError(mDevice.getLogger(),
@@ -117,7 +134,7 @@ public class GLGraphicsPipelineBuilder {
             }
         } else if (mDevice.getCaps().isGLES()) {
             // OpenGL ES requires both a vertex shader and fragment shader, create a simple shader
-            String trivialFragGLSL = mDevice.getCaps().shaderCaps().mGLSLVersion.mVersionDecl + """
+            String trivialFragGLSL = shaderCaps.mGLSLVersion.mVersionDecl + """
                     void main() {
                     }
                     """;
@@ -132,9 +149,9 @@ public class GLGraphicsPipelineBuilder {
                         info.mVertSource, compiler.getErrorMessage());
             } else {
                 if (mDevice.getCaps().hasSPIRVSupport()) {
-                    mFinalizedVertSPIRV = compiler.generateSPIRV(vertexProgram, mDevice.getCaps().shaderCaps());
+                    mFinalizedVertSPIRV = compiler.generateSPIRV(vertexProgram, shaderCaps);
                 } else {
-                    mFinalizedVertGLSL = compiler.generateGLSL(vertexProgram, mDevice.getCaps().shaderCaps());
+                    mFinalizedVertGLSL = compiler.generateGLSL(vertexProgram, shaderCaps);
                 }
                 if (mFinalizedVertGLSL == null && mFinalizedVertSPIRV == null) {
                     GLUtil.handleCompileError(mDevice.getLogger(),
@@ -322,7 +339,7 @@ public class GLGraphicsPipelineBuilder {
         }
 
         // Setup layout bindings if < OpenGL 4.2
-        if (!mDevice.getCaps().shaderCaps().mUseUniformBinding) {
+        if (!mDevice.getCaps().shaderCaps().mUniformBindingSupport) {
             if (mUniformBlockInfos != null) {
                 for (var info : mUniformBlockInfos) {
                     if (info.mVisibility != 0) {

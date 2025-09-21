@@ -38,12 +38,6 @@ import static org.lwjgl.opengl.GL43C.*;
  */
 public abstract class GLCaps extends Caps {
 
-    /**
-     * Contains missing extensions on the last creation of GPU.
-     * No synchronization.
-     */
-    public static final List<String> MISSING_EXTENSIONS = new ArrayList<>();
-
     GLUtil.GLVendor mVendor;
     GLUtil.GLDriver mDriver;
 
@@ -95,7 +89,6 @@ public abstract class GLCaps extends Caps {
 
     GLCaps(ContextOptions options) {
         super(options);
-        MISSING_EXTENSIONS.clear();
         mVolatileContext = options.mVolatileContext;
         // we currently don't use ARB_clip_control
         //TODO we need to make this a context option,

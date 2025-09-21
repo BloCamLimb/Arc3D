@@ -44,8 +44,13 @@ public class ShaderCaps extends icyllis.arc3d.compiler.ShaderCaps {
     // Returns true if `expr` in `myArray[expr]` can be any integer expression. If false, `expr`
     // must be a constant-index-expression as defined in the OpenGL ES2 specification, Appendix A.5.
     public boolean mNonConstantArrayIndexSupport = true;
+
     // frexp(), ldexp(), findMSB(), findLSB().
     public boolean mBitManipulationSupport = false;
+    public String mBitManipulationExtension = null;
+
+    public String mFMAExtension = null;
+
     public boolean mNoPerspectiveInterpolationSupport = false;
     // Use a reduced set of rendering algorithms or less optimal effects in order to reduce the
     // number of unique shaders generated.
@@ -58,18 +63,20 @@ public class ShaderCaps extends icyllis.arc3d.compiler.ShaderCaps {
     public boolean mTextureQueryLod = false;
 
     /**
+     * True if either OpenGL 4.1 or OpenGL ES 3.1 is supported.
+     * <p>
+     * Add location for interface matching between shader stages.
+     */
+    public boolean mVaryingLocationSupport = true;
+    public String mVaryingLocationExtension = null;
+
+    /**
      * True if either OpenGL 4.2 or OpenGL ES 3.1 is supported.
      * <p>
      * Add binding on uniform block and samplers.
      */
-    public boolean mUseUniformBinding = true;
-
-    /**
-     * True if either OpenGL 4.4 or OpenGL ES 3.2 is supported.
-     * <p>
-     * Add location for interface matching between shader stages.
-     */
-    public boolean mUseVaryingLocation = true;
+    public boolean mUniformBindingSupport = false;
+    public String mUniformBindingExtension = null;
 
     /**
      * True if OpenGL 4.4 is supported.
@@ -127,8 +134,8 @@ public class ShaderCaps extends icyllis.arc3d.compiler.ShaderCaps {
         out.append(prefix).append("NoPerspectiveInterpolationSupport: ").append(mNoPerspectiveInterpolationSupport).append('\n');
         out.append(prefix).append("ReducedShaderMode: ").append(mReducedShaderMode).append('\n');
         out.append(prefix).append("TextureQueryLod: ").append(mTextureQueryLod).append('\n');
-        out.append(prefix).append("UseUniformBinding: ").append(mUseUniformBinding).append('\n');
-        out.append(prefix).append("UseVaryingLocation: ").append(mUseVaryingLocation).append('\n');
+        out.append(prefix).append("UniformBindingSupport: ").append(mUniformBindingSupport).append('\n');
+        out.append(prefix).append("VaryingLocationSupport: ").append(mVaryingLocationSupport).append('\n');
         out.append(prefix).append("UseBlockMemberOffset: ").append(mUseBlockMemberOffset).append('\n');
         out.append(prefix).append("UsePrecisionModifiers: ").append(mUsePrecisionModifiers).append('\n');
         out.append(prefix).append("RequiresLocalOutputColorForFBFetch: ").append(mRequiresLocalOutputColorForFBFetch).append('\n');

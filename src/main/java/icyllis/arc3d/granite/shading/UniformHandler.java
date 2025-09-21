@@ -295,7 +295,7 @@ public class UniformHandler {
         int handle = mSamplers.size();
 
         String layoutQualifier;
-        if (mShaderCaps.mUseUniformBinding) {
+        if (mShaderCaps.mUniformBindingSupport) {
             // ARB_shading_language_420pack
             // equivalent to setting texture unit to index
             layoutQualifier = "binding = " + handle;
@@ -402,7 +402,7 @@ public class UniformHandler {
         if (firstVisible) {
             out.append("layout(");
             out.append(mLayout == Std430Layout ? "std430" : "std140");
-            if (mShaderCaps.mUseUniformBinding) {
+            if (mShaderCaps.mUniformBindingSupport) {
                 // ARB_shading_language_420pack
                 out.append(", binding = ");
                 out.append(binding);

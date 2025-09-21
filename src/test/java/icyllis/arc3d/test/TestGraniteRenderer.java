@@ -49,6 +49,7 @@ import org.lwjgl.opengles.GLES30;
 import org.lwjgl.stb.STBImage;
 import org.lwjgl.stb.STBImageWrite;
 import org.lwjgl.system.MemoryUtil;
+import org.lwjgl.util.tinyfd.TinyFileDialogs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -125,11 +126,12 @@ public class TestGraniteRenderer {
             GLFW.glfwWindowHint(GLFW.GLFW_CONTEXT_VERSION_MAJOR, 3);
             GLFW.glfwWindowHint(GLFW.GLFW_CONTEXT_VERSION_MINOR, 0);
         } else {
-            GLFW.glfwWindowHint(GLFW.GLFW_CLIENT_API, GLFW.GLFW_OPENGL_API);
-            GLFW.glfwWindowHint(GLFW.GLFW_CONTEXT_VERSION_MAJOR, 4);
-            GLFW.glfwWindowHint(GLFW.GLFW_CONTEXT_VERSION_MINOR, 5);
-            GLFW.glfwWindowHint(GLFW.GLFW_OPENGL_PROFILE, GLFW.GLFW_OPENGL_CORE_PROFILE);
-            GLFW.glfwWindowHint(GLFW.GLFW_OPENGL_FORWARD_COMPAT, GLFW.GLFW_TRUE);
+            glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
+            glfwWindowHint(GLFW_CONTEXT_CREATION_API, GLFW_NATIVE_CONTEXT_API);
+            glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+            glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+            glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+            glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
         }
         glfwWindowHint(GLFW_DEPTH_BITS, 0);
         glfwWindowHint(GLFW_STENCIL_BITS, 0);
@@ -456,7 +458,7 @@ public class TestGraniteRenderer {
                     null
             );
             RRect rrect = new RRect();
-            rrect.setRectXY(420, 480, 580, 520, 30, 30);
+            rrect.setRectXY(420, 480, 460, 520, 30, 30);
             mRRectShader = RRectShader.make(
                     rrect,
                     20, true, null
@@ -598,7 +600,7 @@ public class TestGraniteRenderer {
             final int nRects = 10000;
             //canvas.clear(0);
             canvas.save();
-            canvas.clear(0xFFF8F1F6);
+            canvas.clear(0xFFF8F1F6); // 0xFF37393E
             Paint paint = new Paint();
             if (TEST_SCENE == 0) {
                 Matrix4 mat = new Matrix4();
@@ -629,7 +631,7 @@ public class TestGraniteRenderer {
                     paint.setRGBA(mRandom.nextInt(256), mRandom.nextInt(256), mRandom.nextInt(256),
                             mRandom.nextInt(128));
                     canvas.drawRRect(rrect, paint);
-                    //canvas.drawArc(cx, cy, rad, 20, 130, paint);
+                    canvas.drawArc(cx, cy, rad, 20, 130, paint);
                     if ((i & 15) == 0) {
                         canvas.translate(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
                         canvas.rotate(1);
@@ -788,12 +790,13 @@ public class TestGraniteRenderer {
                 });*/
                 rrect.setRectXY(200, 100, 600, 500, 40, 40);
                 paint.setShader(null);
-                float z = (float) (12 * Math.sin(System.currentTimeMillis() / 500d));
+                float z = 3;//(float) (12 * Math.sin(System.currentTimeMillis() / 500d));
                 if (z > 0.001f) {
                     /*DrawShadowUtils.drawShadow(canvas,
                             rrect, 0, 0, z,
                             mSurface.getWidth() / 2f, 0, 600, 800,
                             0x1E000000, 0x30000000);*/
+                    // 0x5A000000, 0x90000000
                 }
                 paint.setColor4f(0.5f, 0.5f, 0.5f, 1);
                 paint.setShader(RefCnt.create(mTestShader1));
@@ -840,9 +843,9 @@ public class TestGraniteRenderer {
             } else if (TEST_SCENE == 2) {
                 Rect2f rect = new Rect2f();
                 rect.set(0, 0, canvas.getBaseLayerWidth(), canvas.getBaseLayerHeight());
-                int wid = (int) (rect.mRight / 3);
-                rect.mLeft = 2;
-                rect.mRight = wid - 2;
+                int wid = (int) (rect.right() / 3);
+                rect.left(2);
+                rect.right(wid - 2);
                 paint.setStyle(Paint.FILL);
 
                 paint.setShader(RefCnt.create(mTestShader1));

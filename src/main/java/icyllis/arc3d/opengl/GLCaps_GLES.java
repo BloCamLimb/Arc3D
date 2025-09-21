@@ -246,8 +246,8 @@ public final class GLCaps_GLES extends GLCaps implements GLInterface {
         // GLSL 320 ES
         shaderCaps.mFMASupport = version.isAtLeast(GLSLVersion.GLSL_320_ES);
 
-        shaderCaps.mUseUniformBinding = caps.GLES31;
-        shaderCaps.mUseVaryingLocation = caps.GLES32;
+        shaderCaps.mUniformBindingSupport = caps.GLES31;
+        shaderCaps.mVaryingLocationSupport = caps.GLES31;
         shaderCaps.mUseBlockMemberOffset = false; // Vulkan only
         shaderCaps.mUsePrecisionModifiers = true;
     }

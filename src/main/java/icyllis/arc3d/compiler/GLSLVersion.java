@@ -49,6 +49,10 @@ public enum GLSLVersion {
      */
     GLSL_400("#version 400 core\n"),
     /**
+     * GLSL version 4.10 core for OpenGL 4.1.
+     */
+    GLSL_410("#version 410 core\n"),
+    /**
      * GLSL version 4.20 core for OpenGL 4.2.
      */
     GLSL_420("#version 420 core\n"),

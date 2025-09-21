@@ -46,6 +46,7 @@ public final class GLSLCodeGenerator extends CodeGenerator {
     private boolean mAtLineStart = false;
 
     private final boolean mPrettyPrint;
+    private final ShaderCaps mCaps;
 
     public GLSLCodeGenerator(@NonNull Context context,
                              @NonNull TranslationUnit translationUnit,
@@ -54,6 +55,7 @@ public final class GLSLCodeGenerator extends CodeGenerator {
         mOutputTarget = Objects.requireNonNullElse(shaderCaps.mTargetApi, TargetApi.OPENGL_4_5);
         mOutputVersion = Objects.requireNonNullElse(shaderCaps.mGLSLVersion, GLSLVersion.GLSL_450);
         mPrettyPrint = !getContext().getOptions().mMinifyCode;
+        mCaps = shaderCaps;
     }
 
     @Override
@@ -85,10 +87,28 @@ public final class GLSLCodeGenerator extends CodeGenerator {
                 writeFunctionDefinition(functionDef);
             }
         }
+        CodeBuffer extensions = null;
+        if (!mTranslationUnit.getExtensions().isEmpty()) {
+            extensions = new CodeBuffer();
+            for (var e : mTranslationUnit.getExtensions()) {
+                var name = e.getKey();
+                var behavior = e.getValue();
+                if ("enable".equals(behavior) || "require".equals(behavior)) {
+                    extensions.writeString8("#extension ");
+                    extensions.writeString8(name);
+                    extensions.writeString8(" : require\n");
+                }
+            }
+        }
 
-        NativeOutput output = new NativeOutput(MathUtil.align4(body.size() + 20));
+        NativeOutput output = new NativeOutput(MathUtil.align4(body.size() +
+                (extensions != null ? extensions.size() : 0) +
+                20));
         mOutput = output;
         write(mOutputVersion.mVersionDecl);
+        if (extensions != null) {
+            output.writeString(extensions.elements(), extensions.size());
+        }
         output.writeString(body.elements(), body.size());
         mOutput = null;
         if (getContext().getErrorHandler().errorCount() != 0) {
@@ -578,8 +598,7 @@ public final class GLSLCodeGenerator extends CodeGenerator {
         switch (function.getIntrinsicKind()) {
             case IntrinsicList.kFma -> {
                 assert arguments.length == 3;
-                if ((mOutputVersion.isCoreProfile() && !mOutputVersion.isAtLeast(GLSLVersion.GLSL_400)) ||
-                        (mOutputVersion.isESProfile() && !mOutputVersion.isAtLeast(GLSLVersion.GLSL_320_ES))) {
+                if (!mCaps.mFMASupport) {
                     write("((");
                     writeExpression(arguments[0], Operator.PRECEDENCE_SEQUENCE);
                     if (mPrettyPrint) {
