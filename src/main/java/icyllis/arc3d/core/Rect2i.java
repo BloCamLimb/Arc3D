@@ -38,14 +38,9 @@ import org.jspecify.annotations.NonNull;
  * but not those of its bottom and right.
  */
 @SuppressWarnings("unused")
-public non-sealed class Rect2i implements Rect2ic {
+public non-sealed class Rect2i extends Rect2ic {
 
     private static final Rect2ic EMPTY = new Rect2i();
-
-    protected int mLeft;
-    protected int mTop;
-    protected int mRight;
-    protected int mBottom;
 
     /**
      * Create a new rectangle with all coordinates initialized to 0.
@@ -78,7 +73,7 @@ public non-sealed class Rect2i implements Rect2ic {
      *          rectangle
      */
     public Rect2i(@NonNull Rect2ic r) {
-        r.store(this);
+        set(r);
     }
 
     /**
@@ -89,7 +84,10 @@ public non-sealed class Rect2i implements Rect2ic {
      *          rectangle
      */
     public Rect2i(@NonNull Rect2fc r) {
-        r.store(this);
+        mLeft = (int) r.mLeft;
+        mTop = (int) r.mTop;
+        mRight = (int) r.mRight;
+        mBottom = (int) r.mBottom;
     }
 
     /**
@@ -103,116 +101,10 @@ public non-sealed class Rect2i implements Rect2ic {
     }
 
     /**
-     * Returns true if left is equal to or greater than right, or if top is equal
-     * to or greater than bottom. Call sort() to reverse rectangles with negative
-     * width() or height().
-     *
-     * @return true if width() or height() are zero or negative
-     */
-    public final boolean isEmpty() {
-        return mRight <= mLeft || mBottom <= mTop;
-    }
-
-    /**
-     * Returns true if left is equal to or less than right, or if top is equal
-     * to or less than bottom. Call sort() to reverse rectangles with negative
-     * width() or height().
-     *
-     * @return true if width() or height() are zero or positive
-     */
-    public final boolean isSorted() {
-        return mLeft <= mRight && mTop <= mBottom;
-    }
-
-    /**
-     * Returns the rectangle's left.
-     */
-    public final int x() {
-        return mLeft;
-    }
-
-    /**
-     * Return the rectangle's top.
-     */
-    public final int y() {
-        return mTop;
-    }
-
-    /**
-     * Returns the rectangle's left.
-     */
-    public final int left() {
-        return mLeft;
-    }
-
-    /**
-     * Return the rectangle's top.
-     */
-    public final int top() {
-        return mTop;
-    }
-
-    /**
-     * Return the rectangle's right.
-     */
-    public final int right() {
-        return mRight;
-    }
-
-    /**
-     * Return the rectangle's bottom.
-     */
-    public final int bottom() {
-        return mBottom;
-    }
-
-    /**
-     * @return the rectangle's width. This does not check for a valid rectangle
-     * (i.e. left <= right) so the result may be negative.
-     */
-    public final int width() {
-        return mRight - mLeft;
-    }
-
-    /**
-     * @return the rectangle's height. This does not check for a valid rectangle
-     * (i.e. top <= bottom) so the result may be negative.
-     */
-    public final int height() {
-        return mBottom - mTop;
-    }
-
-    /**
      * Set the rectangle to (0,0,0,0)
      */
     public final void setEmpty() {
         mLeft = mRight = mTop = mBottom = 0;
-    }
-
-    /**
-     * Copy the coordinates from this into r.
-     *
-     * @param dst the rectangle to store
-     */
-    @Override
-    public void store(@NonNull Rect2i dst) {
-        dst.mLeft = mLeft;
-        dst.mTop = mTop;
-        dst.mRight = mRight;
-        dst.mBottom = mBottom;
-    }
-
-    /**
-     * Copy the coordinates from this into r.
-     *
-     * @param dst the rectangle to store
-     */
-    @Override
-    public void store(@NonNull Rect2f dst) {
-        dst.mLeft = mLeft;
-        dst.mTop = mTop;
-        dst.mRight = mRight;
-        dst.mBottom = mBottom;
     }
 
     /**
@@ -271,7 +163,10 @@ public non-sealed class Rect2i implements Rect2ic {
      *            rectangle.
      */
     public final void set(@NonNull Rect2ic src) {
-        src.store(this);
+        mLeft = src.mLeft;
+        mTop = src.mTop;
+        mRight = src.mRight;
+        mBottom = src.mBottom;
     }
 
     /**
@@ -340,10 +235,10 @@ public non-sealed class Rect2i implements Rect2ic {
      * @param insets the rectangle specifying the insets on all side.
      */
     public final void inset(@NonNull Rect2ic insets) {
-        mLeft += insets.left();
-        mTop += insets.top();
-        mRight -= insets.right();
-        mBottom -= insets.bottom();
+        mLeft += insets.mLeft;
+        mTop += insets.mTop;
+        mRight -= insets.mRight;
+        mBottom -= insets.mBottom;
     }
 
     /**
@@ -367,110 +262,10 @@ public non-sealed class Rect2i implements Rect2ic {
      * @param adjusts the rectangle specifying the adjusts on all side.
      */
     public final void adjust(@NonNull Rect2ic adjusts) {
-        mLeft += adjusts.left();
-        mTop += adjusts.top();
-        mRight += adjusts.right();
-        mBottom += adjusts.bottom();
-    }
-
-    /**
-     * Returns true if (x,y) is inside the rectangle. The left and top are
-     * considered to be inside, while the right and bottom are not. This means
-     * that for a (x,y) to be contained: left <= x < right and top <= y < bottom.
-     * An empty rectangle never contains any point.
-     *
-     * @param x the X coordinate of the point being tested for containment
-     * @param y the Y coordinate of the point being tested for containment
-     * @return true if (x,y) are contained by the rectangle, where containment
-     * means left <= x < right and top <= y < bottom
-     */
-    public final boolean contains(int x, int y) {
-        return x >= mLeft && x < mRight && y >= mTop && y < mBottom;
-    }
-
-    /**
-     * Returns true if (x,y) is inside the rectangle. The left and top are
-     * considered to be inside, while the right and bottom are not. This means
-     * that for a (x,y) to be contained: left <= x < right and top <= y < bottom.
-     * An empty rectangle never contains any point.
-     *
-     * @param x the X coordinate of the point being tested for containment
-     * @param y the Y coordinate of the point being tested for containment
-     * @return true if (x,y) are contained by the rectangle, where containment
-     * means left <= x < right and top <= y < bottom
-     */
-    public final boolean contains(float x, float y) {
-        return x >= mLeft && x < mRight && y >= mTop && y < mBottom;
-    }
-
-    /**
-     * Returns true if the 4 specified sides of a rectangle are inside or equal
-     * to this rectangle. i.e. is this rectangle a superset of the specified
-     * rectangle. An empty rectangle never contains another rectangle.
-     *
-     * @param left   the left side of the rectangle being tested for containment
-     * @param top    the top of the rectangle being tested for containment
-     * @param right  the right side of the rectangle being tested for containment
-     * @param bottom the bottom of the rectangle being tested for containment
-     * @return true if the 4 specified sides of a rectangle are inside or
-     * equal to this rectangle
-     */
-    public final boolean contains(int left, int top, int right, int bottom) {
-        // check for empty first
-        return mLeft < mRight && mTop < mBottom
-                // now check for containment
-                && mLeft <= left && mTop <= top
-                && mRight >= right && mBottom >= bottom;
-    }
-
-    /**
-     * Returns true if the specified rectangle r is inside or equal to this
-     * rectangle. An empty rectangle never contains another rectangle.
-     *
-     * @param r the rectangle being tested for containment.
-     * @return true if the specified rectangle r is inside or equal to this
-     * rectangle
-     */
-    public final boolean contains(Rect2ic r) {
-        // check for empty first
-        return mLeft < mRight && mTop < mBottom
-                // now check for containment
-                && mLeft <= r.left() && mTop <= r.top() && mRight >= r.right() && mBottom >= r.bottom();
-    }
-
-    /**
-     * Returns true if the 4 specified sides of a rectangle are inside or equal
-     * to this rectangle. i.e. is this rectangle a superset of the specified
-     * rectangle. An empty rectangle never contains another rectangle.
-     *
-     * @param left   the left side of the rectangle being tested for containment
-     * @param top    the top of the rectangle being tested for containment
-     * @param right  the right side of the rectangle being tested for containment
-     * @param bottom the bottom of the rectangle being tested for containment
-     * @return true if the 4 specified sides of a rectangle are inside or
-     * equal to this rectangle
-     */
-    public final boolean contains(float left, float top, float right, float bottom) {
-        // check for empty first
-        return mLeft < mRight && mTop < mBottom
-                // now check for containment
-                && mLeft <= left && mTop <= top
-                && mRight >= right && mBottom >= bottom;
-    }
-
-    /**
-     * Returns true if the specified rectangle r is inside or equal to this
-     * rectangle. An empty rectangle never contains another rectangle.
-     *
-     * @param r the rectangle being tested for containment.
-     * @return true if the specified rectangle r is inside or equal to this
-     * rectangle
-     */
-    public final boolean contains(Rect2fc r) {
-        // check for empty first
-        return mLeft < mRight && mTop < mBottom
-                // now check for containment
-                && mLeft <= r.left() && mTop <= r.top() && mRight >= r.right() && mBottom >= r.bottom();
+        mLeft += adjusts.mLeft;
+        mTop += adjusts.mTop;
+        mRight += adjusts.mRight;
+        mBottom += adjusts.mBottom;
     }
 
     // Evaluate A-B. If the difference shape cannot be represented as a rectangle then false is
@@ -510,20 +305,20 @@ public non-sealed class Rect2i implements Rect2ic {
         float aWidth = (float) a.width();
         float leftArea = 0.f, rightArea = 0.f, topArea = 0.f, bottomArea = 0.f;
         int positiveCount = 0;
-        if (b.left() > a.left()) {
-            leftArea = (b.left() - a.left()) / aWidth;
+        if (b.mLeft > a.mLeft) {
+            leftArea = (b.mLeft - a.mLeft) / aWidth;
             positiveCount++;
         }
-        if (a.right() > b.right()) {
-            rightArea = (a.right() - b.right()) / aWidth;
+        if (a.mRight > b.mRight) {
+            rightArea = (a.mRight - b.mRight) / aWidth;
             positiveCount++;
         }
-        if (b.top() > a.top()) {
-            topArea = (b.top() - a.top()) / aHeight;
+        if (b.mTop > a.mTop) {
+            topArea = (b.mTop - a.mTop) / aHeight;
             positiveCount++;
         }
-        if (a.bottom() > b.bottom()) {
-            bottomArea = (a.bottom() - b.bottom()) / aHeight;
+        if (a.mBottom > b.mBottom) {
+            bottomArea = (a.mBottom - b.mBottom) / aHeight;
             positiveCount++;
         }
 
@@ -538,17 +333,17 @@ public non-sealed class Rect2i implements Rect2ic {
         }
         if (leftArea > rightArea && leftArea > topArea && leftArea > bottomArea) {
             // Left chunk of A, so the new right edge is B's left edge
-            out.mRight = b.left();
+            out.mRight = b.mLeft;
         } else if (rightArea > topArea && rightArea > bottomArea) {
             // Right chunk of A, so the new left edge is B's right edge
-            out.mLeft = b.right();
+            out.mLeft = b.mRight;
         } else if (topArea > bottomArea) {
             // Top chunk of A, so the new bottom edge is B's top edge
-            out.mBottom = b.top();
+            out.mBottom = b.mTop;
         } else {
             // Bottom chunk of A, so the new top edge is B's bottom edge
             assert (bottomArea > 0.f);
-            out.mTop = b.bottom();
+            out.mTop = b.mBottom;
         }
 
         // If we have 1 valid area, the disjoint shape is representable as a rectangle.
@@ -598,8 +393,8 @@ public non-sealed class Rect2i implements Rect2ic {
      * (and this rectangle is then set to that intersection) else
      * return false and do not change this rectangle.
      */
-    public final boolean intersect(Rect2ic r) {
-        return intersect(r.left(), r.top(), r.right(), r.bottom());
+    public final boolean intersect(@NonNull Rect2ic r) {
+        return intersect(r.mLeft, r.mTop, r.mRight, r.mBottom);
     }
 
     /**
@@ -621,8 +416,8 @@ public non-sealed class Rect2i implements Rect2ic {
      *
      * @see #inset(int, int, int, int) but without checking if the rects overlap.
      */
-    public final void intersectNoCheck(Rect2ic r) {
-        intersectNoCheck(r.left(), r.top(), r.right(), r.bottom());
+    public final void intersectNoCheck(@NonNull Rect2ic r) {
+        intersectNoCheck(r.mLeft, r.mTop, r.mRight, r.mBottom);
     }
 
     /**
@@ -636,11 +431,11 @@ public non-sealed class Rect2i implements Rect2ic {
      * this rectangle to that intersection. If they do not, return
      * false and do not change this rectangle.
      */
-    public final boolean intersect(Rect2ic a, Rect2ic b) {
-        int tmpL = Math.max(a.left(), b.left());
-        int tmpT = Math.max(a.top(), b.top());
-        int tmpR = Math.min(a.right(), b.right());
-        int tmpB = Math.min(a.bottom(), b.bottom());
+    public final boolean intersect(@NonNull Rect2ic a, @NonNull Rect2ic b) {
+        int tmpL = Math.max(a.mLeft, b.mLeft);
+        int tmpT = Math.max(a.mTop, b.mTop);
+        int tmpR = Math.min(a.mRight, b.mRight);
+        int tmpB = Math.min(a.mBottom, b.mBottom);
         if (tmpR <= tmpL || tmpB <= tmpT) {
             return false;
         }
@@ -649,40 +444,6 @@ public non-sealed class Rect2i implements Rect2ic {
         mRight = tmpR;
         mBottom = tmpB;
         return true;
-    }
-
-    /**
-     * Returns true if this rectangle intersects the specified rectangle.
-     * In no event is this rectangle modified. To record the intersection,
-     * use intersect().
-     *
-     * @param left   the left side of the rectangle being tested for intersection
-     * @param top    the top of the rectangle being tested for intersection
-     * @param right  the right side of the rectangle being tested for
-     *               intersection
-     * @param bottom the bottom of the rectangle being tested for intersection
-     * @return true if the specified rectangle intersects this rectangle. In
-     * no event is this rectangle modified.
-     */
-    public final boolean intersects(int left, int top, int right, int bottom) {
-        int tmpL = Math.max(mLeft, left);
-        int tmpT = Math.max(mTop, top);
-        int tmpR = Math.min(mRight, right);
-        int tmpB = Math.min(mBottom, bottom);
-        return tmpR > tmpL && tmpB > tmpT;
-    }
-
-    /**
-     * Returns true if this rectangle intersects the specified rectangle.
-     * In no event is this rectangle modified. To record the intersection,
-     * use intersect().
-     *
-     * @param r the rectangle being tested for intersection
-     * @return true if the specified rectangle intersects this rectangle. In
-     * no event is this rectangle modified.
-     */
-    public final boolean intersects(Rect2ic r) {
-        return intersects(r.left(), r.top(), r.right(), r.bottom());
     }
 
     /**
@@ -695,11 +456,11 @@ public non-sealed class Rect2i implements Rect2ic {
      * @return true if the two specified rectangles intersect. In no event are
      * either of the rectangles modified.
      */
-    public static boolean intersects(Rect2ic a, Rect2ic b) {
-        int tmpL = Math.max(a.left(), b.left());
-        int tmpT = Math.max(a.top(), b.top());
-        int tmpR = Math.min(a.right(), b.right());
-        int tmpB = Math.min(a.bottom(), b.bottom());
+    public static boolean intersects(@NonNull Rect2ic a, @NonNull Rect2ic b) {
+        int tmpL = Math.max(a.mLeft, b.mLeft);
+        int tmpT = Math.max(a.mTop, b.mTop);
+        int tmpR = Math.min(a.mRight, b.mRight);
+        int tmpB = Math.min(a.mBottom, b.mBottom);
         return tmpR > tmpL && tmpB > tmpT;
     }
 
@@ -739,8 +500,8 @@ public non-sealed class Rect2i implements Rect2ic {
      *
      * @param r the rectangle being unioned with this rectangle
      */
-    public final void join(Rect2ic r) {
-        join(r.left(), r.top(), r.right(), r.bottom());
+    public final void join(@NonNull Rect2ic r) {
+        join(r.mLeft, r.mTop, r.mRight, r.mBottom);
     }
 
     /**
@@ -769,8 +530,8 @@ public non-sealed class Rect2i implements Rect2ic {
      *
      * @param r the rectangle being unioned with this rectangle
      */
-    public final void joinNoCheck(Rect2ic r) {
-        joinNoCheck(r.left(), r.top(), r.right(), r.bottom());
+    public final void joinNoCheck(@NonNull Rect2ic r) {
+        joinNoCheck(r.mLeft, r.mTop, r.mRight, r.mBottom);
     }
 
     /**
@@ -819,10 +580,10 @@ public non-sealed class Rect2i implements Rect2ic {
 
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof Rect2ic r)) {
+        if (!(o instanceof Rect2i r)) {
             return false;
         }
-        return mLeft == r.left() && mTop == r.top() && mRight == r.right() && mBottom == r.bottom();
+        return mLeft == r.mLeft && mTop == r.mTop && mRight == r.mRight && mBottom == r.mBottom;
     }
 
     @Override

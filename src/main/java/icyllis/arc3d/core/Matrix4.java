@@ -2937,7 +2937,7 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
      * rectangle will be the bounding box of the projected points after being clipped to w > 0.
      */
     public void mapRect(@NonNull Rect2fc r, @NonNull Rect2f dest) {
-        mapRect(r.left(), r.top(), r.right(), r.bottom(), dest);
+        mapRect(r.mLeft, r.mTop, r.mRight, r.mBottom, dest);
     }
 
     /**
@@ -2982,7 +2982,7 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
      * rectangle will be the bounding box of the projected points after being clipped to w > 0.
      */
     public void mapRect(@NonNull Rect2fc r, @NonNull Rect2i dest) {
-        mapRect(r.left(), r.top(), r.right(), r.bottom(), dest);
+        mapRect(r.mLeft, r.mTop, r.mRight, r.mBottom, dest);
     }
 
     /**
@@ -2991,7 +2991,7 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
      * rectangle will be the bounding box of the projected points after being clipped to w > 0.
      */
     public void mapRect(@NonNull Rect2ic r, @NonNull Rect2i dest) {
-        mapRect(r.left(), r.top(), r.right(), r.bottom(), dest);
+        mapRect(r.mLeft, r.mTop, r.mRight, r.mBottom, dest);
     }
 
     /**
@@ -3036,7 +3036,7 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
      * rectangle will be the bounding box of the projected points after being clipped to w > 0.
      */
     public void mapRectOut(@NonNull Rect2ic r, @NonNull Rect2i dest) {
-        mapRectOut(r.left(), r.top(), r.right(), r.bottom(), dest);
+        mapRectOut(r.mLeft, r.mTop, r.mRight, r.mBottom, dest);
     }
 
     /**
@@ -3045,7 +3045,7 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
      * rectangle will be the bounding box of the projected points after being clipped to w > 0.
      */
     public void mapRectOut(@NonNull Rect2fc r, @NonNull Rect2i dest) {
-        mapRectOut(r.left(), r.top(), r.right(), r.bottom(), dest);
+        mapRectOut(r.mLeft, r.mTop, r.mRight, r.mBottom, dest);
     }
 
     /**
@@ -3086,7 +3086,7 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
 
     @Override
     public void mapRectIn(@NonNull Rect2fc r, @NonNull Rect2i dest) {
-        mapRectIn(r.left(), r.top(), r.right(), r.bottom(), dest);
+        mapRectIn(r.mLeft, r.mTop, r.mRight, r.mBottom, dest);
     }
 
     public void mapRectIn(float left, float top, float right, float bottom, @NonNull Rect2i dest) {
@@ -3303,7 +3303,7 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
      * return positive infinity.
      */
     public float localAARadius(Rect2fc bounds) {
-        return localAARadius(bounds.left(), bounds.top(), bounds.right(), bounds.bottom());
+        return localAARadius(bounds.mLeft, bounds.mTop, bounds.mRight, bounds.mBottom);
     }
 
     /**

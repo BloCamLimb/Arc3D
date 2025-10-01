@@ -19,6 +19,7 @@
 
 package icyllis.arc3d.core;
 
+import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -31,7 +32,12 @@ import org.jspecify.annotations.NonNull;
  * @author BloCamLimb
  * @see Rect2i
  */
-public sealed interface Rect2ic permits Rect2i {
+public sealed abstract class Rect2ic permits Rect2i {
+
+    protected int mLeft;
+    protected int mTop;
+    protected int mRight;
+    protected int mBottom;
 
     /**
      * Returns true if left is equal to or greater than right, or if top is equal
@@ -40,7 +46,10 @@ public sealed interface Rect2ic permits Rect2i {
      *
      * @return true if width() or height() are zero or negative
      */
-    boolean isEmpty();
+    @Contract(pure = true)
+    public final boolean isEmpty() {
+        return mRight <= mLeft || mBottom <= mTop;
+    }
 
     /**
      * Returns true if left is equal to or less than right, or if top is equal
@@ -49,73 +58,136 @@ public sealed interface Rect2ic permits Rect2i {
      *
      * @return true if width() or height() are zero or positive
      */
-    boolean isSorted();
+    @Contract(pure = true)
+    public final boolean isSorted() {
+        return mLeft <= mRight && mTop <= mBottom;
+    }
 
     /**
      * Returns the rectangle's left.
      */
-    int x();
+    @Contract(pure = true)
+    public final int x() {
+        return mLeft;
+    }
 
     /**
      * Return the rectangle's top.
      */
-    int y();
+    @Contract(pure = true)
+    public final int y() {
+        return mTop;
+    }
 
     /**
      * Returns the rectangle's left.
      */
-    int left();
+    @Contract(pure = true)
+    public final int left() {
+        return mLeft;
+    }
 
     /**
      * Return the rectangle's top.
      */
-    int top();
+    @Contract(pure = true)
+    public final int top() {
+        return mTop;
+    }
 
     /**
      * Return the rectangle's right.
      */
-    int right();
+    @Contract(pure = true)
+    public final int right() {
+        return mRight;
+    }
 
     /**
      * Return the rectangle's bottom.
      */
-    int bottom();
+    @Contract(pure = true)
+    public final int bottom() {
+        return mBottom;
+    }
 
     /**
      * @return the rectangle's width. This does not check for a valid rectangle
      * (i.e. left <= right) so the result may be negative.
      */
-    int width();
+    @Contract(pure = true)
+    public final int width() {
+        return mRight - mLeft;
+    }
 
     /**
      * @return the rectangle's height. This does not check for a valid rectangle
      * (i.e. top <= bottom) so the result may be negative.
      */
-    int height();
+    @Contract(pure = true)
+    public final int height() {
+        return mBottom - mTop;
+    }
 
     /**
-     * Stores the coordinates from this into dst.
+     * Copy the coordinates from this into r.
      *
      * @param dst the rectangle to store
      */
-    void store(@NonNull Rect2i dst);
+    @Contract(mutates = "param")
+    public void store(@NonNull Rect2i dst) {
+        dst.mLeft = mLeft;
+        dst.mTop = mTop;
+        dst.mRight = mRight;
+        dst.mBottom = mBottom;
+    }
 
     /**
-     * Stores the coordinates from this into dst.
+     * Copy the coordinates from this into r.
      *
      * @param dst the rectangle to store
      */
-    void store(@NonNull Rect2f dst);
+    @Contract(mutates = "param")
+    public void store(@NonNull Rect2f dst) {
+        dst.mLeft = mLeft;
+        dst.mTop = mTop;
+        dst.mRight = mRight;
+        dst.mBottom = mBottom;
+    }
 
     /**
      * Returns true if this rectangle intersects the specified rectangle.
-     * In no event is this rectangle modified.
+     * In no event is this rectangle modified. To record the intersection,
+     * use intersect().
+     *
+     * @param left   the left side of the rectangle being tested for intersection
+     * @param top    the top of the rectangle being tested for intersection
+     * @param right  the right side of the rectangle being tested for
+     *               intersection
+     * @param bottom the bottom of the rectangle being tested for intersection
+     * @return true if the specified rectangle intersects this rectangle. In
+     * no event is this rectangle modified.
+     */
+    public final boolean intersects(int left, int top, int right, int bottom) {
+        int tmpL = Math.max(mLeft, left);
+        int tmpT = Math.max(mTop, top);
+        int tmpR = Math.min(mRight, right);
+        int tmpB = Math.min(mBottom, bottom);
+        return tmpR > tmpL && tmpB > tmpT;
+    }
+
+    /**
+     * Returns true if this rectangle intersects the specified rectangle.
+     * In no event is this rectangle modified. To record the intersection,
+     * use intersect().
      *
      * @param r the rectangle being tested for intersection
      * @return true if the specified rectangle intersects this rectangle. In
      * no event is this rectangle modified.
      */
-    boolean intersects(Rect2ic r);
+    public final boolean intersects(@NonNull Rect2ic r) {
+        return intersects(r.mLeft, r.mTop, r.mRight, r.mBottom);
+    }
 
     /**
      * Returns true if (x,y) is inside the rectangle. The left and top are
@@ -128,7 +200,9 @@ public sealed interface Rect2ic permits Rect2i {
      * @return true if (x,y) are contained by the rectangle, where containment
      * means left <= x < right and top <= y < bottom
      */
-    boolean contains(int x, int y);
+    public final boolean contains(int x, int y) {
+        return x >= mLeft && x < mRight && y >= mTop && y < mBottom;
+    }
 
     /**
      * Returns true if (x,y) is inside the rectangle. The left and top are
@@ -141,7 +215,29 @@ public sealed interface Rect2ic permits Rect2i {
      * @return true if (x,y) are contained by the rectangle, where containment
      * means left <= x < right and top <= y < bottom
      */
-    boolean contains(float x, float y);
+    public final boolean contains(float x, float y) {
+        return x >= mLeft && x < mRight && y >= mTop && y < mBottom;
+    }
+
+    /**
+     * Returns true if the 4 specified sides of a rectangle are inside or equal
+     * to this rectangle. i.e. is this rectangle a superset of the specified
+     * rectangle. An empty rectangle never contains another rectangle.
+     *
+     * @param left   the left side of the rectangle being tested for containment
+     * @param top    the top of the rectangle being tested for containment
+     * @param right  the right side of the rectangle being tested for containment
+     * @param bottom the bottom of the rectangle being tested for containment
+     * @return true if the 4 specified sides of a rectangle are inside or
+     * equal to this rectangle
+     */
+    public final boolean contains(int left, int top, int right, int bottom) {
+        // check for empty first
+        return mLeft < mRight && mTop < mBottom
+                // now check for containment
+                && mLeft <= left && mTop <= top
+                && mRight >= right && mBottom >= bottom;
+    }
 
     /**
      * Returns true if the specified rectangle r is inside or equal to this
@@ -151,7 +247,31 @@ public sealed interface Rect2ic permits Rect2i {
      * @return true if the specified rectangle r is inside or equal to this
      * rectangle
      */
-    boolean contains(Rect2ic r);
+    public final boolean contains(Rect2ic r) {
+        // check for empty first
+        // now check for containment
+        return mLeft < mRight && mTop < mBottom && mLeft <= r.mLeft && mTop <= r.mTop && mRight >= r.mRight && mBottom >= r.mBottom;
+    }
+
+    /**
+     * Returns true if the 4 specified sides of a rectangle are inside or equal
+     * to this rectangle. i.e. is this rectangle a superset of the specified
+     * rectangle. An empty rectangle never contains another rectangle.
+     *
+     * @param left   the left side of the rectangle being tested for containment
+     * @param top    the top of the rectangle being tested for containment
+     * @param right  the right side of the rectangle being tested for containment
+     * @param bottom the bottom of the rectangle being tested for containment
+     * @return true if the 4 specified sides of a rectangle are inside or
+     * equal to this rectangle
+     */
+    public final boolean contains(float left, float top, float right, float bottom) {
+        // check for empty first
+        return mLeft < mRight && mTop < mBottom
+                // now check for containment
+                && mLeft <= left && mTop <= top
+                && mRight >= right && mBottom >= bottom;
+    }
 
     /**
      * Returns true if the specified rectangle r is inside or equal to this
@@ -161,5 +281,10 @@ public sealed interface Rect2ic permits Rect2i {
      * @return true if the specified rectangle r is inside or equal to this
      * rectangle
      */
-    boolean contains(Rect2fc r);
+    public final boolean contains(Rect2fc r) {
+        // check for empty first
+        return mLeft < mRight && mTop < mBottom
+                // now check for containment
+                && mLeft <= r.mLeft && mTop <= r.mTop && mRight >= r.mRight && mBottom >= r.mBottom;
+    }
 }

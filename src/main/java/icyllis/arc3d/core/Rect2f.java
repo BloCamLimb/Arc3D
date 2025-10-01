@@ -33,14 +33,9 @@ import org.jspecify.annotations.NonNull;
  * or if its bottom is less than or equal to its top, it is considered empty.
  */
 @SuppressWarnings("unused")
-public non-sealed class Rect2f implements Rect2fc {
+public non-sealed class Rect2f extends Rect2fc {
 
     private static final Rect2fc EMPTY = new Rect2f();
-
-    protected float mLeft;
-    protected float mTop;
-    protected float mRight;
-    protected float mBottom;
 
     /**
      * Create a new empty rectangle. All coordinates are initialized to 0.
@@ -73,7 +68,7 @@ public non-sealed class Rect2f implements Rect2fc {
      *          rectangle
      */
     public Rect2f(@NonNull Rect2fc r) {
-        r.store(this);
+        set(r);
     }
 
     /**
@@ -84,7 +79,7 @@ public non-sealed class Rect2f implements Rect2fc {
      *          rectangle
      */
     public Rect2f(@NonNull Rect2ic r) {
-        r.store(this);
+        set(r);
     }
 
     /**
@@ -107,167 +102,11 @@ public non-sealed class Rect2f implements Rect2fc {
     }
 
     /**
-     * Returns true if left is equal to or greater than right, or if top is equal
-     * to or greater than bottom. Call sort() to reverse rectangles with negative
-     * width() or height().
-     *
-     * @return true if width() or height() are zero or negative
-     */
-    @Contract(pure = true)
-    public final boolean isEmpty() {
-        // will return true if any values are NaN
-        return !(mLeft < mRight && mTop < mBottom);
-    }
-
-    /**
-     * Returns true if left is equal to or less than right, or if top is equal
-     * to or less than bottom. Call sort() to reverse rectangles with negative
-     * width() or height().
-     *
-     * @return true if width() or height() are zero or positive
-     */
-    @Contract(pure = true)
-    public final boolean isSorted() {
-        return mLeft <= mRight && mTop <= mBottom;
-    }
-
-    /**
-     * Returns true if all values in the rectangle are finite.
-     *
-     * @return true if no member is infinite or NaN
-     */
-    @Contract(pure = true)
-    public final boolean isFinite() {
-        return MathUtil.isFinite(mLeft, mTop, mRight, mBottom);
-    }
-
-    /**
-     * Returns the rectangle's left.
-     */
-    @Contract(pure = true)
-    public final float x() {
-        return mLeft;
-    }
-
-    /**
-     * Return the rectangle's top.
-     */
-    @Contract(pure = true)
-    public final float y() {
-        return mTop;
-    }
-
-    /**
-     * Returns the rectangle's left.
-     */
-    @Contract(pure = true)
-    public final float left() {
-        return mLeft;
-    }
-
-    /**
-     * Return the rectangle's top.
-     */
-    @Contract(pure = true)
-    public final float top() {
-        return mTop;
-    }
-
-    /**
-     * Return the rectangle's right.
-     */
-    @Contract(pure = true)
-    public final float right() {
-        return mRight;
-    }
-
-    /**
-     * Return the rectangle's bottom.
-     */
-    @Contract(pure = true)
-    public final float bottom() {
-        return mBottom;
-    }
-
-    /**
-     * @return the rectangle's width. This does not check for a valid rectangle
-     * (i.e. left <= right) so the result may be negative.
-     */
-    @Contract(pure = true)
-    public final float width() {
-        return mRight - mLeft;
-    }
-
-    /**
-     * @return the rectangle's height. This does not check for a valid rectangle
-     * (i.e. top <= bottom) so the result may be negative.
-     */
-    @Contract(pure = true)
-    public final float height() {
-        return mBottom - mTop;
-    }
-
-    /**
-     * @return the horizontal center of the rectangle. This does not check for
-     * a valid rectangle (i.e. left <= right)
-     */
-    @Contract(pure = true)
-    public final float centerX() {
-        return (float) (((double) mLeft + mRight) * 0.5);
-    }
-
-    /**
-     * @return the vertical center of the rectangle. This does not check for
-     * a valid rectangle (i.e. top <= bottom)
-     */
-    @Contract(pure = true)
-    public final float centerY() {
-        return (float) (((double) mTop + mBottom) * 0.5);
-    }
-
-    /**
-     * @return width()/2 without intermediate overflow or underflow.
-     */
-    @Contract(pure = true)
-    public final float halfWidth() {
-        return (float) (((double) -mLeft + mRight) * 0.5);
-    }
-
-    /**
-     * @return height()/2 without intermediate overflow or underflow.
-     */
-    @Contract(pure = true)
-    public final float halfHeight() {
-        return (float) (((double) -mTop + mBottom) * 0.5);
-    }
-
-    /**
      * Set the rectangle to (0,0,0,0)
      */
     @Contract(mutates = "this")
     public final void setEmpty() {
         mLeft = mRight = mTop = mBottom = 0;
-    }
-
-    /**
-     * Copy the coordinates from this into r.
-     *
-     * @param dst the rectangle to store
-     */
-    @Contract(mutates = "param")
-    public void store(@NonNull Rect2f dst) {
-        dst.mLeft = mLeft;
-        dst.mTop = mTop;
-        dst.mRight = mRight;
-        dst.mBottom = mBottom;
-    }
-
-    @Contract(mutates = "param")
-    public void store(@NonNull Rect2i dst) {
-        dst.mLeft = (int) mLeft;
-        dst.mTop = (int) mTop;
-        dst.mRight = (int) mRight;
-        dst.mBottom = (int) mBottom;
     }
 
     /**
@@ -327,8 +166,11 @@ public non-sealed class Rect2f implements Rect2fc {
      *            rectangle.
      */
     @Contract(mutates = "this")
-    public final void set(Rect2fc src) {
-        src.store(this);
+    public final void set(@NonNull Rect2fc src) {
+        mLeft = src.mLeft;
+        mTop = src.mTop;
+        mRight = src.mRight;
+        mBottom = src.mBottom;
     }
 
     /**
@@ -338,8 +180,11 @@ public non-sealed class Rect2f implements Rect2fc {
      *            rectangle.
      */
     @Contract(mutates = "this")
-    public final void set(Rect2ic src) {
-        src.store(this);
+    public final void set(@NonNull Rect2ic src) {
+        mLeft = src.mLeft;
+        mTop = src.mTop;
+        mRight = src.mRight;
+        mBottom = src.mBottom;
     }
 
     /**
@@ -490,11 +335,11 @@ public non-sealed class Rect2f implements Rect2fc {
      * @param insets the rectangle specifying the insets on all side.
      */
     @Contract(mutates = "this")
-    public final void inset(Rect2fc insets) {
-        mLeft += insets.left();
-        mTop += insets.top();
-        mRight -= insets.right();
-        mBottom -= insets.bottom();
+    public final void inset(@NonNull Rect2fc insets) {
+        mLeft += insets.mLeft;
+        mTop += insets.mTop;
+        mRight -= insets.mRight;
+        mBottom -= insets.mBottom;
     }
 
     /**
@@ -504,11 +349,11 @@ public non-sealed class Rect2f implements Rect2fc {
      * @param insets the rectangle specifying the insets on all side.
      */
     @Contract(mutates = "this")
-    public final void inset(Rect2ic insets) {
-        mLeft += insets.left();
-        mTop += insets.top();
-        mRight -= insets.right();
-        mBottom -= insets.bottom();
+    public final void inset(@NonNull Rect2ic insets) {
+        mLeft += insets.mLeft;
+        mTop += insets.mTop;
+        mRight -= insets.mRight;
+        mBottom -= insets.mBottom;
     }
 
     /**
@@ -533,11 +378,11 @@ public non-sealed class Rect2f implements Rect2fc {
      * @param adjusts the rectangle specifying the adjusts on all side.
      */
     @Contract(mutates = "this")
-    public final void adjust(Rect2fc adjusts) {
-        mLeft += adjusts.left();
-        mTop += adjusts.top();
-        mRight += adjusts.right();
-        mBottom += adjusts.bottom();
+    public final void adjust(@NonNull Rect2fc adjusts) {
+        mLeft += adjusts.mLeft;
+        mTop += adjusts.mTop;
+        mRight += adjusts.mRight;
+        mBottom += adjusts.mBottom;
     }
 
     /**
@@ -546,80 +391,11 @@ public non-sealed class Rect2f implements Rect2fc {
      * @param adjusts the rectangle specifying the adjusts on all side.
      */
     @Contract(mutates = "this")
-    public final void adjust(Rect2ic adjusts) {
-        mLeft += adjusts.left();
-        mTop += adjusts.top();
-        mRight += adjusts.right();
-        mBottom += adjusts.bottom();
-    }
-
-    /**
-     * Returns true if (x,y) is inside the rectangle. The left and top are
-     * considered to be inside, while the right and bottom are not. This means
-     * that for a (x,y) to be contained: left <= x < right and top <= y < bottom.
-     * An empty rectangle never contains any point.
-     *
-     * @param x the X coordinate of the point being tested for containment
-     * @param y the Y coordinate of the point being tested for containment
-     * @return true if (x,y) are contained by the rectangle, where containment
-     * means left <= x < right and top <= y < bottom
-     */
-    @Contract(pure = true)
-    public final boolean contains(float x, float y) {
-        return x >= mLeft && x < mRight && y >= mTop && y < mBottom;
-    }
-
-    /**
-     * Returns true if the 4 specified sides of a rectangle are inside or equal
-     * to this rectangle. i.e. is this rectangle a superset of the specified
-     * rectangle. An empty rectangle never contains another rectangle.
-     *
-     * @param left   the left side of the rectangle being tested for containment
-     * @param top    the top of the rectangle being tested for containment
-     * @param right  the right side of the rectangle being tested for containment
-     * @param bottom the bottom of the rectangle being tested for containment
-     * @return true if the 4 specified sides of a rectangle are inside or
-     * equal to this rectangle
-     */
-    @Contract(pure = true)
-    public final boolean contains(float left, float top, float right, float bottom) {
-        // check for empty first
-        return mLeft < mRight && mTop < mBottom
-                // now check for containment
-                && mLeft <= left && mTop <= top
-                && mRight >= right && mBottom >= bottom;
-    }
-
-    /**
-     * Returns true if the specified rectangle r is inside or equal to this
-     * rectangle. An empty rectangle never contains another rectangle.
-     *
-     * @param r the rectangle being tested for containment.
-     * @return true if the specified rectangle r is inside or equal to this
-     * rectangle
-     */
-    @Contract(pure = true)
-    public final boolean contains(@NonNull Rect2fc r) {
-        // check for empty first
-        return mLeft < mRight && mTop < mBottom
-                // now check for containment
-                && mLeft <= r.left() && mTop <= r.top() && mRight >= r.right() && mBottom >= r.bottom();
-    }
-
-    /**
-     * Returns true if the specified rectangle r is inside or equal to this
-     * rectangle. An empty rectangle never contains another rectangle.
-     *
-     * @param r the rectangle being tested for containment.
-     * @return true if the specified rectangle r is inside or equal to this
-     * rectangle
-     */
-    @Contract(pure = true)
-    public final boolean contains(@NonNull Rect2ic r) {
-        // check for empty first
-        return mLeft < mRight && mTop < mBottom
-                // now check for containment
-                && mLeft <= r.left() && mTop <= r.top() && mRight >= r.right() && mBottom >= r.bottom();
+    public final void adjust(@NonNull Rect2ic adjusts) {
+        mLeft += adjusts.mLeft;
+        mTop += adjusts.mTop;
+        mRight += adjusts.mRight;
+        mBottom += adjusts.mBottom;
     }
 
     // Evaluate A-B. If the difference shape cannot be represented as a rectangle then false is
@@ -659,20 +435,20 @@ public non-sealed class Rect2f implements Rect2fc {
         float aWidth = a.width();
         float leftArea = 0.f, rightArea = 0.f, topArea = 0.f, bottomArea = 0.f;
         int positiveCount = 0;
-        if (b.left() > a.left()) {
-            leftArea = (b.left() - a.left()) / aWidth;
+        if (b.mLeft > a.mLeft) {
+            leftArea = (b.mLeft - a.mLeft) / aWidth;
             positiveCount++;
         }
-        if (a.right() > b.right()) {
-            rightArea = (a.right() - b.right()) / aWidth;
+        if (a.mRight > b.mRight) {
+            rightArea = (a.mRight - b.mRight) / aWidth;
             positiveCount++;
         }
-        if (b.top() > a.top()) {
-            topArea = (b.top() - a.top()) / aHeight;
+        if (b.mTop > a.mTop) {
+            topArea = (b.mTop - a.mTop) / aHeight;
             positiveCount++;
         }
-        if (a.bottom() > b.bottom()) {
-            bottomArea = (a.bottom() - b.bottom()) / aHeight;
+        if (a.mBottom > b.mBottom) {
+            bottomArea = (a.mBottom - b.mBottom) / aHeight;
             positiveCount++;
         }
 
@@ -687,17 +463,17 @@ public non-sealed class Rect2f implements Rect2fc {
         }
         if (leftArea > rightArea && leftArea > topArea && leftArea > bottomArea) {
             // Left chunk of A, so the new right edge is B's left edge
-            out.mRight = b.left();
+            out.mRight = b.mLeft;
         } else if (rightArea > topArea && rightArea > bottomArea) {
             // Right chunk of A, so the new left edge is B's right edge
-            out.mLeft = b.right();
+            out.mLeft = b.mRight;
         } else if (topArea > bottomArea) {
             // Top chunk of A, so the new bottom edge is B's top edge
-            out.mBottom = b.top();
+            out.mBottom = b.mTop;
         } else {
             // Bottom chunk of A, so the new top edge is B's bottom edge
             assert (bottomArea > 0.f);
-            out.mTop = b.bottom();
+            out.mTop = b.mBottom;
         }
 
         // If we have 1 valid area, the disjoint shape is representable as a rectangle.
@@ -749,8 +525,8 @@ public non-sealed class Rect2f implements Rect2fc {
      * return false and do not change this rectangle.
      */
     @Contract(mutates = "this")
-    public final boolean intersect(Rect2fc r) {
-        return intersect(r.left(), r.top(), r.right(), r.bottom());
+    public final boolean intersect(@NonNull Rect2fc r) {
+        return intersect(r.mLeft, r.mTop, r.mRight, r.mBottom);
     }
 
     /**
@@ -764,8 +540,8 @@ public non-sealed class Rect2f implements Rect2fc {
      * return false and do not change this rectangle.
      */
     @Contract(mutates = "this")
-    public final boolean intersect(Rect2ic r) {
-        return intersect(r.left(), r.top(), r.right(), r.bottom());
+    public final boolean intersect(@NonNull Rect2ic r) {
+        return intersect(r.mLeft, r.mTop, r.mRight, r.mBottom);
     }
 
     /**
@@ -789,8 +565,8 @@ public non-sealed class Rect2f implements Rect2fc {
      * @see #inset(float, float, float, float) but without checking if the rects overlap.
      */
     @Contract(mutates = "this")
-    public final void intersectNoCheck(Rect2fc r) {
-        intersectNoCheck(r.left(), r.top(), r.right(), r.bottom());
+    public final void intersectNoCheck(@NonNull Rect2fc r) {
+        intersectNoCheck(r.mLeft, r.mTop, r.mRight, r.mBottom);
     }
 
     /**
@@ -800,8 +576,8 @@ public non-sealed class Rect2f implements Rect2fc {
      * @see #inset(float, float, float, float) but without checking if the rects overlap.
      */
     @Contract(mutates = "this")
-    public final void intersectNoCheck(Rect2ic r) {
-        intersectNoCheck(r.left(), r.top(), r.right(), r.bottom());
+    public final void intersectNoCheck(@NonNull Rect2ic r) {
+        intersectNoCheck(r.mLeft, r.mTop, r.mRight, r.mBottom);
     }
 
     /**
@@ -816,11 +592,11 @@ public non-sealed class Rect2f implements Rect2fc {
      * false and do not change this rectangle.
      */
     @Contract(mutates = "this")
-    public final boolean intersect(Rect2fc a, Rect2fc b) {
-        float tmpL = Math.max(a.left(), b.left());
-        float tmpT = Math.max(a.top(), b.top());
-        float tmpR = Math.min(a.right(), b.right());
-        float tmpB = Math.min(a.bottom(), b.bottom());
+    public final boolean intersect(@NonNull Rect2fc a, @NonNull Rect2fc b) {
+        float tmpL = Math.max(a.mLeft, b.mLeft);
+        float tmpT = Math.max(a.mTop, b.mTop);
+        float tmpR = Math.min(a.mRight, b.mRight);
+        float tmpB = Math.min(a.mBottom, b.mBottom);
         if (tmpR <= tmpL || tmpB <= tmpT) {
             return false;
         }
@@ -829,56 +605,6 @@ public non-sealed class Rect2f implements Rect2fc {
         mRight = tmpR;
         mBottom = tmpB;
         return true;
-    }
-
-    /**
-     * Returns true if this rectangle intersects the specified rectangle.
-     * In no event is this rectangle modified. To record the intersection,
-     * use intersect().
-     *
-     * @param left   the left side of the rectangle being tested for intersection
-     * @param top    the top of the rectangle being tested for intersection
-     * @param right  the right side of the rectangle being tested for
-     *               intersection
-     * @param bottom the bottom of the rectangle being tested for intersection
-     * @return true if the specified rectangle intersects this rectangle. In
-     * no event is this rectangle modified.
-     */
-    @Contract(pure = true)
-    public final boolean intersects(float left, float top, float right, float bottom) {
-        float tmpL = Math.max(mLeft, left);
-        float tmpT = Math.max(mTop, top);
-        float tmpR = Math.min(mRight, right);
-        float tmpB = Math.min(mBottom, bottom);
-        return tmpR > tmpL && tmpB > tmpT;
-    }
-
-    /**
-     * Returns true if this rectangle intersects the specified rectangle.
-     * In no event is this rectangle modified. To record the intersection,
-     * use intersect().
-     *
-     * @param r the rectangle being tested for intersection
-     * @return true if the specified rectangle intersects this rectangle. In
-     * no event is this rectangle modified.
-     */
-    @Contract(pure = true)
-    public final boolean intersects(@NonNull Rect2fc r) {
-        return intersects(r.left(), r.top(), r.right(), r.bottom());
-    }
-
-    /**
-     * Returns true if this rectangle intersects the specified rectangle.
-     * In no event is this rectangle modified. To record the intersection,
-     * use intersect().
-     *
-     * @param r the rectangle being tested for intersection
-     * @return true if the specified rectangle intersects this rectangle. In
-     * no event is this rectangle modified.
-     */
-    @Contract(pure = true)
-    public final boolean intersects(@NonNull Rect2ic r) {
-        return intersects(r.left(), r.top(), r.right(), r.bottom());
     }
 
     /**
@@ -891,11 +617,11 @@ public non-sealed class Rect2f implements Rect2fc {
      * @return true if the two specified rectangles intersect. In no event are
      * either of the rectangles modified.
      */
-    public static boolean intersects(Rect2fc a, Rect2fc b) {
-        float tmpL = Math.max(a.left(), b.left());
-        float tmpT = Math.max(a.top(), b.top());
-        float tmpR = Math.min(a.right(), b.right());
-        float tmpB = Math.min(a.bottom(), b.bottom());
+    public static boolean intersects(@NonNull Rect2fc a, @NonNull Rect2fc b) {
+        float tmpL = Math.max(a.mLeft, b.mLeft);
+        float tmpT = Math.max(a.mTop, b.mTop);
+        float tmpR = Math.min(a.mRight, b.mRight);
+        float tmpB = Math.min(a.mBottom, b.mBottom);
         return tmpR > tmpL && tmpB > tmpT;
     }
 
@@ -903,80 +629,20 @@ public non-sealed class Rect2f implements Rect2fc {
      * Returns true if the rectangles have a nonzero area of overlap. It assumed that rects can be
      * infinitely small but not "inverted".
      */
-    public static boolean rectsOverlap(Rect2fc a, Rect2fc b) {
-        assert (!a.isFinite() || (a.left() <= a.right() && a.top() <= a.bottom()));
-        assert (!b.isFinite() || (b.left() <= b.right() && b.top() <= b.bottom()));
-        return a.right() > b.left() && a.bottom() > b.top() && b.right() > a.left() && b.bottom() > a.top();
+    public static boolean rectsOverlap(@NonNull Rect2fc a, @NonNull Rect2fc b) {
+        assert (!a.isFinite() || (a.mLeft <= a.mRight && a.mTop <= a.mBottom));
+        assert (!b.isFinite() || (b.mLeft <= b.mRight && b.mTop <= b.mBottom));
+        return a.mRight > b.mLeft && a.mBottom > b.mTop && b.mRight > a.mLeft && b.mBottom > a.mTop;
     }
 
     /**
      * Returns true if the rectangles overlap or share an edge or corner. It assumed that rects can be
      * infinitely small but not "inverted".
      */
-    public static boolean rectsTouchOrOverlap(Rect2fc a, Rect2fc b) {
-        assert (!a.isFinite() || (a.left() <= a.right() && a.top() <= a.bottom()));
-        assert (!b.isFinite() || (b.left() <= b.right() && b.top() <= b.bottom()));
-        return a.right() >= b.left() && a.bottom() >= b.top() && b.right() >= a.left() && b.bottom() >= a.top();
-    }
-
-    /**
-     * Set the dst integer Rect by rounding this rectangle's coordinates
-     * to their nearest integer values.
-     */
-    @Contract(mutates = "param")
-    public final void round(@NonNull Rect2i dst) {
-        dst.set(Math.round(mLeft), Math.round(mTop),
-                Math.round(mRight), Math.round(mBottom));
-    }
-
-    /**
-     * Set the dst integer Rect by rounding "in" this rectangle, choosing the
-     * ceiling of top and left, and the floor of right and bottom.
-     */
-    @Contract(mutates = "param")
-    public final void roundIn(@NonNull Rect2i dst) {
-        dst.set((int) Math.ceil(mLeft), (int) Math.ceil(mTop),
-                (int) Math.floor(mRight), (int) Math.floor(mBottom));
-    }
-
-    /**
-     * Set the dst integer Rect by rounding "out" this rectangle, choosing the
-     * floor of top and left, and the ceiling of right and bottom.
-     */
-    @Contract(mutates = "param")
-    public final void roundOut(@NonNull Rect2i dst) {
-        dst.set((int) Math.floor(mLeft), (int) Math.floor(mTop),
-                (int) Math.ceil(mRight), (int) Math.ceil(mBottom));
-    }
-
-    /**
-     * Set the dst rectangle by rounding this rectangle's coordinates
-     * to their nearest integer values.
-     */
-    @Contract(mutates = "param")
-    public final void round(@NonNull Rect2f dst) {
-        dst.set(Math.round(mLeft), Math.round(mTop),
-                Math.round(mRight), Math.round(mBottom));
-    }
-
-    /**
-     * Set the dst rectangle by rounding "in" this rectangle, choosing the
-     * ceiling of top and left, and the floor of right and bottom.
-     */
-    @Contract(mutates = "param")
-    public final void roundIn(@NonNull Rect2f dst) {
-        dst.set((float) Math.ceil(mLeft), (float) Math.ceil(mTop),
-                (float) Math.floor(mRight), (float) Math.floor(mBottom));
-    }
-
-    /**
-     * Set the dst rectangle by rounding "out" this rectangle, choosing the
-     * floor of top and left, and the ceiling of right and bottom.
-     */
-    @Contract(mutates = "param")
-    public final void roundOut(@NonNull Rect2f dst) {
-        dst.set((float) Math.floor(mLeft), (float) Math.floor(mTop),
-                (float) Math.ceil(mRight), (float) Math.ceil(mBottom));
+    public static boolean rectsTouchOrOverlap(@NonNull Rect2fc a, @NonNull Rect2fc b) {
+        assert (!a.isFinite() || (a.mLeft <= a.mRight && a.mTop <= a.mBottom));
+        assert (!b.isFinite() || (b.mLeft <= b.mRight && b.mTop <= b.mBottom));
+        return a.mRight >= b.mLeft && a.mBottom >= b.mTop && b.mRight >= a.mLeft && b.mBottom >= a.mTop;
     }
 
     /**
@@ -1017,8 +683,8 @@ public non-sealed class Rect2f implements Rect2fc {
      * @param r the rectangle being unioned with this rectangle
      */
     @Contract(mutates = "this")
-    public final void join(Rect2fc r) {
-        join(r.left(), r.top(), r.right(), r.bottom());
+    public final void join(@NonNull Rect2fc r) {
+        join(r.mLeft, r.mTop, r.mRight, r.mBottom);
     }
 
     /**
@@ -1029,8 +695,8 @@ public non-sealed class Rect2f implements Rect2fc {
      * @param r the rectangle being unioned with this rectangle
      */
     @Contract(mutates = "this")
-    public final void join(Rect2ic r) {
-        join(r.left(), r.top(), r.right(), r.bottom());
+    public final void join(@NonNull Rect2ic r) {
+        join(r.mLeft, r.mTop, r.mRight, r.mBottom);
     }
 
     /**
@@ -1061,8 +727,8 @@ public non-sealed class Rect2f implements Rect2fc {
      * @param r the rectangle being unioned with this rectangle
      */
     @Contract(mutates = "this")
-    public final void joinNoCheck(Rect2fc r) {
-        joinNoCheck(r.left(), r.top(), r.right(), r.bottom());
+    public final void joinNoCheck(@NonNull Rect2fc r) {
+        joinNoCheck(r.mLeft, r.mTop, r.mRight, r.mBottom);
     }
 
     /**
@@ -1074,8 +740,8 @@ public non-sealed class Rect2f implements Rect2fc {
      * @param r the rectangle being unioned with this rectangle
      */
     @Contract(mutates = "this")
-    public final void joinNoCheck(Rect2ic r) {
-        joinNoCheck(r.left(), r.top(), r.right(), r.bottom());
+    public final void joinNoCheck(@NonNull Rect2ic r) {
+        joinNoCheck(r.mLeft, r.mTop, r.mRight, r.mBottom);
     }
 
     /**
@@ -1147,11 +813,11 @@ public non-sealed class Rect2f implements Rect2fc {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof Rect2fc r)) {
+        if (!(o instanceof Rect2f r)) {
             return false;
         }
-        return mLeft == r.left() && mTop == r.top() &&
-                mRight == r.right() && mBottom == r.bottom();
+        return mLeft == r.mLeft && mTop == r.mTop &&
+                mRight == r.mRight && mBottom == r.mBottom;
     }
 
     @Override
