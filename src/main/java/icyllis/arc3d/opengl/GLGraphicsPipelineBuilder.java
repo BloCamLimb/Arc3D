@@ -33,6 +33,7 @@ import icyllis.arc3d.engine.VertexInputLayout;
 import org.jspecify.annotations.NonNull;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL43C;
+import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
 
 import java.lang.ref.Reference;
@@ -42,6 +43,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.lwjgl.opengl.GL20C.*;
 import static org.lwjgl.opengl.GL31C.GL_INVALID_INDEX;
+import static org.lwjgl.system.MemoryStack.stackGet;
 
 public class GLGraphicsPipelineBuilder {
 
@@ -262,9 +264,9 @@ public class GLGraphicsPipelineBuilder {
 
         gl.glLinkProgram(program);
 
-        if (gl.glGetProgrami(program, GL_LINK_STATUS) == GL_FALSE) {
+        String log = GLUtil.checkProgramLinked(gl, program);
+        if (log != null) {
             try {
-                String log = gl.glGetProgramInfoLog(program);
                 if (mFinalizedVertGLSL != null) {
                     GLUtil.handleLinkError(mDevice.getLogger(),
                             new String[]{
@@ -334,18 +336,27 @@ public class GLGraphicsPipelineBuilder {
                 label = "Arc3D_PIPE_" + label;
                 label = label.substring(0, Math.min(label.length(),
                         mDevice.getCaps().maxLabelLength()));
-                gl.glObjectLabel(GL43C.GL_PROGRAM, program, label);
+                GLUtil.glObjectLabel(mDevice, GL43C.GL_PROGRAM, program, label);
             }
         }
 
         // Setup layout bindings if < OpenGL 4.2
         if (!mDevice.getCaps().shaderCaps().mUniformBindingSupport) {
+            //noinspection resource
+            MemoryStack stack = stackGet();
+            int stackPointer = stack.getPointer();
             if (mUniformBlockInfos != null) {
                 for (var info : mUniformBlockInfos) {
                     if (info.mVisibility != 0) {
-                        int index = gl.glGetUniformBlockIndex(program, info.mBlockName);
-                        assert index != GL_INVALID_INDEX;
-                        gl.glUniformBlockBinding(program, index, info.mBinding);
+                        try {
+                            stack.nASCII(info.mBlockName, true);
+                            long uniformBlockNameEncoded = stack.getPointerAddress();
+                            int index = gl.glGetUniformBlockIndex(program, uniformBlockNameEncoded);
+                            assert index != GL_INVALID_INDEX;
+                            gl.glUniformBlockBinding(program, index, info.mBinding);
+                        } finally {
+                            stack.setPointer(stackPointer);
+                        }
                     }
                 }
             }
@@ -355,9 +366,15 @@ public class GLGraphicsPipelineBuilder {
                 gl.glUseProgram(program);
                 for (var info : mSamplerInfos) {
                     if (info.mVisibility != 0) {
-                        int location = gl.glGetUniformLocation(program, info.mName);
-                        assert location != -1;
-                        gl.glUniform1i(location, info.mBinding); // <- binding is just the texture unit (index)
+                        try {
+                            stack.nASCII(info.mName, true);
+                            long nameEncoded = stack.getPointerAddress();
+                            int location = gl.glGetUniformLocation(program, nameEncoded);
+                            assert location != -1;
+                            gl.glUniform1i(location, info.mBinding); // <- binding is just the texture unit (index)
+                        } finally {
+                            stack.setPointer(stackPointer);
+                        }
                     }
                 }
             }

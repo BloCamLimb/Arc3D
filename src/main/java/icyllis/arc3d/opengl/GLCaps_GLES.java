@@ -23,7 +23,6 @@ import icyllis.arc3d.compiler.GLSLVersion;
 import icyllis.arc3d.compiler.TargetApi;
 import icyllis.arc3d.engine.*;
 import org.jetbrains.annotations.VisibleForTesting;
-import org.jspecify.annotations.Nullable;
 import org.lwjgl.opengles.*;
 import org.lwjgl.system.MemoryStack;
 import org.slf4j.Logger;
@@ -37,13 +36,10 @@ import static org.lwjgl.opengles.GLES30.*;
 import static org.lwjgl.opengles.GLES31.GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT;
 import static org.lwjgl.opengles.GLES32.GL_MAX_LABEL_LENGTH;
 
-public final class GLCaps_GLES extends GLCaps implements GLInterface {
-
-    private boolean mDrawElementsBaseVertexEXT;
-    private boolean mCopyImageSubDataEXT;
+public final class GLCaps_GLES extends GLCaps {
 
     @VisibleForTesting
-    public GLCaps_GLES(ContextOptions options, Object capabilities) {
+    public GLCaps_GLES(ContextOptions options, Object capabilities, GLInterface interf) {
         super(options);
         GLESCapabilities caps = (GLESCapabilities) capabilities;
         // OpenGL ES 3.0 is the minimum requirement
@@ -51,9 +47,11 @@ public final class GLCaps_GLES extends GLCaps implements GLInterface {
             throw new UnsupportedOperationException("OpenGL ES 3.0 is unavailable");
         }
         Logger logger = Objects.requireNonNullElse(options.mLogger, NOPLogger.NOP_LOGGER);
+        initCommonFunctions(caps, interf);
 
         if (caps.GL_NV_texture_barrier) {
             mTextureBarrierSupport = true;
+            interf.glTextureBarrier = caps.glTextureBarrierNV;
             logger.info("Use NV_texture_barrier");
         } else {
             mTextureBarrierSupport = false;
@@ -63,24 +61,25 @@ public final class GLCaps_GLES extends GLCaps implements GLInterface {
         mDebugSupport = caps.GLES32;
         if (caps.GLES32) {
             mDrawElementsBaseVertexSupport = true;
-            mDrawElementsBaseVertexEXT = false;
         } else if (caps.GL_EXT_draw_elements_base_vertex) {
             mDrawElementsBaseVertexSupport = true;
-            mDrawElementsBaseVertexEXT = true;
+            interf.glDrawElementsBaseVertex = caps.glDrawElementsBaseVertexEXT;
+            interf.glDrawElementsInstancedBaseVertex = caps.glDrawElementsInstancedBaseVertexEXT;
             logger.info("Use EXT_draw_elements_base_vertex");
         } else {
             mDrawElementsBaseVertexSupport = false;
         }
         mBaseInstanceSupport = caps.GL_EXT_base_instance;
         if (mBaseInstanceSupport) {
+            interf.glDrawArraysInstancedBaseInstance = caps.glDrawArraysInstancedBaseInstanceEXT;
+            interf.glDrawElementsInstancedBaseVertexBaseInstance = caps.glDrawElementsInstancedBaseVertexBaseInstanceEXT;
             logger.info("Use EXT_base_instance");
         }
         if (caps.GLES32) {
             mCopyImageSupport = true;
-            mCopyImageSubDataEXT = false;
         } else if (caps.GL_EXT_copy_image) {
             mCopyImageSupport = true;
-            mCopyImageSubDataEXT = true;
+            interf.glCopyImageSubData = caps.glCopyImageSubDataEXT;
             logger.info("Use EXT_copy_image");
         } else {
             mCopyImageSupport = false;
@@ -88,12 +87,15 @@ public final class GLCaps_GLES extends GLCaps implements GLInterface {
         // textureStorageSupported - OpenGL ES 3.0
         mTexStorageSupport = true;
         mViewCompatibilityClassSupport = false;
+        // OpenGL ES 2.0
+        mShaderBinarySupport = true;
         // OpenGL ES 3.0
         mProgramBinarySupport = true;
         mProgramParameterSupport = true;
         mVertexAttribBindingSupport = caps.GLES31;
         mBufferStorageSupport = caps.GL_EXT_buffer_storage;
         if (mBufferStorageSupport) {
+            interf.glBufferStorage = caps.glBufferStorageEXT;
             logger.info("Use EXT_buffer_storage");
         }
         // our attachment points are consistent with draw buffers
@@ -316,713 +318,114 @@ public final class GLCaps_GLES extends GLCaps implements GLInterface {
         return true;
     }
 
-    @Override
-    public void glEnable(int cap) {
-        GLES20.glEnable(cap);
-    }
-
-    @Override
-    public void glDisable(int cap) {
-        GLES20.glDisable(cap);
-    }
-
-    @Override
-    public void glFrontFace(int mode) {
-        GLES20.glFrontFace(mode);
-    }
-
-    @Override
-    public void glLineWidth(float width) {
-        GLES20.glLineWidth(width);
-    }
-
-    @Override
-    public int glGenTextures() {
-        return GLES20.glGenTextures();
-    }
-
-    @Override
-    public void glTexParameteri(int target, int pname, int param) {
-        GLES20.glTexParameteri(target, pname, param);
-    }
-
-    @Override
-    public void glTexParameteriv(int target, int pname, IntBuffer params) {
-        GLES20.glTexParameteriv(target, pname, params);
-    }
-
-    @Override
-    public void glTexImage2D(int target, int level, int internalformat, int width, int height, int border, int format,
-                             int type, long pixels) {
-        GLES20.nglTexImage2D(target, level, internalformat, width, height, border, format, type, pixels);
-    }
-
-    @Override
-    public void glTexSubImage2D(int target, int level, int xoffset, int yoffset, int width, int height, int format,
-                                int type, long pixels) {
-        GLES20.glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels);
-    }
-
-    @Override
-    public void glCopyTexSubImage2D(int target, int level, int xoffset, int yoffset, int x, int y, int width,
-                                    int height) {
-        GLES20.glCopyTexSubImage2D(target, level, xoffset, yoffset, x, y, width, height);
-    }
-
-    @Override
-    public void glDeleteTextures(int texture) {
-        GLES20.glDeleteTextures(texture);
-    }
-
-    @Override
-    public void glBindTexture(int target, int texture) {
-        GLES20.glBindTexture(target, texture);
-    }
-
-    @Override
-    public void glPixelStorei(int pname, int param) {
-        GLES20.glPixelStorei(pname, param);
-    }
-
-    @Override
-    public void glBlendFunc(int sfactor, int dfactor) {
-        GLES20.glBlendFunc(sfactor, dfactor);
-    }
-
-    @Override
-    public void glColorMask(boolean red, boolean green, boolean blue, boolean alpha) {
-        GLES20.glColorMask(red, green, blue, alpha);
-    }
-
-    @Override
-    public void glDepthFunc(int func) {
-        GLES20.glDepthFunc(func);
-    }
-
-    @Override
-    public void glDepthMask(boolean flag) {
-        GLES20.glDepthMask(flag);
-    }
-
-    @Override
-    public void glStencilOp(int sfail, int dpfail, int dppass) {
-        GLES20.glStencilOp(sfail, dpfail, dppass);
-    }
-
-    @Override
-    public void glStencilFunc(int func, int ref, int mask) {
-        GLES20.glStencilFunc(func, ref, mask);
-    }
-
-    @Override
-    public void glStencilMask(int mask) {
-        GLES20.glStencilMask(mask);
-    }
-
-    @Override
-    public void glDrawArrays(int mode, int first, int count) {
-        GLES20.glDrawArrays(mode, first, count);
-    }
-
-    @Override
-    public void glDrawElements(int mode, int count, int type, long indices) {
-        GLES20.glDrawElements(mode, count, type, indices);
-    }
-
-    @Override
-    public void glFlush() {
-        GLES20.glFlush();
-    }
-
-    @Override
-    public void glFinish() {
-        GLES20.glFinish();
-    }
-
-    @Override
-    public int glGetError() {
-        return GLES20.glGetError();
-    }
-
-    @Nullable
-    @Override
-    public String glGetString(int name) {
-        return GLES20.glGetString(name);
-    }
-
-    @Override
-    public int glGetInteger(int pname) {
-        return GLES20.glGetInteger(pname);
-    }
-
-    @Override
-    public void glScissor(int x, int y, int width, int height) {
-        GLES20.glScissor(x, y, width, height);
-    }
-
-    @Override
-    public void glViewport(int x, int y, int width, int height) {
-        GLES20.glViewport(x, y, width, height);
-    }
-
-    @Override
-    public void glActiveTexture(int texture) {
-        GLES20.glActiveTexture(texture);
-    }
-
-    @Override
-    public void glBlendEquation(int mode) {
-        GLES20.glBlendEquation(mode);
-    }
-
-    @Override
-    public int glGenBuffers() {
-        return GLES20.glGenBuffers();
-    }
-
-    @Override
-    public void glDeleteBuffers(int buffer) {
-        GLES20.glDeleteBuffers(buffer);
-    }
-
-    @Override
-    public void glBindBuffer(int target, int buffer) {
-        GLES20.glBindBuffer(target, buffer);
-    }
-
-    @Override
-    public void glBufferData(int target, long size, long data, int usage) {
-        GLES20.nglBufferData(target, size, data, usage);
-    }
-
-    @Override
-    public void glBufferSubData(int target, long offset, long size, long data) {
-        GLES20.nglBufferSubData(target, offset, size, data);
-    }
-
-    @Override
-    public boolean glUnmapBuffer(int target) {
-        return GLES30.glUnmapBuffer(target);
-    }
-
-    @Override
-    public void glDrawBuffers(int[] bufs) {
-        GLES30.glDrawBuffers(bufs);
-    }
-
-    @Override
-    public void glStencilOpSeparate(int face, int sfail, int dpfail, int dppass) {
-        GLES20.glStencilOpSeparate(face, sfail, dpfail, dppass);
-    }
-
-    @Override
-    public void glStencilFuncSeparate(int face, int func, int ref, int mask) {
-        GLES20.glStencilFuncSeparate(face, func, ref, mask);
-    }
-
-    @Override
-    public void glStencilMaskSeparate(int face, int mask) {
-        GLES20.glStencilMaskSeparate(face, mask);
-    }
-
-    @Override
-    public int glCreateProgram() {
-        return GLES20.glCreateProgram();
-    }
-
-    @Override
-    public void glDeleteProgram(int program) {
-        GLES20.glDeleteProgram(program);
-    }
-
-    @Override
-    public int glCreateShader(int type) {
-        return GLES20.glCreateShader(type);
-    }
-
-    @Override
-    public void glDeleteShader(int shader) {
-        GLES20.glDeleteShader(shader);
-    }
-
-    @Override
-    public void glAttachShader(int program, int shader) {
-        GLES20.glAttachShader(program, shader);
-    }
-
-    @Override
-    public void glDetachShader(int program, int shader) {
-        GLES20.glDetachShader(program, shader);
-    }
-
-    @Override
-    public void glShaderSource(int shader, int count, long strings, long length) {
-        GLES20.nglShaderSource(shader, count, strings, length);
-    }
-
-    @Override
-    public void glCompileShader(int shader) {
-        GLES20.glCompileShader(shader);
-    }
-
-    @Override
-    public void glLinkProgram(int program) {
-        GLES20.glLinkProgram(program);
-    }
-
-    @Override
-    public void glUseProgram(int program) {
-        GLES20.glUseProgram(program);
-    }
-
-    @Override
-    public int glGetShaderi(int shader, int pname) {
-        return GLES20.glGetShaderi(shader, pname);
-    }
-
-    @Override
-    public int glGetProgrami(int program, int pname) {
-        return GLES20.glGetProgrami(program, pname);
-    }
-
-    @Override
-    public String glGetShaderInfoLog(int shader) {
-        return GLES20.glGetShaderInfoLog(shader);
-    }
-
-    @Override
-    public String glGetProgramInfoLog(int program) {
-        return GLES20.glGetProgramInfoLog(program);
-    }
-
-    @Override
-    public int glGetUniformLocation(int program, CharSequence name) {
-        return GLES20.glGetUniformLocation(program, name);
-    }
-
-    @Override
-    public void glUniform1i(int location, int v0) {
-        GLES20.glUniform1i(location, v0);
-    }
-
-    @Override
-    public void glEnableVertexAttribArray(int index) {
-        GLES20.glEnableVertexAttribArray(index);
-    }
-
-    @Override
-    public void glVertexAttribPointer(int index, int size, int type, boolean normalized, int stride, long pointer) {
-        GLES20.glVertexAttribPointer(index, size, type, normalized, stride, pointer);
-    }
-
-    @Override
-    public void glVertexAttribIPointer(int index, int size, int type, int stride, long pointer) {
-        GLES30.glVertexAttribIPointer(index, size, type, stride, pointer);
-    }
-
-    @Override
-    public int glGenVertexArrays() {
-        return GLES30.glGenVertexArrays();
-    }
-
-    @Override
-    public void glDeleteVertexArrays(int array) {
-        GLES30.glDeleteVertexArrays(array);
-    }
-
-    @Override
-    public void glBindVertexArray(int array) {
-        GLES30.glBindVertexArray(array);
-    }
-
-    @Override
-    public int glGenFramebuffers() {
-        return GLES20.glGenFramebuffers();
-    }
-
-    @Override
-    public void glDeleteFramebuffers(int framebuffer) {
-        GLES20.glDeleteFramebuffers(framebuffer);
-    }
-
-    @Override
-    public void glBindFramebuffer(int target, int framebuffer) {
-        GLES20.glBindFramebuffer(target, framebuffer);
-    }
-
-    @Override
-    public int glCheckFramebufferStatus(int target) {
-        return GLES20.glCheckFramebufferStatus(target);
-    }
-
-    @Override
-    public void glFramebufferTexture2D(int target, int attachment, int textarget, int texture, int level) {
-        GLES20.glFramebufferTexture2D(target, attachment, textarget, texture, level);
-    }
-
-    @Override
-    public void glFramebufferRenderbuffer(int target, int attachment, int renderbuffertarget, int renderbuffer) {
-        GLES20.glFramebufferRenderbuffer(target, attachment, renderbuffertarget, renderbuffer);
-    }
-
-    @Override
-    public void glBlitFramebuffer(int srcX0, int srcY0, int srcX1, int srcY1, int dstX0, int dstY0, int dstX1,
-                                  int dstY1, int mask, int filter) {
-        GLES30.glBlitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter);
-    }
-
-    @Override
-    public void glClearBufferiv(int buffer, int drawbuffer, IntBuffer value) {
-        GLES30.glClearBufferiv(buffer, drawbuffer, value);
-    }
-
-    @Override
-    public void glClearBufferfv(int buffer, int drawbuffer, FloatBuffer value) {
-        GLES30.glClearBufferfv(buffer, drawbuffer, value);
-    }
-
-    @Override
-    public void glClearBufferfi(int buffer, int drawbuffer, float depth, int stencil) {
-        GLES30.glClearBufferfi(buffer, drawbuffer, depth, stencil);
-    }
-
-    @Override
-    public void glBindBufferBase(int target, int index, int buffer) {
-        GLES30.glBindBufferBase(target, index, buffer);
-    }
-
-    @Override
-    public void glBindBufferRange(int target, int index, int buffer, long offset, long size) {
-        GLES30.glBindBufferRange(target, index, buffer, offset, size);
-    }
-
-    @Override
-    public int glGenRenderbuffers() {
-        return GLES20.glGenRenderbuffers();
-    }
-
-    @Override
-    public void glDeleteRenderbuffers(int renderbuffer) {
-        GLES20.glDeleteRenderbuffers(renderbuffer);
-    }
-
-    @Override
-    public void glBindRenderbuffer(int target, int renderbuffer) {
-        GLES20.glBindRenderbuffer(target, renderbuffer);
-    }
-
-    @Override
-    public void glRenderbufferStorage(int target, int internalformat, int width, int height) {
-        GLES20.glRenderbufferStorage(target, internalformat, width, height);
-    }
-
-    @Override
-    public void glRenderbufferStorageMultisample(int target, int samples, int internalformat, int width, int height) {
-        GLES30.glRenderbufferStorageMultisample(target, samples, internalformat, width, height);
-    }
-
-    @Override
-    public long glMapBufferRange(int target, long offset, long length, int access) {
-        return GLES30.nglMapBufferRange(target, offset, length, access);
-    }
-
-    @Override
-    public void glDrawArraysInstanced(int mode, int first, int count, int instancecount) {
-        GLES30.glDrawArraysInstanced(mode, first, count, instancecount);
-    }
-
-    @Override
-    public void glDrawElementsInstanced(int mode, int count, int type, long indices, int instancecount) {
-        GLES30.glDrawElementsInstanced(mode, count, type, indices, instancecount);
-    }
-
-    @Override
-    public void glCopyBufferSubData(int readTarget, int writeTarget, long readOffset, long writeOffset, long size) {
-        GLES30.glCopyBufferSubData(readTarget, writeTarget, readOffset, writeOffset, size);
-    }
-
-    @Override
-    public int glGetUniformBlockIndex(int program, CharSequence uniformBlockName) {
-        return GLES30.glGetUniformBlockIndex(program, uniformBlockName);
-    }
-
-    @Override
-    public void glUniformBlockBinding(int program, int uniformBlockIndex, int uniformBlockBinding) {
-        GLES30.glUniformBlockBinding(program, uniformBlockIndex, uniformBlockBinding);
-    }
-
-    @Override
-    public long glFenceSync(int condition, int flags) {
-        return GLES30.glFenceSync(condition, flags);
-    }
-
-    @Override
-    public void glDeleteSync(long sync) {
-        GLES30.glDeleteSync(sync);
-    }
-
-    @Override
-    public int glClientWaitSync(long sync, int flags, long timeout) {
-        return GLES30.glClientWaitSync(sync, flags, timeout);
-    }
-
-    @Override
-    public int glGenSamplers() {
-        return GLES30.glGenSamplers();
-    }
-
-    @Override
-    public void glDeleteSamplers(int sampler) {
-        GLES30.glDeleteSamplers(sampler);
-    }
-
-    @Override
-    public void glBindSampler(int unit, int sampler) {
-        GLES30.glBindSampler(unit, sampler);
-    }
-
-    @Override
-    public void glSamplerParameteri(int sampler, int pname, int param) {
-        GLES30.glSamplerParameteri(sampler, pname, param);
-    }
-
-    @Override
-    public void glSamplerParameterf(int sampler, int pname, float param) {
-        GLES30.glSamplerParameterf(sampler, pname, param);
-    }
-
-    @Override
-    public void glVertexAttribDivisor(int index, int divisor) {
-        GLES30.glVertexAttribDivisor(index, divisor);
-    }
-
-    @Override
-    public void glDrawElementsBaseVertex(int mode, int count, int type, long indices, int basevertex) {
-        assert mDrawElementsBaseVertexSupport;
-        if (mDrawElementsBaseVertexEXT) {
-            EXTDrawElementsBaseVertex.nglDrawElementsBaseVertexEXT(mode, count, type, indices, basevertex);
-        } else {
-            GLES32.nglDrawElementsBaseVertex(mode, count, type, indices, basevertex);
-        }
-    }
-
-    @Override
-    public void glDrawElementsInstancedBaseVertex(int mode, int count, int type, long indices,
-                                                  int instancecount, int basevertex) {
-        assert mDrawElementsBaseVertexSupport;
-        if (mDrawElementsBaseVertexEXT) {
-            EXTDrawElementsBaseVertex.nglDrawElementsInstancedBaseVertexEXT(mode, count, type, indices,
-                    instancecount, basevertex);
-        } else {
-            GLES32.nglDrawElementsInstancedBaseVertex(mode, count, type, indices,
-                    instancecount, basevertex);
-        }
-    }
-
-    @Override
-    public void glShaderBinary(IntBuffer shaders, int binaryformat, ByteBuffer binary) {
-        GLES20.glShaderBinary(shaders, binaryformat, binary);
-    }
-
-    @Override
-    public void glDrawArraysInstancedBaseInstance(int mode, int first, int count, int instancecount, int baseinstance) {
-        assert mBaseInstanceSupport;
-        EXTBaseInstance.glDrawArraysInstancedBaseInstanceEXT(mode, first, count, instancecount, baseinstance);
-    }
-
-    @Override
-    public void glDrawElementsInstancedBaseVertexBaseInstance(int mode, int count, int type, long indices,
-                                                              int instancecount, int basevertex, int baseinstance) {
-        assert mBaseInstanceSupport;
-        EXTBaseInstance.nglDrawElementsInstancedBaseVertexBaseInstanceEXT(mode, count, type, indices, instancecount,
-                basevertex, baseinstance);
-    }
-
-    @Override
-    public void glTexStorage2D(int target, int levels, int internalformat, int width, int height) {
-        GLES30.glTexStorage2D(target, levels, internalformat, width, height);
-    }
-
-    @Override
-    public void glInvalidateBufferSubData(int buffer, long offset, long length) {
-        assert false;
-    }
-
-    @Override
-    public void glInvalidateFramebuffer(int target, IntBuffer attachments) {
-        GLES30.glInvalidateFramebuffer(target, attachments);
-    }
-
-    @Override
-    public void glCopyImageSubData(int srcName, int srcTarget, int srcLevel, int srcX, int srcY, int srcZ,
-                                   int dstName, int dstTarget, int dstLevel, int dstX, int dstY, int dstZ,
-                                   int srcWidth, int srcHeight, int srcDepth) {
-        assert mCopyImageSupport;
-        if (mCopyImageSubDataEXT) {
-            EXTCopyImage.glCopyImageSubDataEXT(srcName, srcTarget, srcLevel, srcX, srcY, srcZ, dstName, dstTarget,
-                    dstLevel, dstX, dstY, dstZ, srcWidth, srcHeight, srcDepth);
-        } else {
-            GLES32.glCopyImageSubData(srcName, srcTarget, srcLevel, srcX, srcY, srcZ, dstName, dstTarget, dstLevel,
-                    dstX, dstY, dstZ, srcWidth, srcHeight, srcDepth);
-        }
-    }
-
-    @Override
-    public void glObjectLabel(int identifier, int name, int length, long label) {
-        assert mDebugSupport;
-        GLES32.nglObjectLabel(identifier, name, length, label);
-    }
-
-    @Override
-    public void glObjectLabel(int identifier, int name, CharSequence label) {
-        assert mDebugSupport;
-        GLES32.glObjectLabel(identifier, name, label);
-    }
-
-    @Override
-    public void glBindVertexBuffer(int bindingindex, int buffer, long offset, int stride) {
-        assert mVertexAttribBindingSupport;
-        GLES31.glBindVertexBuffer(bindingindex, buffer, offset, stride);
-    }
-
-    @Override
-    public void glVertexAttribFormat(int attribindex, int size, int type, boolean normalized, int relativeoffset) {
-        GLES31.glVertexAttribFormat(attribindex, size, type, normalized, relativeoffset);
-    }
-
-    @Override
-    public void glVertexAttribIFormat(int attribindex, int size, int type, int relativeoffset) {
-        GLES31.glVertexAttribIFormat(attribindex, size, type, relativeoffset);
-    }
-
-    @Override
-    public void glVertexAttribBinding(int attribindex, int bindingindex) {
-        GLES31.glVertexAttribBinding(attribindex, bindingindex);
-    }
-
-    @Override
-    public void glVertexBindingDivisor(int bindingindex, int divisor) {
-        GLES31.glVertexBindingDivisor(bindingindex, divisor);
-    }
-
-    @Override
-    public void glBufferStorage(int target, long size, long data, int flags) {
-        assert mBufferStorageSupport;
-        EXTBufferStorage.nglBufferStorageEXT(target, size, data, flags);
-    }
-
-    @Override
-    public void glTextureBarrier() {
-        assert mTextureBarrierSupport;
-        NVTextureBarrier.glTextureBarrierNV();
-    }
-
-    @Override
-    public int glCreateBuffers() {
-        assert false;
-        return 0;
-    }
-
-    @Override
-    public void glNamedBufferData(int buffer, long size, long data, int usage) {
-        assert false;
-    }
-
-    @Override
-    public void glNamedBufferSubData(int buffer, long offset, long size, long data) {
-        assert false;
-    }
-
-    @Override
-    public long glMapNamedBufferRange(int buffer, long offset, long length, int access) {
-        assert false;
-        return 0;
-    }
-
-    @Override
-    public boolean glUnmapNamedBuffer(int buffer) {
-        assert false;
-        return false;
-    }
-
-    @Override
-    public void glNamedBufferStorage(int buffer, long size, long data, int flags) {
-        assert false;
-    }
-
-    @Override
-    public void glCopyNamedBufferSubData(int readBuffer, int writeBuffer, long readOffset, long writeOffset,
-                                         long size) {
-        assert false;
-    }
-
-    @Override
-    public int glCreateTextures(int target) {
-        assert false;
-        return 0;
-    }
-
-    @Override
-    public void glTextureParameteri(int texture, int pname, int param) {
-        assert false;
-    }
-
-    @Override
-    public void glTextureParameteriv(int texture, int pname, IntBuffer params) {
-        assert false;
-    }
-
-    @Override
-    public void glTextureSubImage2D(int texture, int level, int xoffset, int yoffset, int width, int height,
-                                    int format, int type, long pixels) {
-        assert false;
-    }
-
-    @Override
-    public void glTextureStorage2D(int texture, int levels, int internalformat, int width, int height) {
-        assert false;
-    }
-
-    @Override
-    public int glCreateVertexArrays() {
-        assert false;
-        return 0;
-    }
-
-    @Override
-    public void glEnableVertexArrayAttrib(int vaobj, int index) {
-        assert false;
-    }
-
-    @Override
-    public void glVertexArrayAttribFormat(int vaobj, int attribindex, int size, int type, boolean normalized,
-                                          int relativeoffset) {
-        assert false;
-    }
-
-    @Override
-    public void glVertexArrayAttribIFormat(int vaobj, int attribindex, int size, int type, int relativeoffset) {
-        assert false;
-    }
-
-    @Override
-    public void glVertexArrayAttribBinding(int vaobj, int attribindex, int bindingindex) {
-        assert false;
-    }
-
-    @Override
-    public void glVertexArrayBindingDivisor(int vaobj, int bindingindex, int divisor) {
-        assert false;
-    }
-
-    @Override
-    public void glBindTextureUnit(int unit, int texture) {
-        assert false;
-    }
-
-    @Override
-    public void glSpecializeShader(int shader, CharSequence pEntryPoint, IntBuffer pConstantIndex,
-                                   IntBuffer pConstantValue) {
-        assert false;
+    public static void initCommonFunctions(GLESCapabilities caps, GLInterface interf) {
+        interf.glEnable = caps.glEnable;
+        interf.glDisable = caps.glDisable;
+        interf.glFrontFace = caps.glFrontFace;
+        interf.glLineWidth = caps.glLineWidth;
+        interf.glGenTextures = caps.glGenTextures;
+        interf.glTexParameteri = caps.glTexParameteri;
+        interf.glTexParameteriv = caps.glTexParameteriv;
+        interf.glTexImage2D = caps.glTexImage2D;
+        interf.glTexSubImage2D = caps.glTexSubImage2D;
+        interf.glCopyTexSubImage2D = caps.glCopyTexSubImage2D;
+        interf.glDeleteTextures = caps.glDeleteTextures;
+        interf.glBindTexture = caps.glBindTexture;
+        interf.glPixelStorei = caps.glPixelStorei;
+        interf.glBlendFunc = caps.glBlendFunc;
+        interf.glColorMask = caps.glColorMask;
+        interf.glDepthFunc = caps.glDepthFunc;
+        interf.glDepthMask = caps.glDepthMask;
+        interf.glStencilOp = caps.glStencilOp;
+        interf.glStencilFunc = caps.glStencilFunc;
+        interf.glStencilMask = caps.glStencilMask;
+        interf.glDrawArrays = caps.glDrawArrays;
+        interf.glDrawElements = caps.glDrawElements;
+        interf.glFlush = caps.glFlush;
+        interf.glFinish = caps.glFinish;
+        interf.glGetError = caps.glGetError;
+        interf.glGetString = caps.glGetString;
+        interf.glGetIntegerv = caps.glGetIntegerv;
+        interf.glScissor = caps.glScissor;
+        interf.glViewport = caps.glViewport;
+        interf.glActiveTexture = caps.glActiveTexture;
+        interf.glBlendEquation = caps.glBlendEquation;
+        interf.glGenBuffers = caps.glGenBuffers;
+        interf.glDeleteBuffers = caps.glDeleteBuffers;
+        interf.glBindBuffer = caps.glBindBuffer;
+        interf.glBufferData = caps.glBufferData;
+        interf.glBufferSubData = caps.glBufferSubData;
+        interf.glUnmapBuffer = caps.glUnmapBuffer;
+        interf.glDrawBuffers = caps.glDrawBuffers;
+        interf.glStencilOpSeparate = caps.glStencilOpSeparate;
+        interf.glStencilFuncSeparate = caps.glStencilFuncSeparate;
+        interf.glStencilMaskSeparate = caps.glStencilMaskSeparate;
+        interf.glCreateProgram = caps.glCreateProgram;
+        interf.glDeleteProgram = caps.glDeleteProgram;
+        interf.glCreateShader = caps.glCreateShader;
+        interf.glDeleteShader = caps.glDeleteShader;
+        interf.glAttachShader = caps.glAttachShader;
+        interf.glDetachShader = caps.glDetachShader;
+        interf.glShaderSource = caps.glShaderSource;
+        interf.glCompileShader = caps.glCompileShader;
+        interf.glLinkProgram = caps.glLinkProgram;
+        interf.glUseProgram = caps.glUseProgram;
+        interf.glGetShaderiv = caps.glGetShaderiv;
+        interf.glGetProgramiv = caps.glGetProgramiv;
+        interf.glGetShaderInfoLog = caps.glGetShaderInfoLog;
+        interf.glGetProgramInfoLog = caps.glGetProgramInfoLog;
+        interf.glGetUniformLocation = caps.glGetUniformLocation;
+        interf.glUniform1i = caps.glUniform1i;
+        interf.glEnableVertexAttribArray = caps.glEnableVertexAttribArray;
+        interf.glVertexAttribPointer = caps.glVertexAttribPointer;
+        interf.glVertexAttribIPointer = caps.glVertexAttribIPointer;
+        interf.glGenVertexArrays = caps.glGenVertexArrays;
+        interf.glDeleteVertexArrays = caps.glDeleteVertexArrays;
+        interf.glBindVertexArray = caps.glBindVertexArray;
+        interf.glGenFramebuffers = caps.glGenFramebuffers;
+        interf.glDeleteFramebuffers = caps.glDeleteFramebuffers;
+        interf.glBindFramebuffer = caps.glBindFramebuffer;
+        interf.glCheckFramebufferStatus = caps.glCheckFramebufferStatus;
+        interf.glFramebufferTexture2D = caps.glFramebufferTexture2D;
+        interf.glFramebufferRenderbuffer = caps.glFramebufferRenderbuffer;
+        interf.glBlitFramebuffer = caps.glBlitFramebuffer;
+        interf.glClearBufferiv = caps.glClearBufferiv;
+        interf.glClearBufferfv = caps.glClearBufferfv;
+        interf.glClearBufferfi = caps.glClearBufferfi;
+        interf.glBindBufferBase = caps.glBindBufferBase;
+        interf.glBindBufferRange = caps.glBindBufferRange;
+        interf.glGenRenderbuffers = caps.glGenRenderbuffers;
+        interf.glDeleteRenderbuffers = caps.glDeleteRenderbuffers;
+        interf.glBindRenderbuffer = caps.glBindRenderbuffer;
+        interf.glRenderbufferStorage = caps.glRenderbufferStorage;
+        interf.glRenderbufferStorageMultisample = caps.glRenderbufferStorageMultisample;
+        interf.glMapBufferRange = caps.glMapBufferRange;
+        interf.glDrawArraysInstanced = caps.glDrawArraysInstanced;
+        interf.glDrawElementsInstanced = caps.glDrawElementsInstanced;
+        interf.glCopyBufferSubData = caps.glCopyBufferSubData;
+        interf.glGetUniformBlockIndex = caps.glGetUniformBlockIndex;
+        interf.glUniformBlockBinding = caps.glUniformBlockBinding;
+        interf.glFenceSync = caps.glFenceSync;
+        interf.glDeleteSync = caps.glDeleteSync;
+        interf.glClientWaitSync = caps.glClientWaitSync;
+        interf.glGenSamplers = caps.glGenSamplers;
+        interf.glDeleteSamplers = caps.glDeleteSamplers;
+        interf.glBindSampler = caps.glBindSampler;
+        interf.glSamplerParameteri = caps.glSamplerParameteri;
+        interf.glSamplerParameterf = caps.glSamplerParameterf;
+        interf.glVertexAttribDivisor = caps.glVertexAttribDivisor;
+
+        interf.glDrawElementsBaseVertex = caps.glDrawElementsBaseVertex;
+        interf.glDrawElementsInstancedBaseVertex = caps.glDrawElementsInstancedBaseVertex;
+        interf.glShaderBinary = caps.glShaderBinary;
+        interf.glTexStorage2D = caps.glTexStorage2D;
+        interf.glInvalidateFramebuffer = caps.glInvalidateFramebuffer;
+        interf.glCopyImageSubData = caps.glCopyImageSubData;
+        interf.glObjectLabel = caps.glObjectLabel;
+        interf.glBindVertexBuffer = caps.glBindVertexBuffer;
+        interf.glVertexAttribFormat = caps.glVertexAttribFormat;
+        interf.glVertexAttribIFormat = caps.glVertexAttribIFormat;
+        interf.glVertexAttribBinding = caps.glVertexAttribBinding;
+        interf.glVertexBindingDivisor = caps.glVertexBindingDivisor;
     }
 }

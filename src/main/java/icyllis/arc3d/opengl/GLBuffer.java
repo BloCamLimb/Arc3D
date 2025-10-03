@@ -24,14 +24,17 @@ import icyllis.arc3d.core.SharedPtr;
 import icyllis.arc3d.engine.Buffer;
 import icyllis.arc3d.engine.Context;
 import org.jspecify.annotations.Nullable;
+import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
+
+import java.nio.IntBuffer;
 
 import static icyllis.arc3d.engine.Engine.BufferUsageFlags;
 import static org.lwjgl.opengl.GL15C.*;
 import static org.lwjgl.opengl.GL30C.*;
 import static org.lwjgl.opengl.GL43C.*;
 import static org.lwjgl.opengl.GL44C.*;
-import static org.lwjgl.system.MemoryUtil.NULL;
+import static org.lwjgl.system.MemoryUtil.*;
 
 public final class GLBuffer extends Buffer {
 
@@ -115,35 +118,38 @@ public final class GLBuffer extends Buffer {
         GLDevice device = getDevice();
         boolean bufferStorage = device.getCaps().hasBufferStorageSupport();
         boolean dsa = device.getCaps().hasDSASupport();
-        int buffer;
-        if (dsa) {
-            buffer = device.getGL().glCreateBuffers();
-        } else {
-            buffer = device.getGL().glGenBuffers();
-        }
-        if (buffer == 0) {
-            return false;
-        }
-        int target = 0;
-        if (!dsa) {
-            target = getTarget();
-            device.getGL().glBindBuffer(target, buffer);
-        }
-        boolean success;
-        if (bufferStorage) {
-            success = allocate(device, buffer, target, dsa);
-        } else {
-            success = allocateMutable(device, buffer, target, dsa);
-        }
-        if (success) {
-            if (!dsa) {
-                device.getGL().glBindBuffer(target, 0);
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            IntBuffer pBuffer = stack.ints(0);
+            if (dsa) {
+                device.getGL().glCreateBuffers(1, memAddress(pBuffer));
+            } else {
+                device.getGL().glGenBuffers(1, memAddress(pBuffer));
             }
-            mBuffer = buffer;
-        } else {
-            device.getGL().glDeleteBuffers(buffer);
+            int buffer = pBuffer.get(0);
+            if (buffer == 0) {
+                return false;
+            }
+            int target = 0;
+            if (!dsa) {
+                target = getTarget();
+                device.getGL().glBindBuffer(target, buffer);
+            }
+            boolean success;
+            if (bufferStorage) {
+                success = allocate(device, buffer, target, dsa);
+            } else {
+                success = allocateMutable(device, buffer, target, dsa);
+            }
+            if (success) {
+                if (!dsa) {
+                    device.getGL().glBindBuffer(target, 0);
+                }
+                mBuffer = buffer;
+            } else {
+                device.getGL().glDeleteBuffers(1, memAddress(pBuffer));
+            }
+            return success;
         }
-        return success;
     }
 
     public static int getBufferStorageFlags(int usage) {
@@ -311,7 +317,7 @@ public final class GLBuffer extends Buffer {
                     String subLabel = "Arc3D_BUF_" + label;
                     subLabel = subLabel.substring(0, Math.min(subLabel.length(),
                             dev.getCaps().maxLabelLength()));
-                    dev.getGL().glObjectLabel(GL_BUFFER, mBuffer, subLabel);
+                    GLUtil.glObjectLabel(dev, GL_BUFFER, mBuffer, subLabel);
                 }
             }
         });
@@ -321,7 +327,10 @@ public final class GLBuffer extends Buffer {
     protected void onRelease() {
         getDevice().executeRenderCall(dev -> {
             if (mBuffer != 0) {
-                dev.getGL().glDeleteBuffers(mBuffer);
+                try (MemoryStack stack = MemoryStack.stackPush()) {
+                    IntBuffer pBuffer = stack.ints(mBuffer);
+                    dev.getGL().glDeleteBuffers(1, memAddress(pBuffer));
+                }
             }
             mBuffer = 0;
         });

@@ -20,7 +20,8 @@
 package icyllis.arc3d.opengl;
 
 import icyllis.arc3d.core.SharedPtr;
-import icyllis.arc3d.engine.*;
+import icyllis.arc3d.engine.Framebuffer;
+import icyllis.arc3d.engine.FramebufferDesc;
 import org.jspecify.annotations.Nullable;
 
 import static org.lwjgl.opengl.GL11C.GL_NONE;
@@ -69,14 +70,6 @@ public final class GLFramebuffer extends Framebuffer {
         assert device.isOnExecutingThread();
 
         GLInterface gl = device.getGL();
-        // There's an NVIDIA driver bug that creating framebuffer via DSA with attachments of
-        // different dimensions will report GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS_EXT.
-        // The workaround is to use traditional glGen* and glBind* (validate).
-        // see https://forums.developer.nvidia.com/t/framebuffer-incomplete-when-attaching-color-buffers-of-different-sizes-with-dsa/211550
-        final int renderFramebuffer = gl.glGenFramebuffers();
-        if (renderFramebuffer == 0) {
-            return null;
-        }
 
         final int numColorAttachments;
         boolean hasColorAttachments = false;
@@ -88,13 +81,25 @@ public final class GLFramebuffer extends Framebuffer {
             hasColorResolveAttachments |= attachmentDesc.mResolveAttachment != null;
         }
 
+        // There's an NVIDIA driver bug that creating framebuffer via DSA with attachments of
+        // different dimensions will report GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS_EXT.
+        // The workaround is to use traditional glGen* and glBind* (validate).
+        // see https://forums.developer.nvidia.com/t/framebuffer-incomplete-when-attaching-color-buffers-of-different-sizes-with-dsa/211550
+        int[] framebuffers = new int[2];
+        int numFramebuffers = hasColorResolveAttachments ? 2 : 1;
+        gl.glGenFramebuffers(numFramebuffers, framebuffers);
+        final int renderFramebuffer = framebuffers[0];
+        if (renderFramebuffer == 0) {
+            return null;
+        }
+
         // If we are using multisampling we will create two FBOs. We render to one and then resolve to
         // the texture bound to the other.
         final int resolveFramebuffer;
         if (hasColorResolveAttachments) {
-            resolveFramebuffer = gl.glGenFramebuffers();
+            resolveFramebuffer = framebuffers[1];
             if (resolveFramebuffer == 0) {
-                gl.glDeleteFramebuffers(renderFramebuffer);
+                gl.glDeleteFramebuffers(1, framebuffers);
                 return null;
             }
         } else {
@@ -119,7 +124,7 @@ public final class GLFramebuffer extends Framebuffer {
                         attachmentDesc.mMipLevel);
                 drawBuffers[index] = GL_COLOR_ATTACHMENT0 + index;
             }
-            gl.glDrawBuffers(drawBuffers);
+            gl.glDrawBuffers(numColorAttachments, drawBuffers);
         }
         if (desc.mDepthStencilAttachment.mAttachment != null) {
             GLRenderbuffer attachment = (GLRenderbuffer) desc.mDepthStencilAttachment.mAttachment.get();
@@ -142,8 +147,7 @@ public final class GLFramebuffer extends Framebuffer {
         if (!device.getCaps().skipErrorChecks()) {
             int status = gl.glCheckFramebufferStatus(GL_FRAMEBUFFER);
             if (status != GL_FRAMEBUFFER_COMPLETE) {
-                gl.glDeleteFramebuffers(renderFramebuffer);
-                gl.glDeleteFramebuffers(resolveFramebuffer);
+                gl.glDeleteFramebuffers(numFramebuffers, framebuffers);
                 return null;
             }
         }
@@ -166,12 +170,11 @@ public final class GLFramebuffer extends Framebuffer {
                         attachmentDesc.mMipLevel);
                 drawBuffers[index] = GL_COLOR_ATTACHMENT0 + index;
             }
-            gl.glDrawBuffers(drawBuffers);
+            gl.glDrawBuffers(numColorAttachments, drawBuffers);
             if (!device.getCaps().skipErrorChecks()) {
                 int status = gl.glCheckFramebufferStatus(GL_FRAMEBUFFER);
                 if (status != GL_FRAMEBUFFER_COMPLETE) {
-                    gl.glDeleteFramebuffers(renderFramebuffer);
-                    gl.glDeleteFramebuffers(resolveFramebuffer);
+                    gl.glDeleteFramebuffers(numFramebuffers, framebuffers);
                     return null;
                 }
             }
@@ -192,12 +195,17 @@ public final class GLFramebuffer extends Framebuffer {
     protected void deallocate() {
         GLDevice device = (GLDevice) getDevice();
         assert device.isOnExecutingThread();
+        int[] framebuffers = new int[2];
+        int numFramebuffers = 0;
         if (mRenderFramebuffer != 0) {
-            device.getGL().glDeleteFramebuffers(mRenderFramebuffer);
+            framebuffers[numFramebuffers++] = mRenderFramebuffer;
         }
         if (mRenderFramebuffer != mResolveFramebuffer) {
             assert (mResolveFramebuffer != 0);
-            device.getGL().glDeleteFramebuffers(mResolveFramebuffer);
+            framebuffers[numFramebuffers++] = mResolveFramebuffer;
+        }
+        if (numFramebuffers > 0) {
+            device.getGL().glDeleteFramebuffers(numFramebuffers, framebuffers);
         }
         mRenderFramebuffer = 0;
         mResolveFramebuffer = 0;

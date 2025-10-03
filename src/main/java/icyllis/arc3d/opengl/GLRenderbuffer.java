@@ -23,10 +23,12 @@ import icyllis.arc3d.core.SharedPtr;
 import icyllis.arc3d.engine.*;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
 
 import static org.lwjgl.opengl.GL11C.GL_NO_ERROR;
 import static org.lwjgl.opengl.GL30C.GL_RENDERBUFFER;
+import static org.lwjgl.system.MemoryUtil.memAddress;
 
 /**
  * Represents OpenGL renderbuffers.
@@ -60,7 +62,7 @@ public final class GLRenderbuffer extends GLImage {
         }
     }
 
-    @Nullable
+    /*@Nullable
     @SharedPtr
     public static GLRenderbuffer makeStencil(GLDevice device,
                                              int width, int height,
@@ -154,7 +156,7 @@ public final class GLRenderbuffer extends GLImage {
         return new GLRenderbuffer(context,
                 desc,
                 renderbuffer); //TODO should be cacheable
-    }
+    }*/
 
     public static GLRenderbuffer make(Context context,
                                       GLImageDesc desc) {
@@ -190,29 +192,33 @@ public final class GLRenderbuffer extends GLImage {
                                           int width, int height,
                                           int sampleCount, int internalFormat) {
         GLInterface gl = device.getGL();
-        int renderbuffer = gl.glGenRenderbuffers();
-        if (renderbuffer == 0) {
-            return 0;
-        }
-        gl.glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer);
-        boolean checkError = !device.getCaps().skipErrorChecks();
-        if (checkError) {
-            device.clearErrors();
-        }
-        // GL has a concept of MSAA rasterization with a single sample, but we do not.
-        if (sampleCount > 1) {
-            gl.glRenderbufferStorageMultisample(GL_RENDERBUFFER, sampleCount, internalFormat, width, height);
-        } else {
-            // glRenderbufferStorage is equivalent to calling glRenderbufferStorageMultisample
-            // with the samples set to zero. But we don't think sampleCount=1 is multisampled.
-            gl.glRenderbufferStorage(GL_RENDERBUFFER, internalFormat, width, height);
-        }
-        if (checkError && device.getError() != GL_NO_ERROR) {
-            gl.glDeleteRenderbuffers(renderbuffer);
-            return 0;
-        }
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            var pRenderbuffer = stack.ints(0);
+            gl.glGenRenderbuffers(1, memAddress(pRenderbuffer));
+            int renderbuffer = pRenderbuffer.get(0);
+            if (renderbuffer == 0) {
+                return 0;
+            }
+            gl.glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer);
+            boolean checkError = !device.getCaps().skipErrorChecks();
+            if (checkError) {
+                device.clearErrors();
+            }
+            // GL has a concept of MSAA rasterization with a single sample, but we do not.
+            if (sampleCount > 1) {
+                gl.glRenderbufferStorageMultisample(GL_RENDERBUFFER, sampleCount, internalFormat, width, height);
+            } else {
+                // glRenderbufferStorage is equivalent to calling glRenderbufferStorageMultisample
+                // with the samples set to zero. But we don't think sampleCount=1 is multisampled.
+                gl.glRenderbufferStorage(GL_RENDERBUFFER, internalFormat, width, height);
+            }
+            if (checkError && device.getError() != GL_NO_ERROR) {
+                gl.glDeleteRenderbuffers(1, memAddress(pRenderbuffer));
+                return 0;
+            }
 
-        return renderbuffer;
+            return renderbuffer;
+        }
     }
 
     @NonNull
@@ -231,7 +237,7 @@ public final class GLRenderbuffer extends GLImage {
                     String subLabel = "Arc3D_RBO_" + label;
                     subLabel = subLabel.substring(0, Math.min(subLabel.length(),
                             dev.getCaps().maxLabelLength()));
-                    dev.getGL().glObjectLabel(GL_RENDERBUFFER, mRenderbuffer, subLabel);
+                    GLUtil.glObjectLabel(dev, GL_RENDERBUFFER, mRenderbuffer, subLabel);
                 }
             }
         });
@@ -241,7 +247,10 @@ public final class GLRenderbuffer extends GLImage {
     protected void onRelease() {
         getDevice().executeRenderCall(dev -> {
             if (mRenderbuffer != 0) {
-                dev.getGL().glDeleteRenderbuffers(mRenderbuffer);
+                try (MemoryStack stack = MemoryStack.stackPush()) {
+                    var p = stack.ints(mRenderbuffer);
+                    dev.getGL().glDeleteRenderbuffers(1, memAddress(p));
+                }
             }
             mRenderbuffer = 0;
         });

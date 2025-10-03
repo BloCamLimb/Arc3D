@@ -23,9 +23,13 @@ import icyllis.arc3d.core.SharedPtr;
 import icyllis.arc3d.engine.Context;
 import icyllis.arc3d.engine.ISurface;
 import org.jspecify.annotations.Nullable;
+import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
 
+import java.nio.IntBuffer;
+
 import static org.lwjgl.opengl.GL30C.*;
+import static org.lwjgl.system.MemoryUtil.memAddress;
 
 /**
  * Represents OpenGL textures.
@@ -140,70 +144,76 @@ public final class GLTexture extends GLImage {
 
         assert (caps.isFormatTexturable(format));
         int texture;
-        // It is known that using DSA on some older drivers can cause texture completeness
-        // validation issues, but it's not easy to determine which drivers have problems.
-        // So we only use DSA for texture creation on NVIDIA cards, considering that it uses
-        // a threaded driver, and querying the currently bound texture can be slow.
-        if (caps.hasDSASupport() && caps.getVendor() == GLUtil.GLVendor.NVIDIA) {
-            assert (caps.isTextureStorageCompatible(format));
-            texture = gl.glCreateTextures(GL_TEXTURE_2D);
-            if (texture == 0) {
-                return 0;
-            }
-            gl.glTextureParameteri(texture, GL_TEXTURE_MAX_LEVEL, levels - 1);
-            if (caps.skipErrorChecks()) {
-                gl.glTextureStorage2D(texture, levels, internalFormat, width, height);
-            } else {
-                device.clearErrors();
-                gl.glTextureStorage2D(texture, levels, internalFormat, width, height);
-                if (device.getError() != GL_NO_ERROR) {
-                    gl.glDeleteTextures(texture);
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            IntBuffer pTexture = stack.ints(0);
+            // It is known that using DSA on some older drivers can cause texture completeness
+            // validation issues, but it's not easy to determine which drivers have problems.
+            // So we only use DSA for texture creation on NVIDIA cards, considering that it uses
+            // a threaded driver, and querying the currently bound texture can be slow.
+            if (caps.hasDSASupport() && caps.getVendor() == GLUtil.GLVendor.NVIDIA) {
+                assert (caps.isTextureStorageCompatible(format));
+                gl.glCreateTextures(GL_TEXTURE_2D, 1, memAddress(pTexture));
+                texture = pTexture.get(0);
+                if (texture == 0) {
                     return 0;
                 }
-            }
-        } else {
-            texture = device.getGL().glGenTextures();
-            if (texture == 0) {
-                return 0;
-            }
-            int boundTexture = gl.glGetInteger(GL_TEXTURE_BINDING_2D);
-            gl.glBindTexture(GL_TEXTURE_2D, texture);
-            gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, levels - 1);
-            if (caps.isTextureStorageCompatible(format)) {
+                gl.glTextureParameteri(texture, GL_TEXTURE_MAX_LEVEL, levels - 1);
                 if (caps.skipErrorChecks()) {
-                    gl.glTexStorage2D(GL_TEXTURE_2D, levels, internalFormat, width, height);
+                    gl.glTextureStorage2D(texture, levels, internalFormat, width, height);
                 } else {
                     device.clearErrors();
-                    gl.glTexStorage2D(GL_TEXTURE_2D, levels, internalFormat, width, height);
+                    gl.glTextureStorage2D(texture, levels, internalFormat, width, height);
                     if (device.getError() != GL_NO_ERROR) {
-                        gl.glDeleteTextures(texture);
+                        gl.glDeleteTextures(1, memAddress(pTexture));
+                        return 0;
+                    }
+                }
+            } else {
+                device.getGL().glGenTextures(1, memAddress(pTexture));
+                texture = pTexture.get(0);
+                if (texture == 0) {
+                    return 0;
+                }
+                IntBuffer pBoundTexture = stack.mallocInt(1);
+                gl.glGetIntegerv(GL_TEXTURE_BINDING_2D, memAddress(pBoundTexture));
+                gl.glBindTexture(GL_TEXTURE_2D, texture);
+                gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, levels - 1);
+                if (caps.isTextureStorageCompatible(format)) {
+                    if (caps.skipErrorChecks()) {
+                        gl.glTexStorage2D(GL_TEXTURE_2D, levels, internalFormat, width, height);
+                    } else {
+                        device.clearErrors();
+                        gl.glTexStorage2D(GL_TEXTURE_2D, levels, internalFormat, width, height);
+                        if (device.getError() != GL_NO_ERROR) {
+                            gl.glDeleteTextures(1, memAddress(pTexture));
+                            texture = 0;
+                        }
+                    }
+                } else {
+                    int error = GL_NO_ERROR;
+                    final boolean checkError = !caps.skipErrorChecks();
+                    if (checkError) {
+                        device.clearErrors();
+                    }
+                    final int externalFormat = caps.getFormatDefaultExternalFormat(format);
+                    final int externalType = caps.getFormatDefaultExternalType(format);
+                    for (int level = 0; level < levels; level++) {
+                        int currentWidth = Math.max(1, width >> level);
+                        int currentHeight = Math.max(1, height >> level);
+                        gl.glTexImage2D(GL_TEXTURE_2D, level, internalFormat,
+                                currentWidth, currentHeight,
+                                0, externalFormat, externalType, MemoryUtil.NULL);
+                        if (checkError) {
+                            error |= device.getError();
+                        }
+                    }
+                    if (error != GL_NO_ERROR) {
+                        gl.glDeleteTextures(1, memAddress(pTexture));
                         texture = 0;
                     }
                 }
-            } else {
-                int error = GL_NO_ERROR;
-                final boolean checkError = !caps.skipErrorChecks();
-                if (checkError) {
-                    device.clearErrors();
-                }
-                final int externalFormat = caps.getFormatDefaultExternalFormat(format);
-                final int externalType = caps.getFormatDefaultExternalType(format);
-                for (int level = 0; level < levels; level++) {
-                    int currentWidth = Math.max(1, width >> level);
-                    int currentHeight = Math.max(1, height >> level);
-                    gl.glTexImage2D(GL_TEXTURE_2D, level, internalFormat,
-                            currentWidth, currentHeight,
-                            0, externalFormat, externalType, MemoryUtil.NULL);
-                    if (checkError) {
-                        error |= device.getError();
-                    }
-                }
-                if (error != GL_NO_ERROR) {
-                    gl.glDeleteTextures(texture);
-                    texture = 0;
-                }
+                gl.glBindTexture(GL_TEXTURE_2D, pBoundTexture.get(0));
             }
-            gl.glBindTexture(GL_TEXTURE_2D, boundTexture);
         }
 
         return texture;
@@ -228,7 +238,7 @@ public final class GLTexture extends GLImage {
                     String subLabel = "Arc3D_TEX_" + label;
                     subLabel = subLabel.substring(0, Math.min(subLabel.length(),
                             dev.getCaps().maxLabelLength()));
-                    dev.getGL().glObjectLabel(GL_TEXTURE, mHandle, subLabel);
+                    GLUtil.glObjectLabel(dev, GL_TEXTURE, mHandle, subLabel);
                 }
             }
         });
@@ -239,7 +249,10 @@ public final class GLTexture extends GLImage {
         if (mOwnership) {
             getDevice().executeRenderCall(dev -> {
                 if (mHandle != 0) {
-                    dev.getGL().glDeleteTextures(mHandle);
+                    try (MemoryStack stack = MemoryStack.stackPush()) {
+                        IntBuffer pTexture = stack.ints(mHandle);
+                        dev.getGL().glDeleteTextures(1, memAddress(pTexture));
+                    }
                 }
                 mHandle = 0;
             });

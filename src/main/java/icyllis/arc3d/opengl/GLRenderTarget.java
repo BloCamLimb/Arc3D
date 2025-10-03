@@ -324,13 +324,13 @@ public final class GLRenderTarget extends GpuRenderTarget {
     @Override
     protected void onRelease() {
         if (mOwnership) {
-            if (mRenderFramebuffer != 0) {
+            /*if (mRenderFramebuffer != 0) {
                 getDevice().getGL().glDeleteFramebuffers(mRenderFramebuffer);
             }
             if (mRenderFramebuffer != mResolveFramebuffer) {
                 assert (mResolveFramebuffer != 0);
                 getDevice().getGL().glDeleteFramebuffers(mResolveFramebuffer);
-            }
+            }*/
         }
         clearAttachments();
         mRenderFramebuffer = 0;

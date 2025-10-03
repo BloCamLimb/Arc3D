@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2024-2024 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2024-2025 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -22,282 +22,760 @@ package icyllis.arc3d.opengl;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.NativeType;
 
-import java.nio.FloatBuffer;
-import java.nio.IntBuffer;
+import static org.lwjgl.system.JNI.*;
+import static org.lwjgl.system.MemoryUtil.memUTF8Safe;
 
 /**
  * OpenGL 3.1 Core and OpenGL ES 3.0 have a common subset.
  * <p>
  * No javadoc here, please refer to LWJGL javadoc and OpenGL specification.
  */
-public interface GLInterfaceCommon {
+@SuppressWarnings("UnusedReturnValue")
+public abstract class GLInterfaceCommon {
 
-    void glEnable(@NativeType("GLenum") int cap);
+    // JNI since LWJGL 3.2.2
 
-    void glDisable(@NativeType("GLenum") int cap);
+    long
+            glEnable,
+            glDisable,
+            glFrontFace,
+            glLineWidth,
+            glGenTextures,
+            glTexParameteri,
+            glTexParameteriv,
+            glTexImage2D,
+            glTexSubImage2D,
+            glCopyTexSubImage2D,
+            glDeleteTextures,
+            glBindTexture,
+            glPixelStorei,
+            glBlendFunc,
+            glColorMask,
+            glDepthFunc,
+            glDepthMask,
+            glStencilOp,
+            glStencilFunc,
+            glStencilMask,
+            glDrawArrays,
+            glDrawElements,
+            glFlush,
+            glFinish,
+            glGetError,
+            glGetString,
+            glGetIntegerv,
+            glScissor,
+            glViewport,
+            glActiveTexture,
+            glBlendEquation,
+            glGenBuffers,
+            glDeleteBuffers,
+            glBindBuffer,
+            glBufferData,
+            glBufferSubData,
+            glUnmapBuffer,
+            glDrawBuffers,
+            glStencilOpSeparate,
+            glStencilFuncSeparate,
+            glStencilMaskSeparate,
+            glCreateProgram,
+            glDeleteProgram,
+            glCreateShader,
+            glDeleteShader,
+            glAttachShader,
+            glDetachShader,
+            glShaderSource,
+            glCompileShader,
+            glLinkProgram,
+            glUseProgram,
+            glGetShaderiv,
+            glGetProgramiv,
+            glGetShaderInfoLog,
+            glGetProgramInfoLog,
+            glGetUniformLocation,
+            glUniform1i,
+            glEnableVertexAttribArray,
+            glVertexAttribPointer,
+            glVertexAttribIPointer,
+            glGenVertexArrays,
+            glDeleteVertexArrays,
+            glBindVertexArray,
+            glGenFramebuffers,
+            glDeleteFramebuffers,
+            glBindFramebuffer,
+            glCheckFramebufferStatus,
+            glFramebufferTexture2D,
+            glFramebufferRenderbuffer,
+            glBlitFramebuffer,
+            glClearBufferiv,
+            glClearBufferfv,
+            glClearBufferfi,
+            glBindBufferBase,
+            glBindBufferRange,
+            glGenRenderbuffers,
+            glDeleteRenderbuffers,
+            glBindRenderbuffer,
+            glRenderbufferStorage,
+            glRenderbufferStorageMultisample,
+            glMapBufferRange,
+            glDrawArraysInstanced,
+            glDrawElementsInstanced,
+            glCopyBufferSubData,
+            glGetUniformBlockIndex,
+            glUniformBlockBinding,
+            glFenceSync,
+            glDeleteSync,
+            glClientWaitSync,
+            glGenSamplers,
+            glDeleteSamplers,
+            glBindSampler,
+            glSamplerParameteri,
+            glSamplerParameterf,
+            glVertexAttribDivisor;
 
-    void glFrontFace(@NativeType("GLenum") int mode);
+    GLInterfaceCommon() {
+    }
 
-    void glLineWidth(@NativeType("GLfloat") float width);
+    public final void glEnable(@NativeType("GLenum") int target) {
+        long __functionAddress = glEnable;
+        callV(target, __functionAddress);
+    }
 
-    @NativeType("void")
-    int glGenTextures();
+    public final void glDisable(@NativeType("GLenum") int target) {
+        long __functionAddress = glDisable;
+        callV(target, __functionAddress);
+    }
 
-    void glTexParameteri(@NativeType("GLenum") int target, @NativeType("GLenum") int pname,
-                         @NativeType("GLint") int param);
+    public final void glFrontFace(@NativeType("GLenum") int dir) {
+        long __functionAddress = glFrontFace;
+        callV(dir, __functionAddress);
+    }
 
-    void glTexParameteriv(@NativeType("GLenum") int target, @NativeType("GLenum") int pname,
-                          @NativeType("GLint const *") IntBuffer params);
+    public final void glLineWidth(@NativeType("GLfloat") float width) {
+        long __functionAddress = glLineWidth;
+        callV(width, __functionAddress);
+    }
 
-    void glTexImage2D(@NativeType("GLenum") int target, @NativeType("GLint") int level,
-                      @NativeType("GLint") int internalformat, @NativeType("GLsizei") int width,
-                      @NativeType("GLsizei") int height, @NativeType("GLint") int border,
-                      @NativeType("GLenum") int format, @NativeType("GLenum") int type,
-                      @NativeType("void const *") long pixels);
+    public final void glGenTextures(@NativeType("GLsizei") int n, @NativeType("GLuint *") long textures) {
+        long __functionAddress = glGenTextures;
+        callPV(n, textures, __functionAddress);
+    }
 
-    void glTexSubImage2D(@NativeType("GLenum") int target, @NativeType("GLint") int level,
-                         @NativeType("GLint") int xoffset, @NativeType("GLint") int yoffset,
-                         @NativeType("GLsizei") int width, @NativeType("GLsizei") int height,
-                         @NativeType("GLenum") int format, @NativeType("GLenum") int type,
-                         @NativeType("void const *") long pixels);
+    public final void glGenTextures(@NativeType("GLsizei") int n, @NativeType("GLuint *") int[] textures) {
+        long __functionAddress = glGenTextures;
+        callPV(n, textures, __functionAddress);
+    }
 
-    void glCopyTexSubImage2D(@NativeType("GLenum") int target, @NativeType("GLint") int level,
-                             @NativeType("GLint") int xoffset, @NativeType("GLint") int yoffset,
-                             @NativeType("GLint") int x, @NativeType("GLint") int y,
-                             @NativeType("GLsizei") int width, @NativeType("GLsizei") int height);
+    public final void glTexParameteri(@NativeType("GLenum") int target, @NativeType("GLenum") int pname,
+                                      @NativeType("GLint") int param) {
+        long __functionAddress = glTexParameteri;
+        callV(target, pname, param, __functionAddress);
+    }
 
-    void glDeleteTextures(@NativeType("GLuint const *") int texture);
+    public final void glTexParameteriv(@NativeType("GLenum") int target, @NativeType("GLenum") int pname,
+                                       @NativeType("GLint const *") long params) {
+        long __functionAddress = glTexParameteriv;
+        callPV(target, pname, params, __functionAddress);
+    }
 
-    void glBindTexture(@NativeType("GLenum") int target, @NativeType("GLuint") int texture);
+    public final void glTexImage2D(@NativeType("GLenum") int target, @NativeType("GLint") int level,
+                                   @NativeType("GLint") int internalformat, @NativeType("GLsizei") int width,
+                                   @NativeType("GLsizei") int height, @NativeType("GLint") int border,
+                                   @NativeType("GLenum") int format, @NativeType("GLenum") int type,
+                                   @NativeType("void const *") long pixels) {
+        long __functionAddress = glTexImage2D;
+        callPV(target, level, internalformat, width, height, border, format, type, pixels, __functionAddress);
+    }
 
-    void glPixelStorei(@NativeType("GLenum") int pname, @NativeType("GLint") int param);
+    public final void glTexSubImage2D(@NativeType("GLenum") int target, @NativeType("GLint") int level,
+                                      @NativeType("GLint") int xoffset, @NativeType("GLint") int yoffset,
+                                      @NativeType("GLsizei") int width, @NativeType("GLsizei") int height,
+                                      @NativeType("GLenum") int format, @NativeType("GLenum") int type,
+                                      @NativeType("void const *") long pixels) {
+        long __functionAddress = glTexSubImage2D;
+        callPV(target, level, xoffset, yoffset, width, height, format, type, pixels, __functionAddress);
+    }
 
-    void glBlendFunc(@NativeType("GLenum") int sfactor, @NativeType("GLenum") int dfactor);
+    public final void glCopyTexSubImage2D(@NativeType("GLenum") int target, @NativeType("GLint") int level,
+                                          @NativeType("GLint") int xoffset, @NativeType("GLint") int yoffset,
+                                          @NativeType("GLint") int x, @NativeType("GLint") int y,
+                                          @NativeType("GLsizei") int width, @NativeType("GLsizei") int height) {
+        long __functionAddress = glCopyTexSubImage2D;
+        callV(target, level, xoffset, yoffset, x, y, width, height, __functionAddress);
+    }
 
-    void glColorMask(@NativeType("GLboolean") boolean red, @NativeType("GLboolean") boolean green,
-                     @NativeType("GLboolean") boolean blue, @NativeType("GLboolean") boolean alpha);
+    public final void glDeleteTextures(@NativeType("GLsizei") int n, @NativeType("GLuint *") long textures) {
+        long __functionAddress = glDeleteTextures;
+        callPV(n, textures, __functionAddress);
+    }
 
-    void glDepthFunc(@NativeType("GLenum") int func);
+    public final void glDeleteTextures(@NativeType("GLsizei") int n, @NativeType("GLuint *") int[] textures) {
+        long __functionAddress = glDeleteTextures;
+        callPV(n, textures, __functionAddress);
+    }
 
-    void glDepthMask(@NativeType("GLboolean") boolean flag);
+    public final void glBindTexture(@NativeType("GLenum") int target, @NativeType("GLuint") int texture) {
+        long __functionAddress = glBindTexture;
+        callV(target, texture, __functionAddress);
+    }
 
-    void glStencilOp(@NativeType("GLenum") int sfail, @NativeType("GLenum") int dpfail,
-                     @NativeType("GLenum") int dppass);
+    public final void glPixelStorei(@NativeType("GLenum") int pname, @NativeType("GLint") int param) {
+        long __functionAddress = glPixelStorei;
+        callV(pname, param, __functionAddress);
+    }
 
-    void glStencilFunc(@NativeType("GLenum") int func, @NativeType("GLint") int ref, @NativeType("GLuint") int mask);
+    public final void glBlendFunc(@NativeType("GLenum") int sfactor, @NativeType("GLenum") int dfactor) {
+        long __functionAddress = glBlendFunc;
+        callV(sfactor, dfactor, __functionAddress);
+    }
 
-    void glStencilMask(@NativeType("GLuint") int mask);
+    public final void glColorMask(@NativeType("GLboolean") boolean red, @NativeType("GLboolean") boolean green,
+                                  @NativeType("GLboolean") boolean blue, @NativeType("GLboolean") boolean alpha) {
+        long __functionAddress = glColorMask;
+        callV(red, green, blue, alpha, __functionAddress);
+    }
 
-    void glDrawArrays(@NativeType("GLenum") int mode, @NativeType("GLint") int first, @NativeType("GLsizei") int count);
+    public final void glDepthFunc(@NativeType("GLenum") int func) {
+        long __functionAddress = glDepthFunc;
+        callV(func, __functionAddress);
+    }
 
-    void glDrawElements(@NativeType("GLenum") int mode, @NativeType("GLsizei") int count,
-                        @NativeType("GLenum") int type, @NativeType("void const *") long indices);
+    public final void glDepthMask(@NativeType("GLboolean") boolean flag) {
+        long __functionAddress = glDepthMask;
+        callV(flag, __functionAddress);
+    }
 
-    void glFlush();
+    public final void glStencilOp(@NativeType("GLenum") int sfail, @NativeType("GLenum") int dpfail,
+                                  @NativeType("GLenum") int dppass) {
+        long __functionAddress = glStencilOp;
+        callV(sfail, dpfail, dppass, __functionAddress);
+    }
 
-    void glFinish();
+    public final void glStencilFunc(@NativeType("GLenum") int func, @NativeType("GLint") int ref,
+                                    @NativeType("GLuint") int mask) {
+        long __functionAddress = glStencilFunc;
+        callV(func, ref, mask, __functionAddress);
+    }
+
+    public final void glStencilMask(@NativeType("GLuint") int mask) {
+        long __functionAddress = glStencilMask;
+        callV(mask, __functionAddress);
+    }
+
+    public final void glDrawArrays(@NativeType("GLenum") int mode, @NativeType("GLint") int first,
+                                   @NativeType("GLsizei") int count) {
+        long __functionAddress = glDrawArrays;
+        callV(mode, first, count, __functionAddress);
+    }
+
+    public final void glDrawElements(@NativeType("GLenum") int mode, @NativeType("GLsizei") int count,
+                                     @NativeType("GLenum") int type, @NativeType("void const *") long indices) {
+        long __functionAddress = glDrawElements;
+        callPV(mode, count, type, indices, __functionAddress);
+    }
+
+    public final void glFlush() {
+        long __functionAddress = glFlush;
+        callV(__functionAddress);
+    }
+
+    public final void glFinish() {
+        long __functionAddress = glFinish;
+        callV(__functionAddress);
+    }
 
     @NativeType("GLenum")
-    int glGetError();
+    public final int glGetError() {
+        long __functionAddress = glGetError;
+        return callI(__functionAddress);
+    }
 
     @Nullable
     @NativeType("GLubyte const *")
-    String glGetString(@NativeType("GLenum") int name);
+    public final String glGetString(@NativeType("GLenum") int name) {
+        long __functionAddress = glGetString;
+        long __result = callP(name, __functionAddress);
+        return memUTF8Safe(__result);
+    }
 
-    @NativeType("void")
-    int glGetInteger(@NativeType("GLenum") int pname);
+    public final void glGetIntegerv(@NativeType("GLenum") int pname, @NativeType("GLint *") long params) {
+        long __functionAddress = glGetIntegerv;
+        callPV(pname, params, __functionAddress);
+    }
 
-    void glScissor(@NativeType("GLint") int x, @NativeType("GLint") int y, @NativeType("GLsizei") int width,
-                   @NativeType("GLsizei") int height);
+    public final void glGetIntegerv(@NativeType("GLenum") int pname, @NativeType("GLint *") int[] params) {
+        long __functionAddress = glGetIntegerv;
+        callPV(pname, params, __functionAddress);
+    }
 
-    void glViewport(@NativeType("GLint") int x, @NativeType("GLint") int y, @NativeType("GLsizei") int width,
-                    @NativeType("GLsizei") int height);
+    public final void glScissor(@NativeType("GLint") int x, @NativeType("GLint") int y,
+                                @NativeType("GLsizei") int width,
+                                @NativeType("GLsizei") int height) {
+        long __functionAddress = glScissor;
+        callV(x, y, width, height, __functionAddress);
+    }
 
-    void glActiveTexture(@NativeType("GLenum") int texture);
+    public final void glViewport(@NativeType("GLint") int x, @NativeType("GLint") int y,
+                                 @NativeType("GLsizei") int width,
+                                 @NativeType("GLsizei") int height) {
+        long __functionAddress = glViewport;
+        callV(x, y, width, height, __functionAddress);
+    }
 
-    void glBlendEquation(@NativeType("GLenum") int mode);
+    public final void glActiveTexture(@NativeType("GLenum") int texture) {
+        long __functionAddress = glActiveTexture;
+        callV(texture, __functionAddress);
+    }
 
-    @NativeType("void")
-    int glGenBuffers();
+    public final void glBlendEquation(@NativeType("GLenum") int mode) {
+        long __functionAddress = glBlendEquation;
+        callV(mode, __functionAddress);
+    }
 
-    void glDeleteBuffers(@NativeType("GLuint const *") int buffer);
+    public final void glGenBuffers(@NativeType("GLsizei") int n, @NativeType("GLuint *") long buffers) {
+        long __functionAddress = glGenBuffers;
+        callPV(n, buffers, __functionAddress);
+    }
 
-    void glBindBuffer(@NativeType("GLenum") int target, @NativeType("GLuint") int buffer);
+    public final void glGenBuffers(@NativeType("GLsizei") int n, @NativeType("GLuint *") int[] buffers) {
+        long __functionAddress = glGenBuffers;
+        callPV(n, buffers, __functionAddress);
+    }
 
-    void glBufferData(@NativeType("GLenum") int target, @NativeType("GLsizeiptr") long size,
-                      @NativeType("void const *") long data, @NativeType("GLenum") int usage);
+    public final void glDeleteBuffers(@NativeType("GLsizei") int n, @NativeType("GLuint *") long buffers) {
+        long __functionAddress = glDeleteBuffers;
+        callPV(n, buffers, __functionAddress);
+    }
 
-    void glBufferSubData(@NativeType("GLenum") int target, @NativeType("GLintptr") long offset,
-                         @NativeType("GLsizeiptr") long size, @NativeType("void const *") long data);
+    public final void glDeleteBuffers(@NativeType("GLsizei") int n, @NativeType("GLuint *") int[] buffers) {
+        long __functionAddress = glDeleteBuffers;
+        callPV(n, buffers, __functionAddress);
+    }
+
+    public final void glBindBuffer(@NativeType("GLenum") int target, @NativeType("GLuint") int buffer) {
+        long __functionAddress = glBindBuffer;
+        callV(target, buffer, __functionAddress);
+    }
+
+    public final void glBufferData(@NativeType("GLenum") int target, @NativeType("GLsizeiptr") long size,
+                                   @NativeType("void const *") long data, @NativeType("GLenum") int usage) {
+        long __functionAddress = glBufferData;
+        callPPV(target, size, data, usage, __functionAddress);
+    }
+
+    public final void glBufferSubData(@NativeType("GLenum") int target, @NativeType("GLintptr") long offset,
+                                      @NativeType("GLsizeiptr") long size, @NativeType("void const *") long data) {
+        long __functionAddress = glBufferSubData;
+        callPPPV(target, offset, size, data, __functionAddress);
+    }
 
     @NativeType("GLboolean")
-    boolean glUnmapBuffer(@NativeType("GLenum") int target);
+    public final boolean glUnmapBuffer(@NativeType("GLenum") int target) {
+        long __functionAddress = glUnmapBuffer;
+        return callZ(target, __functionAddress);
+    }
 
-    void glDrawBuffers(@NativeType("GLenum const *") int[] bufs);
+    public final void glDrawBuffers(@NativeType("GLsizei") int n, @NativeType("GLenum const *") long bufs) {
+        long __functionAddress = glDrawBuffers;
+        callPV(n, bufs, __functionAddress);
+    }
 
-    void glStencilOpSeparate(@NativeType("GLenum") int face, @NativeType("GLenum") int sfail,
-                             @NativeType("GLenum") int dpfail, @NativeType("GLenum") int dppass);
+    public final void glDrawBuffers(@NativeType("GLsizei") int n, @NativeType("GLenum const *") int[] bufs) {
+        long __functionAddress = glDrawBuffers;
+        callPV(n, bufs, __functionAddress);
+    }
 
-    void glStencilFuncSeparate(@NativeType("GLenum") int face, @NativeType("GLenum") int func,
-                               @NativeType("GLint") int ref, @NativeType("GLuint") int mask);
+    public final void glStencilOpSeparate(@NativeType("GLenum") int face, @NativeType("GLenum") int sfail,
+                                          @NativeType("GLenum") int dpfail, @NativeType("GLenum") int dppass) {
+        long __functionAddress = glStencilOpSeparate;
+        callV(face, sfail, dpfail, dppass, __functionAddress);
+    }
 
-    void glStencilMaskSeparate(@NativeType("GLenum") int face, @NativeType("GLuint") int mask);
+    public final void glStencilFuncSeparate(@NativeType("GLenum") int face, @NativeType("GLenum") int func,
+                                            @NativeType("GLint") int ref, @NativeType("GLuint") int mask) {
+        long __functionAddress = glStencilFuncSeparate;
+        callV(face, func, ref, mask, __functionAddress);
+    }
+
+    public final void glStencilMaskSeparate(@NativeType("GLenum") int face, @NativeType("GLuint") int mask) {
+        long __functionAddress = glStencilMaskSeparate;
+        callV(face, mask, __functionAddress);
+    }
 
     @NativeType("GLuint")
-    int glCreateProgram();
+    public final int glCreateProgram() {
+        long __functionAddress = glCreateProgram;
+        return callI(__functionAddress);
+    }
 
-    void glDeleteProgram(@NativeType("GLuint") int program);
+    public final void glDeleteProgram(@NativeType("GLuint") int program) {
+        long __functionAddress = glDeleteProgram;
+        callV(program, __functionAddress);
+    }
 
     @NativeType("GLuint")
-    int glCreateShader(@NativeType("GLenum") int type);
+    public final int glCreateShader(@NativeType("GLenum") int type) {
+        long __functionAddress = glCreateShader;
+        return callI(type, __functionAddress);
+    }
 
-    void glDeleteShader(@NativeType("GLuint") int shader);
+    public final void glDeleteShader(@NativeType("GLuint") int shader) {
+        long __functionAddress = glDeleteShader;
+        callV(shader, __functionAddress);
+    }
 
-    void glAttachShader(@NativeType("GLuint") int program, @NativeType("GLuint") int shader);
+    public final void glAttachShader(@NativeType("GLuint") int program, @NativeType("GLuint") int shader) {
+        long __functionAddress = glAttachShader;
+        callV(program, shader, __functionAddress);
+    }
 
-    void glDetachShader(@NativeType("GLuint") int program, @NativeType("GLuint") int shader);
+    public final void glDetachShader(@NativeType("GLuint") int program, @NativeType("GLuint") int shader) {
+        long __functionAddress = glDetachShader;
+        callV(program, shader, __functionAddress);
+    }
 
-    void glShaderSource(@NativeType("GLuint") int shader, @NativeType("GLsizei") int count,
-                        @NativeType("GLchar const * const *") long strings,
-                        @NativeType("GLint const *") long length);
+    public final void glShaderSource(@NativeType("GLuint") int shader, @NativeType("GLsizei") int count,
+                                     @NativeType("GLchar const * const *") long strings,
+                                     @NativeType("GLint const *") long length) {
+        long __functionAddress = glShaderSource;
+        callPPV(shader, count, strings, length, __functionAddress);
+    }
 
-    void glCompileShader(@NativeType("GLuint") int shader);
+    public final void glCompileShader(@NativeType("GLuint") int shader) {
+        long __functionAddress = glCompileShader;
+        callV(shader, __functionAddress);
+    }
 
-    void glLinkProgram(@NativeType("GLuint") int program);
+    public final void glLinkProgram(@NativeType("GLuint") int program) {
+        long __functionAddress = glLinkProgram;
+        callV(program, __functionAddress);
+    }
 
-    void glUseProgram(@NativeType("GLuint") int program);
+    public final void glUseProgram(@NativeType("GLuint") int program) {
+        long __functionAddress = glUseProgram;
+        callV(program, __functionAddress);
+    }
 
-    @NativeType("void")
-    int glGetShaderi(@NativeType("GLuint") int shader, @NativeType("GLenum") int pname);
+    public final void glGetShaderiv(@NativeType("GLuint") int shader, @NativeType("GLenum") int pname,
+                                    @NativeType("GLint *") long params) {
+        long __functionAddress = glGetShaderiv;
+        callPV(shader, pname, params, __functionAddress);
+    }
 
-    @NativeType("void")
-    int glGetProgrami(@NativeType("GLuint") int program, @NativeType("GLenum") int pname);
+    public final void glGetShaderiv(@NativeType("GLuint") int shader, @NativeType("GLenum") int pname,
+                                    @NativeType("GLint *") int[] params) {
+        long __functionAddress = glGetShaderiv;
+        callPV(shader, pname, params, __functionAddress);
+    }
 
-    @NativeType("void")
-    String glGetShaderInfoLog(@NativeType("GLuint") int shader);
+    public final void glGetProgramiv(@NativeType("GLuint") int program, @NativeType("GLenum") int pname,
+                                     @NativeType("GLint *") long params) {
+        long __functionAddress = glGetProgramiv;
+        callPV(program, pname, params, __functionAddress);
+    }
 
-    @NativeType("void")
-    String glGetProgramInfoLog(@NativeType("GLuint") int program);
+    public final void glGetProgramiv(@NativeType("GLuint") int program, @NativeType("GLenum") int pname,
+                                     @NativeType("GLint *") int[] params) {
+        long __functionAddress = glGetProgramiv;
+        callPV(program, pname, params, __functionAddress);
+    }
+
+    public final void glGetShaderInfoLog(@NativeType("GLuint") int shader, @NativeType("GLsizei") int bufSize,
+                                         @NativeType("GLsizei *") long length, @NativeType("GLchar *") long infoLog) {
+        long __functionAddress = glGetShaderInfoLog;
+        callPPV(shader, bufSize, length, infoLog, __functionAddress);
+    }
+
+    public final void glGetProgramInfoLog(@NativeType("GLuint") int program, @NativeType("GLsizei") int bufSize,
+                                          @NativeType("GLsizei *") long length, @NativeType("GLchar *") long infoLog) {
+        long __functionAddress = glGetProgramInfoLog;
+        callPPV(program, bufSize, length, infoLog, __functionAddress);
+    }
 
     @NativeType("GLint")
-    int glGetUniformLocation(@NativeType("GLuint") int program, @NativeType("GLchar const *") CharSequence name);
+    public final int glGetUniformLocation(@NativeType("GLuint") int program, @NativeType("GLchar const *") long name) {
+        long __functionAddress = glGetUniformLocation;
+        return callPI(program, name, __functionAddress);
+    }
 
-    void glUniform1i(@NativeType("GLint") int location, @NativeType("GLint") int v0);
+    public final void glUniform1i(@NativeType("GLint") int location, @NativeType("GLint") int v0) {
+        long __functionAddress = glUniform1i;
+        callV(location, v0, __functionAddress);
+    }
 
-    void glEnableVertexAttribArray(@NativeType("GLuint") int index);
+    public final void glEnableVertexAttribArray(@NativeType("GLuint") int index) {
+        long __functionAddress = glEnableVertexAttribArray;
+        callV(index, __functionAddress);
+    }
 
-    void glVertexAttribPointer(@NativeType("GLuint") int index, @NativeType("GLint") int size,
-                               @NativeType("GLenum") int type, @NativeType("GLboolean") boolean normalized,
-                               @NativeType("GLsizei") int stride, @NativeType("void const *") long pointer);
+    public final void glVertexAttribPointer(@NativeType("GLuint") int index, @NativeType("GLint") int size,
+                                            @NativeType("GLenum") int type, @NativeType("GLboolean") boolean normalized,
+                                            @NativeType("GLsizei") int stride,
+                                            @NativeType("void const *") long pointer) {
+        long __functionAddress = glVertexAttribPointer;
+        callPV(index, size, type, normalized, stride, pointer, __functionAddress);
+    }
 
-    void glVertexAttribIPointer(@NativeType("GLuint") int index, @NativeType("GLint") int size,
-                                @NativeType("GLenum") int type, @NativeType("GLsizei") int stride,
-                                @NativeType("void const *") long pointer);
+    public final void glVertexAttribIPointer(@NativeType("GLuint") int index, @NativeType("GLint") int size,
+                                             @NativeType("GLenum") int type, @NativeType("GLsizei") int stride,
+                                             @NativeType("void const *") long pointer) {
+        long __functionAddress = glVertexAttribIPointer;
+        callPV(index, size, type, stride, pointer, __functionAddress);
+    }
 
-    @NativeType("void")
-    int glGenVertexArrays();
+    public final void glGenVertexArrays(@NativeType("GLsizei") int n, @NativeType("GLuint *") long arrays) {
+        long __functionAddress = glGenVertexArrays;
+        callPV(n, arrays, __functionAddress);
+    }
 
-    void glDeleteVertexArrays(@NativeType("GLuint const *") int array);
+    public final void glGenVertexArrays(@NativeType("GLsizei") int n, @NativeType("GLuint *") int[] arrays) {
+        long __functionAddress = glGenVertexArrays;
+        callPV(n, arrays, __functionAddress);
+    }
 
-    void glBindVertexArray(@NativeType("GLuint") int array);
+    public final void glDeleteVertexArrays(@NativeType("GLsizei") int n, @NativeType("GLuint const *") long arrays) {
+        long __functionAddress = glDeleteVertexArrays;
+        callPV(n, arrays, __functionAddress);
+    }
 
-    @NativeType("void")
-    int glGenFramebuffers();
+    public final void glDeleteVertexArrays(@NativeType("GLsizei") int n, @NativeType("GLuint const *") int[] arrays) {
+        long __functionAddress = glDeleteVertexArrays;
+        callPV(n, arrays, __functionAddress);
+    }
 
-    void glDeleteFramebuffers(@NativeType("GLuint const *") int framebuffer);
+    public final void glBindVertexArray(@NativeType("GLuint") int array) {
+        long __functionAddress = glBindVertexArray;
+        callV(array, __functionAddress);
+    }
 
-    void glBindFramebuffer(@NativeType("GLenum") int target, @NativeType("GLuint") int framebuffer);
+    public final void glGenFramebuffers(@NativeType("GLsizei") int n, @NativeType("GLuint *") long framebuffers) {
+        long __functionAddress = glGenFramebuffers;
+        callPV(n, framebuffers, __functionAddress);
+    }
+
+    public final void glGenFramebuffers(@NativeType("GLsizei") int n, @NativeType("GLuint *") int[] framebuffers) {
+        long __functionAddress = glGenFramebuffers;
+        callPV(n, framebuffers, __functionAddress);
+    }
+
+    public final void glDeleteFramebuffers(@NativeType("GLsizei") int n,
+                                           @NativeType("GLuint const *") long framebuffers) {
+        long __functionAddress = glDeleteFramebuffers;
+        callPV(n, framebuffers, __functionAddress);
+    }
+
+    public final void glDeleteFramebuffers(@NativeType("GLsizei") int n,
+                                           @NativeType("GLuint const *") int[] framebuffers) {
+        long __functionAddress = glDeleteFramebuffers;
+        callPV(n, framebuffers, __functionAddress);
+    }
+
+    public final void glBindFramebuffer(@NativeType("GLenum") int target, @NativeType("GLuint") int framebuffer) {
+        long __functionAddress = glBindFramebuffer;
+        callV(target, framebuffer, __functionAddress);
+    }
 
     @NativeType("GLenum")
-    int glCheckFramebufferStatus(@NativeType("GLenum") int target);
+    public final int glCheckFramebufferStatus(@NativeType("GLenum") int target) {
+        long __functionAddress = glCheckFramebufferStatus;
+        return callI(target, __functionAddress);
+    }
 
-    void glFramebufferTexture2D(@NativeType("GLenum") int target, @NativeType("GLenum") int attachment,
-                                @NativeType("GLenum") int textarget, @NativeType("GLuint") int texture,
-                                @NativeType("GLint") int level);
+    public final void glFramebufferTexture2D(@NativeType("GLenum") int target, @NativeType("GLenum") int attachment,
+                                             @NativeType("GLenum") int textarget, @NativeType("GLuint") int texture,
+                                             @NativeType("GLint") int level) {
+        long __functionAddress = glFramebufferTexture2D;
+        callV(target, attachment, textarget, texture, level, __functionAddress);
+    }
 
-    void glFramebufferRenderbuffer(@NativeType("GLenum") int target, @NativeType("GLenum") int attachment,
-                                   @NativeType("GLenum") int renderbuffertarget,
-                                   @NativeType("GLuint") int renderbuffer);
+    public final void glFramebufferRenderbuffer(@NativeType("GLenum") int target, @NativeType("GLenum") int attachment,
+                                                @NativeType("GLenum") int renderbuffertarget,
+                                                @NativeType("GLuint") int renderbuffer) {
+        long __functionAddress = glFramebufferRenderbuffer;
+        callV(target, attachment, renderbuffertarget, renderbuffer, __functionAddress);
+    }
 
-    void glBlitFramebuffer(@NativeType("GLint") int srcX0, @NativeType("GLint") int srcY0,
-                           @NativeType("GLint") int srcX1, @NativeType("GLint") int srcY1,
-                           @NativeType("GLint") int dstX0, @NativeType("GLint") int dstY0,
-                           @NativeType("GLint") int dstX1, @NativeType("GLint") int dstY1,
-                           @NativeType("GLbitfield") int mask, @NativeType("GLenum") int filter);
+    public final void glBlitFramebuffer(@NativeType("GLint") int srcX0, @NativeType("GLint") int srcY0,
+                                        @NativeType("GLint") int srcX1, @NativeType("GLint") int srcY1,
+                                        @NativeType("GLint") int dstX0, @NativeType("GLint") int dstY0,
+                                        @NativeType("GLint") int dstX1, @NativeType("GLint") int dstY1,
+                                        @NativeType("GLbitfield") int mask, @NativeType("GLenum") int filter) {
+        long __functionAddress = glBlitFramebuffer;
+        callV(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter, __functionAddress);
+    }
 
-    void glClearBufferiv(@NativeType("GLenum") int buffer, @NativeType("GLint") int drawbuffer,
-                         @NativeType("GLint const *") IntBuffer value);
+    public final void glClearBufferiv(@NativeType("GLenum") int buffer, @NativeType("GLint") int drawbuffer,
+                                      @NativeType("GLint const *") long value) {
+        long __functionAddress = glClearBufferiv;
+        callPV(buffer, drawbuffer, value, __functionAddress);
+    }
 
-    void glClearBufferfv(@NativeType("GLenum") int buffer, @NativeType("GLint") int drawbuffer,
-                         @NativeType("GLfloat const *") FloatBuffer value);
+    public final void glClearBufferfv(@NativeType("GLenum") int buffer, @NativeType("GLint") int drawbuffer,
+                                      @NativeType("GLfloat const *") long value) {
+        long __functionAddress = glClearBufferfv;
+        callPV(buffer, drawbuffer, value, __functionAddress);
+    }
 
-    void glClearBufferfi(@NativeType("GLenum") int buffer, @NativeType("GLint") int drawbuffer,
-                         @NativeType("GLfloat") float depth, @NativeType("GLint") int stencil);
+    public final void glClearBufferfi(@NativeType("GLenum") int buffer, @NativeType("GLint") int drawbuffer,
+                                      @NativeType("GLfloat") float depth, @NativeType("GLint") int stencil) {
+        long __functionAddress = glClearBufferfi;
+        callV(buffer, drawbuffer, depth, stencil, __functionAddress);
+    }
 
-    void glBindBufferBase(@NativeType("GLenum") int target, @NativeType("GLuint") int index,
-                          @NativeType("GLuint") int buffer);
+    public final void glBindBufferBase(@NativeType("GLenum") int target, @NativeType("GLuint") int index,
+                                       @NativeType("GLuint") int buffer) {
+        long __functionAddress = glBindBufferBase;
+        callV(target, index, buffer, __functionAddress);
+    }
 
-    void glBindBufferRange(@NativeType("GLenum") int target, @NativeType("GLuint") int index,
-                           @NativeType("GLuint") int buffer, @NativeType("GLintptr") long offset,
-                           @NativeType("GLsizeiptr") long size);
+    public final void glBindBufferRange(@NativeType("GLenum") int target, @NativeType("GLuint") int index,
+                                        @NativeType("GLuint") int buffer, @NativeType("GLintptr") long offset,
+                                        @NativeType("GLsizeiptr") long size) {
+        long __functionAddress = glBindBufferRange;
+        callPPV(target, index, buffer, offset, size, __functionAddress);
+    }
 
-    @NativeType("void")
-    int glGenRenderbuffers();
+    public final void glGenRenderbuffers(@NativeType("GLsizei") int n, @NativeType("GLuint *") long renderbuffers) {
+        long __functionAddress = glGenRenderbuffers;
+        callPV(n, renderbuffers, __functionAddress);
+    }
 
-    void glDeleteRenderbuffers(@NativeType("GLuint const *") int renderbuffer);
+    public final void glGenRenderbuffers(@NativeType("GLsizei") int n, @NativeType("GLuint *") int[] renderbuffers) {
+        long __functionAddress = glGenRenderbuffers;
+        callPV(n, renderbuffers, __functionAddress);
+    }
 
-    void glBindRenderbuffer(@NativeType("GLenum") int target, @NativeType("GLuint") int renderbuffer);
+    public final void glDeleteRenderbuffers(@NativeType("GLsizei") int n,
+                                            @NativeType("GLuint const *") long renderbuffer) {
+        long __functionAddress = glDeleteRenderbuffers;
+        callPV(n, renderbuffer, __functionAddress);
+    }
 
-    void glRenderbufferStorage(@NativeType("GLenum") int target, @NativeType("GLenum") int internalformat,
-                               @NativeType("GLsizei") int width, @NativeType("GLsizei") int height);
+    public final void glDeleteRenderbuffers(@NativeType("GLsizei") int n,
+                                            @NativeType("GLuint const *") int[] renderbuffers) {
+        long __functionAddress = glDeleteRenderbuffers;
+        callPV(n, renderbuffers, __functionAddress);
+    }
 
-    void glRenderbufferStorageMultisample(@NativeType("GLenum") int target, @NativeType("GLsizei") int samples,
-                                          @NativeType("GLenum") int internalformat, @NativeType("GLsizei") int width,
-                                          @NativeType("GLsizei") int height);
+    public final void glBindRenderbuffer(@NativeType("GLenum") int target, @NativeType("GLuint") int renderbuffer) {
+        long __functionAddress = glBindRenderbuffer;
+        callV(target, renderbuffer, __functionAddress);
+    }
+
+    public final void glRenderbufferStorage(@NativeType("GLenum") int target, @NativeType("GLenum") int internalformat,
+                                            @NativeType("GLsizei") int width, @NativeType("GLsizei") int height) {
+        long __functionAddress = glRenderbufferStorage;
+        callV(target, internalformat, width, height, __functionAddress);
+    }
+
+    public final void glRenderbufferStorageMultisample(@NativeType("GLenum") int target,
+                                                       @NativeType("GLsizei") int samples,
+                                                       @NativeType("GLenum") int internalformat,
+                                                       @NativeType("GLsizei") int width,
+                                                       @NativeType("GLsizei") int height) {
+        long __functionAddress = glRenderbufferStorageMultisample;
+        callV(target, samples, internalformat, width, height, __functionAddress);
+    }
 
     @NativeType("void *")
-    long glMapBufferRange(@NativeType("GLenum") int target, @NativeType("GLintptr") long offset,
-                          @NativeType("GLsizeiptr") long length, @NativeType("GLbitfield") int access);
+    public final long glMapBufferRange(@NativeType("GLenum") int target, @NativeType("GLintptr") long offset,
+                                       @NativeType("GLsizeiptr") long length, @NativeType("GLbitfield") int access) {
+        long __functionAddress = glMapBufferRange;
+        return callPPP(target, offset, length, access, __functionAddress);
+    }
 
-    void glDrawArraysInstanced(@NativeType("GLenum") int mode, @NativeType("GLint") int first,
-                               @NativeType("GLsizei") int count, @NativeType("GLsizei") int instancecount);
+    public final void glDrawArraysInstanced(@NativeType("GLenum") int mode, @NativeType("GLint") int first,
+                                            @NativeType("GLsizei") int count,
+                                            @NativeType("GLsizei") int instancecount) {
+        long __functionAddress = glDrawArraysInstanced;
+        callV(mode, first, count, instancecount, __functionAddress);
+    }
 
-    void glDrawElementsInstanced(@NativeType("GLenum") int mode, @NativeType("GLsizei") int count,
-                                 @NativeType("GLenum") int type, @NativeType("void const *") long indices,
-                                 @NativeType("GLsizei") int instancecount);
+    public final void glDrawElementsInstanced(@NativeType("GLenum") int mode, @NativeType("GLsizei") int count,
+                                              @NativeType("GLenum") int type, @NativeType("void const *") long indices,
+                                              @NativeType("GLsizei") int instancecount) {
+        long __functionAddress = glDrawElementsInstanced;
+        callPV(mode, count, type, indices, instancecount, __functionAddress);
+    }
 
-    void glCopyBufferSubData(@NativeType("GLenum") int readTarget, @NativeType("GLenum") int writeTarget,
-                             @NativeType("GLintptr") long readOffset, @NativeType("GLintptr") long writeOffset,
-                             @NativeType("GLsizeiptr") long size);
+    public final void glCopyBufferSubData(@NativeType("GLenum") int readTarget, @NativeType("GLenum") int writeTarget,
+                                          @NativeType("GLintptr") long readOffset,
+                                          @NativeType("GLintptr") long writeOffset,
+                                          @NativeType("GLsizeiptr") long size) {
+        long __functionAddress = glCopyBufferSubData;
+        callPPPV(readTarget, writeTarget, readOffset, writeOffset, size, __functionAddress);
+    }
 
     @NativeType("GLuint")
-    int glGetUniformBlockIndex(@NativeType("GLuint") int program,
-                               @NativeType("GLchar const *") CharSequence uniformBlockName);
+    public final int glGetUniformBlockIndex(@NativeType("GLuint") int program,
+                                            @NativeType("GLchar const *") long uniformBlockName) {
+        long __functionAddress = glGetUniformBlockIndex;
+        return callPI(program, uniformBlockName, __functionAddress);
+    }
 
-    void glUniformBlockBinding(@NativeType("GLuint") int program, @NativeType("GLuint") int uniformBlockIndex,
-                               @NativeType("GLuint") int uniformBlockBinding);
+    public final void glUniformBlockBinding(@NativeType("GLuint") int program,
+                                            @NativeType("GLuint") int uniformBlockIndex,
+                                            @NativeType("GLuint") int uniformBlockBinding) {
+        long __functionAddress = glUniformBlockBinding;
+        callV(program, uniformBlockIndex, uniformBlockBinding, __functionAddress);
+    }
 
     @NativeType("GLsync")
-    long glFenceSync(@NativeType("GLenum") int condition, @NativeType("GLbitfield") int flags);
+    public final long glFenceSync(@NativeType("GLenum") int condition, @NativeType("GLbitfield") int flags) {
+        long __functionAddress = glFenceSync;
+        return callP(condition, flags, __functionAddress);
+    }
 
-    void glDeleteSync(@NativeType("GLsync") long sync);
+    public final void glDeleteSync(@NativeType("GLsync") long sync) {
+        long __functionAddress = glDeleteSync;
+        callPV(sync, __functionAddress);
+    }
 
     @NativeType("GLenum")
-    int glClientWaitSync(@NativeType("GLsync") long sync, @NativeType("GLbitfield") int flags,
-                         @NativeType("GLuint64") long timeout);
+    public final int glClientWaitSync(@NativeType("GLsync") long sync, @NativeType("GLbitfield") int flags,
+                                      @NativeType("GLuint64") long timeout) {
+        long __functionAddress = glClientWaitSync;
+        return callPJI(sync, flags, timeout, __functionAddress);
+    }
 
-    @NativeType("void")
-    int glGenSamplers();
+    public final void glGenSamplers(@NativeType("GLsizei") int count, @NativeType("GLuint *") long samplers) {
+        long __functionAddress = glGenSamplers;
+        callPV(count, samplers, __functionAddress);
+    }
 
-    void glDeleteSamplers(@NativeType("GLuint const *") int sampler);
+    public final void glGenSamplers(@NativeType("GLsizei") int count, @NativeType("GLuint *") int[] samplers) {
+        long __functionAddress = glGenSamplers;
+        callPV(count, samplers, __functionAddress);
+    }
 
-    void glBindSampler(@NativeType("GLuint") int unit, @NativeType("GLuint") int sampler);
+    public final void glDeleteSamplers(@NativeType("GLsizei") int count, @NativeType("GLuint *") long samplers) {
+        long __functionAddress = glDeleteSamplers;
+        callPV(count, samplers, __functionAddress);
+    }
 
-    void glSamplerParameteri(@NativeType("GLuint") int sampler, @NativeType("GLenum") int pname,
-                             @NativeType("GLint") int param);
+    public final void glDeleteSamplers(@NativeType("GLsizei") int count, @NativeType("GLuint *") int[] samplers) {
+        long __functionAddress = glDeleteSamplers;
+        callPV(count, samplers, __functionAddress);
+    }
 
-    void glSamplerParameterf(@NativeType("GLuint") int sampler, @NativeType("GLenum") int pname,
-                             @NativeType("GLfloat") float param);
+    public final void glBindSampler(@NativeType("GLuint") int unit, @NativeType("GLuint") int sampler) {
+        long __functionAddress = glBindSampler;
+        callV(unit, sampler, __functionAddress);
+    }
 
-    void glVertexAttribDivisor(@NativeType("GLuint") int index, @NativeType("GLuint") int divisor);
+    public final void glSamplerParameteri(@NativeType("GLuint") int sampler, @NativeType("GLenum") int pname,
+                                          @NativeType("GLint") int param) {
+        long __functionAddress = glSamplerParameteri;
+        callV(sampler, pname, param, __functionAddress);
+    }
+
+    public final void glSamplerParameterf(@NativeType("GLuint") int sampler, @NativeType("GLenum") int pname,
+                                          @NativeType("GLfloat") float param) {
+        long __functionAddress = glSamplerParameterf;
+        callV(sampler, pname, param, __functionAddress);
+    }
+
+    public final void glVertexAttribDivisor(@NativeType("GLuint") int index, @NativeType("GLuint") int divisor) {
+        long __functionAddress = glVertexAttribDivisor;
+        callV(index, divisor, __functionAddress);
+    }
 }

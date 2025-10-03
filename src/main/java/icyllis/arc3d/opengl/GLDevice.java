@@ -26,12 +26,14 @@ import icyllis.arc3d.engine.*;
 import it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import org.lwjgl.system.MemoryStack;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 
 import static org.lwjgl.opengl.GL45C.*;
+import static org.lwjgl.system.MemoryUtil.memAddress;
 
 /**
  * The OpenGL device.
@@ -195,7 +197,8 @@ public final class GLDevice extends Device {
     /**
      * Create a {@link GLDevice} with OpenGL context current in the current thread.
      *
-     * @param options the context options
+     * @param options      the context options
+     * @param capabilities the capabilities object associated with the current thread
      * @return the engine or null if failed to create
      */
     @Nullable
@@ -205,14 +208,12 @@ public final class GLDevice extends Device {
             final GLInterface glInterface;
             switch (capabilities.getClass().getName()) {
                 case "org.lwjgl.opengl.GLCapabilities" -> {
-                    var impl = new GLCaps_GL(options, capabilities);
-                    caps = impl;
-                    glInterface = impl;
+                    glInterface = new GLInterface();
+                    caps = new GLCaps_GL(options, capabilities, glInterface);
                 }
                 case "org.lwjgl.opengles.GLESCapabilities" -> {
-                    var impl = new GLCaps_GLES(options, capabilities);
-                    caps = impl;
-                    glInterface = impl;
+                    glInterface = new GLInterface();
+                    caps = new GLCaps_GLES(options, capabilities, glInterface);
                 }
                 default -> {
                     if (options.mLogger != null) {
@@ -715,7 +716,11 @@ public final class GLDevice extends Device {
         int boundTexture = 0;
         //TODO not only 2D
         if (!dsa) {
-            boundTexture = gl.glGetInteger(GL_TEXTURE_BINDING_2D);
+            try (var stack = MemoryStack.stackPush()) {
+                var p = stack.mallocInt(1);
+                gl.glGetIntegerv(GL_TEXTURE_BINDING_2D, memAddress(p));
+                boundTexture = p.get(0);
+            }
             if (handle != boundTexture) {
                 gl.glBindTexture(target, handle);
             }
@@ -863,28 +868,36 @@ public final class GLDevice extends Device {
                 )) {
 
             int framebuffer = mCopySrcFramebuffer;
-            if (framebuffer == 0) {
-                mCopySrcFramebuffer = framebuffer = getGL().glGenFramebuffers();
-            }
-            if (framebuffer == 0) {
-                return false;
-            }
-
             int dstHandle = dst.getHandle();
-            int boundTexture = getGL().glGetInteger(GL_TEXTURE_BINDING_2D);
-            if (dstHandle != boundTexture) {
-                getGL().glBindTexture(GL_TEXTURE_2D, dstHandle);
-            }
+            int boundFramebuffer;
+            int boundTexture;
+            try (MemoryStack stack = MemoryStack.stackPush()) {
+                var p = stack.ints(0);
+                if (framebuffer == 0) {
+                    getGL().glGenFramebuffers(1, memAddress(p));
+                    mCopySrcFramebuffer = framebuffer = p.get(0);
+                }
+                if (framebuffer == 0) {
+                    return false;
+                }
 
-            int boundFramebuffer = getGL().glGetInteger(GL_READ_FRAMEBUFFER_BINDING);
-            getGL().glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffer);
-            getGL().glFramebufferTexture2D(
-                    GL_READ_FRAMEBUFFER,
-                    GL_COLOR_ATTACHMENT0,
-                    GL_TEXTURE_2D,
-                    src.getHandle(),
-                    level
-            );
+                getGL().glGetIntegerv(GL_TEXTURE_BINDING_2D, memAddress(p));
+                boundTexture = p.get(0);
+                if (dstHandle != boundTexture) {
+                    getGL().glBindTexture(GL_TEXTURE_2D, dstHandle);
+                }
+
+                getGL().glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, memAddress(p));
+                boundFramebuffer = p.get(0);
+                getGL().glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffer);
+                getGL().glFramebufferTexture2D(
+                        GL_READ_FRAMEBUFFER,
+                        GL_COLOR_ATTACHMENT0,
+                        GL_TEXTURE_2D,
+                        src.getHandle(),
+                        level
+                );
+            }
 
             getGL().glCopyTexSubImage2D(
                     GL_TEXTURE_2D,

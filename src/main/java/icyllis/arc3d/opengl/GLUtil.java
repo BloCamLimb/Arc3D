@@ -29,6 +29,8 @@ import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GLCapabilities;
 import org.lwjgl.system.*;
 import org.slf4j.Logger;
+import org.slf4j.Marker;
+import org.slf4j.MarkerFactory;
 
 import java.lang.ref.Reference;
 import java.nio.ByteBuffer;
@@ -40,11 +42,15 @@ import static org.lwjgl.opengl.ARBDebugOutput.*;
 import static org.lwjgl.opengl.EXTTextureCompressionS3TC.*;
 import static org.lwjgl.opengl.GL43C.*;
 import static org.lwjgl.opengl.GL46C.GL_SHADER_BINARY_FORMAT_SPIR_V;
+import static org.lwjgl.system.MemoryStack.*;
+import static org.lwjgl.system.MemoryUtil.*;
 
 /**
  * Provides OpenGL utilities.
  */
 public final class GLUtil {
+
+    public static final Marker MARKER = MarkerFactory.getMarker("OpenGL");
 
     /**
      * Creates a DirectContext for a backend context, using default context options.
@@ -539,6 +545,18 @@ public final class GLUtil {
         };
     }
 
+    public static void glObjectLabel(@NonNull GLDevice device,
+                                     @NativeType("GLenum") int identifier,
+                                     @NativeType("GLuint") int name,
+                                     @NativeType("GLchar const *") CharSequence label) {
+        assert label != null;
+        try (MemoryStack stack = stackPush()) {
+            int labelEncodedLength = stack.nASCII(label, false);
+            long labelEncoded = stack.getPointerAddress();
+            device.getGL().glObjectLabel(identifier, name, labelEncodedLength, labelEncoded);
+        }
+    }
+
     @NativeType("GLuint")
     public static int glCompileShader(GLDevice device,
                                       @NativeType("GLenum") int shaderType,
@@ -560,8 +578,8 @@ public final class GLUtil {
         gl.glCompileShader(shader);
         stats.incShaderCompilations();
 
-        if (gl.glGetShaderi(shader, GL_COMPILE_STATUS) == GL_FALSE) {
-            String log = gl.glGetShaderInfoLog(shader);
+        String log = checkShaderCompiled(gl, shader);
+        if (log != null) {
             gl.glDeleteShader(shader);
             handleCompileError(device.getLogger(), MemoryUtil.memUTF8(glsl), log);
             return 0;
@@ -571,11 +589,11 @@ public final class GLUtil {
     }
 
     @NativeType("GLuint")
-    public static int glSpecializeShader(GLDevice device,
+    public static int glSpecializeShader(@NonNull GLDevice device,
                                          @NativeType("GLenum") int shaderType,
                                          @NativeType("uint32_t *") ByteBuffer spirv,
-                                         String entryPoint,
-                                         GlobalResourceCache.Stats stats) {
+                                         @NonNull String entryPoint,
+                                         GlobalResourceCache.@NonNull Stats stats) {
         var gl = device.getGL();
         int shader = gl.glCreateShader(shaderType);
         if (shader == 0) {
@@ -583,18 +601,22 @@ public final class GLUtil {
         }
         try (MemoryStack stack = MemoryStack.stackPush()) {
             var shaders = stack.ints(shader);
-            gl.glShaderBinary(shaders, GL_SHADER_BINARY_FORMAT_SPIR_V, spirv);
-            // no specialization constants, but must pass a valid pointer
-            shaders.limit(0);
-            gl.glSpecializeShader(shader, entryPoint, shaders, shaders);
+            long pShaders = memAddress(shaders);
+            gl.glShaderBinary(1, pShaders, GL_SHADER_BINARY_FORMAT_SPIR_V,
+                    memAddress(spirv), spirv.remaining());
+            stack.nUTF8(entryPoint, true);
+            long pEntryPointEncoded = stack.getPointerAddress();
+            gl.glSpecializeShader(shader, pEntryPointEncoded,
+                    // no specialization constants, but must pass a valid pointer
+                    0, pShaders, pShaders);
         } finally {
             Reference.reachabilityFence(spirv);
         }
 
         stats.incShaderCompilations();
 
-        if (gl.glGetShaderi(shader, GL_COMPILE_STATUS) == GL_FALSE) {
-            String log = gl.glGetShaderInfoLog(shader);
+        String log = checkShaderCompiled(gl, shader);
+        if (log != null) {
             gl.glDeleteShader(shader);
             device.getLogger().error("Shader specialization error: {}", log);
             return 0;
@@ -603,10 +625,48 @@ public final class GLUtil {
         return shader;
     }
 
+    public static @Nullable String checkShaderCompiled(@NonNull GLInterface gl, int shader) {
+        try (MemoryStack stack = stackPush()) {
+            var p = stack.ints(0);
+            gl.glGetShaderiv(shader, GL_COMPILE_STATUS, memAddress(p));
+            if (p.get(0) == GL_FALSE) {
+                gl.glGetShaderiv(shader, GL_INFO_LOG_LENGTH, memAddress(p));
+                int length = p.get(0);
+                long pInfoLog = nmemAlloc(length);
+                try {
+                    gl.glGetShaderInfoLog(shader, length, memAddress(p), pInfoLog);
+                    return memUTF8(pInfoLog, p.get(0));
+                } finally {
+                    nmemFree(pInfoLog);
+                }
+            }
+        }
+        return null;
+    }
+
+    public static @Nullable String checkProgramLinked(@NonNull GLInterface gl, int program) {
+        try (MemoryStack stack = stackPush()) {
+            var p = stack.ints(0);
+            gl.glGetProgramiv(program, GL_LINK_STATUS, memAddress(p));
+            if (p.get(0) == GL_FALSE) {
+                gl.glGetProgramiv(program, GL_INFO_LOG_LENGTH, memAddress(p));
+                int length = p.get(0);
+                long pInfoLog = nmemAlloc(length);
+                try {
+                    gl.glGetProgramInfoLog(program, length, memAddress(p), pInfoLog);
+                    return memUTF8(pInfoLog, p.get(0));
+                } finally {
+                    nmemFree(pInfoLog);
+                }
+            }
+        }
+        return null;
+    }
+
     public static void handleCompileError(Logger logger,
                                           String source,
                                           String errors) {
-        if (!logger.isErrorEnabled()) return;
+        if (!logger.isErrorEnabled(MARKER)) return;
         var f = new Formatter();
         f.format("Shader compilation error%n");
         f.format("------------------------%n");
@@ -615,14 +675,14 @@ public final class GLUtil {
             f.format(Locale.ROOT, "%4d\t%s%n", i + 1, lines[i]);
         }
         f.format(errors);
-        logger.error(f.toString());
+        logger.error(MARKER, f.toString());
     }
 
     public static void handleLinkError(Logger logger,
                                        String[] headers,
                                        String[] sources,
                                        String errors) {
-        if (!logger.isErrorEnabled()) return;
+        if (!logger.isErrorEnabled(MARKER)) return;
         var f = new Formatter();
         f.format("Program linking error%n");
         f.format("---------------------%n");
@@ -635,7 +695,7 @@ public final class GLUtil {
             }
         }
         f.format(errors);
-        logger.error(f.toString());
+        logger.error(MARKER, f.toString());
     }
 
     //@formatter:off

@@ -24,10 +24,12 @@ import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.shading.VertexShaderBuilder;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import org.lwjgl.system.MemoryStack;
 
 import java.util.Iterator;
 
 import static org.lwjgl.opengl.GL30C.*;
+import static org.lwjgl.system.MemoryUtil.memAddress;
 
 /**
  * This class manages the lifetime of the vertex array object and is used to track the state of the
@@ -96,95 +98,101 @@ public final class GLVertexArray extends ManagedResource {
 
         final int vertexArray;
 
-        if (dsa) {
-            vertexArray = gl.glCreateVertexArrays();
-        } else {
-            vertexArray = gl.glGenVertexArrays();
-        }
-        if (vertexArray == 0) {
-            return null;
-        }
-
-        int boundVertexArray = 0;
-        if (!dsa) {
-            boundVertexArray = gl.glGetInteger(GL_VERTEX_ARRAY_BINDING);
-            gl.glBindVertexArray(vertexArray);
-        }
-
-        // index is location, they are the same
-        int index = 0;
-
-        int[] strides = new int[bindings];
-
-        int[] inputRates;
-        if (device.getCaps().hasBaseInstanceSupport()) {
-            inputRates = null;
-        } else {
-            inputRates = new int[bindings];
-        }
-
-        int[][] attributes;
-        if (dsa || vertexAttribBindingSupport) {
-            attributes = null;
-        } else {
-            attributes = new int[bindings][];
-        }
-
-        for (int binding = 0; binding < bindings; binding++) {
-            int inputRate = inputLayout.getInputRate(binding);
+        try (MemoryStack stack = MemoryStack.stackPush()){
+            var pVertexArray = stack.ints(0);
             if (dsa) {
-                index = set_vertex_format_binding_group_dsa(gl,
-                        inputLayout.getAttributes(binding),
-                        vertexArray,
-                        index,
-                        binding,
-                        inputRate);
-            } else if (vertexAttribBindingSupport) {
-                index = set_vertex_format_binding_group(gl,
-                        inputLayout.getAttributes(binding),
-                        index,
-                        binding,
-                        inputRate);
+                gl.glCreateVertexArrays(1, memAddress(pVertexArray));
             } else {
-                int prevIndex = index;
-                int[] attrs = new int[inputLayout.getLocationCount(binding)];
-                index = set_vertex_format_legacy(gl,
-                        inputLayout.getAttributes(binding),
-                        index,
-                        inputRate,
-                        attrs);
-                attributes[binding] = attrs;
-                assert prevIndex + attrs.length == index;
+                gl.glGenVertexArrays(1, memAddress(pVertexArray));
             }
-            strides[binding] = inputLayout.getStride(binding);
-            if (inputRates != null) {
-                inputRates[binding] = inputRate;
+            vertexArray = pVertexArray.get(0);
+            if (vertexArray == 0) {
+                return null;
             }
-        }
 
-        if (!dsa) {
-            gl.glBindVertexArray(boundVertexArray);
-        }
-
-        if (index > device.getCaps().maxVertexAttributes()) {
-            gl.glDeleteVertexArrays(vertexArray);
-            return null;
-        }
-
-        if (device.getCaps().hasDebugSupport()) {
-            if (label != null && !label.isEmpty()) {
-                label = "Arc3D_VAO_" + label;
-                label = label.substring(0, Math.min(label.length(),
-                        device.getCaps().maxLabelLength()));
-                gl.glObjectLabel(GL_VERTEX_ARRAY, vertexArray, label);
+            int boundVertexArray = 0;
+            if (!dsa) {
+                var p = stack.mallocInt(1);
+                gl.glGetIntegerv(GL_VERTEX_ARRAY_BINDING, memAddress(p));
+                boundVertexArray = p.get(0);
+                gl.glBindVertexArray(vertexArray);
             }
-        }
 
-        return new GLVertexArray(device,
-                vertexArray,
-                strides,
-                inputRates,
-                attributes);
+            // index is location, they are the same
+            int index = 0;
+
+            int[] strides = new int[bindings];
+
+            int[] inputRates;
+            if (device.getCaps().hasBaseInstanceSupport()) {
+                inputRates = null;
+            } else {
+                inputRates = new int[bindings];
+            }
+
+            int[][] attributes;
+            if (dsa || vertexAttribBindingSupport) {
+                attributes = null;
+            } else {
+                attributes = new int[bindings][];
+            }
+
+            for (int binding = 0; binding < bindings; binding++) {
+                int inputRate = inputLayout.getInputRate(binding);
+                if (dsa) {
+                    index = set_vertex_format_binding_group_dsa(gl,
+                            inputLayout.getAttributes(binding),
+                            vertexArray,
+                            index,
+                            binding,
+                            inputRate);
+                } else if (vertexAttribBindingSupport) {
+                    index = set_vertex_format_binding_group(gl,
+                            inputLayout.getAttributes(binding),
+                            index,
+                            binding,
+                            inputRate);
+                } else {
+                    int prevIndex = index;
+                    int[] attrs = new int[inputLayout.getLocationCount(binding)];
+                    index = set_vertex_format_legacy(gl,
+                            inputLayout.getAttributes(binding),
+                            index,
+                            inputRate,
+                            attrs);
+                    attributes[binding] = attrs;
+                    assert prevIndex + attrs.length == index;
+                }
+                strides[binding] = inputLayout.getStride(binding);
+                if (inputRates != null) {
+                    inputRates[binding] = inputRate;
+                }
+            }
+
+            if (!dsa) {
+                gl.glBindVertexArray(boundVertexArray);
+            }
+
+            if (index > device.getCaps().maxVertexAttributes()) {
+                gl.glDeleteVertexArrays(1, memAddress(pVertexArray));
+                return null;
+            }
+
+            if (device.getCaps().hasDebugSupport()) {
+                if (label != null && !label.isEmpty()) {
+                    label = "Arc3D_VAO_" + label;
+                    label = label.substring(0, Math.min(label.length(),
+                            device.getCaps().maxLabelLength()));
+                    GLUtil.glObjectLabel(device, GL_VERTEX_ARRAY, vertexArray, label);
+                }
+            }
+
+            return new GLVertexArray(device,
+                    vertexArray,
+                    strides,
+                    inputRates,
+                    attributes);
+        }
     }
 
     private static int set_vertex_format_legacy(GLInterface gl,
@@ -445,7 +453,10 @@ public final class GLVertexArray extends ManagedResource {
     protected void deallocate() {
         getDevice().executeRenderCall(dev -> {
             if (mVertexArray != 0) {
-                dev.getGL().glDeleteVertexArrays(mVertexArray);
+                try (MemoryStack stack = MemoryStack.stackPush()) {
+                    var p = stack.ints(mVertexArray);
+                    dev.getGL().glDeleteVertexArrays(1, memAddress(p));
+                }
             }
             discard();
         });

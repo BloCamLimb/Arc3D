@@ -29,6 +29,7 @@ import java.util.Arrays;
 import java.util.Objects;
 
 import static org.lwjgl.opengl.GL33C.*;
+import static org.lwjgl.system.MemoryUtil.memAddress;
 
 /**
  * The OpenGL command buffer. The commands executed on {@link GLCommandBuffer} are
@@ -203,7 +204,7 @@ public final class GLCommandBuffer extends CommandBuffer {
                     floatValues.put(0, clearColors, i << 2, 4);
                     mDevice.getGL().glClearBufferfv(GL_COLOR,
                             i,  // draw buffer
-                            floatValues);
+                            memAddress(floatValues));
                 }
             }
             boolean depthStencilLoadClear = renderPassDesc.mDepthStencilAttachment.mDesc != null &&
@@ -228,12 +229,12 @@ public final class GLCommandBuffer extends CommandBuffer {
                             .limit(1);
                     mDevice.getGL().glClearBufferfv(GL_DEPTH,
                             0,
-                            floatValues);
+                            memAddress(floatValues));
                 } else if (hasStencil) {
                     var intValues = stack.ints(clearStencil);
                     mDevice.getGL().glClearBufferiv(GL_STENCIL,
                             0,
-                            intValues);
+                            memAddress(intValues));
                 }
             }
         }
@@ -298,7 +299,8 @@ public final class GLCommandBuffer extends CommandBuffer {
                 attachmentsToDiscard.flip();
                 if (attachmentsToDiscard.hasRemaining()) {
                     //TODO try to use invalidateSubFramebuffer
-                    mDevice.getGL().glInvalidateFramebuffer(GL_READ_FRAMEBUFFER, attachmentsToDiscard);
+                    mDevice.getGL().glInvalidateFramebuffer(GL_READ_FRAMEBUFFER,
+                            attachmentsToDiscard.remaining(), memAddress(attachmentsToDiscard));
                 }
             }
         }
@@ -408,7 +410,11 @@ public final class GLCommandBuffer extends CommandBuffer {
         int boundTexture = 0;
         //TODO not only 2D
         if (!dsa) {
-            boundTexture = gl.glGetInteger(GL_TEXTURE_BINDING_2D);
+            try (var stack = mStack.push()) {
+                var p = stack.ints(0);
+                gl.glGetIntegerv(GL_TEXTURE_BINDING_2D, memAddress(p));
+                boundTexture = p.get(0);
+            }
             if (handle != boundTexture) {
                 gl.glBindTexture(target, handle);
             }

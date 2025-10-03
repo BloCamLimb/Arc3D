@@ -62,6 +62,7 @@ public abstract class GLCaps extends Caps {
     boolean mViewCompatibilityClassSupport = false;
     boolean mTexStorageSupport;
     boolean mInvalidateFramebufferSupport;
+    boolean mShaderBinarySupport;
     boolean mUseStagingBuffers = false;
     final boolean mVolatileContext;
 
@@ -1018,6 +1019,9 @@ public abstract class GLCaps extends Caps {
         return mInvalidateFramebufferSupport;
     }
 
+    public boolean hasShaderBinarySupport() {
+        return mShaderBinarySupport;
+    }
 
     public int @Nullable[] getProgramBinaryFormats() {
         return mProgramBinarySupport ? mProgramBinaryFormats.clone() : null;
@@ -1572,6 +1576,7 @@ public abstract class GLCaps extends Caps {
         out.append("DSASupport: ").append(mDSASupport).append('\n');
         out.append("InvalidateBufferType: ").append(mInvalidateBufferType).append('\n');
         out.append("InvalidateFramebufferSupport: ").append(mInvalidateFramebufferSupport).append('\n');
+        out.append("ShaderBinarySupport: ").append(mShaderBinarySupport).append('\n');
         out.append("VertexAttribBindingSupport: ").append(mVertexAttribBindingSupport).append('\n');
         out.append("CopyImageSupport: ").append(mCopyImageSupport).append('\n');
         out.append("SPIRVSupport: ").append(mSPIRVSupport).append('\n');

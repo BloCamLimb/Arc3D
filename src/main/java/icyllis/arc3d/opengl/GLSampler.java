@@ -22,10 +22,14 @@ package icyllis.arc3d.opengl;
 import icyllis.arc3d.core.SharedPtr;
 import icyllis.arc3d.engine.*;
 import org.jspecify.annotations.Nullable;
+import org.lwjgl.system.MemoryStack;
+
+import java.nio.IntBuffer;
 
 import static org.lwjgl.opengl.GL11C.*;
 import static org.lwjgl.opengl.GL12C.GL_TEXTURE_WRAP_R;
 import static org.lwjgl.opengl.GL46C.GL_TEXTURE_MAX_ANISOTROPY;
+import static org.lwjgl.system.MemoryUtil.memAddress;
 
 /**
  * Represents OpenGL sampler objects.
@@ -65,7 +69,12 @@ public final class GLSampler extends Sampler {
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     private boolean initialize() {
         GLDevice device = (GLDevice) getDevice();
-        int sampler = device.getGL().glGenSamplers();
+        int sampler;
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            IntBuffer pSampler = stack.ints(0);
+            device.getGL().glGenSamplers(1, memAddress(pSampler));
+            sampler = pSampler.get(0);
+        }
         if (sampler == 0) {
             return false;
         }
@@ -105,7 +114,10 @@ public final class GLSampler extends Sampler {
     protected void onRelease() {
         ((GLDevice) getDevice()).executeRenderCall(dev -> {
             if (mSampler != 0) {
-                dev.getGL().glDeleteSamplers(mSampler);
+                try (MemoryStack stack = MemoryStack.stackPush()) {
+                    IntBuffer pSampler = stack.ints(mSampler);
+                    dev.getGL().glDeleteSamplers(1, memAddress(pSampler));
+                }
             }
             discard();
         });
