@@ -34,7 +34,12 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The surface that is backed by GPU.
+ * The surface that is backed by GPU and Granite Renderer.
+ * <p>
+ * This object, and coupled {@link GraniteDevice}, {@link Canvas}, should be
+ * only used on the {@link RecordingContext#getOwnerThread()}. Only their
+ * internal GPU resources can be used in other threads independently of these
+ * objects.
  */
 public final class GraniteSurface extends Surface {
 

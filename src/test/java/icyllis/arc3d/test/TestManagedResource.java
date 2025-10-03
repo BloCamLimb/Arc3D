@@ -91,11 +91,11 @@ public class TestManagedResource {
         LOGGER.info("OpenGL version: " + glVersion);
         LOGGER.info("OpenGL vendor: " + gl.glGetString(GL_VENDOR));
         LOGGER.info("OpenGL renderer: " + gl.glGetString(GL_RENDERER));
-        LOGGER.info("Max vertex attribs: " + gl.glGetInteger(GL_MAX_VERTEX_ATTRIBS));
+        /*LOGGER.info("Max vertex attribs: " + gl.glGetInteger(GL_MAX_VERTEX_ATTRIBS));
         LOGGER.info("Max vertex bindings: " + gl.glGetInteger(GL_MAX_VERTEX_ATTRIB_BINDINGS));
         LOGGER.info("Max vertex stride: " + gl.glGetInteger(GL_MAX_VERTEX_ATTRIB_STRIDE));
         LOGGER.info("Max label length: " + gl.glGetInteger(GL_MAX_LABEL_LENGTH));
-        LOGGER.info("Max samples: " + gl.glGetInteger(GL_MAX_SAMPLES));
+        LOGGER.info("Max samples: " + gl.glGetInteger(GL_MAX_SAMPLES));*/
 
         /*if (glVersion != null) {
             var pattern = Pattern.compile("(\\d+)\\.(\\d+)");
@@ -105,13 +105,13 @@ public class TestManagedResource {
             }
         }*/
 
-        {
+        /*{
             int numGLSLVersions = gl.glGetInteger(GL_NUM_SHADING_LANGUAGE_VERSIONS);
             for (int i = 0; i < numGLSLVersions; i++) {
                 LOGGER.info("GLSL version: " + glGetStringi(GL_SHADING_LANGUAGE_VERSION, i));
             }
             LOGGER.info("Default GLSL version: " + gl.glGetString(GL_SHADING_LANGUAGE_VERSION));
-        }
+        }*/
 
         {
             LOGGER.info("Program binary formats: " + Arrays.toString(caps.getProgramBinaryFormats()));

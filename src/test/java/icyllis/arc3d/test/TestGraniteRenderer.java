@@ -29,6 +29,8 @@ import icyllis.arc3d.granite.GraniteSurface;
 import icyllis.arc3d.granite.Recording;
 import icyllis.arc3d.granite.RecordingContext;
 import icyllis.arc3d.granite.TextureUtils;
+import icyllis.arc3d.opengl.GLDevice;
+import icyllis.arc3d.opengl.GLInterface;
 import icyllis.arc3d.opengl.GLUtil;
 import icyllis.arc3d.sketch.*;
 import icyllis.arc3d.sketch.effects.BlendModeColorFilter;
@@ -42,10 +44,10 @@ import icyllis.arc3d.sketch.shaders.RRectShader;
 import icyllis.arc3d.sketch.shaders.Shader;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL;
+import org.lwjgl.opengl.GL11C;
 import org.lwjgl.opengl.GL33C;
 import org.lwjgl.opengles.GLES;
 import org.lwjgl.opengles.GLES20;
-import org.lwjgl.opengles.GLES30;
 import org.lwjgl.stb.STBImage;
 import org.lwjgl.stb.STBImageWrite;
 import org.lwjgl.system.MemoryUtil;
@@ -119,12 +121,13 @@ public class TestGraniteRenderer {
                 "info",
                 true
         );*/
-        Objects.requireNonNull(GL.getFunctionProvider());
+        //Objects.requireNonNull(GL.getFunctionProvider());
         GLFW.glfwDefaultWindowHints();
         if (TEST_OPENGL_ES) {
-            GLFW.glfwWindowHint(GLFW.GLFW_CLIENT_API, GLFW.GLFW_OPENGL_ES_API);
-            GLFW.glfwWindowHint(GLFW.GLFW_CONTEXT_VERSION_MAJOR, 3);
-            GLFW.glfwWindowHint(GLFW.GLFW_CONTEXT_VERSION_MINOR, 0);
+            glfwWindowHint(GLFW.GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
+            glfwWindowHint(GLFW_CONTEXT_CREATION_API, GLFW_EGL_CONTEXT_API);
+            glfwWindowHint(GLFW.GLFW_CONTEXT_VERSION_MAJOR, 3);
+            glfwWindowHint(GLFW.GLFW_CONTEXT_VERSION_MINOR, 0);
         } else {
             glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
             glfwWindowHint(GLFW_CONTEXT_CREATION_API, GLFW_NATIVE_CONTEXT_API);
@@ -154,6 +157,8 @@ public class TestGraniteRenderer {
         if (immediateContext == null) {
             throw new RuntimeException();
         }
+        GLInterface gl = ((GLDevice) immediateContext.getDevice()).getGL();
+        LOGGER.info("Renderer: {}", gl.glGetString(GL11C.GL_RENDERER));
         if (!TEST_OPENGL_ES) {
             TestDrawPass.glSetupDebugCallback();
         }
@@ -209,18 +214,11 @@ public class TestGraniteRenderer {
                 double time5 = GLFW.glfwGetTime();
 
                 int filter = CANVAS_WIDTH == WINDOW_WIDTH && CANVAS_HEIGHT == WINDOW_HEIGHT
-                        ? GL33C.GL_LINEAR : GL33C.GL_NEAREST;
-                if (TEST_OPENGL_ES) {
-                    GLES30.glBindFramebuffer(GL33C.GL_DRAW_FRAMEBUFFER, 0);
-                    GLES30.glBlitFramebuffer(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT,
-                            0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, GL33C.GL_COLOR_BUFFER_BIT,
-                            filter);
-                } else {
-                    GL33C.glBindFramebuffer(GL33C.GL_DRAW_FRAMEBUFFER, 0);
-                    GL33C.glBlitFramebuffer(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT,
-                            0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, GL33C.GL_COLOR_BUFFER_BIT,
-                            filter);
-                }
+                        ? GL33C.GL_NEAREST : GL33C.GL_LINEAR;
+                gl.glBindFramebuffer(GL33C.GL_DRAW_FRAMEBUFFER, 0);
+                gl.glBlitFramebuffer(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT,
+                        0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, GL33C.GL_COLOR_BUFFER_BIT,
+                        filter);
                 if (!immediateContext.submit()) {
                     LOGGER.error("Failed to submit queue");
                 }
