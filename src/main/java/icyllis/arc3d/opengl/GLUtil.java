@@ -600,8 +600,7 @@ public final class GLUtil {
             return 0;
         }
         try (MemoryStack stack = MemoryStack.stackPush()) {
-            var shaders = stack.ints(shader);
-            long pShaders = memAddress(shaders);
+            long pShaders = stack.nint(shader);
             gl.glShaderBinary(1, pShaders, GL_SHADER_BINARY_FORMAT_SPIR_V,
                     memAddress(spirv), spirv.remaining());
             stack.nUTF8(entryPoint, true);
@@ -618,46 +617,60 @@ public final class GLUtil {
         String log = checkShaderCompiled(gl, shader);
         if (log != null) {
             gl.glDeleteShader(shader);
-            device.getLogger().error("Shader specialization error: {}", log);
+            device.getLogger().error(MARKER, "Shader specialization error\n{}", log);
             return 0;
         }
 
         return shader;
     }
 
-    public static @Nullable String checkShaderCompiled(@NonNull GLInterface gl, int shader) {
+    public static @Nullable String checkShaderCompiled(@NonNull GLInterface gl,
+                                                       @NativeType("GLuint") int shader) {
         try (MemoryStack stack = stackPush()) {
-            var p = stack.ints(0);
-            gl.glGetShaderiv(shader, GL_COMPILE_STATUS, memAddress(p));
-            if (p.get(0) == GL_FALSE) {
-                gl.glGetShaderiv(shader, GL_INFO_LOG_LENGTH, memAddress(p));
-                int length = p.get(0);
-                long pInfoLog = nmemAlloc(length);
-                try {
-                    gl.glGetShaderInfoLog(shader, length, memAddress(p), pInfoLog);
-                    return memUTF8(pInfoLog, p.get(0));
-                } finally {
-                    nmemFree(pInfoLog);
+            long p = stack.nint(0);
+            gl.glGetShaderiv(shader, GL_COMPILE_STATUS, p);
+            if (memGetInt(p) == GL_FALSE) {
+                gl.glGetShaderiv(shader, GL_INFO_LOG_LENGTH, p);
+                int length = memGetInt(p);
+                if (length > 0) {
+                    long pInfoLog = nmemAlloc(length);
+                    if (pInfoLog == NULL) {
+                        return "";
+                    }
+                    try {
+                        gl.glGetShaderInfoLog(shader, length, p, pInfoLog);
+                        return memUTF8(pInfoLog, memGetInt(p));
+                    } finally {
+                        nmemFree(pInfoLog);
+                    }
                 }
+                return "";
             }
         }
         return null;
     }
 
-    public static @Nullable String checkProgramLinked(@NonNull GLInterface gl, int program) {
+    public static @Nullable String checkProgramLinked(@NonNull GLInterface gl,
+                                                      @NativeType("GLuint") int program) {
         try (MemoryStack stack = stackPush()) {
-            var p = stack.ints(0);
-            gl.glGetProgramiv(program, GL_LINK_STATUS, memAddress(p));
-            if (p.get(0) == GL_FALSE) {
-                gl.glGetProgramiv(program, GL_INFO_LOG_LENGTH, memAddress(p));
-                int length = p.get(0);
-                long pInfoLog = nmemAlloc(length);
-                try {
-                    gl.glGetProgramInfoLog(program, length, memAddress(p), pInfoLog);
-                    return memUTF8(pInfoLog, p.get(0));
-                } finally {
-                    nmemFree(pInfoLog);
+            long p = stack.nint(0);
+            gl.glGetProgramiv(program, GL_LINK_STATUS, p);
+            if (memGetInt(p) == GL_FALSE) {
+                gl.glGetProgramiv(program, GL_INFO_LOG_LENGTH, p);
+                int length = memGetInt(p);
+                if (length > 0) {
+                    long pInfoLog = nmemAlloc(length);
+                    if (pInfoLog == NULL) {
+                        return "";
+                    }
+                    try {
+                        gl.glGetProgramInfoLog(program, length, p, pInfoLog);
+                        return memUTF8(pInfoLog, memGetInt(p));
+                    } finally {
+                        nmemFree(pInfoLog);
+                    }
                 }
+                return "";
             }
         }
         return null;

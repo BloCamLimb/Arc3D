@@ -149,7 +149,7 @@ public class TestGraniteRenderer {
         ContextOptions contextOptions = new ContextOptions();
         contextOptions.mLogger = LOGGER;
         contextOptions.mSkipGLErrorChecks = Boolean.TRUE;
-        contextOptions.mAllowGLSPIRV = true;
+        contextOptions.mAllowGLSPIRV = false;
         ImmediateContext immediateContext = GLUtil.makeOpenGL(
                 TEST_OPENGL_ES ? GLES.createCapabilities() : GL.createCapabilities(),
                 contextOptions
@@ -159,6 +159,9 @@ public class TestGraniteRenderer {
         }
         GLInterface gl = ((GLDevice) immediateContext.getDevice()).getGL();
         LOGGER.info("Renderer: {}", gl.glGetString(GL11C.GL_RENDERER));
+        StringBuilder capsInfo = new StringBuilder();
+        ((GLDevice) immediateContext.getDevice()).getCaps().dump(capsInfo, false);
+        LOGGER.info(capsInfo.toString());
         if (!TEST_OPENGL_ES) {
             TestDrawPass.glSetupDebugCallback();
         }
