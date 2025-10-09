@@ -19,6 +19,7 @@
 
 package icyllis.arc3d.granite;
 
+import icyllis.arc3d.compiler.ShaderDataType;
 import icyllis.arc3d.core.*;
 import icyllis.arc3d.sketch.BlendMode;
 import icyllis.arc3d.sketch.shaders.Shader;
@@ -37,41 +38,41 @@ public class ShaderCodeSource {
 
     // common uniform definitions
     private static final List<Uniform> PAINT_COLOR_UNIFORMS = List.of(
-            new Uniform(SLDataType.kFloat4, UniformHandler.PAINT_COLOR_NAME)
+            new Uniform(ShaderDataType.kFloat4, UniformHandler.PAINT_COLOR_NAME)
     );
     private static final Uniform INV_IMAGE_SIZE =
-            new Uniform(SLDataType.kFloat2, "u_InvImageSize");
+            new Uniform(ShaderDataType.kFloat2, "u_InvImageSize");
     private static final Uniform SUBSET =
-            new Uniform(SLDataType.kFloat4, "u_Subset");
+            new Uniform(ShaderDataType.kFloat4, "u_Subset");
     private static final Uniform TILE_MODE_X =
-            new Uniform(SLDataType.kInt, "u_TileModeX");
+            new Uniform(ShaderDataType.kInt, "u_TileModeX");
     private static final Uniform TILE_MODE_Y =
-            new Uniform(SLDataType.kInt, "u_TileModeY");
+            new Uniform(ShaderDataType.kInt, "u_TileModeY");
     private static final Uniform XFORM_FLAGS =
-            new Uniform(SLDataType.kInt, "u_XformFlags");
+            new Uniform(ShaderDataType.kInt, "u_XformFlags");
     private static final Uniform XFORM_SRC_TF =
-            new Uniform(SLDataType.kFloat4, "u_XformSrcTf", 2);
+            new Uniform(ShaderDataType.kFloat4, "u_XformSrcTf", 2);
     private static final Uniform XFORM_GAMUT_TRANSFORM =
-            new Uniform(SLDataType.kFloat3x3, "u_XformGamutTransform");
+            new Uniform(ShaderDataType.kFloat3x3, "u_XformGamutTransform");
     private static final Uniform XFORM_DST_TF =
-            new Uniform(SLDataType.kFloat4, "u_XformDstTf", 2);
+            new Uniform(ShaderDataType.kFloat4, "u_XformDstTf", 2);
 
     private static final Uniform GRAD_COLOR_SPACE =
-            new Uniform(SLDataType.kInt, "u_ColorSpace");
+            new Uniform(ShaderDataType.kInt, "u_ColorSpace");
     private static final Uniform GRAD_DO_UNPREMUL =
-            new Uniform(SLDataType.kInt, "u_DoUnpremul");
+            new Uniform(ShaderDataType.kInt, "u_DoUnpremul");
     private static final Uniform GRAD_BIAS =
-            new Uniform(SLDataType.kFloat, "u_Bias");
+            new Uniform(ShaderDataType.kFloat, "u_Bias");
     private static final Uniform GRAD_SCALE =
-            new Uniform(SLDataType.kFloat, "u_Scale");
+            new Uniform(ShaderDataType.kFloat, "u_Scale");
     private static final Uniform GRAD_4_COLORS =
-            new Uniform(SLDataType.kFloat4, "u_Colors", 4);
+            new Uniform(ShaderDataType.kFloat4, "u_Colors", 4);
     private static final Uniform GRAD_4_OFFSETS =
-            new Uniform(SLDataType.kFloat4, "u_Offsets");
+            new Uniform(ShaderDataType.kFloat4, "u_Offsets");
     private static final Uniform GRAD_8_COLORS =
-            new Uniform(SLDataType.kFloat4, "u_Colors", 8);
+            new Uniform(ShaderDataType.kFloat4, "u_Colors", 8);
     private static final Uniform GRAD_8_OFFSETS =
-            new Uniform(SLDataType.kFloat4, "u_Offsets", 2);
+            new Uniform(ShaderDataType.kFloat4, "u_Offsets", 2);
 
     // 8x8 lime and white checkerboard
     public static final String ARC_ERROR = """
@@ -1460,7 +1461,7 @@ public class ShaderCodeSource {
                 List.of(ARC_SOLID_COLOR),
                 List.of(
                         new Uniform(
-                                SLDataType.kFloat4,
+                                ShaderDataType.kFloat4,
                                 "u_Color"
                         )
                 ),
@@ -1637,7 +1638,7 @@ public class ShaderCodeSource {
                 NO_FUNCTIONS,
                 List.of(
                         new Uniform(
-                                SLDataType.kFloat3x3,
+                                ShaderDataType.kFloat3x3,
                                 "u_LocalMatrix"
                         )
                 ),
@@ -1681,11 +1682,11 @@ public class ShaderCodeSource {
                 ),
                 List.of(
                         INV_IMAGE_SIZE, SUBSET,
-                        new Uniform(SLDataType.kInt, "u_FilterMode"),
+                        new Uniform(ShaderDataType.kInt, "u_FilterMode"),
                         TILE_MODE_X, TILE_MODE_Y
                 ),
                 List.of(
-                        new Sampler(SLDataType.kSampler2D, "u_Sampler")
+                        new Sampler(ShaderDataType.kSampler2D, "u_Sampler")
                 ),
                 ShaderCodeSource::generateDefaultExpression,
                 0
@@ -1700,12 +1701,12 @@ public class ShaderCodeSource {
                 ),
                 List.of(
                         SUBSET,
-                        new Uniform(SLDataType.kFloat4x4, "u_CubicCoeffs"),
-                        new Uniform(SLDataType.kInt, "u_CubicClamp"),
+                        new Uniform(ShaderDataType.kFloat4x4, "u_CubicCoeffs"),
+                        new Uniform(ShaderDataType.kInt, "u_CubicClamp"),
                         TILE_MODE_X, TILE_MODE_Y
                 ),
                 List.of(
-                        new Sampler(SLDataType.kSampler2D, "u_Sampler")
+                        new Sampler(ShaderDataType.kSampler2D, "u_Sampler")
                 ),
                 ShaderCodeSource::generateDefaultExpression,
                 0
@@ -1717,7 +1718,7 @@ public class ShaderCodeSource {
                 List.of(ARC_HW_IMAGE_SHADER),
                 List.of(INV_IMAGE_SIZE),
                 List.of(
-                        new Sampler(SLDataType.kSampler2D, "u_Sampler")
+                        new Sampler(ShaderDataType.kSampler2D, "u_Sampler")
                 ),
                 ShaderCodeSource::generateDefaultExpression,
                 0
@@ -1728,9 +1729,9 @@ public class ShaderCodeSource {
                 "arc_analytic_rrect_shader",
                 List.of(ARC_ANALYTIC_RRECT_SHADER),
                 List.of(
-                        new Uniform(SLDataType.kFloat4, "u_Rect"),
-                        new Uniform(SLDataType.kFloat4, "u_Radii"),
-                        new Uniform(SLDataType.kFloat4, "u_Fields")
+                        new Uniform(ShaderDataType.kFloat4, "u_Rect"),
+                        new Uniform(ShaderDataType.kFloat4, "u_Radii"),
+                        new Uniform(ShaderDataType.kFloat4, "u_Fields")
                 ),
                 NO_SAMPLERS,
                 ShaderCodeSource::generateDefaultExpression,
@@ -1742,7 +1743,7 @@ public class ShaderCodeSource {
                 "arc_dither_shader",
                 List.of(ARC_DITHER_SHADER),
                 List.of(
-                        new Uniform(SLDataType.kFloat, "u_Range")
+                        new Uniform(ShaderDataType.kFloat, "u_Range")
                 ),
                 NO_SAMPLERS,
                 ShaderCodeSource::generateDefaultExpression,
@@ -1792,7 +1793,7 @@ public class ShaderCodeSource {
                         ARC_BLEND
                 ),
                 List.of(
-                        new Uniform(SLDataType.kInt, "u_BlendMode")
+                        new Uniform(ShaderDataType.kInt, "u_BlendMode")
                 ),
                 NO_SAMPLERS,
                 ShaderCodeSource::generateDefaultExpression,
@@ -1804,7 +1805,7 @@ public class ShaderCodeSource {
                 "arc_porter_duff_blend",
                 List.of(ARC_PORTER_DUFF_BLEND),
                 List.of(
-                        new Uniform(SLDataType.kFloat4, "u_Coeffs")
+                        new Uniform(ShaderDataType.kFloat4, "u_Coeffs")
                 ),
                 NO_SAMPLERS,
                 ShaderCodeSource::generateDefaultExpression,
@@ -1968,7 +1969,7 @@ public class ShaderCodeSource {
                         %s %s;
                         """,
                 child.stageIndex(), child.stage().mName,
-                SLDataType.typeString(outputType), output);
+                ShaderDataType.typeString(outputType), output);
         code.format("{\n");
         child.stage().mExpressionGenerator.generate(
                 child,
@@ -2045,7 +2046,7 @@ public class ShaderCodeSource {
                 arguments.add(
                         invoke_child(child, localCoords, priorStageOutput, blenderDstColor, child,
                                 "outColor",
-                                SLDataType.kFloat4,
+                                ShaderDataType.kFloat4,
                                 code)
                 );
             }
@@ -2076,21 +2077,21 @@ public class ShaderCodeSource {
             var child = node.childAt(childIndex++);
             outerLocalCoords = invoke_child(child, localCoords, priorStageOutput, blenderDstColor, node,
                     "outerLocalCoords",
-                    SLDataType.kFloat2,
+                    ShaderDataType.kFloat2,
                     code);
         }
         if ((outer.requirementFlags() & kPriorStageOutput_ReqFlag) != 0) {
             var child = node.childAt(childIndex++);
             outerPriorStageOutput = invoke_child(child, localCoords, priorStageOutput, blenderDstColor, node,
                     "outerPriorStageOutput",
-                    SLDataType.kFloat4,
+                    ShaderDataType.kFloat4,
                     code);
         }
         if ((outer.requirementFlags() & kBlenderDstColor_ReqFlag) != 0) {
             var child = node.childAt(childIndex++);
             outerBlenderDstColor = invoke_child(child, localCoords, priorStageOutput, blenderDstColor, node,
                     "outerBlenderDstColor",
-                    SLDataType.kFloat4,
+                    ShaderDataType.kFloat4,
                     code);
         }
         assert childIndex + 1 == node.numChildren();

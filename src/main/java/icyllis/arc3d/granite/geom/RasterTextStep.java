@@ -19,6 +19,7 @@
 
 package icyllis.arc3d.granite.geom;
 
+import icyllis.arc3d.compiler.ShaderDataType;
 import icyllis.arc3d.core.*;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.engine.Engine.PrimitiveType;
@@ -45,11 +46,11 @@ public class RasterTextStep extends GeometryStep {
      * bearing and initial origin applied.
      */
     public static final Attribute XY =
-            new Attribute("XY", VertexAttribType.kFloat2, SLDataType.kFloat2);
+            new Attribute("XY", VertexAttribType.kFloat2, ShaderDataType.kFloat2);
     public static final Attribute UV =
-            new Attribute("UV", VertexAttribType.kUShort2, SLDataType.kUInt2);
+            new Attribute("UV", VertexAttribType.kUShort2, ShaderDataType.kUInt2);
     public static final Attribute SIZE =
-            new Attribute("Size", VertexAttribType.kUShort2, SLDataType.kUInt2);
+            new Attribute("Size", VertexAttribType.kUShort2, ShaderDataType.kUInt2);
 
     public static final AttributeSet INSTANCE_ATTRIBS =
             AttributeSet.makeImplicit(VertexInputLayout.INPUT_RATE_INSTANCE,
@@ -95,27 +96,27 @@ public class RasterTextStep extends GeometryStep {
     @Override
     public void emitVaryings(VaryingHandler varyingHandler, boolean usesFastSolidColor) {
         assert !usesFastSolidColor;
-        varyingHandler.addVarying("f_TexCoords", SLDataType.kFloat2);
+        varyingHandler.addVarying("f_TexCoords", ShaderDataType.kFloat2);
     }
 
     @Override
     public void emitUniforms(UniformHandler uniformHandler, boolean mayRequireLocalCoords) {
         // may have perspective
         uniformHandler.addUniform(Engine.ShaderFlags.kVertex,
-                SLDataType.kFloat3x3, "u_SubRunToDevice", -1);
+                ShaderDataType.kFloat3x3, "u_SubRunToDevice", -1);
         if (mayRequireLocalCoords) {
             // no perspective
             uniformHandler.addUniform(Engine.ShaderFlags.kVertex,
-                    SLDataType.kFloat3x3, "u_SubRunToLocal", -1);
+                    ShaderDataType.kFloat3x3, "u_SubRunToLocal", -1);
         }
         uniformHandler.addUniform(Engine.ShaderFlags.kVertex,
-                SLDataType.kFloat2, "u_InvAtlasSize", -1);
+                ShaderDataType.kFloat2, "u_InvAtlasSize", -1);
     }
 
     @Override
     public void emitSamplers(UniformHandler uniformHandler) {
         uniformHandler.addSampler(
-                SLDataType.kSampler2D, "u_GlyphAtlas", -1);
+                ShaderDataType.kSampler2D, "u_GlyphAtlas", -1);
     }
 
     @Override

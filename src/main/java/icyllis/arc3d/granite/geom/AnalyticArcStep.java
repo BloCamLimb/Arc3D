@@ -19,6 +19,7 @@
 
 package icyllis.arc3d.granite.geom;
 
+import icyllis.arc3d.compiler.ShaderDataType;
 import icyllis.arc3d.core.*;
 import icyllis.arc3d.engine.Engine.PrimitiveType;
 import icyllis.arc3d.engine.Engine.VertexAttribType;
@@ -50,19 +51,19 @@ public class AnalyticArcStep extends GeometryStep {
      * (center X, center Y, start angle, sweep angle)
      */
     public static final Attribute LOCAL_ARC =
-            new Attribute("LocalArc", VertexAttribType.kFloat4, SLDataType.kFloat4);
+            new Attribute("LocalArc", VertexAttribType.kFloat4, ShaderDataType.kFloat4);
     /**
      * X is circle radius.<br>
      * Y is stroke radius if stroked, or -1.0 if filled.<br>
      * Z is local AA radius.
      */
     public static final Attribute RADII =
-            new Attribute("Radii", VertexAttribType.kFloat3, SLDataType.kFloat3);
+            new Attribute("Radii", VertexAttribType.kFloat3, ShaderDataType.kFloat3);
     /**
      * W is half width for open arcs.
      */
     public static final Attribute RADII_ARC =
-            new Attribute("Radii", VertexAttribType.kFloat4, SLDataType.kFloat4);
+            new Attribute("Radii", VertexAttribType.kFloat4, ShaderDataType.kFloat4);
     /**
      * Bitfield: <br>
      * 16-32 bits: painter's depth; <br>
@@ -72,7 +73,7 @@ public class AnalyticArcStep extends GeometryStep {
      * dir=0: inside, dir=1: center, dir=2: outside; <br>
      */
     public static final Attribute FLAGS_AND_DEPTH =
-            new Attribute("FlagsAndDepth", VertexAttribType.kUInt, SLDataType.kUInt);
+            new Attribute("FlagsAndDepth", VertexAttribType.kUInt, ShaderDataType.kUInt);
 
     public static final AttributeSet INSTANCE_ATTRIBS =
             AttributeSet.makeImplicit(VertexInputLayout.INPUT_RATE_INSTANCE,
@@ -116,22 +117,22 @@ public class AnalyticArcStep extends GeometryStep {
     @Override
     public void emitVaryings(VaryingHandler varyingHandler, boolean usesFastSolidColor) {
         // the local coords, center point is (0,0)
-        varyingHandler.addVarying("f_ArcEdge", SLDataType.kFloat2);
+        varyingHandler.addVarying("f_ArcEdge", ShaderDataType.kFloat2);
         // cos(sweepAngle), sin(sweepAngle)
-        varyingHandler.addVarying("f_Span", SLDataType.kFloat2,
+        varyingHandler.addVarying("f_Span", ShaderDataType.kFloat2,
                 VaryingHandler.kCanBeFlat_Interpolation);
         if (ArcShape.isOpenArc(mType)) {
             // circle radius, stroke radius, stroke offset, half width
-            varyingHandler.addVarying("f_Radii", SLDataType.kFloat4,
+            varyingHandler.addVarying("f_Radii", ShaderDataType.kFloat4,
                     VaryingHandler.kCanBeFlat_Interpolation);
         } else {
             // circle radius, stroke radius, stroke offset
-            varyingHandler.addVarying("f_Radii", SLDataType.kFloat3,
+            varyingHandler.addVarying("f_Radii", ShaderDataType.kFloat3,
                     VaryingHandler.kCanBeFlat_Interpolation);
         }
         if (usesFastSolidColor) {
             // solid color
-            varyingHandler.addVarying("f_Color", SLDataType.kFloat4,
+            varyingHandler.addVarying("f_Color", ShaderDataType.kFloat4,
                     VaryingHandler.kCanBeFlat_Interpolation);
         }
     }

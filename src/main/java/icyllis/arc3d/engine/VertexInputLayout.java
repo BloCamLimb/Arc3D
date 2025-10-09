@@ -20,7 +20,7 @@
 package icyllis.arc3d.engine;
 
 import icyllis.arc3d.core.MathUtil;
-import icyllis.arc3d.core.SLDataType;
+import icyllis.arc3d.compiler.ShaderDataType;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -69,7 +69,7 @@ public final class VertexInputLayout {
          *
          * @param name    the attrib name, cannot be null or empty
          * @param srcType the data type in vertex buffer, see {@link Engine.VertexAttribType}
-         * @param dstType the data type in vertex shader, see {@link SLDataType}
+         * @param dstType the data type in vertex shader, see {@link ShaderDataType}
          */
         public Attribute(@NonNull String name, byte srcType, byte dstType) {
             if (name.isEmpty() || name.startsWith("_")) {
@@ -78,7 +78,7 @@ public final class VertexInputLayout {
             if (srcType < 0 || srcType > Engine.VertexAttribType.kLast) {
                 throw new IllegalArgumentException();
             }
-            if (SLDataType.locations(dstType) <= 0) {
+            if (ShaderDataType.locations(dstType) <= 0) {
                 throw new IllegalArgumentException();
             }
             mName = name;
@@ -92,7 +92,7 @@ public final class VertexInputLayout {
          *
          * @param name    the attrib name, UpperCamelCase, cannot be null or empty
          * @param srcType the data type in vertex buffer, see {@link Engine.VertexAttribType}
-         * @param dstType the data type in vertex shader, see {@link SLDataType}
+         * @param dstType the data type in vertex shader, see {@link ShaderDataType}
          * @param offset  N-aligned offset
          */
         public Attribute(@NonNull String name, byte srcType, byte dstType, int offset) {
@@ -102,7 +102,7 @@ public final class VertexInputLayout {
             if (srcType < 0 || srcType > Engine.VertexAttribType.kLast) {
                 throw new IllegalArgumentException();
             }
-            if (SLDataType.locations(dstType) <= 0) {
+            if (ShaderDataType.locations(dstType) <= 0) {
                 throw new IllegalArgumentException();
             }
             if (offset < 0 || offset >= 32768 || alignOffset(offset) != offset) {
@@ -126,7 +126,7 @@ public final class VertexInputLayout {
         }
 
         /**
-         * @return the data type in vertex shader, see {@link SLDataType}
+         * @return the data type in vertex shader, see {@link ShaderDataType}
          */
         public final byte dstType() {
             return mDstType;
@@ -153,7 +153,7 @@ public final class VertexInputLayout {
          * @return the number of locations
          */
         public final int locations() {
-            return SLDataType.locations(mDstType);
+            return ShaderDataType.locations(mDstType);
         }
 
         /**
@@ -421,7 +421,7 @@ public final class VertexInputLayout {
      * An attribute (variable) may take up multiple consecutive locations.
      * The max number of locations matches the max number of attributes in {@link Caps}.
      *
-     * @see SLDataType#locations(byte)
+     * @see ShaderDataType#locations(byte)
      * @see #getAttributeCount(int)
      * @see Caps#MAX_VERTEX_ATTRIBUTES
      */

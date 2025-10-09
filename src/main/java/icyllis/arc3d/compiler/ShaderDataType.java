@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2022-2024 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2022-2025 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -17,14 +17,17 @@
  * License along with Arc3D. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package icyllis.arc3d.core;
+package icyllis.arc3d.compiler;
 
 import org.jspecify.annotations.NonNull;
 
 /**
  * Types of shader-language-specific boxed variables we can create, shared constants.
+ * <p>
+ * Types are represented as uint8_t (or int8_t) enum constants, without using
+ * a {@link icyllis.arc3d.compiler.tree.Type} object.
  */
-public final class SLDataType {
+public final class ShaderDataType {
 
     public static final byte
             kVoid = 0,
@@ -69,7 +72,7 @@ public final class SLDataType {
     public static final byte kLast = kSubpassInput;
 
     // Debug tool.
-    public static boolean checkSLType(byte type) {
+    public static boolean checkType(byte type) {
         return type >= 0 && type <= kLast;
     }
 
@@ -339,7 +342,7 @@ public final class SLDataType {
     }
 
     /**
-     * Returns the number of locations take up by a given SLType.
+     * Returns the number of locations take up by a given Type.
      * <p>
      * 16-bit scalar and vector types, and 32-bit scalar and vector types
      * consume a single location.

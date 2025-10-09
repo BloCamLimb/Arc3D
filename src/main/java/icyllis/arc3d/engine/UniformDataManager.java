@@ -19,6 +19,7 @@
 
 package icyllis.arc3d.engine;
 
+import icyllis.arc3d.compiler.ShaderDataType;
 import icyllis.arc3d.core.*;
 import icyllis.arc3d.sketch.Matrixc;
 import icyllis.arc3d.granite.shading.UniformHandler;
@@ -44,7 +45,7 @@ import static org.lwjgl.system.MemoryUtil.*;
 public abstract class UniformDataManager extends RefCnt {
 
     // lower 24 bits: offset in bytes
-    // higher 8 bits: SLDataType (assert)
+    // higher 8 bits: ShaderDataType (for assertion)
     protected final int[] mUniforms;
 
     protected final int mUniformSize;
@@ -79,9 +80,9 @@ public abstract class UniformDataManager extends RefCnt {
      */
     public void set1i(@UniformHandle int u, int v0) {
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kInt ||
-                (uni >> 24) == SLDataType.kUInt ||
-                (uni >> 24) == SLDataType.kBool);
+        assert ((uni >> 24) == ShaderDataType.kInt ||
+                (uni >> 24) == ShaderDataType.kUInt ||
+                (uni >> 24) == ShaderDataType.kBool);
         long buffer = getBufferPtrAndMarkDirty(uni);
         memPutInt(buffer, v0);
     }
@@ -98,9 +99,9 @@ public abstract class UniformDataManager extends RefCnt {
     public void set1iv(@UniformHandle int u, int count, long value) {
         assert (count > 0);
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kInt ||
-                (uni >> 24) == SLDataType.kUInt ||
-                (uni >> 24) == SLDataType.kBool);
+        assert ((uni >> 24) == ShaderDataType.kInt ||
+                (uni >> 24) == ShaderDataType.kUInt ||
+                (uni >> 24) == ShaderDataType.kBool);
         long buffer = getBufferPtrAndMarkDirty(uni);
         for (int i = 0; ; ) {
             // for small values this is faster than memCopy
@@ -122,9 +123,9 @@ public abstract class UniformDataManager extends RefCnt {
     public void set1iv(@UniformHandle int u, int offset, int count, int[] value) {
         assert (count > 0);
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kInt ||
-                (uni >> 24) == SLDataType.kUInt ||
-                (uni >> 24) == SLDataType.kBool);
+        assert ((uni >> 24) == ShaderDataType.kInt ||
+                (uni >> 24) == ShaderDataType.kUInt ||
+                (uni >> 24) == ShaderDataType.kBool);
         long buffer = getBufferPtrAndMarkDirty(uni);
         for (int i = 0; ; ) {
             memPutInt(buffer, value[offset + i]);
@@ -141,7 +142,7 @@ public abstract class UniformDataManager extends RefCnt {
      */
     public void set1f(@UniformHandle int u, float v0) {
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kFloat);
+        assert ((uni >> 24) == ShaderDataType.kFloat);
         long buffer = getBufferPtrAndMarkDirty(uni);
         memPutFloat(buffer, v0);
     }
@@ -158,7 +159,7 @@ public abstract class UniformDataManager extends RefCnt {
     public void set1fv(@UniformHandle int u, int count, long value) {
         assert (count > 0);
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kFloat);
+        assert ((uni >> 24) == ShaderDataType.kFloat);
         long buffer = getBufferPtrAndMarkDirty(uni);
         for (int i = 0; ; ) {
             // for small values this is faster than memCopy
@@ -180,7 +181,7 @@ public abstract class UniformDataManager extends RefCnt {
     public void set1fv(@UniformHandle int u, int offset, int count, float[] value) {
         assert (count > 0);
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kFloat);
+        assert ((uni >> 24) == ShaderDataType.kFloat);
         long buffer = getBufferPtrAndMarkDirty(uni);
         for (int i = 0; ; ) {
             memPutFloat(buffer, value[offset + i]);
@@ -197,9 +198,9 @@ public abstract class UniformDataManager extends RefCnt {
      */
     public void set2i(@UniformHandle int u, int v0, int v1) {
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kInt2 ||
-                (uni >> 24) == SLDataType.kUInt2 ||
-                (uni >> 24) == SLDataType.kBool2);
+        assert ((uni >> 24) == ShaderDataType.kInt2 ||
+                (uni >> 24) == ShaderDataType.kUInt2 ||
+                (uni >> 24) == ShaderDataType.kBool2);
         long buffer = getBufferPtrAndMarkDirty(uni);
         memPutInt(buffer, v0);
         memPutInt(buffer + Float.BYTES, v1);
@@ -217,9 +218,9 @@ public abstract class UniformDataManager extends RefCnt {
     public void set2iv(@UniformHandle int u, int count, long value) {
         assert (count > 0);
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kInt2 ||
-                (uni >> 24) == SLDataType.kUInt2 ||
-                (uni >> 24) == SLDataType.kBool2);
+        assert ((uni >> 24) == ShaderDataType.kInt2 ||
+                (uni >> 24) == ShaderDataType.kUInt2 ||
+                (uni >> 24) == ShaderDataType.kBool2);
         long buffer = getBufferPtrAndMarkDirty(uni);
         for (int i = 0; ; ) {
             // for small values this is faster than memCopy
@@ -241,9 +242,9 @@ public abstract class UniformDataManager extends RefCnt {
     public void set2iv(@UniformHandle int u, int offset, int count, int[] value) {
         assert (count > 0);
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kInt2 ||
-                (uni >> 24) == SLDataType.kUInt2 ||
-                (uni >> 24) == SLDataType.kBool2);
+        assert ((uni >> 24) == ShaderDataType.kInt2 ||
+                (uni >> 24) == ShaderDataType.kUInt2 ||
+                (uni >> 24) == ShaderDataType.kBool2);
         long buffer = getBufferPtrAndMarkDirty(uni);
         for (int i = 0; ; ) {
             memPutInt(buffer, value[offset]);
@@ -262,7 +263,7 @@ public abstract class UniformDataManager extends RefCnt {
      */
     public void set2f(@UniformHandle int u, float v0, float v1) {
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kFloat2);
+        assert ((uni >> 24) == ShaderDataType.kFloat2);
         long buffer = getBufferPtrAndMarkDirty(uni);
         memPutFloat(buffer, v0);
         memPutFloat(buffer + Float.BYTES, v1);
@@ -280,7 +281,7 @@ public abstract class UniformDataManager extends RefCnt {
     public void set2fv(@UniformHandle int u, int count, long value) {
         assert (count > 0);
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kFloat2);
+        assert ((uni >> 24) == ShaderDataType.kFloat2);
         long buffer = getBufferPtrAndMarkDirty(uni);
         for (int i = 0; ; ) {
             // for small values this is faster than memCopy
@@ -302,7 +303,7 @@ public abstract class UniformDataManager extends RefCnt {
     public void set2fv(@UniformHandle int u, int offset, int count, float[] value) {
         assert (count > 0);
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kFloat2);
+        assert ((uni >> 24) == ShaderDataType.kFloat2);
         long buffer = getBufferPtrAndMarkDirty(uni);
         for (int i = 0; ; ) {
             memPutFloat(buffer, value[offset]);
@@ -321,9 +322,9 @@ public abstract class UniformDataManager extends RefCnt {
      */
     public void set3i(@UniformHandle int u, int v0, int v1, int v2) {
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kInt3 ||
-                (uni >> 24) == SLDataType.kUInt3 ||
-                (uni >> 24) == SLDataType.kBool3);
+        assert ((uni >> 24) == ShaderDataType.kInt3 ||
+                (uni >> 24) == ShaderDataType.kUInt3 ||
+                (uni >> 24) == ShaderDataType.kBool3);
         long buffer = getBufferPtrAndMarkDirty(uni);
         memPutInt(buffer, v0);
         memPutInt(buffer + Float.BYTES, v1);
@@ -342,9 +343,9 @@ public abstract class UniformDataManager extends RefCnt {
     public void set3iv(@UniformHandle int u, int count, long value) {
         assert (count > 0);
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kInt3 ||
-                (uni >> 24) == SLDataType.kUInt3 ||
-                (uni >> 24) == SLDataType.kBool3);
+        assert ((uni >> 24) == ShaderDataType.kInt3 ||
+                (uni >> 24) == ShaderDataType.kUInt3 ||
+                (uni >> 24) == ShaderDataType.kBool3);
         long buffer = getBufferPtrAndMarkDirty(uni);
         for (int i = 0; ; ) {
             // for small values this is faster than memCopy
@@ -367,9 +368,9 @@ public abstract class UniformDataManager extends RefCnt {
     public void set3iv(@UniformHandle int u, int offset, int count, int[] value) {
         assert (count > 0);
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kInt3 ||
-                (uni >> 24) == SLDataType.kUInt3 ||
-                (uni >> 24) == SLDataType.kBool3);
+        assert ((uni >> 24) == ShaderDataType.kInt3 ||
+                (uni >> 24) == ShaderDataType.kUInt3 ||
+                (uni >> 24) == ShaderDataType.kBool3);
         long buffer = getBufferPtrAndMarkDirty(uni);
         for (int i = 0; ; ) {
             memPutInt(buffer, value[offset]);
@@ -389,7 +390,7 @@ public abstract class UniformDataManager extends RefCnt {
      */
     public void set3f(@UniformHandle int u, float v0, float v1, float v2) {
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kFloat3);
+        assert ((uni >> 24) == ShaderDataType.kFloat3);
         long buffer = getBufferPtrAndMarkDirty(uni);
         memPutFloat(buffer, v0);
         memPutFloat(buffer + Float.BYTES, v1);
@@ -408,7 +409,7 @@ public abstract class UniformDataManager extends RefCnt {
     public void set3fv(@UniformHandle int u, int count, long value) {
         assert (count > 0);
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kFloat3);
+        assert ((uni >> 24) == ShaderDataType.kFloat3);
         long buffer = getBufferPtrAndMarkDirty(uni);
         for (int i = 0; ; ) {
             // for small values this is faster than memCopy
@@ -431,7 +432,7 @@ public abstract class UniformDataManager extends RefCnt {
     public void set3fv(@UniformHandle int u, int offset, int count, float[] value) {
         assert (count > 0);
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kFloat3);
+        assert ((uni >> 24) == ShaderDataType.kFloat3);
         long buffer = getBufferPtrAndMarkDirty(uni);
         for (int i = 0; ; ) {
             memPutFloat(buffer, value[offset]);
@@ -451,9 +452,9 @@ public abstract class UniformDataManager extends RefCnt {
      */
     public void set4i(@UniformHandle int u, int v0, int v1, int v2, int v3) {
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kInt4 ||
-                (uni >> 24) == SLDataType.kUInt4 ||
-                (uni >> 24) == SLDataType.kBool4);
+        assert ((uni >> 24) == ShaderDataType.kInt4 ||
+                (uni >> 24) == ShaderDataType.kUInt4 ||
+                (uni >> 24) == ShaderDataType.kBool4);
         long buffer = getBufferPtrAndMarkDirty(uni);
         memPutInt(buffer, v0);
         memPutInt(buffer + Float.BYTES, v1);
@@ -473,9 +474,9 @@ public abstract class UniformDataManager extends RefCnt {
     public void set4iv(@UniformHandle int u, int count, long value) {
         assert (count > 0);
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kInt4 ||
-                (uni >> 24) == SLDataType.kUInt4 ||
-                (uni >> 24) == SLDataType.kBool4);
+        assert ((uni >> 24) == ShaderDataType.kInt4 ||
+                (uni >> 24) == ShaderDataType.kUInt4 ||
+                (uni >> 24) == ShaderDataType.kBool4);
         long buffer = getBufferPtrAndMarkDirty(uni);
         memCopy(value, buffer, count * 4L * Float.BYTES);
     }
@@ -488,9 +489,9 @@ public abstract class UniformDataManager extends RefCnt {
     public void set4iv(@UniformHandle int u, int offset, int count, int[] value) {
         assert (count > 0);
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kInt4 ||
-                (uni >> 24) == SLDataType.kUInt4 ||
-                (uni >> 24) == SLDataType.kBool4);
+        assert ((uni >> 24) == ShaderDataType.kInt4 ||
+                (uni >> 24) == ShaderDataType.kUInt4 ||
+                (uni >> 24) == ShaderDataType.kBool4);
         long buffer = getBufferPtrAndMarkDirty(uni);
         for (int i = 0, e = count * 4; i < e; i++) {
             memPutInt(buffer, value[offset++]);
@@ -503,7 +504,7 @@ public abstract class UniformDataManager extends RefCnt {
      */
     public void set4f(@UniformHandle int u, float v0, float v1, float v2, float v3) {
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kFloat4);
+        assert ((uni >> 24) == ShaderDataType.kFloat4);
         long buffer = getBufferPtrAndMarkDirty(uni);
         memPutFloat(buffer, v0);
         memPutFloat(buffer + Float.BYTES, v1);
@@ -523,7 +524,7 @@ public abstract class UniformDataManager extends RefCnt {
     public void set4fv(@UniformHandle int u, int count, long value) {
         assert (count > 0);
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kFloat4);
+        assert ((uni >> 24) == ShaderDataType.kFloat4);
         long buffer = getBufferPtrAndMarkDirty(uni);
         memCopy(value, buffer, count * 4L * Float.BYTES);
     }
@@ -536,7 +537,7 @@ public abstract class UniformDataManager extends RefCnt {
     public void set4fv(@UniformHandle int u, int offset, int count, float[] value) {
         assert (count > 0);
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kFloat4);
+        assert ((uni >> 24) == ShaderDataType.kFloat4);
         long buffer = getBufferPtrAndMarkDirty(uni);
         for (int i = 0, e = count * 4; i < e; i++) {
             memPutFloat(buffer, value[offset++]);
@@ -556,7 +557,7 @@ public abstract class UniformDataManager extends RefCnt {
     public void setMatrix2fv(@UniformHandle int u, int count, long value) {
         assert (count > 0);
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kFloat2x2);
+        assert ((uni >> 24) == ShaderDataType.kFloat2x2);
         long buffer = getBufferPtrAndMarkDirty(uni);
         for (int i = 0; ; ) {
             memPutLong(buffer, memGetLong(value));
@@ -578,7 +579,7 @@ public abstract class UniformDataManager extends RefCnt {
     public void setMatrix2fv(@UniformHandle int u, int offset, int count, float[] value) {
         assert (count > 0);
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kFloat2x2);
+        assert ((uni >> 24) == ShaderDataType.kFloat2x2);
         long buffer = getBufferPtrAndMarkDirty(uni);
         for (int i = 0; ; ) {
             memPutFloat(buffer, value[offset]);
@@ -606,7 +607,7 @@ public abstract class UniformDataManager extends RefCnt {
     public void setMatrix3fv(@UniformHandle int u, int count, long value) {
         assert (count > 0);
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kFloat3x3);
+        assert ((uni >> 24) == ShaderDataType.kFloat3x3);
         long buffer = getBufferPtrAndMarkDirty(uni);
         for (int i = 0; ; ) {
             memPutLong(buffer, memGetLong(value));
@@ -632,7 +633,7 @@ public abstract class UniformDataManager extends RefCnt {
     public void setMatrix3fv(@UniformHandle int u, int offset, int count, float[] value) {
         assert (count > 0);
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kFloat3x3);
+        assert ((uni >> 24) == ShaderDataType.kFloat3x3);
         long buffer = getBufferPtrAndMarkDirty(uni);
         for (int i = 0; ; ) {
             memPutFloat(buffer, value[offset]);
@@ -665,7 +666,7 @@ public abstract class UniformDataManager extends RefCnt {
     public void setMatrix4fv(@UniformHandle int u, int count, long value) {
         assert (count > 0);
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kFloat4x4);
+        assert ((uni >> 24) == ShaderDataType.kFloat4x4);
         long buffer = getBufferPtrAndMarkDirty(uni);
         memCopy(value, buffer, count * 4L * 4L * Float.BYTES);
     }
@@ -678,7 +679,7 @@ public abstract class UniformDataManager extends RefCnt {
     public void setMatrix4fv(@UniformHandle int u, int offset, int count, float[] value) {
         assert (count > 0);
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kFloat4x4);
+        assert ((uni >> 24) == ShaderDataType.kFloat4x4);
         long buffer = getBufferPtrAndMarkDirty(uni);
         for (int i = 0, e = count * 4 * 4; i < e; i++) {
             memPutFloat(buffer, value[offset++]);
@@ -691,7 +692,7 @@ public abstract class UniformDataManager extends RefCnt {
      */
     public void setMatrix3f(@UniformHandle int u, Matrixc matrix) {
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kFloat3x3);
+        assert ((uni >> 24) == ShaderDataType.kFloat3x3);
         long buffer = getBufferPtrAndMarkDirty(uni);
         matrix.storeAligned(buffer);
     }
@@ -701,7 +702,7 @@ public abstract class UniformDataManager extends RefCnt {
      */
     public void setMatrix3f(@UniformHandle int u, Matrix3 matrix) {
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kFloat3x3);
+        assert ((uni >> 24) == ShaderDataType.kFloat3x3);
         long buffer = getBufferPtrAndMarkDirty(uni);
         matrix.storeAligned(buffer);
     }
@@ -711,7 +712,7 @@ public abstract class UniformDataManager extends RefCnt {
      */
     public void setMatrix4f(@UniformHandle int u, Matrix4 matrix) {
         int uni = mUniforms[u];
-        assert ((uni >> 24) == SLDataType.kFloat4x4);
+        assert ((uni >> 24) == ShaderDataType.kFloat4x4);
         long buffer = getBufferPtrAndMarkDirty(uni);
         matrix.store(buffer);
     }

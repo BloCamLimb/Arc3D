@@ -19,7 +19,7 @@
 
 package icyllis.arc3d.granite;
 
-import icyllis.arc3d.core.SLDataType;
+import icyllis.arc3d.compiler.ShaderDataType;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.shading.*;
 import icyllis.arc3d.sketch.Matrix;
@@ -71,7 +71,7 @@ public abstract class GeometryStep {
                 wideColor
                         ? VertexAttribType.kFloat4
                         : VertexAttribType.kUByte4_norm,
-                SLDataType.kFloat4
+                ShaderDataType.kFloat4
         );
     }
 
@@ -79,17 +79,17 @@ public abstract class GeometryStep {
      * Painter's depth.
      */
     public static final VertexInputLayout.Attribute DEPTH =
-            new VertexInputLayout.Attribute("Depth", VertexAttribType.kFloat, SLDataType.kFloat);
+            new VertexInputLayout.Attribute("Depth", VertexAttribType.kFloat, ShaderDataType.kFloat);
     /**
      * Pre-multiplied solid color in destination color space.
      */
     public static final VertexInputLayout.Attribute SOLID_COLOR =
-            new VertexInputLayout.Attribute("SolidColor", VertexAttribType.kFloat4, SLDataType.kFloat4);
+            new VertexInputLayout.Attribute("SolidColor", VertexAttribType.kFloat4, ShaderDataType.kFloat4);
     /**
      * Local-to-device transform.
      */
     public static final VertexInputLayout.Attribute MODEL_VIEW =
-            new VertexInputLayout.Attribute("ModelView", VertexAttribType.kFloat3, SLDataType.kFloat3x3);
+            new VertexInputLayout.Attribute("ModelView", VertexAttribType.kFloat3, ShaderDataType.kFloat3x3);
 
     /**
      * Set if there's fragment shader code and color output, otherwise this is
@@ -287,7 +287,7 @@ public abstract class GeometryStep {
      * Returns the number of used per-vertex attribute locations (slots).
      * An attribute (variable) may take up multiple consecutive locations.
      *
-     * @see SLDataType#locations(byte)
+     * @see ShaderDataType#locations(byte)
      * @see #numVertexAttributes()
      */
     public final int numVertexLocations() {
@@ -343,7 +343,7 @@ public abstract class GeometryStep {
      * Returns the number of used per-instance attribute locations. (slots).
      * An attribute (variable) may take up multiple consecutive locations.
      *
-     * @see SLDataType#locations(byte)
+     * @see ShaderDataType#locations(byte)
      * @see #numInstanceAttributes()
      */
     public final int numInstanceLocations() {
@@ -531,9 +531,9 @@ public abstract class GeometryStep {
                 VertexGeomBuilder vertBuilder,
                 ShaderVar inPos,
                 ShaderVar outPos) {
-            assert (inPos.getType() == SLDataType.kFloat2 || inPos.getType() == SLDataType.kFloat3);
+            assert (inPos.getType() == ShaderDataType.kFloat2 || inPos.getType() == ShaderDataType.kFloat3);
             vertBuilder.codeAppendf("vec%d _worldPos = %s;\n",
-                    SLDataType.vectorDim(inPos.getType()),
+                    ShaderDataType.vectorDim(inPos.getType()),
                     inPos.getName());
             outPos.set("_worldPos", inPos.getType());
         }
@@ -551,20 +551,20 @@ public abstract class GeometryStep {
                                                  ShaderVar inPos,
                                                  String matrixName,
                                                  ShaderVar outPos) {
-            assert (inPos.getType() == SLDataType.kFloat2 || inPos.getType() == SLDataType.kFloat3);
+            assert (inPos.getType() == ShaderDataType.kFloat2 || inPos.getType() == ShaderDataType.kFloat3);
 
-            if (inPos.getType() == SLDataType.kFloat3) {
+            if (inPos.getType() == ShaderDataType.kFloat3) {
                 // A float3 stays a float3 whether the matrix adds perspective
                 vertBuilder.codeAppendf("vec3 _worldPos = %s * %s;\n",
                         matrixName,
                         inPos.getName());
-                outPos.set("_worldPos", SLDataType.kFloat3);
+                outPos.set("_worldPos", ShaderDataType.kFloat3);
             } else {
                 // A float2 is promoted to a float3 if we add perspective via the matrix
                 vertBuilder.codeAppendf("vec3 _worldPos = %s * vec3(%s, 1.0);\n",
                         matrixName,
                         inPos.getName());
-                outPos.set("_worldPos", SLDataType.kFloat3);
+                outPos.set("_worldPos", ShaderDataType.kFloat3);
             }
         }
 
@@ -598,10 +598,10 @@ public abstract class GeometryStep {
                     worldPos);
 
             // Emit the vertex position to the hardware in the normalized device coordinates it expects.
-            assert (worldPos.getType() == SLDataType.kFloat2 ||
-                    worldPos.getType() == SLDataType.kFloat3);
+            assert (worldPos.getType() == ShaderDataType.kFloat2 ||
+                    worldPos.getType() == ShaderDataType.kFloat3);
             vertBuilder.emitNormalizedPosition(worldPos);
-            if (worldPos.getType() == SLDataType.kFloat2) {
+            if (worldPos.getType() == ShaderDataType.kFloat2) {
                 varyingHandler.setNoPerspective();
             }
         }

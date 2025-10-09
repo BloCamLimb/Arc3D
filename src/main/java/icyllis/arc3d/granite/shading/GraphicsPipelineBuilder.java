@@ -19,7 +19,7 @@
 
 package icyllis.arc3d.granite.shading;
 
-import icyllis.arc3d.core.SLDataType;
+import icyllis.arc3d.compiler.ShaderDataType;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.trash.GraphicsPipelineDesc_Old;
 import icyllis.arc3d.granite.trash.PipelineKey_old;
@@ -182,7 +182,7 @@ public abstract class GraphicsPipelineBuilder {
         assert (mProjectionUniform == INVALID_RESOURCE_HANDLE);
         mProjectionUniform = uniformHandler().addUniform(
                 ShaderFlags.kVertex,
-                SLDataType.kFloat4,
+                ShaderDataType.kFloat4,
                 UniformHandler.PROJECTION_NAME,
                 -1);
 

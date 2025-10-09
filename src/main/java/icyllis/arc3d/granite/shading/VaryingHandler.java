@@ -19,7 +19,7 @@
 
 package icyllis.arc3d.granite.shading;
 
-import icyllis.arc3d.core.SLDataType;
+import icyllis.arc3d.compiler.ShaderDataType;
 import icyllis.arc3d.engine.*;
 
 import java.util.ArrayList;
@@ -93,8 +93,8 @@ public class VaryingHandler {
     public final void addVarying(String name,
                                  byte type,
                                  int interpolation) {
-        assert (type != SLDataType.kVoid);
-        assert (SLDataType.isFloatType(type) || interpolation == kRequiredToBeFlat_Interpolation);
+        assert (type != ShaderDataType.kVoid);
+        assert (ShaderDataType.isFloatType(type) || interpolation == kRequiredToBeFlat_Interpolation);
         var v = new VaryingInfo();
 
         v.mType = type;
@@ -137,7 +137,7 @@ public class VaryingHandler {
                 mFragInputs.add(new ShaderVar(fsIn, v.mType, ShaderVar.kIn_TypeModifier,
                         ShaderVar.kNonArray, layoutQualifier, modifier));
             }
-            int locations = SLDataType.locations(v.mType);
+            int locations = ShaderDataType.locations(v.mType);
             assert (locations > 0);
             locationIndex += locations;
         }

@@ -19,6 +19,7 @@
 
 package icyllis.arc3d.granite.geom;
 
+import icyllis.arc3d.compiler.ShaderDataType;
 import icyllis.arc3d.core.*;
 import icyllis.arc3d.engine.Engine.PrimitiveType;
 import icyllis.arc3d.engine.Engine.VertexAttribType;
@@ -63,7 +64,7 @@ public class AnalyticSimpleBoxStep extends GeometryStep {
      * (left, top, right, bottom) or ((startX, startY), (stopX, stopY))
      */
     public static final Attribute LOCAL_RECT =
-            new Attribute("LocalRect", VertexAttribType.kFloat4, SLDataType.kFloat4);
+            new Attribute("LocalRect", VertexAttribType.kFloat4, ShaderDataType.kFloat4);
     /**
      * X is corner radius for rect or half width for line.<br>
      * Y is stroke radius if stroked, or -1.0 if filled.<br>
@@ -72,7 +73,7 @@ public class AnalyticSimpleBoxStep extends GeometryStep {
      * In blur variant: Y is blur radius, Z is noise alpha.
      */
     public static final Attribute RADII =
-            new Attribute("Radii", VertexAttribType.kFloat3, SLDataType.kFloat3);
+            new Attribute("Radii", VertexAttribType.kFloat3, ShaderDataType.kFloat3);
     /**
      * Bitfield: <br>
      * 16-32 bits: painter's depth; <br>
@@ -84,7 +85,7 @@ public class AnalyticSimpleBoxStep extends GeometryStep {
      * type=0: rect, type=1: round line, type=2 butt line; <br>
      */
     public static final Attribute FLAGS_AND_DEPTH =
-            new Attribute("FlagsAndDepth", VertexAttribType.kUInt, SLDataType.kUInt);
+            new Attribute("FlagsAndDepth", VertexAttribType.kUInt, ShaderDataType.kUInt);
 
     public static final AttributeSet INSTANCE_ATTRIBS =
             AttributeSet.makeImplicit(VertexInputLayout.INPUT_RATE_INSTANCE,
@@ -121,18 +122,18 @@ public class AnalyticSimpleBoxStep extends GeometryStep {
     @Override
     public void emitVaryings(VaryingHandler varyingHandler, boolean usesFastSolidColor) {
         // the local coords, center point is (0,0)
-        varyingHandler.addVarying("f_RectEdge", SLDataType.kFloat2);
+        varyingHandler.addVarying("f_RectEdge", ShaderDataType.kFloat2);
         // half width, half height
-        varyingHandler.addVarying("f_Size", SLDataType.kFloat2,
+        varyingHandler.addVarying("f_Size", ShaderDataType.kFloat2,
                 VaryingHandler.kCanBeFlat_Interpolation);
         // corner radius, stroke radius, stroke offset
         // or
         // corner radius, blur radius, noise alpha
-        varyingHandler.addVarying("f_Radii", SLDataType.kFloat3,
+        varyingHandler.addVarying("f_Radii", ShaderDataType.kFloat3,
                 VaryingHandler.kCanBeFlat_Interpolation);
         if (usesFastSolidColor) {
             // solid color
-            varyingHandler.addVarying("f_Color", SLDataType.kFloat4,
+            varyingHandler.addVarying("f_Color", ShaderDataType.kFloat4,
                     VaryingHandler.kCanBeFlat_Interpolation);
         }
     }

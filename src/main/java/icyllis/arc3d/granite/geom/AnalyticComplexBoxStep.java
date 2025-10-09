@@ -56,7 +56,7 @@ import icyllis.arc3d.core.MathUtil;
 import icyllis.arc3d.sketch.Paint;
 import icyllis.arc3d.sketch.Point;
 import icyllis.arc3d.sketch.RRect;
-import icyllis.arc3d.core.SLDataType;
+import icyllis.arc3d.compiler.ShaderDataType;
 import icyllis.arc3d.engine.BufferViewInfo;
 import icyllis.arc3d.engine.Engine.PrimitiveType;
 import icyllis.arc3d.engine.KeyBuilder;
@@ -86,13 +86,13 @@ public class AnalyticComplexBoxStep extends GeometryStep {
      * Per-vertex attributes.
      */
     public static final Attribute POSITION =
-            new Attribute("Position", VertexAttribType.kFloat2, SLDataType.kFloat2);
+            new Attribute("Position", VertexAttribType.kFloat2, ShaderDataType.kFloat2);
     public static final Attribute NORMAL =
-            new Attribute("Normal", VertexAttribType.kFloat2, SLDataType.kFloat2);
+            new Attribute("Normal", VertexAttribType.kFloat2, ShaderDataType.kFloat2);
     public static final Attribute NORMAL_SCALE =
-            new Attribute("NormalScale", VertexAttribType.kFloat, SLDataType.kFloat);
+            new Attribute("NormalScale", VertexAttribType.kFloat, ShaderDataType.kFloat);
     public static final Attribute CENTER_WEIGHT =
-            new Attribute("CenterWeight", VertexAttribType.kFloat, SLDataType.kFloat);
+            new Attribute("CenterWeight", VertexAttribType.kFloat, ShaderDataType.kFloat);
 
     /*
      * Per-instance attributes.
@@ -108,20 +108,20 @@ public class AnalyticComplexBoxStep extends GeometryStep {
     // Lastly, if -1 <= .x <= 0, it's a filled quadrilateral with per-edge AA defined by each by the
     // component: aa != 0.
     public static final Attribute X_RADII_OR_FLAGS =
-            new Attribute("XRadiiOrFlags", VertexAttribType.kFloat4, SLDataType.kFloat4);
+            new Attribute("XRadiiOrFlags", VertexAttribType.kFloat4, ShaderDataType.kFloat4);
     // if in filled round rect or hairline [round] rect mode, these values
     // provide the Y radii in top-left CW order. If in stroked [round] rect mode, these values
     // provide the circular corner radii (same order). Otherwise, when in per-edge quad mode, these
     // values provide the X coordinates of the quadrilateral (same order).
     public static final Attribute RADII_OR_QUAD_XS =
-            new Attribute("RadiiOrQuadXs", VertexAttribType.kFloat4, SLDataType.kFloat4);
+            new Attribute("RadiiOrQuadXs", VertexAttribType.kFloat4, ShaderDataType.kFloat4);
     // if in filled round rect mode or stroked [round] rect mode, these values
     // define the LTRB edge coordinates of the rectangle surrounding the round rect (or the
     // rect itself when the radii are 0s). In stroked line mode, LTRB is treated as (x0,y0) and
     // (x1,y1) that defines the line. Otherwise, in per-edge quad mode, these values provide
     // the Y coordinates of the quadrilateral.
     public static final Attribute LTRB_OR_QUAD_YS =
-            new Attribute("LtrbOrQuadYs", VertexAttribType.kFloat4, SLDataType.kFloat4);
+            new Attribute("LtrbOrQuadYs", VertexAttribType.kFloat4, ShaderDataType.kFloat4);
     // XY stores center of rrect in local coords. Z and W store values to
     // control interior fill behavior. Z can be -1, 0, or 1:
     //   -1: A stroked interior where AA insets overlap, but isn't solid.
@@ -130,7 +130,7 @@ public class AnalyticComplexBoxStep extends GeometryStep {
     // W specifies the size of the AA inset if it's >= 0, or signals that
     // the inner curves intersect in a complex manner (rare).
     public static final Attribute CENTER =
-            new Attribute("Center", VertexAttribType.kFloat4, SLDataType.kFloat4);
+            new Attribute("Center", VertexAttribType.kFloat4, ShaderDataType.kFloat4);
 
     public static final AttributeSet VERTEX_ATTRIBS =
             AttributeSet.makeImplicit(VertexInputLayout.INPUT_RATE_VERTEX,
@@ -279,16 +279,16 @@ public class AnalyticComplexBoxStep extends GeometryStep {
     @Override
     public void emitVaryings(VaryingHandler varyingHandler,
                              boolean usesFastSolidColor) {
-        varyingHandler.addVarying("f_Jacobian", SLDataType.kFloat4); // float2x2
+        varyingHandler.addVarying("f_Jacobian", ShaderDataType.kFloat4); // float2x2
         // Distance to LTRB edges of unstroked shape. Depending on
         // 'perPixelControl' these will either be local or device-space values.
-        varyingHandler.addVarying("f_EdgeDistances", SLDataType.kFloat4);
+        varyingHandler.addVarying("f_EdgeDistances", ShaderDataType.kFloat4);
         varyingHandler.addVarying("f_XRadii",
-                SLDataType.kFloat4, VaryingHandler.kCanBeFlat_Interpolation);
+                ShaderDataType.kFloat4, VaryingHandler.kCanBeFlat_Interpolation);
         varyingHandler.addVarying("f_YRadii",
-                SLDataType.kFloat4, VaryingHandler.kCanBeFlat_Interpolation);
+                ShaderDataType.kFloat4, VaryingHandler.kCanBeFlat_Interpolation);
         varyingHandler.addVarying("f_StrokeParams",
-                SLDataType.kFloat2);
+                ShaderDataType.kFloat2);
         // 'perPixelControl' is a tightly packed description of how to
         // evaluate the possible edges that influence coverage in a pixel.
         // The decision points and encoded values are spread across X and Y
@@ -316,10 +316,10 @@ public class AnalyticComplexBoxStep extends GeometryStep {
         //    reduction in coverage due to a device-space outset. It is clamped
         //    below 0 to avoid adding coverage from extrapolation.
         varyingHandler.addVarying("f_PerPixelControl",
-                SLDataType.kFloat2);
+                ShaderDataType.kFloat2);
         if (usesFastSolidColor) {
             // solid color
-            varyingHandler.addVarying("f_Color", SLDataType.kFloat4,
+            varyingHandler.addVarying("f_Color", ShaderDataType.kFloat4,
                     VaryingHandler.kCanBeFlat_Interpolation);
         }
     }

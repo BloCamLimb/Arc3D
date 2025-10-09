@@ -19,7 +19,7 @@
 
 package icyllis.arc3d.granite.shading;
 
-import icyllis.arc3d.core.SLDataType;
+import icyllis.arc3d.compiler.ShaderDataType;
 import icyllis.arc3d.engine.Engine;
 import icyllis.arc3d.engine.ShaderCaps;
 import icyllis.arc3d.engine.ShaderVar;
@@ -150,7 +150,7 @@ public class UniformHandler {
      * implementations.
      *
      * @param visibility combination of ShaderFlags can be zero as placeholder
-     * @param type       see {@link SLDataType}
+     * @param type       see {@link ShaderDataType}
      * @param name       the raw name (pre-mangling), cannot be null or empty
      * @return UniformHandle either from Render Block or Effect Block
      */
@@ -161,8 +161,8 @@ public class UniformHandler {
                                 int manglingSuffix) {
         assert (name != null && !name.isEmpty());
         assert ((visibility & ~(ShaderFlags.kVertex | ShaderFlags.kFragment)) == 0);
-        assert (SLDataType.checkSLType(type));
-        assert (!SLDataType.isCombinedSamplerType(type));
+        assert (ShaderDataType.checkType(type));
+        assert (!ShaderDataType.isCombinedSamplerType(type));
         return internalAddUniformArray(visibility, type, name, ShaderVar.kNonArray, manglingSuffix);
     }
 
@@ -170,7 +170,7 @@ public class UniformHandler {
      * Array version of {@link #addUniform(int, byte, String, int)}.
      *
      * @param visibility combination of ShaderFlags, can be zero as placeholder
-     * @param type       see {@link SLDataType}
+     * @param type       see {@link ShaderDataType}
      * @param name       the raw name (pre-mangling), cannot be null or empty
      * @param arraySize  the number of elements, cannot be zero
      * @return UniformHandle either from Render Block or Effect Block
@@ -183,8 +183,8 @@ public class UniformHandler {
                                      int manglingSuffix) {
         assert (name != null && !name.isEmpty());
         assert ((visibility & ~(ShaderFlags.kVertex | ShaderFlags.kFragment)) == 0);
-        assert (SLDataType.checkSLType(type));
-        assert (!SLDataType.isCombinedSamplerType(type));
+        assert (ShaderDataType.checkType(type));
+        assert (!ShaderDataType.isCombinedSamplerType(type));
         return internalAddUniformArray(visibility, type, name, arraySize, manglingSuffix);
     }
 
@@ -252,7 +252,7 @@ public class UniformHandler {
                                           String name,
                                           int arraySize,
                                           int manglingSuffix) {
-        assert (SLDataType.canBeUniformValue(type));
+        assert (ShaderDataType.canBeUniformValue(type));
         assert (visibility != 0);
 
         assert (!name.contains("__"));
@@ -373,7 +373,7 @@ public class UniformHandler {
         boolean firstMember = false;
         boolean firstVisible = false;
         for (var uniform : mReorderedUniforms) {
-            assert (SLDataType.canBeUniformValue(uniform.mVariable.getType()));
+            assert (ShaderDataType.canBeUniformValue(uniform.mVariable.getType()));
             if (!firstMember) {
                 // Check to make sure we are starting our offset at 0 so the offset qualifier we
                 // set on each variable in the uniform block is valid.
@@ -424,7 +424,7 @@ public class UniformHandler {
      */
     public void appendSamplerDecls(int visibility, StringBuilder out) {
         for (var sampler : mSamplers) {
-            assert (sampler.mVariable.getType() == SLDataType.kSampler2D);
+            assert (sampler.mVariable.getType() == ShaderDataType.kSampler2D);
             if ((sampler.mVisibility & visibility) == 0) {
                 continue;
             }
@@ -436,43 +436,43 @@ public class UniformHandler {
     /**
      * Returns the base alignment mask in bytes taken up in UBO for SLTypes.
      *
-     * @param type     see {@link SLDataType}
+     * @param type     see {@link ShaderDataType}
      * @param nonArray true for a single scalar or vector, false for an array of scalars or vectors
      * @param layout   1 for std430 layout, 0 for std140 layout
      * @return base alignment mask
      */
     public static int getAlignmentMask(byte type, boolean nonArray, int layout) {
         switch (type) {
-            case SLDataType.kBool:   // fall through
-            case SLDataType.kInt:    // fall through
-            case SLDataType.kUInt:   // fall through
-            case SLDataType.kFloat:  // fall through
+            case ShaderDataType.kBool:   // fall through
+            case ShaderDataType.kInt:    // fall through
+            case ShaderDataType.kUInt:   // fall through
+            case ShaderDataType.kFloat:  // fall through
                 return layout == Std430Layout || nonArray ? 0x3 : 0xF; // N - 1
-            case SLDataType.kBool2:  // fall through
-            case SLDataType.kInt2:  // fall through
-            case SLDataType.kUInt2:  // fall through
-            case SLDataType.kFloat2:   // fall through
+            case ShaderDataType.kBool2:  // fall through
+            case ShaderDataType.kInt2:  // fall through
+            case ShaderDataType.kUInt2:  // fall through
+            case ShaderDataType.kFloat2:   // fall through
                 return layout == Std430Layout || nonArray ? 0x7 : 0xF; // 2N - 1
-            case SLDataType.kBool3:  // fall through
-            case SLDataType.kBool4:  // fall through
-            case SLDataType.kInt3:  // fall through
-            case SLDataType.kInt4:  // fall through
-            case SLDataType.kUInt3:  // fall through
-            case SLDataType.kUInt4:  // fall through
-            case SLDataType.kFloat3:   // fall through
-            case SLDataType.kFloat4:   // fall through
-            case SLDataType.kFloat3x3:   // fall through
-            case SLDataType.kFloat4x4:   // fall through
+            case ShaderDataType.kBool3:  // fall through
+            case ShaderDataType.kBool4:  // fall through
+            case ShaderDataType.kInt3:  // fall through
+            case ShaderDataType.kInt4:  // fall through
+            case ShaderDataType.kUInt3:  // fall through
+            case ShaderDataType.kUInt4:  // fall through
+            case ShaderDataType.kFloat3:   // fall through
+            case ShaderDataType.kFloat4:   // fall through
+            case ShaderDataType.kFloat3x3:   // fall through
+            case ShaderDataType.kFloat4x4:   // fall through
                 return 0xF; // 4N - 1
-            case SLDataType.kFloat2x2:
+            case ShaderDataType.kFloat2x2:
                 return layout == Std430Layout ? 0x7 : 0xF; // as an array of Vec2
 
             // This query is only valid for certain types.
-            case SLDataType.kVoid:
-            case SLDataType.kSampler2D:
-            case SLDataType.kTexture2D:
-            case SLDataType.kSampler:
-            case SLDataType.kSubpassInput:
+            case ShaderDataType.kVoid:
+            case ShaderDataType.kSampler2D:
+            case ShaderDataType.kTexture2D:
+            case ShaderDataType.kSampler:
+            case ShaderDataType.kSubpassInput:
                 throw new IllegalStateException(String.valueOf(type));
         }
         throw new IllegalArgumentException(String.valueOf(type));
@@ -482,50 +482,50 @@ public class UniformHandler {
      * Returns the size in bytes taken up in UBO for SLTypes.
      * This includes paddings between components, but does not include paddings at the end of the element.
      *
-     * @param type   see {@link SLDataType}
+     * @param type   see {@link ShaderDataType}
      * @param layout 1 for std430 layout, 0 for std140 layout
      * @return size in bytes
      * @see UniformDataManager
      */
     public static int getSize(byte type, int layout) {
         switch (type) {
-            case SLDataType.kFloat:
+            case ShaderDataType.kFloat:
                 return Float.BYTES;
-            case SLDataType.kFloat2:
+            case ShaderDataType.kFloat2:
                 return 2 * Float.BYTES;
-            case SLDataType.kFloat3:
+            case ShaderDataType.kFloat3:
                 return 3 * Float.BYTES;
-            case SLDataType.kFloat4:
+            case ShaderDataType.kFloat4:
                 return 4 * Float.BYTES;
-            case SLDataType.kBool:   // fall through
-            case SLDataType.kInt:    // fall through
-            case SLDataType.kUInt:
+            case ShaderDataType.kBool:   // fall through
+            case ShaderDataType.kInt:    // fall through
+            case ShaderDataType.kUInt:
                 return Integer.BYTES;
-            case SLDataType.kBool2:  // fall through
-            case SLDataType.kInt2:  // fall through
-            case SLDataType.kUInt2:
+            case ShaderDataType.kBool2:  // fall through
+            case ShaderDataType.kInt2:  // fall through
+            case ShaderDataType.kUInt2:
                 return 2 * Integer.BYTES;
-            case SLDataType.kBool3:  // fall through
-            case SLDataType.kInt3:  // fall through
-            case SLDataType.kUInt3:
+            case ShaderDataType.kBool3:  // fall through
+            case ShaderDataType.kInt3:  // fall through
+            case ShaderDataType.kUInt3:
                 return 3 * Integer.BYTES;
-            case SLDataType.kBool4:  // fall through
-            case SLDataType.kInt4:  // fall through
-            case SLDataType.kUInt4:
+            case ShaderDataType.kBool4:  // fall through
+            case ShaderDataType.kInt4:  // fall through
+            case ShaderDataType.kUInt4:
                 return 4 * Integer.BYTES;
-            case SLDataType.kFloat2x2:
+            case ShaderDataType.kFloat2x2:
                 return layout == Std430Layout ? 2 * 2 * Float.BYTES : 2 * 4 * Float.BYTES;
-            case SLDataType.kFloat3x3:
+            case ShaderDataType.kFloat3x3:
                 return 3 * 4 * Float.BYTES;
-            case SLDataType.kFloat4x4:
+            case ShaderDataType.kFloat4x4:
                 return 4 * 4 * Float.BYTES;
 
             // This query is only valid for certain types.
-            case SLDataType.kVoid:
-            case SLDataType.kSampler2D:
-            case SLDataType.kTexture2D:
-            case SLDataType.kSampler:
-            case SLDataType.kSubpassInput:
+            case ShaderDataType.kVoid:
+            case ShaderDataType.kSampler2D:
+            case ShaderDataType.kTexture2D:
+            case ShaderDataType.kSampler:
+            case ShaderDataType.kSubpassInput:
                 throw new IllegalStateException(String.valueOf(type));
         }
         throw new IllegalArgumentException(String.valueOf(type));
@@ -537,7 +537,7 @@ public class UniformHandler {
      * {@link #getAlignedStride(byte, int, int)} to get the offset to the end of the new uniform.
      *
      * @param offset    the current offset
-     * @param type      see {@link SLDataType}
+     * @param type      see {@link ShaderDataType}
      * @param arraySize see {@link ShaderVar}
      * @param layout    1 for std430 layout, 0 for std140 layout
      * @return the aligned offset for the new uniform
@@ -546,7 +546,7 @@ public class UniformHandler {
                                        byte type,
                                        int arraySize,
                                        int layout) {
-        assert (SLDataType.checkSLType(type));
+        assert (ShaderDataType.checkType(type));
         assert (arraySize == ShaderVar.kNonArray) || (arraySize >= 1);
         int alignmentMask = getAlignmentMask(type, arraySize == ShaderVar.kNonArray, layout);
         return (offset + alignmentMask) & ~alignmentMask;
@@ -558,7 +558,7 @@ public class UniformHandler {
     public static int getAlignedStride(byte type,
                                        int arraySize,
                                        int layout) {
-        assert (SLDataType.checkSLType(type));
+        assert (ShaderDataType.checkType(type));
         assert (arraySize == ShaderVar.kNonArray) || (arraySize >= 1);
         if (arraySize == ShaderVar.kNonArray) {
             return getSize(type, layout);

@@ -20,7 +20,7 @@
 package icyllis.arc3d.granite.geom;
 
 import icyllis.arc3d.core.PixelUtils;
-import icyllis.arc3d.core.SLDataType;
+import icyllis.arc3d.compiler.ShaderDataType;
 import icyllis.arc3d.granite.RecordingContext;
 import icyllis.arc3d.sketch.Vertices;
 import icyllis.arc3d.engine.*;
@@ -40,11 +40,11 @@ import java.util.Formatter;
 public class VerticesStep extends GeometryStep {
 
     public static final Attribute POSITION =
-            new Attribute("Pos", VertexAttribType.kFloat2, SLDataType.kFloat2);
+            new Attribute("Pos", VertexAttribType.kFloat2, ShaderDataType.kFloat2);
     public static final Attribute COLOR =
-            new Attribute("Color", VertexAttribType.kUByte4_norm, SLDataType.kFloat4);
+            new Attribute("Color", VertexAttribType.kUByte4_norm, ShaderDataType.kFloat4);
     public static final Attribute TEX_COORD =
-            new Attribute("UV", VertexAttribType.kFloat2, SLDataType.kFloat2);
+            new Attribute("UV", VertexAttribType.kFloat2, ShaderDataType.kFloat2);
 
     public static final AttributeSet ATTRIBS_POS =
             AttributeSet.makeImplicit(VertexInputLayout.INPUT_RATE_VERTEX,
@@ -115,7 +115,7 @@ public class VerticesStep extends GeometryStep {
         assert !usesFastSolidColor;
         // vertex color
         if (mHasColor) {
-            varyingHandler.addVarying("f_Color", SLDataType.kFloat4);
+            varyingHandler.addVarying("f_Color", ShaderDataType.kFloat4);
         }
     }
 
@@ -123,9 +123,9 @@ public class VerticesStep extends GeometryStep {
     public void emitUniforms(UniformHandler uniformHandler,
                              boolean mayRequireLocalCoords) {
         uniformHandler.addUniform(Engine.ShaderFlags.kVertex,
-                SLDataType.kFloat3x3, "u_LocalToDevice", -1);
+                ShaderDataType.kFloat3x3, "u_LocalToDevice", -1);
         uniformHandler.addUniform(Engine.ShaderFlags.kVertex,
-                SLDataType.kFloat, "u_Depth", -1);
+                ShaderDataType.kFloat, "u_Depth", -1);
     }
 
     @Override

@@ -19,7 +19,7 @@
 
 package icyllis.arc3d.granite.shading;
 
-import icyllis.arc3d.core.SLDataType;
+import icyllis.arc3d.compiler.ShaderDataType;
 import icyllis.arc3d.granite.GeometryStep;
 import icyllis.arc3d.engine.ShaderVar;
 
@@ -48,7 +48,7 @@ public class VertexShaderBuilder extends ShaderBuilderBase implements VertexGeom
             var.addLayoutQualifier("location", locationIndex);
 
             // may contain matrix that takes up multiple locations
-            int locations = SLDataType.locations(var.getType());
+            int locations = ShaderDataType.locations(var.getType());
             assert (locations > 0);
             // we have no arrays
             assert (!var.isArray());
@@ -76,13 +76,13 @@ public class VertexShaderBuilder extends ShaderBuilderBase implements VertexGeom
 
     @Override
     public void emitNormalizedPosition(ShaderVar devicePos) {
-        if (devicePos.getType() == SLDataType.kFloat3) {
+        if (devicePos.getType() == ShaderDataType.kFloat3) {
             // xy0w
             codeAppendf("""
                     gl_Position = vec4(%1$s.xy * %2$s.xz + %1$s.zz * %2$s.yw, 0.0, %1$s.z);
                     """, devicePos.getName(), UniformHandler.PROJECTION_NAME);
         } else {
-            assert (devicePos.getType() == SLDataType.kFloat2);
+            assert (devicePos.getType() == ShaderDataType.kFloat2);
             // xy01
             codeAppendf("""
                     gl_Position = vec4(%1$s.xy * %2$s.xz + %2$s.yw, 0.0, 1.0);

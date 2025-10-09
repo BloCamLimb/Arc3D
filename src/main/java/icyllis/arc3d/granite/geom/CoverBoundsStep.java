@@ -20,7 +20,7 @@
 package icyllis.arc3d.granite.geom;
 
 import icyllis.arc3d.core.Rect2f;
-import icyllis.arc3d.core.SLDataType;
+import icyllis.arc3d.compiler.ShaderDataType;
 import icyllis.arc3d.engine.DepthStencilSettings;
 import icyllis.arc3d.engine.Engine.PrimitiveType;
 import icyllis.arc3d.engine.Engine.VertexAttribType;
@@ -49,7 +49,7 @@ public class CoverBoundsStep extends GeometryStep {
      * Local rect bounds or device rect bounds (if inverted)
      */
     public static final Attribute BOUNDS =
-            new Attribute("Bounds", VertexAttribType.kFloat4, SLDataType.kFloat4);
+            new Attribute("Bounds", VertexAttribType.kFloat4, ShaderDataType.kFloat4);
 
     public static final AttributeSet INSTANCE_ATTRIBS =
             AttributeSet.makeImplicit(VertexInputLayout.INPUT_RATE_INSTANCE,
@@ -76,7 +76,7 @@ public class CoverBoundsStep extends GeometryStep {
     public void emitVaryings(VaryingHandler varyingHandler, boolean usesFastSolidColor) {
         if (usesFastSolidColor) {
             // solid color
-            varyingHandler.addVarying("f_Color", SLDataType.kFloat4,
+            varyingHandler.addVarying("f_Color", ShaderDataType.kFloat4,
                     VaryingHandler.kCanBeFlat_Interpolation);
         }
     }

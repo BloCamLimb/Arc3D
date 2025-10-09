@@ -19,7 +19,7 @@
 
 package icyllis.arc3d.granite;
 
-import icyllis.arc3d.core.SLDataType;
+import icyllis.arc3d.compiler.ShaderDataType;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.shading.UniformHandler;
 import icyllis.arc3d.granite.shading.VaryingHandler;
@@ -105,14 +105,14 @@ public class PipelineBuilder {
 
         mDesc.geomStep().emitVaryings(mVaryings, mDesc.usesFastSolidColor());
         if (needsLocalCoords()) {
-            mVaryings.addVarying(LOCAL_COORDS_VARYING_NAME, SLDataType.kFloat2);
+            mVaryings.addVarying(LOCAL_COORDS_VARYING_NAME, ShaderDataType.kFloat2);
         }
         mVaryings.finish();
 
         // first add the 2D orthographic projection
         mGeometryUniforms.addUniform(
                 Engine.ShaderFlags.kVertex,
-                SLDataType.kFloat4,
+                ShaderDataType.kFloat4,
                 UniformHandler.PROJECTION_NAME,
                 -1);
         mDesc.geomStep().emitUniforms(mGeometryUniforms, mDesc.mayRequireLocalCoords());
@@ -199,7 +199,7 @@ public class PipelineBuilder {
                 var.addLayoutQualifier("location", locationIndex);
 
                 // matrix type can consume multiple locations
-                int locations = SLDataType.locations(var.getType());
+                int locations = ShaderDataType.locations(var.getType());
                 assert (locations > 0);
                 // we have no arrays
                 assert (!var.isArray());
@@ -297,12 +297,12 @@ public class PipelineBuilder {
         //// Outputs
         {
             String layoutQualifier = "location=" + MAIN_DRAW_BUFFER_INDEX;
-            ShaderVar primaryOutput = new ShaderVar(PRIMARY_COLOR_OUTPUT_NAME, SLDataType.kFloat4,
+            ShaderVar primaryOutput = new ShaderVar(PRIMARY_COLOR_OUTPUT_NAME, ShaderDataType.kFloat4,
                     ShaderVar.kOut_TypeModifier,
                     ShaderVar.kNonArray, layoutQualifier, "");
             ShaderVar secondaryOutput = null;
             if (coverageBlendFormula != null && coverageBlendFormula.hasSecondaryOutput()) {
-                secondaryOutput = new ShaderVar(SECONDARY_COLOR_OUTPUT_NAME, SLDataType.kFloat4,
+                secondaryOutput = new ShaderVar(SECONDARY_COLOR_OUTPUT_NAME, ShaderDataType.kFloat4,
                         ShaderVar.kOut_TypeModifier,
                         ShaderVar.kNonArray, layoutQualifier, "");
                 primaryOutput.addLayoutQualifier("index", PRIMARY_COLOR_OUTPUT_INDEX);

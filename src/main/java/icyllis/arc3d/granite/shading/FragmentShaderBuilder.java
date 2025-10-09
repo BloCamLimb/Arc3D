@@ -19,7 +19,7 @@
 
 package icyllis.arc3d.granite.shading;
 
-import icyllis.arc3d.core.SLDataType;
+import icyllis.arc3d.compiler.ShaderDataType;
 import icyllis.arc3d.engine.Engine;
 import icyllis.arc3d.engine.ShaderVar;
 import org.jspecify.annotations.Nullable;
@@ -44,7 +44,7 @@ public class FragmentShaderBuilder extends ShaderBuilderBase implements FPFragme
     public FragmentShaderBuilder(GraphicsPipelineBuilder pipelineBuilder) {
         super(pipelineBuilder);
         String layoutQualifier = "location = " + MAIN_DRAW_BUFFER_INDEX;
-        mPrimaryOutput = new ShaderVar(PRIMARY_COLOR_OUTPUT_NAME, SLDataType.kFloat4,
+        mPrimaryOutput = new ShaderVar(PRIMARY_COLOR_OUTPUT_NAME, ShaderDataType.kFloat4,
                 ShaderVar.kOut_TypeModifier,
                 ShaderVar.kNonArray, layoutQualifier, "");
     }
@@ -65,7 +65,7 @@ public class FragmentShaderBuilder extends ShaderBuilderBase implements FPFragme
     public void enableSecondaryOutput() {
         assert (mSecondaryOutput == null);
         String layoutQualifier = "location = " + MAIN_DRAW_BUFFER_INDEX;
-        mSecondaryOutput = new ShaderVar(SECONDARY_COLOR_OUTPUT_NAME, SLDataType.kFloat4,
+        mSecondaryOutput = new ShaderVar(SECONDARY_COLOR_OUTPUT_NAME, ShaderDataType.kFloat4,
                 ShaderVar.kOut_TypeModifier,
                 ShaderVar.kNonArray, layoutQualifier, "");
         mPrimaryOutput.addLayoutQualifier("index", PRIMARY_COLOR_OUTPUT_INDEX);

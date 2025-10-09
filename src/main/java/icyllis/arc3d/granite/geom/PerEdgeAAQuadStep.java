@@ -53,7 +53,7 @@
 package icyllis.arc3d.granite.geom;
 
 import icyllis.arc3d.core.MathUtil;
-import icyllis.arc3d.core.SLDataType;
+import icyllis.arc3d.compiler.ShaderDataType;
 import icyllis.arc3d.engine.BufferViewInfo;
 import icyllis.arc3d.engine.KeyBuilder;
 import icyllis.arc3d.engine.ShaderCaps;
@@ -85,23 +85,23 @@ public class PerEdgeAAQuadStep extends GeometryStep {
      */
 
     public static final Attribute NORMAL =
-            new Attribute("Normal", VertexAttribType.kFloat2, SLDataType.kFloat2);
+            new Attribute("Normal", VertexAttribType.kFloat2, ShaderDataType.kFloat2);
 
     /*
      * Per-instance attributes.
      */
 
     public static final Attribute QUAD_XS =
-            new Attribute("QuadXs", VertexAttribType.kFloat4, SLDataType.kFloat4);
+            new Attribute("QuadXs", VertexAttribType.kFloat4, ShaderDataType.kFloat4);
     public static final Attribute QUAD_YS =
-            new Attribute("QuadYs", VertexAttribType.kFloat4, SLDataType.kFloat4);
+            new Attribute("QuadYs", VertexAttribType.kFloat4, ShaderDataType.kFloat4);
     /**
      * Bitfield: <br>
      * 16-32 bits: painter's depth; <br>
      * 0-4 bits: quad's edge flags; <br>
      */
     public static final Attribute FLAGS_AND_DEPTH =
-            new Attribute("FlagsAndDepth", VertexAttribType.kUInt, SLDataType.kUInt);
+            new Attribute("FlagsAndDepth", VertexAttribType.kUInt, ShaderDataType.kUInt);
 
     public static final AttributeSet VERTEX_ATTRIBS =
             AttributeSet.makeImplicit(VertexInputLayout.INPUT_RATE_VERTEX,
@@ -198,10 +198,10 @@ public class PerEdgeAAQuadStep extends GeometryStep {
     @Override
     public void emitVaryings(VaryingHandler varyingHandler, boolean usesFastSolidColor) {
         // Device-space distance to LTRB edges of quad.
-        varyingHandler.addVarying("f_EdgeDistances", SLDataType.kFloat4);
+        varyingHandler.addVarying("f_EdgeDistances", ShaderDataType.kFloat4);
         if (usesFastSolidColor) {
             // solid color
-            varyingHandler.addVarying("f_Color", SLDataType.kFloat4,
+            varyingHandler.addVarying("f_Color", ShaderDataType.kFloat4,
                     VaryingHandler.kCanBeFlat_Interpolation);
         }
     }

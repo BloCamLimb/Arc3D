@@ -19,6 +19,7 @@
 
 package icyllis.arc3d.opengl;
 
+import icyllis.arc3d.compiler.ShaderDataType;
 import icyllis.arc3d.core.*;
 import icyllis.arc3d.engine.UniformDataManager;
 import icyllis.arc3d.granite.shading.UniformHandler;
@@ -51,7 +52,7 @@ public class GLUniformDataManager extends UniformDataManager {
             UniformHandler.UniformInfo uniformInfo = uniforms.get(i);
             assert ((uniformInfo.mOffset & 0xFFFFFF) == uniformInfo.mOffset);
             assert (MathUtil.isAlign4(uniformInfo.mOffset));
-            assert (SLDataType.canBeUniformValue(uniformInfo.mVariable.getType()));
+            assert (ShaderDataType.canBeUniformValue(uniformInfo.mVariable.getType()));
             mUniforms[i] = uniformInfo.mOffset | (uniformInfo.mVariable.getType() << 24);
         }
     }
