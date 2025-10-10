@@ -380,7 +380,7 @@ public final class VertexInputLayout {
      * E.g. if you want the 0, 2, 3 attributes are enabled, then mask is 0b1101.
      */
     public VertexInputLayout(AttributeSet @NonNull[] attributeSets,
-            int @Nullable[] masks) {
+                             int @Nullable[] masks) {
         assert attributeSets.length > 0 && attributeSets.length <= Caps.MAX_VERTEX_BINDINGS;
         assert masks == null || attributeSets.length == masks.length;
         mAttributeSets = attributeSets;
@@ -388,7 +388,7 @@ public final class VertexInputLayout {
             for (int i = 0; i < masks.length; i++) {
                 if (masks[i] != 0) {
                     // mask is non-zero then AttributeSet is non-null
-                    masks[i] |= attributeSets[i].mAllMask; // sanitize
+                    masks[i] &= attributeSets[i].mAllMask; // sanitize
                 }
             }
         }

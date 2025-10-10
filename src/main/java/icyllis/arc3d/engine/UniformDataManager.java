@@ -41,7 +41,7 @@ import static org.lwjgl.system.MemoryUtil.*;
  *
  * @see UniformHandler
  */
-public abstract class UniformDataManager extends RefCnt {
+public class UniformDataManager extends RefCnt {
 
     // lower 24 bits: offset in bytes
     // higher 8 bits: ShaderDataType (for assertion)
