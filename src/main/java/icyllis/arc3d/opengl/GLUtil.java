@@ -34,6 +34,7 @@ import org.slf4j.MarkerFactory;
 
 import java.lang.ref.Reference;
 import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
 import java.util.*;
 import java.util.regex.Pattern;
 
@@ -591,7 +592,7 @@ public final class GLUtil {
     @NativeType("GLuint")
     public static int glSpecializeShader(@NonNull GLDevice device,
                                          @NativeType("GLenum") int shaderType,
-                                         @NativeType("uint32_t *") ByteBuffer spirv,
+                                         @NativeType("uint32_t *") IntBuffer spirv,
                                          @NonNull String entryPoint,
                                          GlobalResourceCache.@NonNull Stats stats) {
         var gl = device.getGL();
@@ -602,7 +603,7 @@ public final class GLUtil {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             long pShaders = stack.nint(shader);
             gl.glShaderBinary(1, pShaders, GL_SHADER_BINARY_FORMAT_SPIR_V,
-                    memAddress(spirv), spirv.remaining());
+                    memAddress(spirv), spirv.remaining() << 2);
             stack.nUTF8(entryPoint, true);
             long pEntryPointEncoded = stack.getPointerAddress();
             gl.glSpecializeShader(shader, pEntryPointEncoded,

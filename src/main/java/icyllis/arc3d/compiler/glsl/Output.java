@@ -21,9 +21,9 @@ package icyllis.arc3d.compiler.glsl;
 
 import it.unimi.dsi.fastutil.bytes.ByteArrays;
 import org.jspecify.annotations.NonNull;
-import org.lwjgl.BufferUtils;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 /**
  * Write to a UTF-8 string stream.
@@ -114,7 +114,7 @@ class NativeOutput implements Output {
     private final ByteBuffer mBuffer;
 
     NativeOutput(int size) {
-        mBuffer = BufferUtils.createByteBuffer(size);
+        mBuffer = ByteBuffer.allocateDirect(size).order(ByteOrder.nativeOrder());
     }
 
     public ByteBuffer detach() {

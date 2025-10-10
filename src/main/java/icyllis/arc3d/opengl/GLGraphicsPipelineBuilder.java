@@ -38,6 +38,7 @@ import org.lwjgl.system.MemoryUtil;
 
 import java.lang.ref.Reference;
 import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
 import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
 
@@ -52,8 +53,8 @@ public class GLGraphicsPipelineBuilder {
 
     private ByteBuffer mFinalizedVertGLSL;
     private ByteBuffer mFinalizedFragGLSL;
-    private ByteBuffer mFinalizedVertSPIRV;
-    private ByteBuffer mFinalizedFragSPIRV;
+    private IntBuffer mFinalizedVertSPIRV;
+    private IntBuffer mFinalizedFragSPIRV;
 
     private byte mPrimitiveType;
     private VertexInputLayout mInputLayout;

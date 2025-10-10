@@ -22,7 +22,6 @@ package icyllis.arc3d.compiler.glsl;
 import icyllis.arc3d.compiler.*;
 import icyllis.arc3d.compiler.analysis.Analysis;
 import icyllis.arc3d.compiler.tree.*;
-import icyllis.arc3d.core.MathUtil;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.util.spvc.Spv;
@@ -101,9 +100,10 @@ public final class GLSLCodeGenerator extends CodeGenerator {
             }
         }
 
-        NativeOutput output = new NativeOutput(MathUtil.align4(body.size() +
+        NativeOutput output = new NativeOutput(body.size() +
                 (extensions != null ? extensions.size() : 0) +
-                20));
+                20 // version decl
+        );
         mOutput = output;
         write(mOutputVersion.mVersionDecl);
         if (extensions != null) {

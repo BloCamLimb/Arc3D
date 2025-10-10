@@ -28,6 +28,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
+import java.nio.IntBuffer;
 import java.util.*;
 
 /**
@@ -239,6 +240,7 @@ public class ShaderCompiler {
         }
     }
 
+    // char *
     @Nullable
     public ByteBuffer generateGLSL(@NonNull TranslationUnit translationUnit,
                                    @NonNull ShaderCaps shaderCaps) {
@@ -249,7 +251,7 @@ public class ShaderCompiler {
                 false,
                 translationUnit.getSource());
         try {
-            CodeGenerator generator = new GLSLCodeGenerator(
+            GLSLCodeGenerator generator = new GLSLCodeGenerator(
                     getContext(), translationUnit, shaderCaps);
             return generator.generateCode();
         } finally {
@@ -259,7 +261,7 @@ public class ShaderCompiler {
 
     /**
      * Generates translated SPIR-V code and returns the pointer result. The code size
-     * in bytes is {@link ByteBuffer#remaining()}.
+     * in bytes is {@link IntBuffer#remaining()} * 4.
      * <p>
      * The return value is a direct buffer, see {@link ByteBuffer#allocateDirect(int)}.
      * A direct buffer wraps an address that points to off-heap memory, i.e. a native
@@ -271,9 +273,10 @@ public class ShaderCompiler {
      *
      * @return the translated shader code (uint32_t *), or null if there's an error
      */
+    // uint32_t *
     @Nullable
-    public ByteBuffer generateSPIRV(@NonNull TranslationUnit translationUnit,
-                                    @NonNull ShaderCaps shaderCaps) {
+    public IntBuffer generateSPIRV(@NonNull TranslationUnit translationUnit,
+                                   @NonNull ShaderCaps shaderCaps) {
         startContext(translationUnit.getKind(),
                 translationUnit.getOptions(),
                 null,
@@ -281,7 +284,7 @@ public class ShaderCompiler {
                 false,
                 translationUnit.getSource());
         try {
-            CodeGenerator generator = new SPIRVCodeGenerator(
+            SPIRVCodeGenerator generator = new SPIRVCodeGenerator(
                     getContext(), translationUnit, shaderCaps);
             return generator.generateCode();
         } finally {
@@ -298,8 +301,9 @@ public class ShaderCompiler {
      * @see #parse(CharSequence, ShaderKind, CompileOptions, ModuleUnit)
      * @see #generateSPIRV(TranslationUnit, ShaderCaps)
      */
+    // uint32_t *
     @Nullable
-    public ByteBuffer compileIntoSPIRV(@NonNull CharSequence source,
+    public IntBuffer compileIntoSPIRV(@NonNull CharSequence source,
                                        @NonNull ShaderKind kind,
                                        @NonNull ShaderCaps shaderCaps,
                                        @NonNull CompileOptions options,
@@ -316,8 +320,9 @@ public class ShaderCompiler {
      * @see #parse(String, ShaderKind, CompileOptions, ModuleUnit)
      * @see #generateSPIRV(TranslationUnit, ShaderCaps)
      */
+    // uint32_t *
     @Nullable
-    public ByteBuffer compileIntoSPIRV(@NonNull String source,
+    public IntBuffer compileIntoSPIRV(@NonNull String source,
                                        @NonNull ShaderKind kind,
                                        @NonNull ShaderCaps shaderCaps,
                                        @NonNull CompileOptions options,
@@ -340,7 +345,7 @@ public class ShaderCompiler {
             if (translationUnit == null) {
                 return null;
             }
-            CodeGenerator generator = new SPIRVCodeGenerator(
+            SPIRVCodeGenerator generator = new SPIRVCodeGenerator(
                     getContext(), translationUnit, shaderCaps);
             return generator.generateCode();
         } finally {

@@ -19,7 +19,6 @@
 
 package icyllis.arc3d.compiler.lex;
 
-import icyllis.arc3d.core.MathUtil;
 import it.unimi.dsi.fastutil.ints.*;
 import org.jspecify.annotations.NonNull;
 
@@ -299,7 +298,7 @@ public class LexerGenerator {
         }
         pw.println("};");
 
-        final int packedDataSize = MathUtil.alignTo(numTransitions, DATA_PER_BYTE);
+        final int packedDataSize = (numTransitions + DATA_PER_BYTE - 1) & -DATA_PER_BYTE;
         pw.println("public static final PackedEntry[] PACKED = {");
         for (int i = 0, end = packedEntries.size(); i < end; i++) {
             MutablePackedEntry entry = packedEntries.get(i);

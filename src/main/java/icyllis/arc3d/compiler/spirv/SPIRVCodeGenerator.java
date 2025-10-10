@@ -22,14 +22,13 @@ package icyllis.arc3d.compiler.spirv;
 import icyllis.arc3d.compiler.*;
 import icyllis.arc3d.compiler.analysis.Analysis;
 import icyllis.arc3d.compiler.tree.*;
-import icyllis.arc3d.core.MathUtil;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
 import java.util.*;
 
 import static icyllis.arc3d.compiler.GLSLstd450.*;
@@ -43,9 +42,10 @@ import static org.lwjgl.util.spvc.Spv.*;
  */
 public final class SPIRVCodeGenerator extends CodeGenerator {
 
-    // Arc3D is not registered, so higher 16 bits are zero
-    // We use 0x32D2 and 0x6D5C for the lower 16 bits (in the future)
-    public static final int GENERATOR_MAGIC_NUMBER = 0x00000000;
+    // Arc3D is registered, tool ID = 49 for the higher 16 bits
+    // See https://github.com/KhronosGroup/SPIRV-Headers/blob/main/include/spirv/spir-v.xml
+    // We may use 0x32D2 and 0x6D5C for the lower 16 bits (in the future)
+    public static final int GENERATOR_MAGIC_NUMBER = (49 << 16) | 0; // 0x00310000
     // We reserve the max SpvId as a sentinel (meaning not available)
     // SpvId 0 is reserved by SPIR-V and also represents absence in map
     public static final int NONE_ID = 0xFFFFFFFF;
@@ -144,7 +144,7 @@ public final class SPIRVCodeGenerator extends CodeGenerator {
 
     @Nullable
     @Override
-    public ByteBuffer generateCode() {
+    public IntBuffer generateCode() {
         assert getContext().getErrorHandler().errorCount() == 0;
 
         if (mOutputTarget.isOpenGLES()) {
@@ -730,7 +730,7 @@ public final class SPIRVCodeGenerator extends CodeGenerator {
                     }
                     offset = fieldOffset;
                 } else {
-                    offset = MathUtil.alignTo(offset, alignment);
+                    offset = MemoryLayout.align(offset, alignment);
                 }
 
                 if (field.modifiers().layoutBuiltin() >= 0) {

@@ -21,8 +21,6 @@ package icyllis.arc3d.compiler;
 
 import org.jspecify.annotations.Nullable;
 
-import java.nio.ByteBuffer;
-
 /**
  * Abstract superclass of all code generators, which take a {@link TranslationUnit} as input
  * and produce code as output.
@@ -40,9 +38,9 @@ public abstract class CodeGenerator {
 
     /**
      * Generates the code and returns a buffer slice. The code size in bytes is
-     * {@link ByteBuffer#remaining()}.
+     * {@link java.nio.Buffer#remaining()}.
      * <p>
-     * The return value is a direct buffer allocated via {@link ByteBuffer#allocateDirect(int)}.
+     * The return value is a direct buffer allocated via {@link java.nio.ByteBuffer#allocateDirect(int)}.
      * The byte order is {@link java.nio.ByteOrder#nativeOrder()} (i.e. host endianness) and it's
      * safe to pass the result to OpenGL and Vulkan. There is no way to free this
      * buffer explicitly, as it is subject to GC. Use {@link java.lang.ref.Reference#reachabilityFence(Object)}
@@ -52,7 +50,7 @@ public abstract class CodeGenerator {
      *
      * @return the generated code, or null if there's an error
      */
-    public abstract @Nullable ByteBuffer generateCode();
+    public abstract java.nio.@Nullable Buffer generateCode();
 
     protected Context getContext() {
         return mContext;
