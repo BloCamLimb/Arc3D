@@ -522,7 +522,7 @@ public abstract class GeometryStep {
                 pdm.set4f(uniform, matrix.getScaleX(), matrix.getTranslateX(),
                         matrix.getScaleY(), matrix.getTranslateY());
             } else {
-                pdm.setMatrix3f(uniform, matrix);
+                //pdm.setMatrix3f(uniform, matrix);
             }
             return matrix;
         }

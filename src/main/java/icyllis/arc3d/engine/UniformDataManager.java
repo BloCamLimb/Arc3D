@@ -21,7 +21,6 @@ package icyllis.arc3d.engine;
 
 import icyllis.arc3d.compiler.ShaderDataType;
 import icyllis.arc3d.core.*;
-import icyllis.arc3d.sketch.Matrixc;
 import icyllis.arc3d.granite.shading.UniformHandler;
 import icyllis.arc3d.granite.shading.UniformHandler.UniformHandle;
 
@@ -46,12 +45,12 @@ public abstract class UniformDataManager extends RefCnt {
 
     // lower 24 bits: offset in bytes
     // higher 8 bits: ShaderDataType (for assertion)
-    protected final int[] mUniforms;
+    public final int[] mUniforms;
 
-    protected final int mUniformSize;
-    protected final long mUniformData;
+    public final int mUniformSize;
+    public final long mUniformData;
 
-    protected boolean mUniformsDirty;
+    public boolean mUniformsDirty;
 
     /**
      * Constructor.
@@ -68,6 +67,16 @@ public abstract class UniformDataManager extends RefCnt {
         assert (MathUtil.isAlign4(uniformSize));
         assert (MathUtil.isAlign4(mUniformData));
         // subclasses fill in the uniforms in their constructor
+    }
+
+    public UniformDataManager(int[] uniforms, int uniformSize) {
+        assert uniformSize >= 4;
+        mUniforms = uniforms;
+        mUniformSize = uniformSize;
+        mUniformData = nmemAllocChecked(uniformSize);
+        mUniformsDirty = false;
+        assert (MathUtil.isAlign4(uniformSize));
+        assert (MathUtil.isAlign4(mUniformData));
     }
 
     @Override
@@ -690,16 +699,6 @@ public abstract class UniformDataManager extends RefCnt {
     /**
      * Convenience method for uploading a Matrix to a 3x3 matrix uniform.
      */
-    public void setMatrix3f(@UniformHandle int u, Matrixc matrix) {
-        int uni = mUniforms[u];
-        assert ((uni >> 24) == ShaderDataType.kFloat3x3);
-        long buffer = getBufferPtrAndMarkDirty(uni);
-        matrix.storeAligned(buffer);
-    }
-
-    /**
-     * Convenience method for uploading a Matrix to a 3x3 matrix uniform.
-     */
     public void setMatrix3f(@UniformHandle int u, Matrix3 matrix) {
         int uni = mUniforms[u];
         assert ((uni >> 24) == ShaderDataType.kFloat3x3);
@@ -717,7 +716,7 @@ public abstract class UniformDataManager extends RefCnt {
         matrix.store(buffer);
     }
 
-    protected long getBufferPtrAndMarkDirty(int uni) {
+    public long getBufferPtrAndMarkDirty(int uni) {
         mUniformsDirty = true;
         // lower 24 bits: offset
         return mUniformData + (uni & 0xFFFFFF);

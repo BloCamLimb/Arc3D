@@ -190,6 +190,15 @@ public class FragmentHelpers {
     public static final int kCubicClampUnpremul = 0;
     public static final int kCubicClampPremul = 1;
 
+    static {
+        //noinspection ConstantValue
+        assert
+                SamplerDesc.ADDRESS_MODE_REPEAT          == Shader.TILE_MODE_REPEAT &&
+                SamplerDesc.ADDRESS_MODE_MIRRORED_REPEAT == Shader.TILE_MODE_MIRROR &&
+                SamplerDesc.ADDRESS_MODE_CLAMP_TO_EDGE   == Shader.TILE_MODE_CLAMP  &&
+                SamplerDesc.ADDRESS_MODE_CLAMP_TO_BORDER == Shader.TILE_MODE_DECAL  ;
+    }
+
     public static void appendImageShaderBlock(
             KeyContext keyContext,
             KeyBuilder keyBuilder,
@@ -247,8 +256,8 @@ public class FragmentHelpers {
                 sampling.mMagFilter,
                 sampling.mMinFilter,
                 sampling.mMipmapMode,
-                tileModeX,
-                tileModeY,
+                tileModeX, // implicit cast TileMode to AddressMode
+                tileModeY, // implicit cast TileMode to AddressMode
                 SamplerDesc.ADDRESS_MODE_CLAMP_TO_EDGE)
                 : SamplerDesc.make(filterMode);
 
