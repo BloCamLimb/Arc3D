@@ -28,7 +28,6 @@ import icyllis.arc3d.core.Rect2i;
 import icyllis.arc3d.core.Rect2ic;
 import icyllis.arc3d.core.RefCnt;
 import icyllis.arc3d.core.SamplingOptions;
-import icyllis.arc3d.engine.Context;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -176,8 +175,9 @@ public abstract class Device extends RefCnt {
         mLocalToDevice33.set(mLocalToDevice);
     }
 
+    // icyllis.arc3d.engine.Context
     @Nullable
-    public Context getCommandContext() {
+    public Object getCommandContext() {
         return null;
     }
 

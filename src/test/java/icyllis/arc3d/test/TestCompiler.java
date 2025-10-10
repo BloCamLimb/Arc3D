@@ -37,6 +37,7 @@ import org.lwjgl.system.MemoryUtil;
 import java.io.IOException;
 import java.lang.ref.Reference;
 import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -186,26 +187,34 @@ public class TestCompiler {
             Objects.requireNonNull(t2, compiler::getErrorMessage);
         }
 
-        ByteBuffer spirv = compiler.generateSPIRV(translationUnit, shaderCaps);
+        IntBuffer spirv = compiler.generateSPIRV(translationUnit, shaderCaps);
         System.out.print(compiler.getErrorMessage());
 
         if (spirv != null) {
-            try (var channel = FileChannel.open(Path.of("test_shader1.spv"),
-                    StandardOpenOption.WRITE,
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.TRUNCATE_EXISTING)) {
-                while (spirv.hasRemaining()) {
-                    channel.write(spirv);
+            {
+                ByteBuffer asBytes = MemoryUtil.memByteBuffer(spirv); // should be replaced with MemorySegment
+                try (var channel = FileChannel.open(Path.of("test_shader1.spv"),
+                        StandardOpenOption.WRITE,
+                        StandardOpenOption.CREATE,
+                        StandardOpenOption.TRUNCATE_EXISTING)) {
+                    while (asBytes.hasRemaining()) {
+                        channel.write(asBytes);
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } finally {
+                    // Remember, the cleaner is in the original ByteBuffer, and ByteBuffer is used as an attachment
+                    // in the original IntBuffer. The ByteBuffer view created now does not have any of the above.
+                    // So we must keep the original IntBuffer alive.
+                    Reference.reachabilityFence(spirv);
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
             }
 
             testCompileToGLSL(spirv.rewind());
         }
     }
 
-    public static void testCompileToGLSL(ByteBuffer spirv) {
+    public static void testCompileToGLSL(IntBuffer spirv) {
         try (var stack = MemoryStack.stackPush()) {
             PointerBuffer pointer = stack.mallocPointer(1);
 
@@ -213,7 +222,7 @@ public class TestCompiler {
             long context = pointer.get(0);
 
             // the spirv is in host endianness, just reinterpret
-            spvc_context_parse_spirv(context, spirv.asIntBuffer(), spirv.remaining() / 4, pointer);
+            spvc_context_parse_spirv(context, spirv, spirv.remaining(), pointer);
             long parsed_ir = pointer.get(0);
 
             spvc_context_create_compiler(context, SPVC_BACKEND_GLSL, parsed_ir, SPVC_CAPTURE_MODE_TAKE_OWNERSHIP,

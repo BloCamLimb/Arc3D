@@ -29,6 +29,7 @@ import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 
 import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
 import java.util.Objects;
 
 import static org.lwjgl.util.shaderc.Shaderc.*;
@@ -875,7 +876,7 @@ public class CompilerBenchmark {
     @Benchmark
     public static void arc3d(Blackhole blackhole) {
         ShaderCompiler compiler = new ShaderCompiler();
-        ByteBuffer spirv = compiler.compileIntoSPIRV(SOURCE_AKSL, ShaderKind.FRAGMENT,
+        IntBuffer spirv = compiler.compileIntoSPIRV(SOURCE_AKSL, ShaderKind.FRAGMENT,
                 new ShaderCaps(), new CompileOptions(), COMMON_MODULE);
         blackhole.consume(Objects.requireNonNull(spirv));
     }

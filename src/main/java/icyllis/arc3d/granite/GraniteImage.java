@@ -26,7 +26,6 @@ import icyllis.arc3d.core.Rect2i;
 import icyllis.arc3d.core.Rect2ic;
 import icyllis.arc3d.core.RefCnt;
 import icyllis.arc3d.core.SharedPtr;
-import icyllis.arc3d.engine.Context;
 import icyllis.arc3d.engine.ISurface;
 import icyllis.arc3d.engine.ImageViewProxy;
 import icyllis.arc3d.granite.task.CopyImageTask;
@@ -115,7 +114,7 @@ public final class GraniteImage extends Image {
     }
 
     @Override
-    public Context getContext() {
+    public RecordingContext getCommandContext() {
         return mContext;
     }
 

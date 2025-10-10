@@ -25,7 +25,6 @@ import icyllis.arc3d.core.ImageInfo;
 import icyllis.arc3d.core.Rect2f;
 import icyllis.arc3d.core.Rect2i;
 import icyllis.arc3d.core.RefCnt;
-import icyllis.arc3d.engine.Context;
 import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -126,7 +125,7 @@ public abstract class Image extends RefCnt {
 
     @ApiStatus.Internal
     @Nullable
-    public Context getContext() {
+    public Object getCommandContext() {
         return null;
     }
 

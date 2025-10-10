@@ -20,7 +20,6 @@
 package icyllis.arc3d.sketch;
 
 import icyllis.arc3d.core.*;
-import icyllis.arc3d.engine.Context;
 import org.intellij.lang.annotations.MagicConstant;
 import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.NonNull;
@@ -211,7 +210,7 @@ public class Canvas implements AutoCloseable {
      */
     @RawPtr
     @Nullable
-    public Context getCommandContext() {
+    public Object getCommandContext() {
         return topDevice().getCommandContext();
     }
 
