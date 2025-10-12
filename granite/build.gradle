@@ -1,0 +1,18 @@
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    api project(':arc3d-engine')
+    api project(':arc3d-sketch')
+
+    testImplementation project(':arc3d-opengl')
+    testImplementation "org.slf4j:slf4j-simple:${slf4j_version}"
+
+    testImplementation "org.lwjgl:lwjgl-glfw"
+    testImplementation "org.lwjgl:lwjgl-stb"
+    testImplementation "org.lwjgl:lwjgl-tinyfd"
+    testRuntimeOnly "org.lwjgl:lwjgl-glfw::${rootProject.ext.lwjglNatives}"
+    testRuntimeOnly "org.lwjgl:lwjgl-stb::${rootProject.ext.lwjglNatives}"
+    testRuntimeOnly "org.lwjgl:lwjgl-tinyfd::${rootProject.ext.lwjglNatives}"
+}

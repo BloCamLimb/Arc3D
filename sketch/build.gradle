@@ -1,0 +1,12 @@
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    api project(':arc3d-core')
+    compileOnly project(':arc3d-compiler')
+    testImplementation "org.slf4j:slf4j-api:${slf4j_version}"
+    testImplementation "org.slf4j:slf4j-simple:${slf4j_version}"
+    testImplementation "org.lwjgl:lwjgl-stb"
+    testRuntimeOnly "org.lwjgl:lwjgl-stb::${rootProject.ext.lwjglNatives}"
+}

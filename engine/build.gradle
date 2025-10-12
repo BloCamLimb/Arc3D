@@ -1,0 +1,10 @@
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    api project(':arc3d-core')
+    api project(':arc3d-compiler')
+    api "org.slf4j:slf4j-api:${slf4j_version}"
+    testImplementation "org.slf4j:slf4j-simple:${slf4j_version}"
+}

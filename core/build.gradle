@@ -1,0 +1,14 @@
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    api "org.lwjgl:lwjgl"
+    implementation "org.lwjgl:lwjgl-jemalloc"
+    runtimeOnly "org.lwjgl:lwjgl::${rootProject.ext.lwjglNatives}"
+    runtimeOnly "org.lwjgl:lwjgl-jemalloc::${rootProject.ext.lwjglNatives}"
+    testImplementation "org.slf4j:slf4j-api:${slf4j_version}"
+    testImplementation "org.slf4j:slf4j-simple:${slf4j_version}"
+    testImplementation "org.lwjgl:lwjgl-stb"
+    testRuntimeOnly "org.lwjgl:lwjgl-stb::${rootProject.ext.lwjglNatives}"
+}

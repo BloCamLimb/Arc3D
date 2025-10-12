@@ -5,3 +5,12 @@ pluginManagement {
 }
 
 rootProject.name = 'Arc3D'
+
+include 'compiler', 'core', 'engine', 'sketch', 'granite', 'opengl', 'vulkan'
+project(':compiler').name = 'arc3d-compiler'
+project(':core').name = 'arc3d-core'
+project(':engine').name = 'arc3d-engine'
+project(':sketch').name = 'arc3d-sketch'
+project(':granite').name = 'arc3d-granite'
+project(':opengl').name = 'arc3d-opengl'
+project(':vulkan').name = 'arc3d-vulkan'

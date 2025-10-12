@@ -1,0 +1,15 @@
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compileOnly "org.lwjgl:lwjgl-spvc" // we only use the Spv header
+
+    testImplementation "org.lwjgl:lwjgl-shaderc"
+    testImplementation "org.lwjgl:lwjgl-spvc"
+    testImplementation "org.lwjgl:lwjgl-tinyfd"
+    testRuntimeOnly "org.lwjgl:lwjgl::${rootProject.ext.lwjglNatives}"
+    testRuntimeOnly "org.lwjgl:lwjgl-shaderc::${rootProject.ext.lwjglNatives}"
+    testRuntimeOnly "org.lwjgl:lwjgl-spvc::${rootProject.ext.lwjglNatives}"
+    testRuntimeOnly "org.lwjgl:lwjgl-tinyfd::${rootProject.ext.lwjglNatives}"
+}

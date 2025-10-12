@@ -1,0 +1,11 @@
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    api project(':arc3d-engine')
+    api "org.lwjgl:lwjgl-opengl"
+    api "org.lwjgl:lwjgl-opengles"
+    runtimeOnly "org.lwjgl:lwjgl-opengl::${rootProject.ext.lwjglNatives}"
+    runtimeOnly "org.lwjgl:lwjgl-opengles::${rootProject.ext.lwjglNatives}"
+}
