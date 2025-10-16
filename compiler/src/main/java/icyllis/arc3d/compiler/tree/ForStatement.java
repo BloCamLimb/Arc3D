@@ -20,6 +20,7 @@
 package icyllis.arc3d.compiler.tree;
 
 import icyllis.arc3d.compiler.Context;
+import icyllis.arc3d.compiler.SymbolTable;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -35,13 +36,16 @@ public final class ForStatement extends Statement {
     private Expression mCondition;
     private Expression mStep;
     private Statement mStatement;
+    private final SymbolTable mSymbolTable;
 
-    public ForStatement(int position, Statement init, Expression condition, Expression step, Statement statement) {
+    public ForStatement(int position, Statement init, Expression condition, Expression step, Statement statement,
+                        SymbolTable symbolTable) {
         super(position);
         mInit = init;
         mCondition = condition;
         mStep = step;
         mStatement = statement;
+        mSymbolTable = symbolTable;
     }
 
     @Nullable
@@ -50,7 +54,8 @@ public final class ForStatement extends Statement {
                                     Statement init,
                                     Expression cond,
                                     Expression step,
-                                    Statement statement) {
+                                    Statement statement,
+                                    SymbolTable symbolTable) {
         if (cond != null) {
             cond = context.getTypes().mBool.coerceExpression(context, cond);
             if (cond == null) {
@@ -62,20 +67,25 @@ public final class ForStatement extends Statement {
             return null;
         }
 
-        return make(pos, init, cond, step, statement);
+        return make(pos, init, cond, step, statement, symbolTable);
     }
 
     public static Statement make(int pos,
                                  Statement init,
                                  Expression cond,
                                  Expression step,
-                                 Statement statement) {
-        return new ForStatement(pos, init, cond, step, statement);
+                                 Statement statement,
+                                 SymbolTable symbolTable) {
+        return new ForStatement(pos, init, cond, step, statement, symbolTable);
     }
 
     @Override
     public StatementKind getKind() {
         return StatementKind.FOR;
+    }
+
+    public SymbolTable getSymbolTable() {
+        return mSymbolTable;
     }
 
     public Statement getInit() {

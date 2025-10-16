@@ -134,8 +134,8 @@ public final class Context {
     /**
      * Enters a scope level.
      */
-    public void enterScope() {
-        mSymbolTable = mSymbolTable.enterScope();
+    public SymbolTable enterScope() {
+        return mSymbolTable = mSymbolTable.enterScope();
     }
 
     /**

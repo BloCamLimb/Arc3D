@@ -123,7 +123,7 @@ public class TestCompiler {
         }
 
         var options = new CompileOptions();
-        options.mMinifyCode = true;
+        options.mMinifyCode = false;
         options.mMinifyNames = false;
         //options.mUsePrecisionQualifiers = true;
 
@@ -166,7 +166,7 @@ public class TestCompiler {
         System.out.println(compiler.getErrorMessage());
 
         if (glsl != null) {
-            try (var channel = FileChannel.open(Path.of("test_shader1.glsl"),
+            try (var channel = FileChannel.open(Path.of("run/test_shader1.glsl"),
                     StandardOpenOption.WRITE,
                     StandardOpenOption.CREATE,
                     StandardOpenOption.TRUNCATE_EXISTING)) {
@@ -190,7 +190,7 @@ public class TestCompiler {
         System.out.print(compiler.getErrorMessage());
 
         if (spirv != null) {
-            try (var channel = FileChannel.open(Path.of("test_shader1.spv"),
+            try (var channel = FileChannel.open(Path.of("run/test_shader1.spv"),
                     StandardOpenOption.WRITE,
                     StandardOpenOption.CREATE,
                     StandardOpenOption.TRUNCATE_EXISTING)) {

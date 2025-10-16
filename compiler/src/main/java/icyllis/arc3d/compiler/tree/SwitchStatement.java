@@ -21,6 +21,7 @@ package icyllis.arc3d.compiler.tree;
 
 import icyllis.arc3d.compiler.ConstantFolder;
 import icyllis.arc3d.compiler.Context;
+import icyllis.arc3d.compiler.SymbolTable;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import org.jspecify.annotations.NonNull;
 
@@ -44,7 +45,8 @@ public final class SwitchStatement extends Statement {
                                     int position,
                                     Expression init,
                                     List<Expression> caseValues,
-                                    List<Statement> caseStatements) {
+                                    List<Statement> caseStatements,
+                                    SymbolTable symbolTable) {
         assert caseValues.size() == caseStatements.size();
 
         init = context.getTypes().mInt.coerceExpression(context, init);
@@ -88,7 +90,7 @@ public final class SwitchStatement extends Statement {
 
         Statement switchStmt = SwitchStatement.make(context,
                 position, init,
-                Block.makeBlock(position, cases));
+                Block.makeBlock(position, cases, true, symbolTable));
         return switchStmt;
     }
 

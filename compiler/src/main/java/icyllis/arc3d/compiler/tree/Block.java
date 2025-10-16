@@ -20,57 +20,82 @@
 package icyllis.arc3d.compiler.tree;
 
 import icyllis.arc3d.compiler.Position;
+import icyllis.arc3d.compiler.SymbolTable;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.List;
 
 /**
  * A block of multiple statements functioning as a single statement.
  */
 public final class Block extends Statement {
 
-    private List<Statement> mStatements;
+    private final ArrayList<Statement> mStatements;
     private boolean mScoped;
+    private final SymbolTable mSymbolTable;
 
-    public Block(int position, List<Statement> statements, boolean scoped) {
+    public Block(int position, ArrayList<Statement> statements, boolean scoped,
+                 SymbolTable symbolTable) {
         super(position);
         mStatements = statements;
         mScoped = scoped;
+        mSymbolTable = symbolTable;
     }
 
-    public static Statement make(int pos, List<Statement> statements, boolean scoped) {
+    // Make is allowed to simplify compound statements. For a single-statement unscoped Block,
+    // Make can return the Statement as-is. For an empty unscoped Block, Make can return Nop.
+    public static Statement make(int pos, @NonNull ArrayList<Statement> statements, boolean scoped,
+                                 @Nullable SymbolTable symbolTable) {
         if (scoped) {
-            return new Block(pos, statements, true);
+            // In most cases, the symbol table is not null
+            return new Block(pos, statements, true, symbolTable);
         }
 
+        assert symbolTable == null;
+
+        // If the Block is completely empty, synthesize a Nop.
         if (statements.isEmpty()) {
             return new EmptyStatement(pos);
         }
 
         if (statements.size() > 1) {
+            // The statement array contains multiple statements, but some of those might be no-ops.
+            // If the statement array only contains one real statement, we can return that directly and
+            // avoid creating an additional Block node.
             Statement foundStatement = null;
             for (Statement stmt : statements) {
                 if (!stmt.isEmpty()) {
                     if (foundStatement == null) {
+                        // We found a single non-empty statement. Remember it and keep looking.
                         foundStatement = stmt;
                         continue;
                     }
-                    return new Block(pos, statements, scoped);
+                    // We found more than one non-empty statement. We actually do need a Block.
+                    return new Block(pos, statements, scoped,
+                            null);
                 }
             }
 
+            // The array wrapped one valid Statement. Avoid allocating a Block by returning it directly.
             if (foundStatement != null) {
                 return foundStatement;
             }
+
+            // The statement array contained nothing but empty statements!
+            // In this case, we don't actually need to allocate a Block.
+            // We can just return one of those empty statements. Fall through to...
         }
 
         return statements.get(0);
     }
 
+    @NonNull
     public static Block makeBlock(int pos,
-                                  List<Statement> statements) {
-        return new Block(pos, statements, true);
+                                  @NonNull ArrayList<Statement> statements,
+                                  boolean scoped,
+                                  @Nullable SymbolTable symbolTable) {
+        return new Block(pos, statements, scoped, symbolTable);
     }
 
     public static Statement makeCompound(Statement before, Statement after) {
@@ -87,10 +112,10 @@ public final class Block extends Statement {
         }
 
         int pos = Position.range(before.getStartOffset(), after.getEndOffset());
-        List<Statement> statements = new ArrayList<>(2);
+        ArrayList<Statement> statements = new ArrayList<>(2);
         statements.add(before);
         statements.add(after);
-        return make(pos, statements, false);
+        return new Block(pos, statements, false, null);
     }
 
     @Override
@@ -108,7 +133,12 @@ public final class Block extends Statement {
         return true;
     }
 
-    public List<Statement> getStatements() {
+    @Nullable
+    public SymbolTable getSymbolTable() {
+        return mSymbolTable;
+    }
+
+    public ArrayList<Statement> getStatements() {
         return mStatements;
     }
 

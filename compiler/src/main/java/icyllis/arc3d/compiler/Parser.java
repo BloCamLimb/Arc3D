@@ -844,16 +844,16 @@ public class Parser {
             );
             return true;
         } else {
-            mContext.enterScope();
+            SymbolTable symbolTable = mContext.enterScope();
             try {
                 if (decl != null) {
                     for (Variable param : decl.getParameters()) {
-                        context.getSymbolTable().insert(mContext, param);
+                        symbolTable.insert(mContext, param);
                     }
                 }
 
                 long blockStart = peek();
-                Block block = ScopedBlock();
+                Block block = ScopedBlock(symbolTable);
 
                 if (decl == null) {
                     return false;
@@ -910,13 +910,13 @@ public class Parser {
         );
     }
 
-    private Block ScopedBlock() {
+    private Block ScopedBlock(SymbolTable symbolTable) {
         long start = expect(Token.TK_LBRACE, "'{'");
         ArrayList<Statement> statements = new ArrayList<>();
         for (;;) {
             if (checkNext(Token.TK_RBRACE)) {
                 int pos = rangeFrom(start);
-                return Block.makeBlock(pos, statements);
+                return Block.makeBlock(pos, statements, true, symbolTable);
             } else if (peek(Token.TK_END_OF_FILE)) {
                 error(peek(), "expected '}', but found end of file");
                 return null;
@@ -2085,9 +2085,9 @@ public class Parser {
             case Token.TK_FOR -> ForStatement();
             case Token.TK_SWITCH -> SwitchStatement();
             case Token.TK_LBRACE -> {
-                mContext.enterScope();
+                SymbolTable symbolTable = mContext.enterScope();
                 try {
-                    yield ScopedBlock();
+                    yield ScopedBlock(symbolTable);
                 } finally {
                     mContext.leaveScope();
                 }
@@ -2154,7 +2154,7 @@ public class Parser {
         }
         values.add(caseValue);
         caseBlocks.add(Block.make(Position.NO_POS,
-                statements, false));
+                statements, false, null));
         return true;
     }
 
@@ -2177,33 +2177,36 @@ public class Parser {
         ArrayList<Expression> values = new ArrayList<>();
         ArrayList<Statement> caseBlocks = new ArrayList<>();
 
-        //TODO symbol table inside switch block
-
-        while (checkNext(Token.TK_CASE)) {
-            Expression caseValue = Expression();
-            if (caseValue == null) {
-                return null;
+        SymbolTable symbolTable = mContext.enterScope();
+        try {
+            while (checkNext(Token.TK_CASE)) {
+                Expression caseValue = Expression();
+                if (caseValue == null) {
+                    return null;
+                }
+                if (!SwitchCaseBody(values, caseBlocks, caseValue)) {
+                    return null;
+                }
             }
-            if (!SwitchCaseBody(values, caseBlocks, caseValue)) {
-                return null;
+            //TODO allow default label to be other than last, need to update the rest part of compiler
+            if (peek(Token.TK_DEFAULT)) {
+                long defaultToken = nextToken();
+                if (!SwitchCaseBody(values, caseBlocks, null)) {
+                    return null;
+                }
+                if (peek(Token.TK_CASE)) {
+                    error(defaultToken, "'default' should be the last case");
+                    return null;
+                }
             }
+            expect(Token.TK_RBRACE, "'}'");
+        } finally {
+            mContext.leaveScope();
         }
-        //TODO allow default label to be other than last, need to update the rest part of compiler
-        if (peek(Token.TK_DEFAULT)) {
-            long defaultToken = nextToken();
-            if (!SwitchCaseBody(values, caseBlocks, null)) {
-                return null;
-            }
-            if (peek(Token.TK_CASE)) {
-                error(defaultToken, "'default' should be the last case");
-                return null;
-            }
-        }
-        expect(Token.TK_RBRACE, "'}'");
 
         int pos = rangeFrom(start);
         return statementOrEmpty(pos, SwitchStatement.convert(mContext,
-                pos, init, values, caseBlocks));
+                pos, init, values, caseBlocks, symbolTable));
     }
 
     /**
@@ -2219,9 +2222,14 @@ public class Parser {
     private Statement ForStatement() {
         long start = expect(Token.TK_FOR, "'for'");
         expect(Token.TK_LPAREN, "'('");
-        mContext.enterScope();
+
+        Statement init = null;
+        Expression cond = null;
+        Expression step = null;
+        Statement statement;
+
+        SymbolTable symbolTable = mContext.enterScope();
         try {
-            Statement init = null;
             if (peek(Token.TK_SEMICOLON)) {
                 // An empty init-statement.
                 nextToken();
@@ -2232,7 +2240,6 @@ public class Parser {
                 }
             }
 
-            Expression cond = null;
             if (!peek(Token.TK_SEMICOLON)) {
                 cond = Expression();
                 if (cond == null) {
@@ -2242,7 +2249,6 @@ public class Parser {
 
             expect(Token.TK_SEMICOLON, "';' to complete condition statement");
 
-            Expression step = null;
             if (!peek(Token.TK_SEMICOLON)) {
                 step = Expression();
                 if (step == null) {
@@ -2252,23 +2258,24 @@ public class Parser {
 
             expect(Token.TK_RPAREN, "')' to complete 'for' statement");
 
-            Statement statement = Statement();
+            statement = Statement();
             if (statement == null) {
                 return null;
             }
-
-            int pos = rangeFrom(start);
-
-            return statementOrEmpty(pos, ForStatement.convert(
-                    mContext,
-                    pos,
-                    init,
-                    cond,
-                    step,
-                    statement
-            ));
         } finally {
             mContext.leaveScope();
         }
+
+        int pos = rangeFrom(start);
+
+        return statementOrEmpty(pos, ForStatement.convert(
+                mContext,
+                pos,
+                init,
+                cond,
+                step,
+                statement,
+                symbolTable
+        ));
     }
 }

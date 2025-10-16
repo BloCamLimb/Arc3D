@@ -93,6 +93,10 @@ public final class SymbolTable {
         return mIsBuiltin;
     }
 
+    public int size() {
+        return mTable.size();
+    }
+
     /**
      * Looks up the requested symbol and returns a const pointer.
      */
