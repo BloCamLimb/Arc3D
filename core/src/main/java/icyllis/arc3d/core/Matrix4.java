@@ -34,14 +34,21 @@ import java.nio.FloatBuffer;
  * The memory layout (order of components) is the same as GLSL's column-major and
  * HLSL's row-major, this is just a difference in naming and writing.
  * A matrix looks like this:
- * <p>
- * [m11  m12  m13  m14]<br>
- * [m21  m22  m23  m24]<br>
- * [m31  m32  m33  m34]<br>
- * [m41  m42  m43  m44]<br>
- * <p>
- * Where [m41 m42 m43] represents the translation, and they are the last four
- * elements in memory.
+ * <pre>{@code
+ * [m11  m21  m31  m41]   [0  4   8  12]   [scale-x   shear-yx  shear-zx  trans-x]
+ * [m12  m22  m32  m42]   [1  5   9  13]   [shear-xy  scale-y   shear-zy  trans-y]
+ * [m13  m23  m33  m43]   [2  6  10  14]   [shear-xz  shear-yz  scale-z   trans-z]
+ * [m14  m24  m34  m44]   [3  7  11  15]   [persp-x   persp-y   persp-z   w      ]
+ * }</pre>
+ * Or (equivalently)
+ * <pre>{@code
+ * [m11  m12  m13  m14]   [ 0   1   2   3]   [scale-x   shear-xy  shear-xz  persp-x]
+ * [m21  m22  m23  m24]   [ 4   5   6   7]   [shear-yx  scale-y   shear-yz  persp-y]
+ * [m31  m32  m33  m34]   [ 8   9  10  11]   [shear-zx  shear-zy  scale-z   persp-z]
+ * [m41  m42  m43  m44]   [12  13  14  15]   [trans-x   trans-y   trans-z   w      ]
+ * }</pre>
+ * Where {@code (m41, m42, m43)} represents the translation, and they are the last four
+ * elements in memory. {@code m(CR)} means {@code m[C-1][R-1]} in GLSL.
  *
  * @author BloCamLimb
  */
@@ -51,28 +58,24 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
 
     private static final Matrix4 IDENTITY = new Matrix4();
 
-    // sequential matrix elements, m(ij) (row, column)
+    // sequential matrix elements that are arranged in the order they appear in memory
     // directly using primitives will be faster than array in Java (before Vector API)
-    // [m11 m12 m13 m14]
-    // [m21 m22 m23 m24]
-    // [m31 m32 m33 m34]
-    // [m41 m42 m43 m44] <- [m41 m42 m43] represents the origin
-    public float m11;
-    public float m12;
-    public float m13;
-    public float m14;
-    public float m21;
-    public float m22;
-    public float m23;
-    public float m24;
-    public float m31;
-    public float m32;
-    public float m33;
-    public float m34;
-    public float m41;
-    public float m42;
-    public float m43;
-    public float m44;
+    public float m11; // scale-x
+    public float m12; // shear-xy
+    public float m13; // shear-xz
+    public float m14; // persp-x
+    public float m21; // shear-yx
+    public float m22; // scale-y
+    public float m23; // shear-yz
+    public float m24; // persp-y
+    public float m31; // shear-zx
+    public float m32; // shear-zy
+    public float m33; // scale-z
+    public float m34; // persp-z
+    public float m41; // trans-x
+    public float m42; // trans-y
+    public float m43; // trans-z
+    public float m44; // w / homogeneous
 
     /**
      * Create a new identity matrix.
@@ -88,6 +91,31 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
      */
     public Matrix4(@NonNull Matrix4c m) {
         m.store(this);
+    }
+
+    /**
+     * Create a matrix from an array of elements in row-major.
+     */
+    public Matrix4(float m11, float m12, float m13, float m14,
+                   float m21, float m22, float m23, float m24,
+                   float m31, float m32, float m33, float m34,
+                   float m41, float m42, float m43, float m44) {
+        this.m11 = m11;
+        this.m12 = m12;
+        this.m13 = m13;
+        this.m14 = m14;
+        this.m21 = m21;
+        this.m22 = m22;
+        this.m23 = m23;
+        this.m24 = m24;
+        this.m31 = m31;
+        this.m32 = m32;
+        this.m33 = m33;
+        this.m34 = m34;
+        this.m41 = m41;
+        this.m42 = m42;
+        this.m43 = m43;
+        this.m44 = m44;
     }
 
     /**
@@ -376,143 +404,34 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
     }
 
     /**
-     * Pre-multiply this matrix by the given <code>lhs</code> matrix.
-     * <p>
-     * If <code>M</code> is <code>this</code> matrix and <code>L</code> the <code>lhs</code>
-     * matrix, then the new matrix will be <code>L * M</code> (row-major). So when transforming
-     * a vector <code>v</code> with the new matrix by using <code>v * L * M</code>, the
-     * transformation of the left-hand side matrix will be applied first.
-     *
-     * @param lhs the left-hand side matrix to multiply
-     */
-    public void preConcat(@NonNull Matrix4c lhs) {
-        // 64 multiplications
-        final float f11 = lhs.m11() * m11 + lhs.m12() * m21 + lhs.m13() * m31 + lhs.m14() * m41;
-        final float f12 = lhs.m11() * m12 + lhs.m12() * m22 + lhs.m13() * m32 + lhs.m14() * m42;
-        final float f13 = lhs.m11() * m13 + lhs.m12() * m23 + lhs.m13() * m33 + lhs.m14() * m43;
-        final float f14 = lhs.m11() * m14 + lhs.m12() * m24 + lhs.m13() * m34 + lhs.m14() * m44;
-        final float f21 = lhs.m21() * m11 + lhs.m22() * m21 + lhs.m23() * m31 + lhs.m24() * m41;
-        final float f22 = lhs.m21() * m12 + lhs.m22() * m22 + lhs.m23() * m32 + lhs.m24() * m42;
-        final float f23 = lhs.m21() * m13 + lhs.m22() * m23 + lhs.m23() * m33 + lhs.m24() * m43;
-        final float f24 = lhs.m21() * m14 + lhs.m22() * m24 + lhs.m23() * m34 + lhs.m24() * m44;
-        final float f31 = lhs.m31() * m11 + lhs.m32() * m21 + lhs.m33() * m31 + lhs.m34() * m41;
-        final float f32 = lhs.m31() * m12 + lhs.m32() * m22 + lhs.m33() * m32 + lhs.m34() * m42;
-        final float f33 = lhs.m31() * m13 + lhs.m32() * m23 + lhs.m33() * m33 + lhs.m34() * m43;
-        final float f34 = lhs.m31() * m14 + lhs.m32() * m24 + lhs.m33() * m34 + lhs.m34() * m44;
-        final float f41 = lhs.m41() * m11 + lhs.m42() * m21 + lhs.m43() * m31 + lhs.m44() * m41;
-        final float f42 = lhs.m41() * m12 + lhs.m42() * m22 + lhs.m43() * m32 + lhs.m44() * m42;
-        final float f43 = lhs.m41() * m13 + lhs.m42() * m23 + lhs.m43() * m33 + lhs.m44() * m43;
-        final float f44 = lhs.m41() * m14 + lhs.m42() * m24 + lhs.m43() * m34 + lhs.m44() * m44;
-        m11 = f11;
-        m12 = f12;
-        m13 = f13;
-        m14 = f14;
-        m21 = f21;
-        m22 = f22;
-        m23 = f23;
-        m24 = f24;
-        m31 = f31;
-        m32 = f32;
-        m33 = f33;
-        m34 = f34;
-        m41 = f41;
-        m42 = f42;
-        m43 = f43;
-        m44 = f44;
-    }
-
-    /**
-     * Pre-multiply this matrix by the given <code>lhs</code> matrix.
-     * <p>
-     * If <code>M</code> is <code>this</code> matrix and <code>L</code> the <code>lhs</code>
-     * matrix, then the new matrix will be <code>L * M</code> (row-major). So when transforming
-     * a vector <code>v</code> with the new matrix by using <code>v * L * M</code>, the
-     * transformation of the left-hand side matrix will be applied first.
-     *
-     * @param l11 the m11 element of the left-hand side matrix
-     * @param l12 the m12 element of the left-hand side matrix
-     * @param l13 the m13 element of the left-hand side matrix
-     * @param l14 the m14 element of the left-hand side matrix
-     * @param l21 the m21 element of the left-hand side matrix
-     * @param l22 the m22 element of the left-hand side matrix
-     * @param l23 the m23 element of the left-hand side matrix
-     * @param l24 the m24 element of the left-hand side matrix
-     * @param l31 the m31 element of the left-hand side matrix
-     * @param l32 the m32 element of the left-hand side matrix
-     * @param l33 the m33 element of the left-hand side matrix
-     * @param l34 the m34 element of the left-hand side matrix
-     * @param l41 the m41 element of the left-hand side matrix
-     * @param l42 the m42 element of the left-hand side matrix
-     * @param l43 the m43 element of the left-hand side matrix
-     * @param l44 the m44 element of the left-hand side matrix
-     */
-    public void preConcat(float l11, float l12, float l13, float l14,
-                          float l21, float l22, float l23, float l24,
-                          float l31, float l32, float l33, float l34,
-                          float l41, float l42, float l43, float l44) {
-        // 64 multiplications
-        final float f11 = l11 * m11 + l12 * m21 + l13 * m31 + l14 * m41;
-        final float f12 = l11 * m12 + l12 * m22 + l13 * m32 + l14 * m42;
-        final float f13 = l11 * m13 + l12 * m23 + l13 * m33 + l14 * m43;
-        final float f14 = l11 * m14 + l12 * m24 + l13 * m34 + l14 * m44;
-        final float f21 = l21 * m11 + l22 * m21 + l23 * m31 + l24 * m41;
-        final float f22 = l21 * m12 + l22 * m22 + l23 * m32 + l24 * m42;
-        final float f23 = l21 * m13 + l22 * m23 + l23 * m33 + l24 * m43;
-        final float f24 = l21 * m14 + l22 * m24 + l23 * m34 + l24 * m44;
-        final float f31 = l31 * m11 + l32 * m21 + l33 * m31 + l34 * m41;
-        final float f32 = l31 * m12 + l32 * m22 + l33 * m32 + l34 * m42;
-        final float f33 = l31 * m13 + l32 * m23 + l33 * m33 + l34 * m43;
-        final float f34 = l31 * m14 + l32 * m24 + l33 * m34 + l34 * m44;
-        final float f41 = l41 * m11 + l42 * m21 + l43 * m31 + l44 * m41;
-        final float f42 = l41 * m12 + l42 * m22 + l43 * m32 + l44 * m42;
-        final float f43 = l41 * m13 + l42 * m23 + l43 * m33 + l44 * m43;
-        final float f44 = l41 * m14 + l42 * m24 + l43 * m34 + l44 * m44;
-        m11 = f11;
-        m12 = f12;
-        m13 = f13;
-        m14 = f14;
-        m21 = f21;
-        m22 = f22;
-        m23 = f23;
-        m24 = f24;
-        m31 = f31;
-        m32 = f32;
-        m33 = f33;
-        m34 = f34;
-        m41 = f41;
-        m42 = f42;
-        m43 = f43;
-        m44 = f44;
-    }
-
-    /**
-     * Post-multiply this matrix by the given <code>rhs</code> matrix.
+     * Pre-multiply this matrix by the given <code>rhs</code> matrix.
      * <p>
      * If <code>M</code> is <code>this</code> matrix and <code>R</code> the <code>rhs</code>
-     * matrix, then the new matrix will be <code>M * R</code> (row-major). So when transforming
-     * a vector <code>v</code> with the new matrix by using <code>v * M * R</code>, the
-     * transformation of <code>this</code> matrix will be applied first.
+     * matrix, then the new matrix will be <code>M * R</code> (GLSL). So when transforming
+     * a vector <code>v</code> with the new matrix by using <code>M * R * v</code>, the
+     * transformation of the right-hand side matrix will be applied first.
      *
      * @param rhs the right-hand side matrix to multiply
      */
-    public void postConcat(@NonNull Matrix4c rhs) {
-        // 64 multiplications
-        final float f11 = m11 * rhs.m11() + m12 * rhs.m21() + m13 * rhs.m31() + m14 * rhs.m41();
-        final float f12 = m11 * rhs.m12() + m12 * rhs.m22() + m13 * rhs.m32() + m14 * rhs.m42();
-        final float f13 = m11 * rhs.m13() + m12 * rhs.m23() + m13 * rhs.m33() + m14 * rhs.m43();
-        final float f14 = m11 * rhs.m14() + m12 * rhs.m24() + m13 * rhs.m34() + m14 * rhs.m44();
-        final float f21 = m21 * rhs.m11() + m22 * rhs.m21() + m23 * rhs.m31() + m24 * rhs.m41();
-        final float f22 = m21 * rhs.m12() + m22 * rhs.m22() + m23 * rhs.m32() + m24 * rhs.m42();
-        final float f23 = m21 * rhs.m13() + m22 * rhs.m23() + m23 * rhs.m33() + m24 * rhs.m43();
-        final float f24 = m21 * rhs.m14() + m22 * rhs.m24() + m23 * rhs.m34() + m24 * rhs.m44();
-        final float f31 = m31 * rhs.m11() + m32 * rhs.m21() + m33 * rhs.m31() + m34 * rhs.m41();
-        final float f32 = m31 * rhs.m12() + m32 * rhs.m22() + m33 * rhs.m32() + m34 * rhs.m42();
-        final float f33 = m31 * rhs.m13() + m32 * rhs.m23() + m33 * rhs.m33() + m34 * rhs.m43();
-        final float f34 = m31 * rhs.m14() + m32 * rhs.m24() + m33 * rhs.m34() + m34 * rhs.m44();
-        final float f41 = m41 * rhs.m11() + m42 * rhs.m21() + m43 * rhs.m31() + m44 * rhs.m41();
-        final float f42 = m41 * rhs.m12() + m42 * rhs.m22() + m43 * rhs.m32() + m44 * rhs.m42();
-        final float f43 = m41 * rhs.m13() + m42 * rhs.m23() + m43 * rhs.m33() + m44 * rhs.m43();
-        final float f44 = m41 * rhs.m14() + m42 * rhs.m24() + m43 * rhs.m34() + m44 * rhs.m44();
+    public void preConcat(@NonNull Matrix4c rhs) {
+        // C(ij) = ∑ L(ik) * R(kj)
+        // 64 multiplications, C(ji) = ∑ M(ki) * R(jk)
+        final float f11 = rhs.m11() * m11 + rhs.m12() * m21 + rhs.m13() * m31 + rhs.m14() * m41;
+        final float f12 = rhs.m11() * m12 + rhs.m12() * m22 + rhs.m13() * m32 + rhs.m14() * m42;
+        final float f13 = rhs.m11() * m13 + rhs.m12() * m23 + rhs.m13() * m33 + rhs.m14() * m43;
+        final float f14 = rhs.m11() * m14 + rhs.m12() * m24 + rhs.m13() * m34 + rhs.m14() * m44;
+        final float f21 = rhs.m21() * m11 + rhs.m22() * m21 + rhs.m23() * m31 + rhs.m24() * m41;
+        final float f22 = rhs.m21() * m12 + rhs.m22() * m22 + rhs.m23() * m32 + rhs.m24() * m42;
+        final float f23 = rhs.m21() * m13 + rhs.m22() * m23 + rhs.m23() * m33 + rhs.m24() * m43;
+        final float f24 = rhs.m21() * m14 + rhs.m22() * m24 + rhs.m23() * m34 + rhs.m24() * m44;
+        final float f31 = rhs.m31() * m11 + rhs.m32() * m21 + rhs.m33() * m31 + rhs.m34() * m41;
+        final float f32 = rhs.m31() * m12 + rhs.m32() * m22 + rhs.m33() * m32 + rhs.m34() * m42;
+        final float f33 = rhs.m31() * m13 + rhs.m32() * m23 + rhs.m33() * m33 + rhs.m34() * m43;
+        final float f34 = rhs.m31() * m14 + rhs.m32() * m24 + rhs.m33() * m34 + rhs.m34() * m44;
+        final float f41 = rhs.m41() * m11 + rhs.m42() * m21 + rhs.m43() * m31 + rhs.m44() * m41;
+        final float f42 = rhs.m41() * m12 + rhs.m42() * m22 + rhs.m43() * m32 + rhs.m44() * m42;
+        final float f43 = rhs.m41() * m13 + rhs.m42() * m23 + rhs.m43() * m33 + rhs.m44() * m43;
+        final float f44 = rhs.m41() * m14 + rhs.m42() * m24 + rhs.m43() * m34 + rhs.m44() * m44;
         m11 = f11;
         m12 = f12;
         m13 = f13;
@@ -532,12 +451,12 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
     }
 
     /**
-     * Post-multiply this matrix by the given <code>rhs</code> matrix.
+     * Pre-multiply this matrix by the given <code>rhs</code> matrix.
      * <p>
      * If <code>M</code> is <code>this</code> matrix and <code>R</code> the <code>rhs</code>
-     * matrix, then the new matrix will be <code>M * R</code> (row-major). So when transforming
-     * a vector <code>v</code> with the new matrix by using <code>v * M * R</code>, the
-     * transformation of <code>this</code> matrix will be applied first.
+     * matrix, then the new matrix will be <code>M * R</code> (GLSL). So when transforming
+     * a vector <code>v</code> with the new matrix by using <code>M * R * v</code>, the
+     * transformation of the right-hand side matrix will be applied first.
      *
      * @param r11 the m11 element of the right-hand side matrix
      * @param r12 the m12 element of the right-hand side matrix
@@ -556,27 +475,27 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
      * @param r43 the m43 element of the right-hand side matrix
      * @param r44 the m44 element of the right-hand side matrix
      */
-    public void postConcat(float r11, float r12, float r13, float r14,
-                           float r21, float r22, float r23, float r24,
-                           float r31, float r32, float r33, float r34,
-                           float r41, float r42, float r43, float r44) {
-        // 64 multiplications
-        final float f11 = m11 * r11 + m12 * r21 + m13 * r31 + m14 * r41;
-        final float f12 = m11 * r12 + m12 * r22 + m13 * r32 + m14 * r42;
-        final float f13 = m11 * r13 + m12 * r23 + m13 * r33 + m14 * r43;
-        final float f14 = m11 * r14 + m12 * r24 + m13 * r34 + m14 * r44;
-        final float f21 = m21 * r11 + m22 * r21 + m23 * r31 + m24 * r41;
-        final float f22 = m21 * r12 + m22 * r22 + m23 * r32 + m24 * r42;
-        final float f23 = m21 * r13 + m22 * r23 + m23 * r33 + m24 * r43;
-        final float f24 = m21 * r14 + m22 * r24 + m23 * r34 + m24 * r44;
-        final float f31 = m31 * r11 + m32 * r21 + m33 * r31 + m34 * r41;
-        final float f32 = m31 * r12 + m32 * r22 + m33 * r32 + m34 * r42;
-        final float f33 = m31 * r13 + m32 * r23 + m33 * r33 + m34 * r43;
-        final float f34 = m31 * r14 + m32 * r24 + m33 * r34 + m34 * r44;
-        final float f41 = m41 * r11 + m42 * r21 + m43 * r31 + m44 * r41;
-        final float f42 = m41 * r12 + m42 * r22 + m43 * r32 + m44 * r42;
-        final float f43 = m41 * r13 + m42 * r23 + m43 * r33 + m44 * r43;
-        final float f44 = m41 * r14 + m42 * r24 + m43 * r34 + m44 * r44;
+    public void preConcat(float r11, float r12, float r13, float r14,
+                          float r21, float r22, float r23, float r24,
+                          float r31, float r32, float r33, float r34,
+                          float r41, float r42, float r43, float r44) {
+        // 64 multiplications, C(ji) = ∑ M(ki) * R(jk)
+        final float f11 = r11 * m11 + r12 * m21 + r13 * m31 + r14 * m41;
+        final float f12 = r11 * m12 + r12 * m22 + r13 * m32 + r14 * m42;
+        final float f13 = r11 * m13 + r12 * m23 + r13 * m33 + r14 * m43;
+        final float f14 = r11 * m14 + r12 * m24 + r13 * m34 + r14 * m44;
+        final float f21 = r21 * m11 + r22 * m21 + r23 * m31 + r24 * m41;
+        final float f22 = r21 * m12 + r22 * m22 + r23 * m32 + r24 * m42;
+        final float f23 = r21 * m13 + r22 * m23 + r23 * m33 + r24 * m43;
+        final float f24 = r21 * m14 + r22 * m24 + r23 * m34 + r24 * m44;
+        final float f31 = r31 * m11 + r32 * m21 + r33 * m31 + r34 * m41;
+        final float f32 = r31 * m12 + r32 * m22 + r33 * m32 + r34 * m42;
+        final float f33 = r31 * m13 + r32 * m23 + r33 * m33 + r34 * m43;
+        final float f34 = r31 * m14 + r32 * m24 + r33 * m34 + r34 * m44;
+        final float f41 = r41 * m11 + r42 * m21 + r43 * m31 + r44 * m41;
+        final float f42 = r41 * m12 + r42 * m22 + r43 * m32 + r44 * m42;
+        final float f43 = r41 * m13 + r42 * m23 + r43 * m33 + r44 * m43;
+        final float f44 = r41 * m14 + r42 * m24 + r43 * m34 + r44 * m44;
         m11 = f11;
         m12 = f12;
         m13 = f13;
@@ -596,123 +515,253 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
     }
 
     /**
-     * Pre-multiply this matrix by the given <code>lhs</code> matrix. The matrix will be
-     * expanded to a 4x4 matrix.
-     * <pre>{@code
-     * [ a b c ]      [ a b 0 c ]
-     * [ d e f ]  ->  [ d e 0 f ]
-     * [ g h i ]      [ 0 0 1 0 ]
-     *                [ g h 0 i ]
-     * }</pre>
+     * Post-multiply this matrix by the given <code>lhs</code> matrix.
+     * <p>
      * If <code>M</code> is <code>this</code> matrix and <code>L</code> the <code>lhs</code>
-     * matrix, then the new matrix will be <code>L * M</code> (row-major). So when transforming
-     * a vector <code>v</code> with the new matrix by using <code>v * L * M</code>, the
-     * transformation of the left-hand side matrix will be applied first.
-     */
-    public void preConcat2D(float l11, float l12, float l14,
-                            float l21, float l22, float l24,
-                            float l41, float l42, float l44) {
-        // 36 multiplications
-        final float f11 = l11 * m11 + l12 * m21 + l14 * m41;
-        final float f12 = l11 * m12 + l12 * m22 + l14 * m42;
-        final float f13 = l11 * m13 + l12 * m23 + l14 * m43;
-        final float f14 = l11 * m14 + l12 * m24 + l14 * m44;
-        final float f21 = l21 * m11 + l22 * m21 + l24 * m41;
-        final float f22 = l21 * m12 + l22 * m22 + l24 * m42;
-        final float f23 = l21 * m13 + l22 * m23 + l24 * m43;
-        final float f24 = l21 * m14 + l22 * m24 + l24 * m44;
-        final float f41 = l41 * m11 + l42 * m21 + l44 * m41;
-        final float f42 = l41 * m12 + l42 * m22 + l44 * m42;
-        final float f43 = l41 * m13 + l42 * m23 + l44 * m43;
-        final float f44 = l41 * m14 + l42 * m24 + l44 * m44;
-        m11 = f11;
-        m12 = f12;
-        m13 = f13;
-        m14 = f14;
-        m21 = f21;
-        m22 = f22;
-        m23 = f23;
-        m24 = f24;
-        m41 = f41;
-        m42 = f42;
-        m43 = f43;
-        m44 = f44;
-    }
-
-    /**
-     * Post-multiply this matrix by the given <code>rhs</code> matrix. The matrix will be
-     * expanded to a 4x4 matrix.
-     * <pre>{@code
-     * [ a b c ]      [ a b 0 c ]
-     * [ d e f ]  ->  [ d e 0 f ]
-     * [ g h i ]      [ 0 0 1 0 ]
-     *                [ g h 0 i ]
-     * }</pre>
-     * If <code>M</code> is <code>this</code> matrix and <code>R</code> the <code>rhs</code>
-     * matrix, then the new matrix will be <code>M * R</code> (row-major). So when transforming
-     * a vector <code>v</code> with the new matrix by using <code>v * M * R</code>, the
+     * matrix, then the new matrix will be <code>L * M</code> (GLSL). So when transforming
+     * a vector <code>v</code> with the new matrix by using <code>L * M * v</code>, the
      * transformation of <code>this</code> matrix will be applied first.
-     */
-    public void postConcat2D(float r11, float r12, float r14,
-                             float r21, float r22, float r24,
-                             float r41, float r42, float r44) {
-        // 36 multiplications
-        final float f11 = m11 * r11 + m12 * r21 + m14 * r41;
-        final float f12 = m11 * r12 + m12 * r22 + m14 * r42;
-        final float f14 = m11 * r14 + m12 * r24 + m14 * r44;
-        final float f21 = m21 * r11 + m22 * r21 + m24 * r41;
-        final float f22 = m21 * r12 + m22 * r22 + m24 * r42;
-        final float f24 = m21 * r14 + m22 * r24 + m24 * r44;
-        final float f31 = m31 * r11 + m32 * r21 + m34 * r41;
-        final float f32 = m31 * r12 + m32 * r22 + m34 * r42;
-        final float f34 = m31 * r14 + m32 * r24 + m34 * r44;
-        final float f41 = m41 * r11 + m42 * r21 + m44 * r41;
-        final float f42 = m41 * r12 + m42 * r22 + m44 * r42;
-        final float f44 = m41 * r14 + m42 * r24 + m44 * r44;
-        m11 = f11;
-        m12 = f12;
-        m14 = f14;
-        m21 = f21;
-        m22 = f22;
-        m24 = f24;
-        m31 = f31;
-        m32 = f32;
-        m34 = f34;
-        m41 = f41;
-        m42 = f42;
-        m44 = f44;
-    }
-
-    /**
-     * Pre-multiply this matrix by the given <code>lhs</code> matrix. The matrix will be
-     * expanded to a 4x4 matrix.
-     * <pre>{@code
-     * [ a b c ]      [ a b c 0 ]
-     * [ d e f ]  ->  [ d e f 0 ]
-     * [ g h i ]      [ g h i 0 ]
-     *                [ 0 0 0 1 ]
-     * }</pre>
-     * If <code>M</code> is <code>this</code> matrix and <code>L</code> the <code>lhs</code>
-     * matrix, then the new matrix will be <code>L * M</code> (row-major). So when transforming
-     * a vector <code>v</code> with the new matrix by using <code>v * L * M</code>, the
-     * transformation of the left-hand side matrix will be applied first.
      *
      * @param lhs the left-hand side matrix to multiply
      */
-    public void preConcat(@NonNull Matrix3 lhs) {
+    public void postConcat(@NonNull Matrix4c lhs) {
+        // 64 multiplications, C(ji) = ∑ L(ki) * M(jk)
+        final float f11 = m11 * lhs.m11() + m12 * lhs.m21() + m13 * lhs.m31() + m14 * lhs.m41();
+        final float f12 = m11 * lhs.m12() + m12 * lhs.m22() + m13 * lhs.m32() + m14 * lhs.m42();
+        final float f13 = m11 * lhs.m13() + m12 * lhs.m23() + m13 * lhs.m33() + m14 * lhs.m43();
+        final float f14 = m11 * lhs.m14() + m12 * lhs.m24() + m13 * lhs.m34() + m14 * lhs.m44();
+        final float f21 = m21 * lhs.m11() + m22 * lhs.m21() + m23 * lhs.m31() + m24 * lhs.m41();
+        final float f22 = m21 * lhs.m12() + m22 * lhs.m22() + m23 * lhs.m32() + m24 * lhs.m42();
+        final float f23 = m21 * lhs.m13() + m22 * lhs.m23() + m23 * lhs.m33() + m24 * lhs.m43();
+        final float f24 = m21 * lhs.m14() + m22 * lhs.m24() + m23 * lhs.m34() + m24 * lhs.m44();
+        final float f31 = m31 * lhs.m11() + m32 * lhs.m21() + m33 * lhs.m31() + m34 * lhs.m41();
+        final float f32 = m31 * lhs.m12() + m32 * lhs.m22() + m33 * lhs.m32() + m34 * lhs.m42();
+        final float f33 = m31 * lhs.m13() + m32 * lhs.m23() + m33 * lhs.m33() + m34 * lhs.m43();
+        final float f34 = m31 * lhs.m14() + m32 * lhs.m24() + m33 * lhs.m34() + m34 * lhs.m44();
+        final float f41 = m41 * lhs.m11() + m42 * lhs.m21() + m43 * lhs.m31() + m44 * lhs.m41();
+        final float f42 = m41 * lhs.m12() + m42 * lhs.m22() + m43 * lhs.m32() + m44 * lhs.m42();
+        final float f43 = m41 * lhs.m13() + m42 * lhs.m23() + m43 * lhs.m33() + m44 * lhs.m43();
+        final float f44 = m41 * lhs.m14() + m42 * lhs.m24() + m43 * lhs.m34() + m44 * lhs.m44();
+        m11 = f11;
+        m12 = f12;
+        m13 = f13;
+        m14 = f14;
+        m21 = f21;
+        m22 = f22;
+        m23 = f23;
+        m24 = f24;
+        m31 = f31;
+        m32 = f32;
+        m33 = f33;
+        m34 = f34;
+        m41 = f41;
+        m42 = f42;
+        m43 = f43;
+        m44 = f44;
+    }
+
+    /**
+     * Post-multiply this matrix by the given <code>lhs</code> matrix.
+     * <p>
+     * If <code>M</code> is <code>this</code> matrix and <code>L</code> the <code>lhs</code>
+     * matrix, then the new matrix will be <code>L * M</code> (GLSL). So when transforming
+     * a vector <code>v</code> with the new matrix by using <code>L * M * v</code>, the
+     * transformation of <code>this</code> matrix will be applied first.
+     *
+     * @param l11 the m11 element of the left-hand side matrix
+     * @param l12 the m12 element of the left-hand side matrix
+     * @param l13 the m13 element of the left-hand side matrix
+     * @param l14 the m14 element of the left-hand side matrix
+     * @param l21 the m21 element of the left-hand side matrix
+     * @param l22 the m22 element of the left-hand side matrix
+     * @param l23 the m23 element of the left-hand side matrix
+     * @param l24 the m24 element of the left-hand side matrix
+     * @param l31 the m31 element of the left-hand side matrix
+     * @param l32 the m32 element of the left-hand side matrix
+     * @param l33 the m33 element of the left-hand side matrix
+     * @param l34 the m34 element of the left-hand side matrix
+     * @param l41 the m41 element of the left-hand side matrix
+     * @param l42 the m42 element of the left-hand side matrix
+     * @param l43 the m43 element of the left-hand side matrix
+     * @param l44 the m44 element of the left-hand side matrix
+     */
+    public void postConcat(float l11, float l12, float l13, float l14,
+                           float l21, float l22, float l23, float l24,
+                           float l31, float l32, float l33, float l34,
+                           float l41, float l42, float l43, float l44) {
+        // 64 multiplications, C(ji) = ∑ L(ki) * M(jk)
+        final float f11 = m11 * l11 + m12 * l21 + m13 * l31 + m14 * l41;
+        final float f12 = m11 * l12 + m12 * l22 + m13 * l32 + m14 * l42;
+        final float f13 = m11 * l13 + m12 * l23 + m13 * l33 + m14 * l43;
+        final float f14 = m11 * l14 + m12 * l24 + m13 * l34 + m14 * l44;
+        final float f21 = m21 * l11 + m22 * l21 + m23 * l31 + m24 * l41;
+        final float f22 = m21 * l12 + m22 * l22 + m23 * l32 + m24 * l42;
+        final float f23 = m21 * l13 + m22 * l23 + m23 * l33 + m24 * l43;
+        final float f24 = m21 * l14 + m22 * l24 + m23 * l34 + m24 * l44;
+        final float f31 = m31 * l11 + m32 * l21 + m33 * l31 + m34 * l41;
+        final float f32 = m31 * l12 + m32 * l22 + m33 * l32 + m34 * l42;
+        final float f33 = m31 * l13 + m32 * l23 + m33 * l33 + m34 * l43;
+        final float f34 = m31 * l14 + m32 * l24 + m33 * l34 + m34 * l44;
+        final float f41 = m41 * l11 + m42 * l21 + m43 * l31 + m44 * l41;
+        final float f42 = m41 * l12 + m42 * l22 + m43 * l32 + m44 * l42;
+        final float f43 = m41 * l13 + m42 * l23 + m43 * l33 + m44 * l43;
+        final float f44 = m41 * l14 + m42 * l24 + m43 * l34 + m44 * l44;
+        m11 = f11;
+        m12 = f12;
+        m13 = f13;
+        m14 = f14;
+        m21 = f21;
+        m22 = f22;
+        m23 = f23;
+        m24 = f24;
+        m31 = f31;
+        m32 = f32;
+        m33 = f33;
+        m34 = f34;
+        m41 = f41;
+        m42 = f42;
+        m43 = f43;
+        m44 = f44;
+    }
+
+    /**
+     * Pre-multiply this matrix by the given <code>rhs</code> matrix. The matrix will be
+     * expanded to a 4x4 matrix.
+     * <pre>{@code
+     * [ a b c ]      [ a b 0 c ]
+     * [ d e f ]  ->  [ d e 0 f ]
+     * [ g h i ]      [ 0 0 1 0 ]
+     *                [ g h 0 i ]
+     * }</pre>
+     * If <code>M</code> is <code>this</code> matrix and <code>R</code> the <code>rhs</code>
+     * matrix, then the new matrix will be <code>M * R</code> (GLSL). So when transforming
+     * a vector <code>v</code> with the new matrix by using <code>M * R * v</code>, the
+     * transformation of the right-hand side matrix will be applied first.
+     *
+     * @param r11 the m11 element of the right-hand side matrix
+     * @param r12 the m12 element of the right-hand side matrix
+     * @param r14 the m14 element of the right-hand side matrix
+     * @param r21 the m21 element of the right-hand side matrix
+     * @param r22 the m22 element of the right-hand side matrix
+     * @param r24 the m24 element of the right-hand side matrix
+     * @param r41 the m41 element of the right-hand side matrix
+     * @param r42 the m42 element of the right-hand side matrix
+     * @param r44 the m44 element of the right-hand side matrix
+     */
+    public void preConcat2D(float r11, float r12, float r14,
+                            float r21, float r22, float r24,
+                            float r41, float r42, float r44) {
         // 36 multiplications
-        final float f11 = lhs.m11 * m11 + lhs.m12 * m21 + lhs.m13 * m31;
-        final float f12 = lhs.m11 * m12 + lhs.m12 * m22 + lhs.m13 * m32;
-        final float f13 = lhs.m11 * m13 + lhs.m12 * m23 + lhs.m13 * m33;
-        final float f14 = lhs.m11 * m14 + lhs.m12 * m24 + lhs.m13 * m34;
-        final float f21 = lhs.m21 * m11 + lhs.m22 * m21 + lhs.m23 * m31;
-        final float f22 = lhs.m21 * m12 + lhs.m22 * m22 + lhs.m23 * m32;
-        final float f23 = lhs.m21 * m13 + lhs.m22 * m23 + lhs.m23 * m33;
-        final float f24 = lhs.m21 * m14 + lhs.m22 * m24 + lhs.m23 * m34;
-        final float f31 = lhs.m31 * m11 + lhs.m32 * m21 + lhs.m33 * m31;
-        final float f32 = lhs.m31 * m12 + lhs.m32 * m22 + lhs.m33 * m32;
-        final float f33 = lhs.m31 * m13 + lhs.m32 * m23 + lhs.m33 * m33;
-        final float f34 = lhs.m31 * m14 + lhs.m32 * m24 + lhs.m33 * m34;
+        final float f11 = r11 * m11 + r12 * m21 + r14 * m41;
+        final float f12 = r11 * m12 + r12 * m22 + r14 * m42;
+        final float f13 = r11 * m13 + r12 * m23 + r14 * m43;
+        final float f14 = r11 * m14 + r12 * m24 + r14 * m44;
+        final float f21 = r21 * m11 + r22 * m21 + r24 * m41;
+        final float f22 = r21 * m12 + r22 * m22 + r24 * m42;
+        final float f23 = r21 * m13 + r22 * m23 + r24 * m43;
+        final float f24 = r21 * m14 + r22 * m24 + r24 * m44;
+        final float f41 = r41 * m11 + r42 * m21 + r44 * m41;
+        final float f42 = r41 * m12 + r42 * m22 + r44 * m42;
+        final float f43 = r41 * m13 + r42 * m23 + r44 * m43;
+        final float f44 = r41 * m14 + r42 * m24 + r44 * m44;
+        m11 = f11;
+        m12 = f12;
+        m13 = f13;
+        m14 = f14;
+        m21 = f21;
+        m22 = f22;
+        m23 = f23;
+        m24 = f24;
+        m41 = f41;
+        m42 = f42;
+        m43 = f43;
+        m44 = f44;
+    }
+
+    /**
+     * Post-multiply this matrix by the given <code>lhs</code> matrix. The matrix will be
+     * expanded to a 4x4 matrix.
+     * <pre>{@code
+     * [ a b c ]      [ a b 0 c ]
+     * [ d e f ]  ->  [ d e 0 f ]
+     * [ g h i ]      [ 0 0 1 0 ]
+     *                [ g h 0 i ]
+     * }</pre>
+     * If <code>M</code> is <code>this</code> matrix and <code>L</code> the <code>lhs</code>
+     * matrix, then the new matrix will be <code>L * M</code> (GLSL). So when transforming
+     * a vector <code>v</code> with the new matrix by using <code>L * M * v</code>, the
+     * transformation of <code>this</code> matrix will be applied first.
+     *
+     * @param l11 the m11 element of the left-hand side matrix
+     * @param l12 the m12 element of the left-hand side matrix
+     * @param l14 the m14 element of the left-hand side matrix
+     * @param l21 the m21 element of the left-hand side matrix
+     * @param l22 the m22 element of the left-hand side matrix
+     * @param l24 the m24 element of the left-hand side matrix
+     * @param l41 the m41 element of the left-hand side matrix
+     * @param l42 the m42 element of the left-hand side matrix
+     * @param l44 the m44 element of the left-hand side matrix
+     */
+    public void postConcat2D(float l11, float l12, float l14,
+                             float l21, float l22, float l24,
+                             float l41, float l42, float l44) {
+        // 36 multiplications
+        final float f11 = m11 * l11 + m12 * l21 + m14 * l41;
+        final float f12 = m11 * l12 + m12 * l22 + m14 * l42;
+        final float f14 = m11 * l14 + m12 * l24 + m14 * l44;
+        final float f21 = m21 * l11 + m22 * l21 + m24 * l41;
+        final float f22 = m21 * l12 + m22 * l22 + m24 * l42;
+        final float f24 = m21 * l14 + m22 * l24 + m24 * l44;
+        final float f31 = m31 * l11 + m32 * l21 + m34 * l41;
+        final float f32 = m31 * l12 + m32 * l22 + m34 * l42;
+        final float f34 = m31 * l14 + m32 * l24 + m34 * l44;
+        final float f41 = m41 * l11 + m42 * l21 + m44 * l41;
+        final float f42 = m41 * l12 + m42 * l22 + m44 * l42;
+        final float f44 = m41 * l14 + m42 * l24 + m44 * l44;
+        m11 = f11;
+        m12 = f12;
+        m14 = f14;
+        m21 = f21;
+        m22 = f22;
+        m24 = f24;
+        m31 = f31;
+        m32 = f32;
+        m34 = f34;
+        m41 = f41;
+        m42 = f42;
+        m44 = f44;
+    }
+
+    /**
+     * Pre-multiply this matrix by the given <code>rhs</code> matrix. The matrix will be
+     * expanded to a 4x4 matrix.
+     * <pre>{@code
+     * [ a b c ]      [ a b c 0 ]
+     * [ d e f ]  ->  [ d e f 0 ]
+     * [ g h i ]      [ g h i 0 ]
+     *                [ 0 0 0 1 ]
+     * }</pre>
+     * If <code>M</code> is <code>this</code> matrix and <code>R</code> the <code>rhs</code>
+     * matrix, then the new matrix will be <code>M * R</code> (GLSL). So when transforming
+     * a vector <code>v</code> with the new matrix by using <code>M * R * v</code>, the
+     * transformation of the right-hand side matrix will be applied first.
+     *
+     * @param rhs the right-hand side matrix to multiply
+     */
+    public void preConcat(@NonNull Matrix3 rhs) {
+        // 36 multiplications
+        final float f11 = rhs.m11 * m11 + rhs.m12 * m21 + rhs.m13 * m31;
+        final float f12 = rhs.m11 * m12 + rhs.m12 * m22 + rhs.m13 * m32;
+        final float f13 = rhs.m11 * m13 + rhs.m12 * m23 + rhs.m13 * m33;
+        final float f14 = rhs.m11 * m14 + rhs.m12 * m24 + rhs.m13 * m34;
+        final float f21 = rhs.m21 * m11 + rhs.m22 * m21 + rhs.m23 * m31;
+        final float f22 = rhs.m21 * m12 + rhs.m22 * m22 + rhs.m23 * m32;
+        final float f23 = rhs.m21 * m13 + rhs.m22 * m23 + rhs.m23 * m33;
+        final float f24 = rhs.m21 * m14 + rhs.m22 * m24 + rhs.m23 * m34;
+        final float f31 = rhs.m31 * m11 + rhs.m32 * m21 + rhs.m33 * m31;
+        final float f32 = rhs.m31 * m12 + rhs.m32 * m22 + rhs.m33 * m32;
+        final float f33 = rhs.m31 * m13 + rhs.m32 * m23 + rhs.m33 * m33;
+        final float f34 = rhs.m31 * m14 + rhs.m32 * m24 + rhs.m33 * m34;
         m11 = f11;
         m12 = f12;
         m13 = f13;
@@ -728,7 +777,7 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
     }
 
     /**
-     * Post-multiply this matrix by the given <code>rhs</code> matrix. The matrix will be
+     * Post-multiply this matrix by the given <code>lhs</code> matrix. The matrix will be
      * expanded to a 4x4 matrix.
      * <pre>{@code
      * [ a b c ]      [ a b c 0 ]
@@ -736,27 +785,27 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
      * [ g h i ]      [ g h i 0 ]
      *                [ 0 0 0 1 ]
      * }</pre>
-     * If <code>M</code> is <code>this</code> matrix and <code>R</code> the <code>rhs</code>
-     * matrix, then the new matrix will be <code>M * R</code> (row-major). So when transforming
-     * a vector <code>v</code> with the new matrix by using <code>v * M * R</code>, the
+     * If <code>M</code> is <code>this</code> matrix and <code>L</code> the <code>lhs</code>
+     * matrix, then the new matrix will be <code>L * M</code> (GLSL). So when transforming
+     * a vector <code>v</code> with the new matrix by using <code>L * M * v</code>, the
      * transformation of <code>this</code> matrix will be applied first.
      *
-     * @param rhs the right-hand side matrix to multiply
+     * @param lhs the left-hand side matrix to multiply
      */
-    public void postConcat(@NonNull Matrix3 rhs) {
+    public void postConcat(@NonNull Matrix3 lhs) {
         // 36 multiplications
-        final float f11 = m11 * rhs.m11 + m12 * rhs.m21 + m13 * rhs.m31;
-        final float f12 = m11 * rhs.m12 + m12 * rhs.m22 + m13 * rhs.m32;
-        final float f13 = m11 * rhs.m13 + m12 * rhs.m23 + m13 * rhs.m33;
-        final float f21 = m21 * rhs.m11 + m22 * rhs.m21 + m23 * rhs.m31;
-        final float f22 = m21 * rhs.m12 + m22 * rhs.m22 + m23 * rhs.m32;
-        final float f23 = m21 * rhs.m13 + m22 * rhs.m23 + m23 * rhs.m33;
-        final float f31 = m31 * rhs.m11 + m32 * rhs.m21 + m33 * rhs.m31;
-        final float f32 = m31 * rhs.m12 + m32 * rhs.m22 + m33 * rhs.m32;
-        final float f33 = m31 * rhs.m13 + m32 * rhs.m23 + m33 * rhs.m33;
-        final float f41 = m41 * rhs.m11 + m42 * rhs.m21 + m43 * rhs.m31;
-        final float f42 = m41 * rhs.m12 + m42 * rhs.m22 + m43 * rhs.m32;
-        final float f43 = m41 * rhs.m13 + m42 * rhs.m23 + m43 * rhs.m33;
+        final float f11 = m11 * lhs.m11 + m12 * lhs.m21 + m13 * lhs.m31;
+        final float f12 = m11 * lhs.m12 + m12 * lhs.m22 + m13 * lhs.m32;
+        final float f13 = m11 * lhs.m13 + m12 * lhs.m23 + m13 * lhs.m33;
+        final float f21 = m21 * lhs.m11 + m22 * lhs.m21 + m23 * lhs.m31;
+        final float f22 = m21 * lhs.m12 + m22 * lhs.m22 + m23 * lhs.m32;
+        final float f23 = m21 * lhs.m13 + m22 * lhs.m23 + m23 * lhs.m33;
+        final float f31 = m31 * lhs.m11 + m32 * lhs.m21 + m33 * lhs.m31;
+        final float f32 = m31 * lhs.m12 + m32 * lhs.m22 + m33 * lhs.m32;
+        final float f33 = m31 * lhs.m13 + m32 * lhs.m23 + m33 * lhs.m33;
+        final float f41 = m41 * lhs.m11 + m42 * lhs.m21 + m43 * lhs.m31;
+        final float f42 = m41 * lhs.m12 + m42 * lhs.m22 + m43 * lhs.m32;
+        final float f43 = m41 * lhs.m13 + m42 * lhs.m23 + m43 * lhs.m33;
         m11 = f11;
         m12 = f12;
         m13 = f13;
@@ -1250,58 +1299,80 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
      * @return {@code true} if this matrix is invertible.
      */
     public boolean invert(@Nullable Matrix4 dest) {
-        float b00 = m11 * m22 - m12 * m21;
-        float b01 = m11 * m23 - m13 * m21;
-        float b02 = m11 * m24 - m14 * m21;
-        float b03 = m12 * m23 - m13 * m22;
-        float b04 = m12 * m24 - m14 * m22;
-        float b05 = m13 * m24 - m14 * m23;
-        float b06 = m31 * m42 - m32 * m41;
-        float b07 = m31 * m43 - m33 * m41;
-        float b08 = m31 * m44 - m34 * m41;
-        float b09 = m32 * m43 - m33 * m42;
-        float b10 = m32 * m44 - m34 * m42;
-        float b11 = m33 * m44 - m34 * m43;
+        double a11 = m11;
+        double a12 = m12;
+        double a13 = m13;
+        double a14 = m14;
+        double a21 = m21;
+        double a22 = m22;
+        double a23 = m23;
+        double a24 = m24;
+        double a31 = m31;
+        double a32 = m32;
+        double a33 = m33;
+        double a34 = m34;
+        double a41 = m41;
+        double a42 = m42;
+        double a43 = m43;
+        double a44 = m44;
+        double b00 = a11 * a22 - a12 * a21;
+        double b01 = a11 * a23 - a13 * a21;
+        double b02 = a11 * a24 - a14 * a21;
+        double b03 = a12 * a23 - a13 * a22;
+        double b04 = a12 * a24 - a14 * a22;
+        double b05 = a13 * a24 - a14 * a23;
+        double b06 = a31 * a42 - a32 * a41;
+        double b07 = a31 * a43 - a33 * a41;
+        double b08 = a31 * a44 - a34 * a41;
+        double b09 = a32 * a43 - a33 * a42;
+        double b10 = a32 * a44 - a34 * a42;
+        double b11 = a33 * a44 - a34 * a43;
         // calc the determinant
-        float det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
-        if (det == 0) {
+        double det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
+        if (dest == null) {
+            return (float) det != 0.0f;
+        }
+        if (!(det != 0.0)) {
             return false;
         }
-        if (dest != null) {
-            // calc algebraic cofactor and transpose
-            det = 1.0f / det;
-            final float f11 = (m22 * b11 - m23 * b10 + m24 * b09) * det;
-            final float f12 = (m23 * b08 - m21 * b11 - m24 * b07) * det;
-            final float f13 = (m21 * b10 - m22 * b08 + m24 * b06) * det;
-            final float f14 = (m22 * b07 - m21 * b09 - m23 * b06) * det;
-            final float f21 = (m13 * b10 - m12 * b11 - m14 * b09) * det;
-            final float f22 = (m11 * b11 - m13 * b08 + m14 * b07) * det;
-            final float f23 = (m12 * b08 - m11 * b10 - m14 * b06) * det;
-            final float f24 = (m11 * b09 - m12 * b07 + m13 * b06) * det;
-            final float f31 = (m42 * b05 - m43 * b04 + m44 * b03) * det;
-            final float f32 = (m43 * b02 - m41 * b05 - m44 * b01) * det;
-            final float f33 = (m41 * b04 - m42 * b02 + m44 * b00) * det;
-            final float f34 = (m42 * b01 - m41 * b03 - m43 * b00) * det;
-            final float f41 = (m33 * b04 - m32 * b05 - m34 * b03) * det;
-            final float f42 = (m31 * b05 - m33 * b02 + m34 * b01) * det;
-            final float f43 = (m32 * b02 - m31 * b04 - m34 * b00) * det;
-            final float f44 = (m31 * b03 - m32 * b01 + m33 * b00) * det;
-            dest.m11 = f11;
-            dest.m21 = f12;
-            dest.m31 = f13;
-            dest.m41 = f14;
-            dest.m12 = f21;
-            dest.m22 = f22;
-            dest.m32 = f23;
-            dest.m42 = f24;
-            dest.m13 = f31;
-            dest.m23 = f32;
-            dest.m33 = f33;
-            dest.m43 = f34;
-            dest.m14 = f41;
-            dest.m24 = f42;
-            dest.m34 = f43;
-            dest.m44 = f44;
+        // calc algebraic cofactor and transpose
+        det = 1.0 / det;
+        dest.m11 = (float) ((a22 * b11 - a23 * b10 + a24 * b09) * det);
+        dest.m21 = (float) ((a23 * b08 - a21 * b11 - a24 * b07) * det);
+        dest.m31 = (float) ((a21 * b10 - a22 * b08 + a24 * b06) * det);
+        dest.m41 = (float) ((a22 * b07 - a21 * b09 - a23 * b06) * det);
+        dest.m12 = (float) ((a13 * b10 - a12 * b11 - a14 * b09) * det);
+        dest.m22 = (float) ((a11 * b11 - a13 * b08 + a14 * b07) * det);
+        dest.m32 = (float) ((a12 * b08 - a11 * b10 - a14 * b06) * det);
+        dest.m42 = (float) ((a11 * b09 - a12 * b07 + a13 * b06) * det);
+        dest.m13 = (float) ((a42 * b05 - a43 * b04 + a44 * b03) * det);
+        dest.m23 = (float) ((a43 * b02 - a41 * b05 - a44 * b01) * det);
+        dest.m33 = (float) ((a41 * b04 - a42 * b02 + a44 * b00) * det);
+        dest.m43 = (float) ((a42 * b01 - a41 * b03 - a43 * b00) * det);
+        dest.m14 = (float) ((a33 * b04 - a32 * b05 - a34 * b03) * det);
+        dest.m24 = (float) ((a31 * b05 - a33 * b02 + a34 * b01) * det);
+        dest.m34 = (float) ((a32 * b02 - a31 * b04 - a34 * b00) * det);
+        dest.m44 = (float) ((a31 * b03 - a32 * b01 + a33 * b00) * det);
+        if (!dest.isFinite()) {
+            // If 1/det overflows to infinity (i.e. det is denormalized) or any of the inverted matrix
+            // values is non-finite, return false to indicate a non-invertible matrix.
+            dest.m11 = (float) a11;
+            dest.m12 = (float) a12;
+            dest.m13 = (float) a13;
+            dest.m14 = (float) a14;
+            dest.m21 = (float) a21;
+            dest.m22 = (float) a22;
+            dest.m23 = (float) a23;
+            dest.m24 = (float) a24;
+            dest.m31 = (float) a31;
+            dest.m32 = (float) a32;
+            dest.m33 = (float) a33;
+            dest.m34 = (float) a34;
+            dest.m41 = (float) a41;
+            dest.m42 = (float) a42;
+            dest.m43 = (float) a43;
+            dest.m44 = (float) a44;
+            return false;
         }
         return true;
     }
@@ -1682,9 +1753,9 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
      * units in x, y and z.
      * <p>
      * If <code>M</code> is <code>this</code> matrix and <code>T</code> the translation
-     * matrix, then the new matrix will be <code>T * M</code> (row-major). So when
+     * matrix, then the new matrix will be <code>M * T</code> (GLSL). So when
      * transforming a vector <code>v</code> with the new matrix by using
-     * <code>v * T * M</code>, the translation will be applied first.
+     * <code>M * T * v</code>, the translation will be applied first.
      *
      * @param dx the x-component of the translation
      * @param dy the y-component of the translation
@@ -1702,9 +1773,9 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
      * units in x, y and z.
      * <p>
      * If <code>M</code> is <code>this</code> matrix and <code>T</code> the translation
-     * matrix, then the new matrix will be <code>T * M</code> (row-major). So when
+     * matrix, then the new matrix will be <code>M * T</code> (GLSL). So when
      * transforming a vector <code>v</code> with the new matrix by using
-     * <code>v * T * M</code>, the translation will be applied first.
+     * <code>M * T * v</code>, the translation will be applied first.
      *
      * @param dx the x-component of the translation
      * @param dy the y-component of the translation
@@ -1731,9 +1802,9 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
      * units in x, y and z.
      * <p>
      * If <code>M</code> is <code>this</code> matrix and <code>T</code> the translation
-     * matrix, then the new matrix will be <code>M * T</code> (row-major). So when
+     * matrix, then the new matrix will be <code>T * M</code> (GLSL). So when
      * transforming a vector <code>v</code> with the new matrix by using
-     * <code>v * M * T</code>, the translation will be applied last.
+     * <code>T * M * v</code>, the translation will be applied last.
      *
      * @param dx the x-component of the translation
      * @param dy the y-component of the translation
@@ -1759,9 +1830,9 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
      * units in x, y and z.
      * <p>
      * If <code>M</code> is <code>this</code> matrix and <code>T</code> the translation
-     * matrix, then the new matrix will be <code>M * T</code> (row-major). So when
+     * matrix, then the new matrix will be <code>T * M</code> (GLSL). So when
      * transforming a vector <code>v</code> with the new matrix by using
-     * <code>v * M * T</code>, the translation will be applied last.
+     * <code>T * M * v</code>, the translation will be applied last.
      *
      * @param dx the x-component of the translation
      * @param dy the y-component of the translation
@@ -1902,11 +1973,11 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
 
     /**
      * Apply scaling to <code>this</code> matrix by scaling the base axes by the given x,
-     * y and z factors and store the result in <code>dest</code>.
+     * y and z factors.
      * <p>
      * If <code>M</code> is <code>this</code> matrix and <code>S</code> the scaling matrix,
-     * then the new matrix will be <code>S * M</code> (row-major). So when transforming a
-     * vector <code>v</code> with the new matrix by using <code>v * S * M</code>,
+     * then the new matrix will be <code>M * S</code> (GLSL). So when transforming a
+     * vector <code>v</code> with the new matrix by using <code>M * S * v</code>,
      * the scaling will be applied first.
      *
      * @param sx the x-component of the scale
@@ -1929,12 +2000,12 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
     }
 
     /**
-     * Apply scaling to <code>this</code> matrix by scaling the base axes by the given x,
-     * y and z factors and store the result in <code>dest</code>.
+     * Apply scaling to <code>this</code> matrix by scaling the base axes by the given x
+     * and y factors.
      * <p>
      * If <code>M</code> is <code>this</code> matrix and <code>S</code> the scaling matrix,
-     * then the new matrix will be <code>S * M</code> (row-major). So when transforming a
-     * vector <code>v</code> with the new matrix by using <code>v * S * M</code>,
+     * then the new matrix will be <code>M * S</code> (GLSL). So when transforming a
+     * vector <code>v</code> with the new matrix by using <code>M * S * v</code>,
      * the scaling will be applied first.
      *
      * @param sx the x-component of the scale
@@ -1963,11 +2034,11 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
 
     /**
      * Post-multiply scaling to <code>this</code> matrix by scaling the base axes by the given x,
-     * y and z factors and store the result in <code>dest</code>.
+     * y and z factors.
      * <p>
      * If <code>M</code> is <code>this</code> matrix and <code>S</code> the scaling matrix,
-     * then the new matrix will be <code>M * S</code> (row-major). So when transforming a
-     * vector <code>v</code> with the new matrix by using <code>v * M * S</code>,
+     * then the new matrix will be <code>S * M</code> (GLSL). So when transforming a
+     * vector <code>v</code> with the new matrix by using <code>S * M * v</code>,
      * the scaling will be applied last.
      *
      * @param sx the x-component of the scale
@@ -1990,12 +2061,12 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
     }
 
     /**
-     * Post-multiply scaling to <code>this</code> matrix by scaling the base axes by the given x,
-     * y and z factors and store the result in <code>dest</code>.
+     * Post-multiply scaling to <code>this</code> matrix by scaling the base axes by the given x
+     * and y factors.
      * <p>
      * If <code>M</code> is <code>this</code> matrix and <code>S</code> the scaling matrix,
-     * then the new matrix will be <code>M * S</code> (row-major). So when transforming a
-     * vector <code>v</code> with the new matrix by using <code>v * M * S</code>,
+     * then the new matrix will be <code>S * M</code> (GLSL). So when transforming a
+     * vector <code>v</code> with the new matrix by using <code>S * M * v</code>,
      * the scaling will be applied last.
      *
      * @param sx the x-component of the scale
@@ -2050,7 +2121,7 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
     /**
      * Pre-multiply shearing to <code>this</code> matrix by the given shearing coefficients.
      * <p>
-     * This is equivalent to pre-multiplying by a shearing matrix.
+     * This is equivalent to pre-multiplying by a shearing matrix (row-major).
      * <table border="1">
      *   <tr>
      *     <td>1</th>
@@ -2108,7 +2179,7 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
     /**
      * Post-multiply shearing to <code>this</code> matrix by the given shearing coefficients.
      * <p>
-     * This is equivalent to post-multiplying by a shearing matrix.
+     * This is equivalent to post-multiplying by a shearing matrix (row-major).
      * <table border="1">
      *   <tr>
      *     <td>1</th>
@@ -3375,6 +3446,22 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
         Matrix3 m = new Matrix3();
         toMatrix3(m);
         return m;
+    }
+
+    /**
+     * Returns true if all values are finite.
+     *
+     * @return true if no member is infinite or NaN
+     */
+    @SuppressWarnings({"PointlessArithmeticExpression", "ExpressionComparedToItself"})
+    public boolean isFinite() {
+        float prod = m11 - m11;
+        prod = prod * m12 * m13 * m14 *
+                m21 * m22 * m23 * m24 *
+                m31 * m32 * m33 * m34 *
+                m41 * m42 * m43 * m44;
+        // At this point, `prod` will either be NaN or 0.
+        return prod == prod;
     }
 
     /**

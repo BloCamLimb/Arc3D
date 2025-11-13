@@ -33,6 +33,24 @@ public class Vector4 {
     public float z;
     public float w;
 
+    public Vector4() {
+        w = 1;
+    }
+
+    public Vector4(float x, float y, float z) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        w = 1;
+    }
+
+    public Vector4(float x, float y, float z, float w) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        this.w = w;
+    }
+
     /**
      * Transform this vector by a 4x4 transformation matrix.
      *

@@ -475,32 +475,32 @@ public non-sealed class Matrix implements Matrixc, Cloneable {
     }
 
     /**
-     * Pre-multiply this matrix by the given <code>lhs</code> matrix.
+     * Pre-multiply this matrix by the given <code>rhs</code> matrix.
      * <p>
-     * If <code>M</code> is <code>this</code> matrix and <code>L</code> the <code>lhs</code>
-     * matrix, then the new matrix will be <code>L * M</code> (row-major). So when transforming
-     * a vector <code>v</code> with the new matrix by using <code>v * L * M</code>, the
-     * transformation of the left-hand side matrix will be applied first.
+     * If <code>M</code> is <code>this</code> matrix and <code>R</code> the <code>rhs</code>
+     * matrix, then the new matrix will be <code>M * R</code> (GLSL). So when transforming
+     * a vector <code>v</code> with the new matrix by using <code>M * R * v</code>, the
+     * transformation of the right-hand side matrix will be applied first.
      *
-     * @param lhs the left-hand side matrix to multiply
+     * @param rhs the right-hand side matrix to multiply
      */
-    public void preConcat(@NonNull Matrixc lhs) {
+    public void preConcat(@NonNull Matrixc rhs) {
         int bMask = getType();
         if (bMask == kIdentity_Mask) {
-            set(lhs);
+            set(rhs);
             return;
         }
-        int aMask = lhs.getType();
+        int aMask = rhs.getType();
         if (aMask == kIdentity_Mask) {
             return;
         }
         if (((aMask | bMask) & (kAffine_Mask | kPerspective_Mask)) == 0) {
             // both are ScaleTranslate
             setScaleTranslate(
-                    /*m11*/ lhs.m11() * m11,
-                    /*m22*/ lhs.m22() * m22,
-                    /*m41*/ lhs.m41() * m11 + m41,
-                    /*m42*/ lhs.m42() * m22 + m42
+                    /*m11*/ rhs.m11() * m11,
+                    /*m22*/ rhs.m22() * m22,
+                    /*m41*/ rhs.m41() * m11 + m41,
+                    /*m42*/ rhs.m42() * m22 + m42
             );
             return;
         }
@@ -515,26 +515,26 @@ public non-sealed class Matrix implements Matrixc, Cloneable {
         final float f44;
         if (((aMask | bMask) & kPerspective_Mask) == 0) {
             // both have no perspective
-            f11 = lhs.m11() * m11 + lhs.m12() * m21;
-            f12 = lhs.m11() * m12 + lhs.m12() * m22;
+            f11 = rhs.m11() * m11 + rhs.m12() * m21;
+            f12 = rhs.m11() * m12 + rhs.m12() * m22;
             f14 = 0;
-            f21 = lhs.m21() * m11 + lhs.m22() * m21;
-            f22 = lhs.m21() * m12 + lhs.m22() * m22;
+            f21 = rhs.m21() * m11 + rhs.m22() * m21;
+            f22 = rhs.m21() * m12 + rhs.m22() * m22;
             f24 = 0;
-            f41 = lhs.m41() * m11 + lhs.m42() * m21 + m41;
-            f42 = lhs.m41() * m12 + lhs.m42() * m22 + m42;
+            f41 = rhs.m41() * m11 + rhs.m42() * m21 + m41;
+            f42 = rhs.m41() * m12 + rhs.m42() * m22 + m42;
             f44 = 1;
             mTypeMask = kOnlyPerspectiveValid_Mask | kUnknown_Mask;
         } else {
-            f11 = lhs.m11() * m11 + lhs.m12() * m21 + lhs.m14() * m41;
-            f12 = lhs.m11() * m12 + lhs.m12() * m22 + lhs.m14() * m42;
-            f14 = lhs.m11() * m14 + lhs.m12() * m24 + lhs.m14() * m44;
-            f21 = lhs.m21() * m11 + lhs.m22() * m21 + lhs.m24() * m41;
-            f22 = lhs.m21() * m12 + lhs.m22() * m22 + lhs.m24() * m42;
-            f24 = lhs.m21() * m14 + lhs.m22() * m24 + lhs.m24() * m44;
-            f41 = lhs.m41() * m11 + lhs.m42() * m21 + lhs.m44() * m41;
-            f42 = lhs.m41() * m12 + lhs.m42() * m22 + lhs.m44() * m42;
-            f44 = lhs.m41() * m14 + lhs.m42() * m24 + lhs.m44() * m44;
+            f11 = rhs.m11() * m11 + rhs.m12() * m21 + rhs.m14() * m41;
+            f12 = rhs.m11() * m12 + rhs.m12() * m22 + rhs.m14() * m42;
+            f14 = rhs.m11() * m14 + rhs.m12() * m24 + rhs.m14() * m44;
+            f21 = rhs.m21() * m11 + rhs.m22() * m21 + rhs.m24() * m41;
+            f22 = rhs.m21() * m12 + rhs.m22() * m22 + rhs.m24() * m42;
+            f24 = rhs.m21() * m14 + rhs.m22() * m24 + rhs.m24() * m44;
+            f41 = rhs.m41() * m11 + rhs.m42() * m21 + rhs.m44() * m41;
+            f42 = rhs.m41() * m12 + rhs.m42() * m22 + rhs.m44() * m42;
+            f44 = rhs.m41() * m14 + rhs.m42() * m24 + rhs.m44() * m44;
             mTypeMask = kUnknown_Mask;
         }
         m11 = f11;
@@ -549,32 +549,32 @@ public non-sealed class Matrix implements Matrixc, Cloneable {
     }
 
     /**
-     * Post-multiply this matrix by the given <code>rhs</code> matrix.
+     * Post-multiply this matrix by the given <code>lhs</code> matrix.
      * <p>
-     * If <code>M</code> is <code>this</code> matrix and <code>R</code> the <code>rhs</code>
-     * matrix, then the new matrix will be <code>M * R</code> (row-major). So when transforming
-     * a vector <code>v</code> with the new matrix by using <code>v * M * R</code>, the
+     * If <code>M</code> is <code>this</code> matrix and <code>L</code> the <code>lhs</code>
+     * matrix, then the new matrix will be <code>L * M</code> (GLSL). So when transforming
+     * a vector <code>v</code> with the new matrix by using <code>L * M * v</code>, the
      * transformation of <code>this</code> matrix will be applied first.
      *
-     * @param rhs the right-hand side matrix to multiply
+     * @param lhs the left-hand side matrix to multiply
      */
-    public void postConcat(@NonNull Matrixc rhs) {
+    public void postConcat(@NonNull Matrixc lhs) {
         int aMask = getType();
         if (aMask == kIdentity_Mask) {
-            set(rhs);
+            set(lhs);
             return;
         }
-        int bMask = rhs.getType();
+        int bMask = lhs.getType();
         if (bMask == kIdentity_Mask) {
             return;
         }
         if (((aMask | bMask) & (kAffine_Mask | kPerspective_Mask)) == 0) {
             // both are ScaleTranslate
             setScaleTranslate(
-                    /*m11*/ m11 * rhs.m11(),
-                    /*m22*/ m22 * rhs.m22(),
-                    /*m41*/ m41 * rhs.m11() + rhs.m41(),
-                    /*m42*/ m42 * rhs.m22() + rhs.m42()
+                    /*m11*/ m11 * lhs.m11(),
+                    /*m22*/ m22 * lhs.m22(),
+                    /*m41*/ m41 * lhs.m11() + lhs.m41(),
+                    /*m42*/ m42 * lhs.m22() + lhs.m42()
             );
             return;
         }
@@ -589,26 +589,26 @@ public non-sealed class Matrix implements Matrixc, Cloneable {
         final float f44;
         if (((aMask | bMask) & kPerspective_Mask) == 0) {
             // both have no perspective
-            f11 = m11 * rhs.m11() + m12 * rhs.m21();
-            f12 = m11 * rhs.m12() + m12 * rhs.m22();
+            f11 = m11 * lhs.m11() + m12 * lhs.m21();
+            f12 = m11 * lhs.m12() + m12 * lhs.m22();
             f14 = 0;
-            f21 = m21 * rhs.m11() + m22 * rhs.m21();
-            f22 = m21 * rhs.m12() + m22 * rhs.m22();
+            f21 = m21 * lhs.m11() + m22 * lhs.m21();
+            f22 = m21 * lhs.m12() + m22 * lhs.m22();
             f24 = 0;
-            f41 = m41 * rhs.m11() + m42 * rhs.m21() + rhs.m41();
-            f42 = m41 * rhs.m12() + m42 * rhs.m22() + rhs.m42();
+            f41 = m41 * lhs.m11() + m42 * lhs.m21() + lhs.m41();
+            f42 = m41 * lhs.m12() + m42 * lhs.m22() + lhs.m42();
             f44 = 1;
             mTypeMask = kOnlyPerspectiveValid_Mask | kUnknown_Mask;
         } else {
-            f11 = m11 * rhs.m11() + m12 * rhs.m21() + m14 * rhs.m41();
-            f12 = m11 * rhs.m12() + m12 * rhs.m22() + m14 * rhs.m42();
-            f14 = m11 * rhs.m14() + m12 * rhs.m24() + m14 * rhs.m44();
-            f21 = m21 * rhs.m11() + m22 * rhs.m21() + m24 * rhs.m41();
-            f22 = m21 * rhs.m12() + m22 * rhs.m22() + m24 * rhs.m42();
-            f24 = m21 * rhs.m14() + m22 * rhs.m24() + m24 * rhs.m44();
-            f41 = m41 * rhs.m11() + m42 * rhs.m21() + m44 * rhs.m41();
-            f42 = m41 * rhs.m12() + m42 * rhs.m22() + m44 * rhs.m42();
-            f44 = m41 * rhs.m14() + m42 * rhs.m24() + m44 * rhs.m44();
+            f11 = m11 * lhs.m11() + m12 * lhs.m21() + m14 * lhs.m41();
+            f12 = m11 * lhs.m12() + m12 * lhs.m22() + m14 * lhs.m42();
+            f14 = m11 * lhs.m14() + m12 * lhs.m24() + m14 * lhs.m44();
+            f21 = m21 * lhs.m11() + m22 * lhs.m21() + m24 * lhs.m41();
+            f22 = m21 * lhs.m12() + m22 * lhs.m22() + m24 * lhs.m42();
+            f24 = m21 * lhs.m14() + m22 * lhs.m24() + m24 * lhs.m44();
+            f41 = m41 * lhs.m11() + m42 * lhs.m21() + m44 * lhs.m41();
+            f42 = m41 * lhs.m12() + m42 * lhs.m22() + m44 * lhs.m42();
+            f44 = m41 * lhs.m14() + m42 * lhs.m24() + m44 * lhs.m44();
             mTypeMask = kUnknown_Mask;
         }
         m11 = f11;
@@ -1439,13 +1439,8 @@ public non-sealed class Matrix implements Matrixc, Cloneable {
     }
 
     /**
-     * Apply scaling to <code>this</code> matrix by scaling the base axes by the given x,
-     * y and z factors.
-     * <p>
-     * If <code>M</code> is <code>this</code> matrix and <code>S</code> the scaling matrix,
-     * then the new matrix will be <code>S * M</code> (row-major). So when transforming a
-     * vector <code>v</code> with the new matrix by using <code>v * S * M</code>,
-     * the scaling will be applied first.
+     * Apply scaling to <code>this</code> matrix by scaling the base axes by the given x
+     * and y factors.
      *
      * @param sx the x-component of the scale
      * @param sy the y-component of the scale
@@ -1482,13 +1477,8 @@ public non-sealed class Matrix implements Matrixc, Cloneable {
     }
 
     /**
-     * Post-multiply scaling to <code>this</code> matrix by scaling the base axes by the given x,
-     * y and z factors.
-     * <p>
-     * If <code>M</code> is <code>this</code> matrix and <code>S</code> the scaling matrix,
-     * then the new matrix will be <code>M * S</code> (row-major). So when transforming a
-     * vector <code>v</code> with the new matrix by using <code>v * M * S</code>,
-     * the scaling will be applied last.
+     * Post-multiply scaling to <code>this</code> matrix by scaling the base axes by the given x
+     * and y factors.
      *
      * @param sx the x-component of the scale
      * @param sy the y-component of the scale
