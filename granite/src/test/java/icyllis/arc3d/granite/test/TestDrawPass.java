@@ -22,10 +22,11 @@ package icyllis.arc3d.granite.test;
 import icyllis.arc3d.core.Matrix4;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.*;
-import icyllis.arc3d.granite.geom.AnalyticSimpleBoxStep;
+import icyllis.arc3d.granite.geom.AnalyticBoxStep;
 import icyllis.arc3d.granite.RecordingContext;
 import icyllis.arc3d.opengl.*;
 import icyllis.arc3d.sketch.Matrix;
+import icyllis.arc3d.sketch.RRect;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.*;
@@ -103,7 +104,7 @@ public class TestDrawPass {
         MeshDrawWriter drawWriter = new MeshDrawWriter(recordingContext.getDynamicBufferManager(),
                 commandList);
 
-        var step = new AnalyticSimpleBoxStep(false);
+        var step = new AnalyticBoxStep(false);
 
         drawWriter.newPipelineState(
                 step.vertexBinding(),
@@ -115,7 +116,7 @@ public class TestDrawPass {
 
         int nRects = 1000;
         for (int i = 0; i < nRects; i++) {
-            SimpleShape rrect = new SimpleShape();
+            RRect rrect = new RRect();
             int l = (int) (Math.random() * 910);
             int t = (int) (Math.random() * 450);
             int w = (int) (Math.random() * Math.random() * Math.random() * Math.random() * 350) + 20;

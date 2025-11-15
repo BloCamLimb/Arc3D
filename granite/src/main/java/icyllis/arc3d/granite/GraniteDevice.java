@@ -24,10 +24,12 @@ import icyllis.arc3d.engine.Engine;
 import icyllis.arc3d.engine.ISurface;
 import icyllis.arc3d.engine.ImageDesc;
 import icyllis.arc3d.engine.ImageViewProxy;
-import icyllis.arc3d.granite.geom.BlurredBox;
+import icyllis.arc3d.granite.geom.ArcShape;
 import icyllis.arc3d.granite.geom.BoundsManager;
+import icyllis.arc3d.granite.geom.BoxShape;
 import icyllis.arc3d.granite.geom.EdgeAAQuad;
 import icyllis.arc3d.granite.geom.HybridBoundsManager;
+import icyllis.arc3d.granite.geom.SubRunData;
 import icyllis.arc3d.granite.task.DrawTask;
 import icyllis.arc3d.granite.task.RenderPassTask;
 import icyllis.arc3d.sketch.*;
@@ -340,10 +342,10 @@ public final class GraniteDevice extends Device {
     @Override
     public void drawLine(float x0, float y0, float x1, float y1,
                          @Paint.Cap int cap, float width, Paint paint) {
-        var shape = new SimpleShape();
+        var shape = new BoxShape();
         shape.setLine(x0, y0, x1, y1, cap, width);
-        drawGeometry(getLocalToDevice33(), shape, SimpleShape::getBounds, false, paint,
-                mRendererProvider.getSimpleBox(false), null);
+        drawGeometry(getLocalToDevice33(), shape, BoxShape::getBounds, false, paint,
+                mRendererProvider.getAnalyticBox(false), null);
     }
 
     @Override
@@ -351,9 +353,8 @@ public final class GraniteDevice extends Device {
         if (paint.getStyle() == Paint.FILL) {
             if (paint.isAntiAlias()) {
                 drawGeometry(getLocalToDevice33(),
-                        new EdgeAAQuad(r, EdgeAAQuad.kAll),
-                        EdgeAAQuad::getBounds, false, paint,
-                        mRendererProvider.getPerEdgeAAQuad(), null);
+                        new BoxShape(r), BoxShape::getBounds, false, paint,
+                        mRendererProvider.getAnalyticBox(false), null);
             } else {
                 drawGeometry(getLocalToDevice33(),
                         new Rect2f(r), Rect2f::store, false, paint,
@@ -363,11 +364,13 @@ public final class GraniteDevice extends Device {
             var join = paint.getStrokeJoin();
             boolean complex = join == Paint.JOIN_BEVEL ||
                     (join == Paint.JOIN_MITER && paint.getStrokeMiter() < MathUtil.SQRT2);
-            GeometryRenderer renderer = complex
-                    ? mRendererProvider.getComplexBox()
-                    : mRendererProvider.getSimpleBox(false);
-            drawGeometry(getLocalToDevice33(), new SimpleShape(r), SimpleShape::getBounds, false, paint,
-                    renderer, null);
+            if (complex) {
+                drawGeometry(getLocalToDevice33(), new RRect(r), RRect::getBounds, false, paint,
+                        mRendererProvider.getAnalyticRRect(), null);
+            } else {
+                drawGeometry(getLocalToDevice33(), new BoxShape(r), BoxShape::getBounds, false, paint,
+                        mRendererProvider.getAnalyticBox(false), null);
+            }
         }
     }
 
@@ -383,22 +386,29 @@ public final class GraniteDevice extends Device {
                 yield false;
             }
         };
-        GeometryRenderer renderer = complex
-                ? mRendererProvider.getComplexBox()
-                : mRendererProvider.getSimpleBox(false);
-        drawGeometry(getLocalToDevice33(), new SimpleShape(rr), SimpleShape::getBounds, false, paint,
-                renderer, null);
+        if (complex) {
+            drawGeometry(getLocalToDevice33(), new RRect(rr), RRect::getBounds, false, paint,
+                    mRendererProvider.getAnalyticRRect(), null);
+        } else {
+            drawGeometry(getLocalToDevice33(), new BoxShape(rr), BoxShape::getBounds, false, paint,
+                    mRendererProvider.getAnalyticBox(false), null);
+        }
     }
 
     @Override
     public void drawEllipse(float cx, float cy, float rx, float ry, Paint paint) {
-        var shape = new SimpleShape();
-        shape.setEllipse(cx, cy, rx, ry);
-        GeometryRenderer renderer = rx != ry
-                ? mRendererProvider.getComplexBox()
-                : mRendererProvider.getSimpleBox(false);
-        drawGeometry(getLocalToDevice33(), shape, SimpleShape::getBounds, false, paint,
-                renderer, null);
+        if (rx != ry) {
+            //TODO stroking an ellipse requires new renderer
+            var shape = new RRect();
+            shape.setEllipse(cx, cy, rx, ry);
+            drawGeometry(getLocalToDevice33(), shape, RRect::getBounds, false, paint,
+                    mRendererProvider.getAnalyticRRect(), null);
+        } else {
+            var shape = new BoxShape();
+            shape.setCircle(cx, cy, rx);
+            drawGeometry(getLocalToDevice33(), shape, BoxShape::getBounds, false, paint,
+                    mRendererProvider.getAnalyticBox(false), null);
+        }
     }
 
     @Override
@@ -518,19 +528,10 @@ public final class GraniteDevice extends Device {
         if (!(noiseAlpha >= 0f)) {
             noiseAlpha = 0f;
         }
-        float minDim = Math.min(rr.width(), rr.height());
-        BlurredBox shape = new BlurredBox(rr);
-        // we found that multiplying the radius by 1.25 is closest to a Gaussian blur with a sigma of radius/3
-        blurRadius *= 1.25f;
-        float radius = rr.getSimpleRadiusX();
-        // the closer to a rectangle, the larger the corner radius needs to be
-        float t = Math.min(radius / Math.min(minDim, blurRadius), 1.0f);
-        radius += MathUtil.lerp(0.36f, 0.09f, t) * blurRadius;
-        shape.mRadius = radius;
-        shape.mBlurRadius = blurRadius;
-        shape.mNoiseAlpha = noiseAlpha;
-        drawGeometry(getLocalToDevice33(), shape, BlurredBox::getBounds, false, paint,
-                mRendererProvider.getSimpleBox(true), null);
+        var shape = new BoxShape();
+        shape.setBlur(rr, blurRadius, noiseAlpha);
+        drawGeometry(getLocalToDevice33(), shape, BoxShape::getBounds, false, paint,
+                mRendererProvider.getAnalyticBox(true), null);
         return true;
     }
 

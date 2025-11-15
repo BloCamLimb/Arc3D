@@ -361,7 +361,7 @@ public class TestGraniteRenderer {
             {
                 int[] x = {0}, y = {0}, channels = {0};
                 var imgData = STBImage.stbi_load(
-                        "F:/128359699_p0.jpg",
+                        "F:/G3B3WiVbAAAwE1C.jpg",
                         x, y, channels, 4
                 );
                 if (imgData != null) {
@@ -664,7 +664,7 @@ public class TestGraniteRenderer {
                     paint.setRGBA(mRandom.nextInt(256), mRandom.nextInt(256), mRandom.nextInt(256), 255);
                     canvas.drawLine(300, 220 - 30, 20, 220, Paint.CAP_BUTT, 10f, paint);
                     paint.setRGBA(mRandom.nextInt(256), mRandom.nextInt(256), mRandom.nextInt(256), 255);
-                    canvas.drawLine(300, 240 - 20, 20, 240, Paint.CAP_ROUND, 10f, paint);
+                    canvas.drawLine(300, 240 - 20, 300, 240-20, Paint.CAP_ROUND, 10f, paint);
                     paint.setRGBA(mRandom.nextInt(256), mRandom.nextInt(256), mRandom.nextInt(256), 255);
                     canvas.drawLine(300, 260 - 10, 20, 260, Paint.CAP_SQUARE, 10f, paint);
                 };

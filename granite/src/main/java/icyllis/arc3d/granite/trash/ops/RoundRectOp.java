@@ -25,7 +25,7 @@ import icyllis.arc3d.granite.trash.GraphicsPipelineDesc_Old;
 import icyllis.arc3d.granite.trash.MeshDrawTarget;
 import icyllis.arc3d.granite.trash.OpFlushState;
 import icyllis.arc3d.sketch.Matrix;
-import icyllis.arc3d.granite.geom.AnalyticSimpleBoxStep;
+import icyllis.arc3d.granite.geom.AnalyticBoxStep;
 import org.jspecify.annotations.NonNull;
 import org.lwjgl.system.MemoryUtil;
 
@@ -83,7 +83,7 @@ public class RoundRectOp extends MeshDrawOp {
     @Override
     protected GraphicsPipelineDesc_Old onCreatePipelineInfo(ImageProxyView writeView, int pipelineFlags) {
         return new GraphicsPipelineDesc_Old(writeView,
-                new AnalyticSimpleBoxStep(false), null, null, null,
+                new AnalyticBoxStep(false), null, null, null,
                 null, pipelineFlags);
     }
 

@@ -22,8 +22,9 @@ package icyllis.arc3d.granite;
 import icyllis.arc3d.engine.Caps;
 import icyllis.arc3d.engine.Engine;
 import icyllis.arc3d.granite.geom.AnalyticArcStep;
-import icyllis.arc3d.granite.geom.AnalyticComplexBoxStep;
-import icyllis.arc3d.granite.geom.AnalyticSimpleBoxStep;
+import icyllis.arc3d.granite.geom.AnalyticRRectStep;
+import icyllis.arc3d.granite.geom.AnalyticBoxStep;
+import icyllis.arc3d.granite.geom.ArcShape;
 import icyllis.arc3d.granite.geom.CoverBoundsStep;
 import icyllis.arc3d.granite.geom.PerEdgeAAQuadStep;
 import icyllis.arc3d.granite.geom.RasterTextStep;
@@ -48,8 +49,8 @@ public class RendererProvider {
     }
 
     // blur variant
-    private final GeometryRenderer[] mSimpleBox = new GeometryRenderer[2];
-    private final GeometryRenderer mComplexBox;
+    private final GeometryRenderer[] mAnalyticBox = new GeometryRenderer[2];
+    private final GeometryRenderer mAnalyticRRect;
     // mask format variant
     private final GeometryRenderer[] mRasterText = new GeometryRenderer[Engine.MASK_FORMAT_COUNT];
     // arc type variant
@@ -60,14 +61,14 @@ public class RendererProvider {
     private final GeometryRenderer mNonAABoundsFill;
 
     public RendererProvider(Caps caps, StaticBufferManager staticBufferManager) {
-        mSimpleBox[0] = makeSingleStep(
-                new AnalyticSimpleBoxStep(false)
+        mAnalyticBox[0] = makeSingleStep(
+                new AnalyticBoxStep(false)
         );
-        mSimpleBox[1] = makeSingleStep(
-                new AnalyticSimpleBoxStep(true)
+        mAnalyticBox[1] = makeSingleStep(
+                new AnalyticBoxStep(true)
         );
-        mComplexBox = makeSingleStep(
-                new AnalyticComplexBoxStep(staticBufferManager)
+        mAnalyticRRect = makeSingleStep(
+                new AnalyticRRectStep(staticBufferManager)
         );
         for (int i = 0; i < Engine.MASK_FORMAT_COUNT; i++) {
             if (i == Engine.MASK_FORMAT_A565) continue;
@@ -103,12 +104,12 @@ public class RendererProvider {
         );
     }
 
-    public GeometryRenderer getSimpleBox(boolean blur) {
-        return mSimpleBox[blur ? 1 : 0];
+    public GeometryRenderer getAnalyticBox(boolean blur) {
+        return mAnalyticBox[blur ? 1 : 0];
     }
 
-    public GeometryRenderer getComplexBox() {
-        return mComplexBox;
+    public GeometryRenderer getAnalyticRRect() {
+        return mAnalyticRRect;
     }
 
     public GeometryRenderer getRasterText(int maskFormat) {

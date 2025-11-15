@@ -69,7 +69,6 @@ import icyllis.arc3d.granite.CommonDepthStencilSettings;
 import icyllis.arc3d.granite.Draw;
 import icyllis.arc3d.granite.GeometryStep;
 import icyllis.arc3d.granite.MeshDrawWriter;
-import icyllis.arc3d.granite.SimpleShape;
 import icyllis.arc3d.granite.StaticBufferManager;
 import icyllis.arc3d.granite.shading.VaryingHandler;
 import org.jspecify.annotations.NonNull;
@@ -80,7 +79,7 @@ import java.util.Formatter;
 import static org.lwjgl.system.MemoryUtil.*;
 
 // Modified from Skia src/gpu/graphite/render/AnalyticRRectRenderStep.cpp
-public class AnalyticComplexBoxStep extends GeometryStep {
+public class AnalyticRRectStep extends GeometryStep {
 
     /*
      * Per-vertex attributes.
@@ -233,8 +232,8 @@ public class AnalyticComplexBoxStep extends GeometryStep {
     private final BufferViewInfo mVertexBuffer;
     private final BufferViewInfo mIndexBuffer;
 
-    public AnalyticComplexBoxStep(StaticBufferManager bufferManager) {
-        super("AnalyticComplexBoxStep", "",
+    public AnalyticRRectStep(StaticBufferManager bufferManager) {
+        super("AnalyticRRectStep", "",
                 VERTEX_ATTRIBS, INSTANCE_ATTRIBS,
                 FLAG_PERFORM_SHADING | FLAG_EMIT_COVERAGE | FLAG_OUTSET_BOUNDS_FOR_AA
                         | FLAG_HANDLE_SOLID_COLOR,
@@ -462,14 +461,14 @@ public class AnalyticComplexBoxStep extends GeometryStep {
             memPutLong(instanceData + 8, 0);
         }
 
-        SimpleShape shape = (SimpleShape) draw.mGeometry;
+        RRect shape = (RRect) draw.mGeometry;
 
         float aaRadius = draw.mAARadius;
         float strokeInset = 0.f;
         float centerWeight = kSolidInterior;
 
         if (draw.isStroke()) {
-            boolean isLine = shape.getType() >= SimpleShape.kLine_Type;
+            boolean isLine = false;
 
             float strokeRadius = draw.mHalfWidth;
 

@@ -54,7 +54,7 @@ import java.util.Formatter;
  * rectangle by first applying an approximate Gaussian filter to the mask in
  * local space, and paint with colors. No actual analytic AA in blur variant.
  */
-public class AnalyticSimpleBoxStep extends GeometryStep {
+public class AnalyticBoxStep extends GeometryStep {
 
     /*
      * Per-instance attributes.
@@ -94,8 +94,8 @@ public class AnalyticSimpleBoxStep extends GeometryStep {
     private final boolean mBlur;
 
     // blurred or anti-aliased
-    public AnalyticSimpleBoxStep(boolean blur) {
-        super("AnalyticSimpleBoxStep",
+    public AnalyticBoxStep(boolean blur) {
+        super("AnalyticBoxStep",
                 blur ? "blur" : "aa",
                 null, INSTANCE_ATTRIBS,
                 blur
@@ -294,7 +294,7 @@ public class AnalyticSimpleBoxStep extends GeometryStep {
 
     @Override
     public void writeMesh(MeshDrawWriter writer, Draw draw,
-            float @Nullable[] solidColor,
+                          float @Nullable[] solidColor,
                           boolean mayRequireLocalCoords) {
         writer.beginInstances(null, null, 4);
         long instanceData = writer.append(1);
@@ -308,42 +308,38 @@ public class AnalyticSimpleBoxStep extends GeometryStep {
             MemoryUtil.memPutLong(instanceData, 0);
             MemoryUtil.memPutLong(instanceData + 8, 0);
         }
+        BoxShape shape = (BoxShape) draw.mGeometry;
+        // local rect
+        MemoryUtil.memPutFloat(instanceData + 16, shape.mLeft);
+        MemoryUtil.memPutFloat(instanceData + 20, shape.mTop);
+        MemoryUtil.memPutFloat(instanceData + 24, shape.mRight);
+        MemoryUtil.memPutFloat(instanceData + 28, shape.mBottom);
         if (mBlur) {
-            // local rect
-            BlurredBox box = (BlurredBox) draw.mGeometry;
-            MemoryUtil.memPutFloat(instanceData + 16, box.mLeft);
-            MemoryUtil.memPutFloat(instanceData + 20, box.mTop);
-            MemoryUtil.memPutFloat(instanceData + 24, box.mRight);
-            MemoryUtil.memPutFloat(instanceData + 28, box.mBottom);
+            assert shape.mType == BoxShape.kBlurBox_Type;
             // radii
-            MemoryUtil.memPutFloat(instanceData + 32, box.mRadius);
-            MemoryUtil.memPutFloat(instanceData + 36, box.mBlurRadius);
-            MemoryUtil.memPutFloat(instanceData + 40, box.mNoiseAlpha);
+            MemoryUtil.memPutFloat(instanceData + 32, shape.mRadius);
+            MemoryUtil.memPutFloat(instanceData + 36, shape.mBlurRadius);
+            MemoryUtil.memPutFloat(instanceData + 40, shape.mNoiseAlpha);
             // depth
             MemoryUtil.memPutInt(instanceData + 44, (draw.getDepth() << 16));
         } else {
-            // local rect
-            SimpleShape shape = (SimpleShape) draw.mGeometry;
-            MemoryUtil.memPutFloat(instanceData + 16, shape.left());
-            MemoryUtil.memPutFloat(instanceData + 20, shape.top());
-            MemoryUtil.memPutFloat(instanceData + 24, shape.right());
-            MemoryUtil.memPutFloat(instanceData + 28, shape.bottom());
+            assert shape.mType != BoxShape.kBlurBox_Type;
             // radii
-            MemoryUtil.memPutFloat(instanceData + 32, shape.getSimpleRadiusX());
+            MemoryUtil.memPutFloat(instanceData + 32, shape.mRadius);
             MemoryUtil.memPutFloat(instanceData + 36, draw.mHalfWidth);
             MemoryUtil.memPutFloat(instanceData + 40, draw.mAARadius);
             int dir = switch (draw.mStrokeAlign) {
-                default -> 4;
                 case Paint.ALIGN_INSIDE -> 0;
                 case Paint.ALIGN_OUTSIDE -> 8;
+                default -> 4;
             };
-            int type = switch (shape.getType()) {
+            int type = switch (shape.mType) {
+                case BoxShape.kLine_Type -> 2;
+                case BoxShape.kLineRound_Type -> 1;
                 default -> 0;
-                case SimpleShape.kLine_Type -> 2;
-                case SimpleShape.kLineRound_Type -> 1;
             };
             // only butt/square line and rect can have miter join
-            int join = (type == 2 || shape.isRect()) && draw.mJoinLimit >= MathUtil.SQRT2 ? 16 : 0;
+            int join = (type == 2 || shape.mRadius == 0) && draw.mJoinLimit >= MathUtil.SQRT2 ? 16 : 0;
             MemoryUtil.memPutInt(instanceData + 44, (draw.getDepth() << 16) | (join | dir | type));
         }
         draw.mTransform.store(instanceData + 48);

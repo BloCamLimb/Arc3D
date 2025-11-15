@@ -20,10 +20,13 @@
 package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.*;
-import icyllis.arc3d.granite.geom.BlurredBox;
+import icyllis.arc3d.granite.geom.ArcShape;
+import icyllis.arc3d.granite.geom.BoxShape;
 import icyllis.arc3d.granite.geom.EdgeAAQuad;
+import icyllis.arc3d.granite.geom.SubRunData;
 import icyllis.arc3d.sketch.Matrixc;
 import icyllis.arc3d.sketch.Paint;
+import icyllis.arc3d.sketch.RRect;
 import icyllis.arc3d.sketch.StrokeRec;
 import icyllis.arc3d.sketch.Vertices;
 import org.jspecify.annotations.Nullable;
@@ -105,14 +108,14 @@ public final class Draw implements AutoCloseable {
         final Object g = mGeometry;
         if (g == null)
             dest.setEmpty();
-        else if (g instanceof SimpleShape)
-            ((SimpleShape) g).getBounds(dest);
-        else if (g instanceof EdgeAAQuad)
-            ((EdgeAAQuad) g).getBounds(dest);
+        else if (g instanceof BoxShape)
+            ((BoxShape) g).getBounds(dest);
+        else if (g instanceof RRect)
+            ((RRect) g).getBounds(dest);
         else if (g instanceof SubRunData)
             ((SubRunData) g).getBounds(dest);
-        else if (g instanceof BlurredBox)
-            ((BlurredBox) g).getBounds(dest);
+        else if (g instanceof EdgeAAQuad)
+            ((EdgeAAQuad) g).getBounds(dest);
         else if (g instanceof Rect2f)
             ((Rect2f) g).store(dest);
         else if (g instanceof ArcShape)
