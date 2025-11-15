@@ -232,12 +232,12 @@ public class AnalyticSimpleBoxStep extends GeometryStep {
         // or
         // corner radius, blur radius, noise alpha
         fs.format("""
-                vec3 radii = %s;
-                vec2 q = abs(%s) - %s + radii.x;
-                """, "f_Radii", "f_RectEdge", "f_Size");
-
-        fs.format("""
-                float dis = min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - radii.x;
+                vec3 radii = f_Radii;
+                vec2  d = abs(f_RectEdge) - f_Size + radii.x;
+                float g = max(d.x, d.y);
+                vec2  q = max(d, 0.0);
+                float l = length(q);
+                float dis = min(g, 0.0) + l - radii.x;
                 """);
 
         if (mBlur) {
@@ -261,20 +261,20 @@ public class AnalyticSimpleBoxStep extends GeometryStep {
                         %s = vec4(edgeAlpha);
                         """, outputCoverage);
         } else {
+            // compute gradient, apply stroke offset and stroke radius
             fs.format("""
-                    dis = mix(dis, abs(dis - radii.z) - radii.y, radii.y >= 0.0);
+                    float2 localGrad = sign(f_RectEdge) * (g>0.0 ? q/l : (d.x>d.y ? float2(1,0) : float2(0,1)));
+                    dis -= radii.z;
+                    localGrad = radii.y >= 0.0 ? sign(dis) * localGrad : localGrad;
+                    dis = radii.y >= 0.0 ? abs(dis) - radii.y : dis;
                     """);
-            if (true) {
-                // we previously used L2-norm of grad(SDF) as:
-                // float afwidth = length(vec2(dFdx(dis),dFdy(dis))) * 0.7021;
-                // float edgeAlpha = 1.0 - smoothstep(-afwidth, afwidth, dis);
-                // 0.7021 < 0.7071 (slightly smaller than half of the diagonal)
-                // however we found that L1 norm (fwidth(dis) * 0.5) and linear interpolation
-                // are better when geometry is axis-aligned, L1 may be faster than L2
+            if (true) { // anti-alias
+                // use L2-norm of device gradient and linear interpolation
                 fs.format("""
-                        float afwidth = fwidth(dis);
-                        float edgeAlpha = 1.0 - clamp(dis/afwidth+0.5, 0.0, 1.0);
-                        """);
+                    float2 devGrad = localGrad * float2x2(dFdx(f_RectEdge), dFdy(f_RectEdge));
+                    float invlen = inversesqrt(dot(devGrad, devGrad));
+                    float edgeAlpha = 1.0 - saturate(dis*invlen+0.5);
+                    """);
                 assert outputCoverage != null;
                 fs.format("""
                         %s = vec4(edgeAlpha);
