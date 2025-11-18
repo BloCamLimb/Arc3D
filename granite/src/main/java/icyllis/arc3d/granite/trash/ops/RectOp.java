@@ -95,7 +95,7 @@ public class RectOp extends MeshDrawOp {
         OpsRenderPass opsRenderPass = state.getOpsRenderPass();
         opsRenderPass.bindPipeline(/*getPipelineInfo(), */getPipelineState(), chainBounds);
         opsRenderPass.bindTextures(null);
-        opsRenderPass.bindBuffers(null, Engine.IndexType.kUByte, mVertexBuffer, 0, mInstanceBuffer, 0);
+        opsRenderPass.bindBuffers(null, Engine.IndexType.kUShort, mVertexBuffer, 0, mInstanceBuffer, 0);
         opsRenderPass.drawInstanced(getInstanceCount(), mBaseInstance, getVertexCount(), mBaseVertex);
     }
 

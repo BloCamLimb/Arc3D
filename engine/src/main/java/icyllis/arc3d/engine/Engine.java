@@ -510,16 +510,16 @@ public interface Engine {
      */
     interface IndexType {
         // DO NOT CHANGE THE ORDER OR THE ENUM VALUE
-        int kUByte = 0,         // 8-bit
-                kUShort = 1,    // 16-bit
-                kUInt = 2;      // 32-bit
+        int
+                kUShort = 0,    // 16-bit
+                kUInt = 1;      // 32-bit
 
         /**
          * @return size in bytes
          */
         static int size(int type) {
-            assert type == kUByte || type == kUShort || type == kUInt;
-            return 1 << type;
+            assert type == kUShort || type == kUInt;
+            return 2 << type;
         }
     }
 

@@ -158,7 +158,6 @@ public final class GLOpsRenderPass extends OpsRenderPass {
         mActiveVertexBuffer = RefCnt.create(mActiveVertexBuffer, vertexBuffer);
         mActiveInstanceBuffer = RefCnt.create(mActiveInstanceBuffer, instanceBuffer);
         mIndexType = switch (indexType) {
-            case Engine.IndexType.kUByte -> GL_UNSIGNED_BYTE;
             case Engine.IndexType.kUShort -> GL_UNSIGNED_SHORT;
             case Engine.IndexType.kUInt -> GL_UNSIGNED_INT;
             default -> throw new AssertionError();
