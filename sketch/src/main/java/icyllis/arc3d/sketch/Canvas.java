@@ -305,7 +305,7 @@ public class Canvas implements AutoCloseable {
      * @param alpha  the alpha to apply to the offscreen when restore() is called
      * @return depth of saved stack to pass to restoreToCount() to balance this call
      */
-    public final int saveLayerAlpha(@Nullable Rect2f bounds, int alpha) {
+    public final int saveLayerAlpha(@Nullable Rect2fc bounds, float alpha) {
         alpha = MathUtil.clamp(alpha, 0, 0xFF);
         if (alpha == 0xFF) {
             return saveLayer(bounds, null, null, 0);
@@ -318,12 +318,12 @@ public class Canvas implements AutoCloseable {
     }
 
     /**
-     * Convenience for {@link #saveLayerAlpha(Rect2f, int)} that takes the four float
+     * Convenience for {@link #saveLayerAlpha(Rect2fc, float)} that takes the four float
      * coordinates of the bounds' rectangle.
      *
-     * @see #saveLayerAlpha(Rect2f, int)
+     * @see #saveLayerAlpha(Rect2fc, float)
      */
-    public final int saveLayerAlpha(float left, float top, float right, float bottom, int alpha) {
+    public final int saveLayerAlpha(float left, float top, float right, float bottom, float alpha) {
         mTmpRect.set(left, top, right, bottom);
         return saveLayerAlpha(mTmpRect, alpha);
     }
@@ -360,7 +360,7 @@ public class Canvas implements AutoCloseable {
      * @param saveLayerFlags options to modify layer, may be zero
      * @return depth of saved stack to pass to restoreToCount() to balance this call
      */
-    public final int saveLayer(@Nullable Rect2f bounds, @Nullable Paint paint,
+    public final int saveLayer(@Nullable Rect2fc bounds, @Nullable Paint paint,
                                @Nullable ImageFilter backdrop, @SaveLayerFlag int saveLayerFlags) {
         if (paint != null && paint.nothingToDraw()) {
             // no need for the layer (or any of the draws until the matching restore()
@@ -376,10 +376,10 @@ public class Canvas implements AutoCloseable {
     }
 
     /**
-     * Convenience for {@link #saveLayer(Rect2f, Paint, ImageFilter, int)} that takes the
+     * Convenience for {@link #saveLayer(Rect2fc, Paint, ImageFilter, int)} that takes the
      * four float coordinates of the bounds' rectangle.
      *
-     * @see #saveLayer(Rect2f, Paint, ImageFilter, int)
+     * @see #saveLayer(Rect2fc, Paint, ImageFilter, int)
      */
     public final int saveLayer(float left, float top, float right, float bottom, @Nullable Paint paint,
                                @Nullable ImageFilter backdrop, @SaveLayerFlag int saveLayerFlags) {
@@ -465,13 +465,7 @@ public class Canvas implements AutoCloseable {
      * @param dy the distance to translate on y-axis
      */
     public final void translate(float dx, float dy) {
-        if (dx != 0.0f || dy != 0.0f) {
-            checkForDeferredSave();
-            Matrix4 transform = top().mMatrix;
-            transform.preTranslate(dx, dy);
-            topDevice().setGlobalCTM(transform);
-            didTranslate(dx, dy, 0);
-        }
+        translate(dx, dy, 0.0f);
     }
 
     /**
@@ -507,13 +501,7 @@ public class Canvas implements AutoCloseable {
      * @param sy the amount to scale on y-axis
      */
     public final void scale(float sx, float sy) {
-        if (sx != 1.0f || sy != 1.0f) {
-            checkForDeferredSave();
-            Matrix4 transform = top().mMatrix;
-            transform.preScale(sx, sy);
-            topDevice().setGlobalCTM(transform);
-            didScale(sx, sy, 1);
-        }
+        scale(sx, sy, 1.0f);
     }
 
     /**
@@ -638,8 +626,14 @@ public class Canvas implements AutoCloseable {
         if (matrix.isIdentity()) {
             return;
         }
-        matrix.toMatrix4(mTmpMatrix44);
-        concat(mTmpMatrix44);
+        checkForDeferredSave();
+        Matrix4 transform = top().mMatrix;
+        transform.preConcat2D(
+                matrix.m11(), matrix.m12(), matrix.m14(),
+                matrix.m21(), matrix.m22(), matrix.m24(),
+                matrix.m41(), matrix.m42(), matrix.m44());
+        topDevice().setGlobalCTM(transform);
+        didConcat(matrix);
     }
 
     /**
@@ -671,7 +665,7 @@ public class Canvas implements AutoCloseable {
         Matrix4 transform = top().mMatrix;
         transform.preConcat(matrix);
         topDevice().setGlobalCTM(transform);
-        didConcat(matrix);
+        didConcat44(matrix);
     }
 
     /**
@@ -685,7 +679,7 @@ public class Canvas implements AutoCloseable {
         Matrix4 transform = top().mMatrix;
         transform.set(matrix);
         topDevice().setGlobalCTM(transform);
-        didSetMatrix(matrix);
+        didSetMatrix44(matrix);
     }
 
     /**
@@ -1697,7 +1691,7 @@ public class Canvas implements AutoCloseable {
      * @param storage transformation from local coordinates to device / pixels.
      */
     public final void getLocalToDevice(@NonNull Matrix4 storage) {
-        top().mMatrix.store(storage);
+        storage.set(top().mMatrix);
     }
 
     /**
@@ -1745,7 +1739,7 @@ public class Canvas implements AutoCloseable {
     protected void willSave() {
     }
 
-    protected int getSaveLayerStrategy(@Nullable Rect2f bounds, @Nullable Paint paint,
+    protected int getSaveLayerStrategy(@Nullable Rect2fc bounds, @Nullable Paint paint,
                                        @Nullable ImageFilter backdrop,
                                        @SaveLayerFlag int saveLayerFlags) {
         return FULL_LAYER_SAVE_LAYER_STRATEGY;
@@ -1763,10 +1757,13 @@ public class Canvas implements AutoCloseable {
     protected void didScale(float sx, float sy, float sz) {
     }
 
-    protected void didConcat(Matrix4c matrix) {
+    protected void didConcat(Matrixc matrix) {
     }
 
-    protected void didSetMatrix(Matrix4c matrix) {
+    protected void didConcat44(Matrix4c matrix) {
+    }
+
+    protected void didSetMatrix44(Matrix4c matrix) {
     }
 
     @NonNull
@@ -1845,7 +1842,7 @@ public class Canvas implements AutoCloseable {
         computeQuickRejectBounds();
     }
 
-    private void internalSaveLayer(@Nullable Rect2f bounds, @Nullable Paint paint,
+    private void internalSaveLayer(@Nullable Rect2fc bounds, @Nullable Paint paint,
                                    @Nullable ImageFilter backdrop,
                                    @SaveLayerFlag int saveLayerFlags,
                                    int saveLayerStrategy) {

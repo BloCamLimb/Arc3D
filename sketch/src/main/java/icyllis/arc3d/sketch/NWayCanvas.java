@@ -106,14 +106,21 @@ public class NWayCanvas extends NoDrawCanvas {
     }
 
     @Override
-    protected void didConcat(Matrix4c matrix) {
+    protected void didConcat(Matrixc matrix) {
         for (int i = 0; i < mSize; i++) {
             mList[i].concat(matrix);
         }
     }
 
     @Override
-    protected void didSetMatrix(Matrix4c matrix) {
+    protected void didConcat44(Matrix4c matrix) {
+        for (int i = 0; i < mSize; i++) {
+            mList[i].concat(matrix);
+        }
+    }
+
+    @Override
+    protected void didSetMatrix44(Matrix4c matrix) {
         for (int i = 0; i < mSize; i++) {
             mList[i].setMatrix(matrix);
         }
