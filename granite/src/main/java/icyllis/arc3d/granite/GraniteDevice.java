@@ -638,7 +638,7 @@ public final class GraniteDevice extends Device {
     }
 
     private static boolean paint_depends_on_dst(Paint paint) {
-        return paint_depends_on_dst(paint.a(),
+        return paint_depends_on_dst(paint.getAlpha(),
                 paint.getShader(),
                 paint.getColorFilter(),
                 paint.getBlender(),

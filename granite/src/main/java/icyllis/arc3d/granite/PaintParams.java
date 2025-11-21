@@ -60,10 +60,10 @@ public final class PaintParams implements AutoCloseable {
 
     public PaintParams(@NonNull Paint paint,
                        @Nullable Blender primitiveBlender) {
-        mR = paint.r();
-        mG = paint.g();
-        mB = paint.b();
-        mA = paint.a();
+        mR = paint.getRed();
+        mG = paint.getGreen();
+        mB = paint.getBlue();
+        mA = paint.getAlpha();
         mPrimitiveBlender = primitiveBlender;
         mShader = paint.refShader();
         mColorFilter = paint.getColorFilter();
@@ -187,10 +187,7 @@ public final class PaintParams implements AutoCloseable {
     public static boolean getSolidColor(Paint paint, ImageInfo targetInfo, float[] outColor) {
         if (paint.getShader() == null) {
             if (outColor != null) {
-                outColor[0] = paint.r();
-                outColor[1] = paint.g();
-                outColor[2] = paint.b();
-                outColor[3] = paint.a();
+                paint.getColor4f(outColor);
                 prepareColorForDst(outColor, targetInfo, false);
                 for (int i = 0; i < 3; i++) {
                     outColor[i] *= outColor[3];

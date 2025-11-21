@@ -631,7 +631,7 @@ public class TestGraniteRenderer {
                     int stroke = mRandom.nextInt(50);
                     //paint.setStyle(stroke < 25 ? Paint.FILL : Paint.STROKE);
                     //paint.setStrokeWidth((stroke - 20) * 2);
-                    paint.setRGBA(mRandom.nextInt(256), mRandom.nextInt(256), mRandom.nextInt(256),
+                    paint.setColor4(mRandom.nextInt(256), mRandom.nextInt(256), mRandom.nextInt(256),
                             mRandom.nextInt(128));
                     canvas.drawRRect(rrect, paint);
                     canvas.drawArc(cx, cy, rad, 20, 130, paint);
@@ -649,7 +649,7 @@ public class TestGraniteRenderer {
                 paint.setStrokeWidth(10);
                 for (int i = 0; i < 3; i++) {
                     paint.setStrokeAlign(aligns[i]);
-                    paint.setRGBA(mRandom.nextInt(256), mRandom.nextInt(256), mRandom.nextInt(256), 255);
+                    paint.setColor4(mRandom.nextInt(256), mRandom.nextInt(256), mRandom.nextInt(256), 255);
                     canvas.drawRRect(rrect, paint);
                     canvas.translate(230, 0);
                     canvas.rotate(9);
@@ -658,14 +658,14 @@ public class TestGraniteRenderer {
                 rrect.getRect(rect);
                 //paint.setStrokeAlign(Paint.ALIGN_CENTER);
                 paint.setStrokeJoin(Paint.JOIN_BEVEL);
-                paint.setRGBA(mRandom.nextInt(256), mRandom.nextInt(256), mRandom.nextInt(256), 255);
+                paint.setColor4(mRandom.nextInt(256), mRandom.nextInt(256), mRandom.nextInt(256), 255);
                 canvas.drawRect(rect, paint);
                 Runnable lines = () -> {
-                    paint.setRGBA(mRandom.nextInt(256), mRandom.nextInt(256), mRandom.nextInt(256), 255);
+                    paint.setColor4(mRandom.nextInt(256), mRandom.nextInt(256), mRandom.nextInt(256), 255);
                     canvas.drawLine(300, 220 - 30, 20, 220, Paint.CAP_BUTT, 10f, paint);
-                    paint.setRGBA(mRandom.nextInt(256), mRandom.nextInt(256), mRandom.nextInt(256), 255);
+                    paint.setColor4(mRandom.nextInt(256), mRandom.nextInt(256), mRandom.nextInt(256), 255);
                     canvas.drawLine(300, 240 - 20, 300, 240-20, Paint.CAP_ROUND, 10f, paint);
-                    paint.setRGBA(mRandom.nextInt(256), mRandom.nextInt(256), mRandom.nextInt(256), 255);
+                    paint.setColor4(mRandom.nextInt(256), mRandom.nextInt(256), mRandom.nextInt(256), 255);
                     canvas.drawLine(300, 260 - 10, 20, 260, Paint.CAP_SQUARE, 10f, paint);
                 };
                 canvas.resetMatrix();
@@ -696,7 +696,7 @@ public class TestGraniteRenderer {
 
                 canvas.resetMatrix();
 
-                paint.setRGBA(255, 255, 255, 255);
+                paint.setColor4(255, 255, 255, 255);
                 paint.setShader(RefCnt.create(mTestShader1));
                 paint.setStyle(Paint.FILL);
                 //paint.setRGBA(mRandom.nextInt(256), mRandom.nextInt(256), mRandom.nextInt(256), 255);
@@ -709,7 +709,7 @@ public class TestGraniteRenderer {
                 canvas.drawCircle(400, 300, 20, paint);
 
                 paint.setStrokeAlign(Paint.ALIGN_CENTER);
-                paint.setRGBA(mRandom.nextInt(256), mRandom.nextInt(256), mRandom.nextInt(256), 255);
+                paint.setColor4(mRandom.nextInt(256), mRandom.nextInt(256), mRandom.nextInt(256), 255);
 
                 float[] pts = new float[22];
                 pts[0] = 300;
@@ -721,7 +721,7 @@ public class TestGraniteRenderer {
                 paint.setStrokeCap(Paint.CAP_ROUND);
                 canvas.drawPoints(Canvas.POINT_MODE_POLYGON, pts, 0, 11, paint);
 
-                paint.setRGBA(255, 255, 255, 255);
+                paint.setColor4(255, 255, 255, 255);
                 canvas.drawCircle(500, 300, 20, paint);
 
                 paint.setStyle(Paint.FILL);
@@ -781,7 +781,7 @@ public class TestGraniteRenderer {
 
                 //paint.setShader(RefCnt.create(mTestShader1));
                 paint.setStyle(Paint.FILL);
-                paint.setAlphaF(0.7f);
+                paint.setAlpha(0.7f);
                 /*var mat = new Matrix4();
                 mat.setTranslate(1000, 100, 0);
                 canvas.setMatrix(mat);*/
@@ -820,7 +820,7 @@ public class TestGraniteRenderer {
                 canvas.drawEdgeAAQuad(null,
                         mTriPts, Canvas.QUAD_AA_FLAGS_ALL, paint);
 
-                paint.setARGB(255, 233, 30, 99);
+                paint.setColor4(233, 30, 99, 255);
                 rect.set(0, 0, 16, 16);
                 for (int i = 0; i < 14; i++) {
                     for (int j = 0; j < 3; j++) {
@@ -839,7 +839,7 @@ public class TestGraniteRenderer {
                 canvas.resetMatrix();
                 paint.setShader(RefCnt.create(mRRectShader));
                 paint.setColorFilter(null);
-                paint.setAlphaF(0.4f);
+                paint.setAlpha(0.4f);
                 rrect.setRectXY(400, 450, 600, 550, 50, 50);
                 canvas.drawRRect(rrect, paint);
 
@@ -892,7 +892,7 @@ public class TestGraniteRenderer {
                     Canvas canvas = mPostSurface.getCanvas();
                     canvas.clear(0xFF000000);
                     Paint paint = new Paint();
-                    paint.setAlphaF(0.5f);
+                    paint.setAlpha(0.5f);
                     paint.setDither(true);
                     canvas.drawImage(snapshot, 0, 0, SamplingOptions.LINEAR, paint);
                     paint.close();

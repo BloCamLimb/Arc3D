@@ -100,7 +100,7 @@ public class DrawBase {
         mG2D.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL,
                 RenderingHints.VALUE_STROKE_PURE);
 
-        mG2D.setColor(new Color(paint.r(), paint.g(), paint.b(), paint.a()));
+        mG2D.setColor(new Color(paint.getRed(), paint.getGreen(), paint.getBlue(), paint.getAlpha()));
         var bm = paint.getBlendMode();
         if (bm == null) {
             bm = BlendMode.SRC_OVER;

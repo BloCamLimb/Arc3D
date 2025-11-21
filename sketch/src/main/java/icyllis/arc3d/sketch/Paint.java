@@ -309,18 +309,61 @@ public class Paint implements AutoCloseable {
     ///// Solid Color
 
     /**
-     * Return the paint's solid color in sRGB. Note that the color is a 32-bit value
-     * containing alpha as well as r,g,b. This 32-bit value is not premultiplied,
-     * meaning that its alpha can be any value, regardless of the values of r,g,b.
+     * Returns the value of the red component.
+     * It's in sRGB space and independent of alpha.
      *
-     * @return the paint's color (and alpha).
+     * @see #getAlpha()
+     * @see #getGreen()
+     * @see #getBlue()
      */
-    @ColorInt
-    public int getColor() {
-        return ((int) (mA * 255.0f + 0.5f) << 24) |
-                ((int) (mR * 255.0f + 0.5f) << 16) |
-                ((int) (mG * 255.0f + 0.5f) << 8) |
-                (int) (mB * 255.0f + 0.5f);
+    public final float getRed() {
+        return mR;
+    }
+
+    /**
+     * Returns the value of the green component.
+     * It's in sRGB space and independent of alpha.
+     *
+     * @see #getAlpha()
+     * @see #getRed()
+     * @see #getBlue()
+     */
+    public final float getGreen() {
+        return mG;
+    }
+
+    /**
+     * Returns the value of the blue component.
+     * It's in sRGB space and independent of alpha.
+     *
+     * @see #getAlpha()
+     * @see #getRed()
+     * @see #getGreen()
+     */
+    public final float getBlue() {
+        return mB;
+    }
+
+    /**
+     * Retrieves alpha/opacity from the color used when stroking and filling.
+     *
+     * @return alpha ranging from zero, fully transparent, to one, fully opaque
+     */
+    public final float getAlpha() {
+        return mA;
+    }
+
+    /**
+     * Returns the color used when stroking and filling.
+     * Color is stored in <var>dst</var> array in sRGB space, un-premultiplied form.
+     *
+     * @param dst an array that receives R,G,B,A color components
+     */
+    public final void getColor4f( @Size(4) float @NonNull[] dst) {
+        dst[0] = mR;
+        dst[1] = mG;
+        dst[2] = mB;
+        dst[3] = mA;
     }
 
     /**
@@ -338,60 +381,40 @@ public class Paint implements AutoCloseable {
     }
 
     /**
-     * Returns the value of the red component.
+     * Sets alpha and RGB used when stroking and filling. The color is N+1 floating
+     * point values, un-premultiplied. The color values are interpreted as being in
+     * the colorSpace. If colorSpace is null, then color is assumed to be in the
+     * sRGB color space.
      *
-     * @see #a()
-     * @see #g()
-     * @see #b()
+     * @param color      the color components and alpha at the end
+     * @param colorSpace ColorSpace describing the encoding of color
      */
-    public final float r() {
-        return mR;
+    public final void setColor( @Size(min = 4) float @NonNull[] color,
+                                @Nullable ColorSpace colorSpace) {
+        if (colorSpace != null && !colorSpace.isSrgb()) {
+            var c = ColorSpace.connect(colorSpace).transform(
+                    color
+            );
+            setColor4f(c[0], c[1], c[2], color[color.length - 1]);
+        } else {
+            setColor4f(color[0], color[1], color[2], color[3]);
+        }
     }
 
     /**
-     * Returns the value of the green component.
+     * Sets color used when drawing solid fills. The color components range from 0 to 255.
+     * The color is un-premultiplied; alpha sets the transparency independent of RGB.
      *
-     * @see #a()
-     * @see #r()
-     * @see #b()
+     * @param r amount of red, from no red (0) to full red (255)
+     * @param g amount of green, from no green (0) to full green (255)
+     * @param b amount of blue, from no blue (0) to full blue (255)
+     * @param a amount of alpha, from fully transparent (0) to fully opaque (255)
      */
-    public final float g() {
-        return mG;
-    }
-
-    /**
-     * Returns the value of the blue component.
-     *
-     * @see #a()
-     * @see #r()
-     * @see #g()
-     */
-    public final float b() {
-        return mB;
-    }
-
-    /**
-     * Returns the value of the alpha component.
-     *
-     * @see #a()
-     * @see #r()
-     * @see #g()
-     */
-    public final float a() {
-        return mA;
-    }
-
-    /**
-     * Returns the color used when stroking and filling.
-     * Color is stored in <var>dst</var> array in sRGB space, un-premultiplied form.
-     *
-     * @param dst an array that receives R,G,B,A color components
-     */
-    public final void getColor4f( @Size(4) float @NonNull[] dst) {
-        dst[0] = mR;
-        dst[1] = mG;
-        dst[2] = mB;
-        dst[3] = mA;
+    public final void setColor4(int r, int g, int b, int a) {
+        mR = MathUtil.pin(r * (1 / 255.0f), 0.0f, 1.0f);
+        mG = MathUtil.pin(g * (1 / 255.0f), 0.0f, 1.0f);
+        mB = MathUtil.pin(b * (1 / 255.0f), 0.0f, 1.0f);
+        mA = MathUtil.pin(a * (1 / 255.0f), 0.0f, 1.0f);
     }
 
     /**
@@ -436,91 +459,15 @@ public class Paint implements AutoCloseable {
     }
 
     /**
-     * Retrieves alpha/opacity from the color used when stroking and filling.
-     *
-     * @return alpha ranging from zero, fully transparent, to one, fully opaque
-     */
-    public float getAlphaF() {
-        return mA;
-    }
-
-    /**
-     * Helper to getColor() that just returns the color's alpha value. This is
-     * the same as calling getColor() >>> 24. It always returns a value between
-     * 0 (completely transparent) and 255 (completely opaque).
-     *
-     * @return the alpha component of the paint's color.
-     */
-    public int getAlpha() {
-        return (int) (mA * 255.0f + 0.5f);
-    }
-
-    /**
-     * Replaces alpha, leaving RGB unchanged.
+     * Replaces alpha, leaving r,g,b values unchanged.
      * <code>a</code> is a value from 0.0 to 1.0.
      * <code>a</code> set to 0.0 makes color fully transparent;
      * <code>a</code> set to 1.0 makes color fully opaque.
      *
      * @param a the alpha component [0..1] of the paint's color
      */
-    public void setAlphaF(float a) {
+    public void setAlpha(float a) {
         mA = MathUtil.pin(a, 0.0f, 1.0f);
-    }
-
-    /**
-     * Helper to setColor(), that only assigns the color's alpha value,
-     * leaving its r,g,b values unchanged.
-     *
-     * @param a the alpha component [0..255] of the paint's color
-     */
-    public void setAlpha(int a) {
-        mA = MathUtil.pin(a * (1 / 255.0f), 0.0f, 1.0f);
-    }
-
-    /**
-     * Helper to setColor(), that only assigns the color's <code>r,g,b</code> values,
-     * leaving its alpha value unchanged.
-     *
-     * @param r the new red component (0..255) of the paint's color.
-     * @param g the new green component (0..255) of the paint's color.
-     * @param b the new blue component (0..255) of the paint's color.
-     */
-    public final void setRGB(int r, int g, int b) {
-        mR = MathUtil.pin(r * (1 / 255.0f), 0.0f, 1.0f);
-        mG = MathUtil.pin(g * (1 / 255.0f), 0.0f, 1.0f);
-        mB = MathUtil.pin(b * (1 / 255.0f), 0.0f, 1.0f);
-    }
-
-    /**
-     * Sets color used when drawing solid fills. The color components range from 0 to 255.
-     * The color is un-premultiplied; alpha sets the transparency independent of RGB.
-     *
-     * @param r amount of red, from no red (0) to full red (255)
-     * @param g amount of green, from no green (0) to full green (255)
-     * @param b amount of blue, from no blue (0) to full blue (255)
-     * @param a amount of alpha, from fully transparent (0) to fully opaque (255)
-     */
-    public final void setRGBA(int r, int g, int b, int a) {
-        mR = MathUtil.pin(r * (1 / 255.0f), 0.0f, 1.0f);
-        mG = MathUtil.pin(g * (1 / 255.0f), 0.0f, 1.0f);
-        mB = MathUtil.pin(b * (1 / 255.0f), 0.0f, 1.0f);
-        mA = MathUtil.pin(a * (1 / 255.0f), 0.0f, 1.0f);
-    }
-
-    /**
-     * Sets color used when drawing solid fills. The color components range from 0 to 255.
-     * The color is un-premultiplied; alpha sets the transparency independent of RGB.
-     *
-     * @param a amount of alpha, from fully transparent (0) to fully opaque (255)
-     * @param r amount of red, from no red (0) to full red (255)
-     * @param g amount of green, from no green (0) to full green (255)
-     * @param b amount of blue, from no blue (0) to full blue (255)
-     */
-    public void setARGB(int a, int r, int g, int b) {
-        mA = MathUtil.pin(a * (1 / 255.0f), 0.0f, 1.0f);
-        mR = MathUtil.pin(r * (1 / 255.0f), 0.0f, 1.0f);
-        mG = MathUtil.pin(g * (1 / 255.0f), 0.0f, 1.0f);
-        mB = MathUtil.pin(b * (1 / 255.0f), 0.0f, 1.0f);
     }
 
     ///// Basic Flags
@@ -884,7 +831,7 @@ public class Paint implements AutoCloseable {
                 // All advanced blend modes are SrcOver-like
                 default -> checkAlpha = mode.isAdvanced();
             }
-            if (checkAlpha && getAlphaF() == 0.0f) {
+            if (checkAlpha && getAlpha() == 0.0f) {
                 return !isBlendedColorFilter(mColorFilter);
             }
         }
@@ -944,13 +891,12 @@ public class Paint implements AutoCloseable {
     @Override
     public int hashCode() {
         int result = mFlags;
-        // there is no negative zero
-        result = 31 * result + Float.floatToIntBits(mR);
-        result = 31 * result + Float.floatToIntBits(mG);
-        result = 31 * result + Float.floatToIntBits(mB);
-        result = 31 * result + Float.floatToIntBits(mA);
-        result = 31 * result + Float.floatToIntBits(mWidth);
-        result = 31 * result + Float.floatToIntBits(mMiterLimit);
+        result = 31 * result + (mR != 0.0f ? Float.floatToIntBits(mR) : 0);
+        result = 31 * result + (mG != 0.0f ? Float.floatToIntBits(mG) : 0);
+        result = 31 * result + (mB != 0.0f ? Float.floatToIntBits(mB) : 0);
+        result = 31 * result + (mA != 0.0f ? Float.floatToIntBits(mA) : 0);
+        result = 31 * result + (mWidth != 0.0f ? Float.floatToIntBits(mWidth) : 0);
+        result = 31 * result + (mMiterLimit != 0.0f ? Float.floatToIntBits(mMiterLimit) : 0);
         result = 31 * result + Objects.hashCode(mPathEffect);
         result = 31 * result + Objects.hashCode(mShader);
         result = 31 * result + Objects.hashCode(mColorFilter);
@@ -967,7 +913,7 @@ public class Paint implements AutoCloseable {
 
     protected final boolean equals(Paint paint) {
         return mFlags == paint.mFlags &&
-                // there is no negative zero
+                // use IEEE comparison, so that -0.0 == +0.0
                 mR == paint.mR &&
                 mG == paint.mG &&
                 mB == paint.mB &&
@@ -1048,8 +994,8 @@ public class Paint implements AutoCloseable {
     }
 
     @ApiStatus.Internal
-    public static int getAlphaDirect(@Nullable Paint paint) {
-        return paint != null ? paint.getAlpha() : 0xFF;
+    public static float getAlphaDirect(@Nullable Paint paint) {
+        return paint != null ? paint.getAlpha() : 1.0f;
     }
 
     @ApiStatus.Internal
@@ -1082,7 +1028,7 @@ public class Paint implements AutoCloseable {
         if (paint == null) {
             return true;
         }
-        if (paint.getAlphaF() != 1.0f ||
+        if (paint.getAlpha() != 1.0f ||
                 isBlendedShader(paint.mShader) ||
                 isBlendedColorFilter(paint.mColorFilter)) {
             return false;
