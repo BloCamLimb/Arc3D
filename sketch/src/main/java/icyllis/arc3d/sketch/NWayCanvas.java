@@ -28,7 +28,7 @@ import java.util.Arrays;
 
 public class NWayCanvas extends NoDrawCanvas {
 
-    protected Canvas[] mList = new Canvas[10];
+    protected Canvas[] mList = new Canvas[5]; // minimum Fibonacci
     protected int mSize = 0;
 
     public NWayCanvas(int width, int height) {
