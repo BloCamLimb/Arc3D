@@ -32,7 +32,7 @@ import org.jspecify.annotations.NonNull;
  * @author BloCamLimb
  * @see Rect2f
  */
-public sealed abstract class Rect2fc permits Rect2f {
+public abstract sealed class Rect2fc permits Rect2f {
     // one implementation is fast
 
     protected float mLeft;

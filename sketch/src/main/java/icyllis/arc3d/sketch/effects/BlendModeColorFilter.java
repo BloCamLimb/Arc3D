@@ -28,7 +28,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
 
-public final class BlendModeColorFilter implements ColorFilter {
+public final class BlendModeColorFilter extends ColorFilter {
 
     // non-premultiplied blend source color in sRGB space
     private final float mR;

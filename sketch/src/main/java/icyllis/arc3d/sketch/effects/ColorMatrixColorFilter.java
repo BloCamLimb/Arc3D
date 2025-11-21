@@ -24,7 +24,7 @@ import icyllis.arc3d.core.MathUtil;
 import icyllis.arc3d.core.Size;
 import org.jspecify.annotations.Nullable;
 
-public final class ColorMatrixColorFilter implements ColorFilter {
+public final class ColorMatrixColorFilter extends ColorFilter {
 
     private final float[] mMatrix = new float[20];
     private final boolean mAlphaUnchanged;

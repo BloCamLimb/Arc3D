@@ -32,7 +32,7 @@ import org.jspecify.annotations.NonNull;
  * @author BloCamLimb
  * @see Rect2i
  */
-public sealed abstract class Rect2ic permits Rect2i {
+public abstract sealed class Rect2ic permits Rect2i {
 
     protected int mLeft;
     protected int mTop;

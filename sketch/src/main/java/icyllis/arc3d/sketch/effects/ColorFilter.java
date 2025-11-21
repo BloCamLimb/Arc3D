@@ -35,13 +35,13 @@ import org.jspecify.annotations.Nullable;
  * All subclasses are required to be reentrant-safe : it must be legal to share
  * the same instance between several threads.
  */
-public sealed interface ColorFilter
+public abstract sealed class ColorFilter
         permits BlendModeColorFilter, ColorMatrixColorFilter, ComposeColorFilter {
 
     /**
      * Returns the flags for this filter. Override in subclasses to return custom flags.
      */
-    default boolean isAlphaUnchanged() {
+    public boolean isAlphaUnchanged() {
         return false;
     }
 
@@ -52,7 +52,7 @@ public sealed interface ColorFilter
      * @return resulting color
      */
     @ColorInt
-    default int filterColor(@ColorInt int col) {
+    public final int filterColor(@ColorInt int col) {
         float[] dst4 = Color.load_and_premul(col);
         filterColor4f(dst4, dst4, null);
         float a = MathUtil.clamp(dst4[3], 0, 1);
@@ -77,7 +77,7 @@ public sealed interface ColorFilter
      * @param out   resulting color
      * @param dstCS destination color space
      */
-    void filterColor4f(@Size(4) float[] col, @Size(4) float[] out, ColorSpace dstCS);
+    public abstract void filterColor4f(@Size(4) float[] col, @Size(4) float[] out, ColorSpace dstCS);
 
     /**
      * Returns a composed color filter that first applies the <var>before</var> filter
@@ -87,7 +87,7 @@ public sealed interface ColorFilter
      * @return a composed color filter
      */
     @NonNull
-    default ColorFilter compose(@Nullable ColorFilter before) {
+    public final ColorFilter compose(@Nullable ColorFilter before) {
         if (before == null) {
             return this;
         }
@@ -102,7 +102,7 @@ public sealed interface ColorFilter
      * @return a composed color filter
      */
     @NonNull
-    default ColorFilter andThen(@Nullable ColorFilter after) {
+    public final ColorFilter andThen(@Nullable ColorFilter after) {
         if (after == null) {
             return this;
         }
