@@ -129,6 +129,15 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
     }
 
     /**
+     * Create a matrix that is the multiplication of two matrices.
+     *
+     * @see #setConcat(Matrix4c, Matrix4c)
+     */
+    public Matrix4(@NonNull Matrix4c lhs, @NonNull Matrix4c rhs) {
+        setConcat(lhs, rhs);
+    }
+
+    /**
      * Create a copy of {@code mat} if not null, otherwise a new identity matrix.
      * Note: we assume null is identity.
      *
@@ -161,13 +170,9 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
     @NonNull
     public static Matrix4 makeTranslate(float x, float y, float z) {
         final Matrix4 m = new Matrix4();
-        m.m11 = 1.0f;
-        m.m22 = 1.0f;
-        m.m33 = 1.0f;
         m.m41 = x;
         m.m42 = y;
         m.m43 = z;
-        m.m44 = 1.0f;
         return m;
     }
 
@@ -185,7 +190,6 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
         m.m11 = x;
         m.m22 = y;
         m.m33 = z;
-        m.m44 = 1.0f;
         return m;
     }
 
@@ -212,7 +216,6 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
         mat.m41 = -(right + left) * invRL;
         mat.m42 = -(top + bottom) * invTB;
         mat.m43 = (near + far) * invNF;
-        mat.m44 = 1.0f;
         return mat;
     }
 
@@ -237,7 +240,6 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
         mat.m41 = -1.0f;
         mat.m42 = flipY ? 1.0f : -1.0f;
         mat.m43 = (near + far) * invNF;
-        mat.m44 = 1.0f;
         return mat;
     }
 
@@ -266,6 +268,7 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
         mat.m33 = (near + far) * invNF;
         mat.m34 = -1.0f;
         mat.m43 = tNear * far * invNF;
+        mat.m44 = 0.0f;
         return mat;
     }
 
@@ -288,6 +291,7 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
         mat.m33 = (near + far) * invNF;
         mat.m34 = -1.0f;
         mat.m43 = 2.0f * far * near * invNF;
+        mat.m44 = 0.0f;
         return mat;
     }
 
@@ -404,34 +408,37 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
     }
 
     /**
-     * Pre-multiply this matrix by the given <code>rhs</code> matrix.
+     * Set <code>this</code> matrix to be the multiplication of two matrices
+     * <code>lhs</code> and <code>rhs</code>. The two given matrices (either or both)
+     * can be <code>this</code>.
      * <p>
-     * If <code>M</code> is <code>this</code> matrix and <code>R</code> the <code>rhs</code>
-     * matrix, then the new matrix will be <code>M * R</code> (GLSL). So when transforming
-     * a vector <code>v</code> with the new matrix by using <code>M * R * v</code>, the
+     * The new matrix will be <code>L * R</code> (GLSL). So when transforming
+     * a vector <code>v</code> with the new matrix by using <code>L * R * v</code>, the
      * transformation of the right-hand side matrix will be applied first.
      *
+     * @param lhs the left-hand side matrix to multiply
      * @param rhs the right-hand side matrix to multiply
      */
-    public void preConcat(@NonNull Matrix4c rhs) {
+    public void setConcat(@NonNull Matrix4c lhs, @NonNull Matrix4c rhs) {
         // C(ij) = ∑ L(ik) * R(kj)
-        // 64 multiplications, C(ji) = ∑ M(ki) * R(jk)
-        final float f11 = rhs.m11() * m11 + rhs.m12() * m21 + rhs.m13() * m31 + rhs.m14() * m41;
-        final float f12 = rhs.m11() * m12 + rhs.m12() * m22 + rhs.m13() * m32 + rhs.m14() * m42;
-        final float f13 = rhs.m11() * m13 + rhs.m12() * m23 + rhs.m13() * m33 + rhs.m14() * m43;
-        final float f14 = rhs.m11() * m14 + rhs.m12() * m24 + rhs.m13() * m34 + rhs.m14() * m44;
-        final float f21 = rhs.m21() * m11 + rhs.m22() * m21 + rhs.m23() * m31 + rhs.m24() * m41;
-        final float f22 = rhs.m21() * m12 + rhs.m22() * m22 + rhs.m23() * m32 + rhs.m24() * m42;
-        final float f23 = rhs.m21() * m13 + rhs.m22() * m23 + rhs.m23() * m33 + rhs.m24() * m43;
-        final float f24 = rhs.m21() * m14 + rhs.m22() * m24 + rhs.m23() * m34 + rhs.m24() * m44;
-        final float f31 = rhs.m31() * m11 + rhs.m32() * m21 + rhs.m33() * m31 + rhs.m34() * m41;
-        final float f32 = rhs.m31() * m12 + rhs.m32() * m22 + rhs.m33() * m32 + rhs.m34() * m42;
-        final float f33 = rhs.m31() * m13 + rhs.m32() * m23 + rhs.m33() * m33 + rhs.m34() * m43;
-        final float f34 = rhs.m31() * m14 + rhs.m32() * m24 + rhs.m33() * m34 + rhs.m34() * m44;
-        final float f41 = rhs.m41() * m11 + rhs.m42() * m21 + rhs.m43() * m31 + rhs.m44() * m41;
-        final float f42 = rhs.m41() * m12 + rhs.m42() * m22 + rhs.m43() * m32 + rhs.m44() * m42;
-        final float f43 = rhs.m41() * m13 + rhs.m42() * m23 + rhs.m43() * m33 + rhs.m44() * m43;
-        final float f44 = rhs.m41() * m14 + rhs.m42() * m24 + rhs.m43() * m34 + rhs.m44() * m44;
+        // 64 multiplications, C(ji) = ∑ R(jk) * L(ki)
+        final Matrix4 L = (Matrix4) lhs, R = (Matrix4) rhs;
+        final float f11 = R.m11 * L.m11 + R.m12 * L.m21 + R.m13 * L.m31 + R.m14 * L.m41;
+        final float f12 = R.m11 * L.m12 + R.m12 * L.m22 + R.m13 * L.m32 + R.m14 * L.m42;
+        final float f13 = R.m11 * L.m13 + R.m12 * L.m23 + R.m13 * L.m33 + R.m14 * L.m43;
+        final float f14 = R.m11 * L.m14 + R.m12 * L.m24 + R.m13 * L.m34 + R.m14 * L.m44;
+        final float f21 = R.m21 * L.m11 + R.m22 * L.m21 + R.m23 * L.m31 + R.m24 * L.m41;
+        final float f22 = R.m21 * L.m12 + R.m22 * L.m22 + R.m23 * L.m32 + R.m24 * L.m42;
+        final float f23 = R.m21 * L.m13 + R.m22 * L.m23 + R.m23 * L.m33 + R.m24 * L.m43;
+        final float f24 = R.m21 * L.m14 + R.m22 * L.m24 + R.m23 * L.m34 + R.m24 * L.m44;
+        final float f31 = R.m31 * L.m11 + R.m32 * L.m21 + R.m33 * L.m31 + R.m34 * L.m41;
+        final float f32 = R.m31 * L.m12 + R.m32 * L.m22 + R.m33 * L.m32 + R.m34 * L.m42;
+        final float f33 = R.m31 * L.m13 + R.m32 * L.m23 + R.m33 * L.m33 + R.m34 * L.m43;
+        final float f34 = R.m31 * L.m14 + R.m32 * L.m24 + R.m33 * L.m34 + R.m34 * L.m44;
+        final float f41 = R.m41 * L.m11 + R.m42 * L.m21 + R.m43 * L.m31 + R.m44 * L.m41;
+        final float f42 = R.m41 * L.m12 + R.m42 * L.m22 + R.m43 * L.m32 + R.m44 * L.m42;
+        final float f43 = R.m41 * L.m13 + R.m42 * L.m23 + R.m43 * L.m33 + R.m44 * L.m43;
+        final float f44 = R.m41 * L.m14 + R.m42 * L.m24 + R.m43 * L.m34 + R.m44 * L.m44;
         m11 = f11;
         m12 = f12;
         m13 = f13;
@@ -448,6 +455,20 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
         m42 = f42;
         m43 = f43;
         m44 = f44;
+    }
+
+    /**
+     * Pre-multiply this matrix by the given <code>rhs</code> matrix.
+     * <p>
+     * If <code>M</code> is <code>this</code> matrix and <code>R</code> the <code>rhs</code>
+     * matrix, then the new matrix will be <code>M * R</code> (GLSL). So when transforming
+     * a vector <code>v</code> with the new matrix by using <code>M * R * v</code>, the
+     * transformation of the right-hand side matrix will be applied first.
+     *
+     * @param rhs the right-hand side matrix to multiply
+     */
+    public void preConcat(@NonNull Matrix4c rhs) {
+        setConcat(this, rhs);
     }
 
     /**
@@ -525,39 +546,7 @@ public non-sealed class Matrix4 implements Matrix4c, Cloneable {
      * @param lhs the left-hand side matrix to multiply
      */
     public void postConcat(@NonNull Matrix4c lhs) {
-        // 64 multiplications, C(ji) = ∑ L(ki) * M(jk)
-        final float f11 = m11 * lhs.m11() + m12 * lhs.m21() + m13 * lhs.m31() + m14 * lhs.m41();
-        final float f12 = m11 * lhs.m12() + m12 * lhs.m22() + m13 * lhs.m32() + m14 * lhs.m42();
-        final float f13 = m11 * lhs.m13() + m12 * lhs.m23() + m13 * lhs.m33() + m14 * lhs.m43();
-        final float f14 = m11 * lhs.m14() + m12 * lhs.m24() + m13 * lhs.m34() + m14 * lhs.m44();
-        final float f21 = m21 * lhs.m11() + m22 * lhs.m21() + m23 * lhs.m31() + m24 * lhs.m41();
-        final float f22 = m21 * lhs.m12() + m22 * lhs.m22() + m23 * lhs.m32() + m24 * lhs.m42();
-        final float f23 = m21 * lhs.m13() + m22 * lhs.m23() + m23 * lhs.m33() + m24 * lhs.m43();
-        final float f24 = m21 * lhs.m14() + m22 * lhs.m24() + m23 * lhs.m34() + m24 * lhs.m44();
-        final float f31 = m31 * lhs.m11() + m32 * lhs.m21() + m33 * lhs.m31() + m34 * lhs.m41();
-        final float f32 = m31 * lhs.m12() + m32 * lhs.m22() + m33 * lhs.m32() + m34 * lhs.m42();
-        final float f33 = m31 * lhs.m13() + m32 * lhs.m23() + m33 * lhs.m33() + m34 * lhs.m43();
-        final float f34 = m31 * lhs.m14() + m32 * lhs.m24() + m33 * lhs.m34() + m34 * lhs.m44();
-        final float f41 = m41 * lhs.m11() + m42 * lhs.m21() + m43 * lhs.m31() + m44 * lhs.m41();
-        final float f42 = m41 * lhs.m12() + m42 * lhs.m22() + m43 * lhs.m32() + m44 * lhs.m42();
-        final float f43 = m41 * lhs.m13() + m42 * lhs.m23() + m43 * lhs.m33() + m44 * lhs.m43();
-        final float f44 = m41 * lhs.m14() + m42 * lhs.m24() + m43 * lhs.m34() + m44 * lhs.m44();
-        m11 = f11;
-        m12 = f12;
-        m13 = f13;
-        m14 = f14;
-        m21 = f21;
-        m22 = f22;
-        m23 = f23;
-        m24 = f24;
-        m31 = f31;
-        m32 = f32;
-        m33 = f33;
-        m34 = f34;
-        m41 = f41;
-        m42 = f42;
-        m43 = f43;
-        m44 = f44;
+        setConcat(lhs, this);
     }
 
     /**
