@@ -507,8 +507,8 @@ public final class GraniteDevice extends Device {
     }
 
     @Override
-    public void drawEdgeAAQuad(Rect2fc r, float[] clip, int flags, Paint paint) {
-        EdgeAAQuad quad = clip != null ? new EdgeAAQuad(clip, flags) : new EdgeAAQuad(r, flags);
+    public void drawEdgeAAQuad(Rect2fc r, @Size(8) float @Nullable [] clip, int clipOffset, int flags, Paint paint) {
+        EdgeAAQuad quad = clip != null ? new EdgeAAQuad(clip, clipOffset, flags) : new EdgeAAQuad(r, flags);
         drawGeometry(getLocalToDevice33(),
                 quad,
                 EdgeAAQuad::getBounds, false, paint,

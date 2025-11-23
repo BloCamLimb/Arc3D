@@ -23,6 +23,8 @@ import icyllis.arc3d.core.Matrix4c;
 import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.Rect2fc;
 import icyllis.arc3d.core.SamplingOptions;
+import icyllis.arc3d.core.Size;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
 
@@ -228,9 +230,9 @@ public class NWayCanvas extends NoDrawCanvas {
     }
 
     @Override
-    protected void onDrawEdgeAAQuad(Rect2fc rect, float[] clip, int edgeFlags, Paint paint) {
+    protected void onDrawEdgeAAQuad(Rect2fc rect, float @Nullable [] clip, int clipOffset, int edgeFlags, Paint paint) {
         for (int i = 0; i < mSize; i++) {
-            mList[i].onDrawEdgeAAQuad(rect, clip, edgeFlags, paint);
+            mList[i].onDrawEdgeAAQuad(rect, clip, clipOffset, edgeFlags, paint);
         }
     }
 

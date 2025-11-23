@@ -22,6 +22,7 @@ package icyllis.arc3d.sketch;
 import icyllis.arc3d.core.*;
 import org.intellij.lang.annotations.MagicConstant;
 import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -118,7 +119,6 @@ public class Canvas implements AutoCloseable {
     private final Rect2f mTmpQuickBounds = new Rect2f();
     private final Rect2f mTmpQuickBounds2 = new Rect2f();
     private final Matrix mTmpMatrix = new Matrix();
-    private final Matrix4 mTmpMatrix44 = new Matrix4();
     private final Paint mTmpPaint = new Paint();
 
     private final GlyphRunBuilder mScratchGlyphRunBuilder = new GlyphRunBuilder();
@@ -615,6 +615,19 @@ public class Canvas implements AutoCloseable {
     }
 
     /**
+     * Helper version of {@link #concat(Matrixc)}.
+     * <p>
+     * This method provides a dirty, temporary matrix to consumer, the consumer
+     * must initialize it, and do batch operations.
+     *
+     * @param matrix the matrix to premultiply with the current matrix
+     */
+    public final void concat(@NonNull Consumer<Matrix> matrix) {
+        matrix.accept(mTmpMatrix);
+        concat(mTmpMatrix);
+    }
+
+    /**
      * Pre-multiply the current matrix by the specified matrix.
      * <p>
      * This has the effect of transforming the drawn geometry by matrix, before
@@ -637,23 +650,7 @@ public class Canvas implements AutoCloseable {
     }
 
     /**
-     * Pre-multiply the current matrix by the specified matrix.
-     * <p>
-     * This has the effect of transforming the drawn geometry by matrix, before
-     * transforming the result with the current matrix.
-     * <p>
-     * This method provides a dirty, temporary matrix to consumer, the consumer
-     * must initialize it, and do batch operations.
-     *
-     * @param matrix the matrix to premultiply with the current matrix
-     */
-    public final void concat(@NonNull Consumer<Matrix4> matrix) {
-        matrix.accept(mTmpMatrix44);
-        concat(mTmpMatrix44);
-    }
-
-    /**
-     * Pre-multiply the current matrix by the specified matrix.
+     * Pre-multiply the current matrix by the specified 4x4 matrix.
      * <p>
      * This has the effect of transforming the drawn geometry by matrix, before
      * transforming the result with the current matrix.
@@ -687,8 +684,7 @@ public class Canvas implements AutoCloseable {
      * Any prior matrix state is overwritten.
      */
     public final void resetMatrix() {
-        mTmpMatrix44.setIdentity();
-        setMatrix(mTmpMatrix44);
+        setMatrix(Matrix4.identity());
     }
 
     //////////////////////////////////////////////////////////////////////////////
@@ -1631,24 +1627,62 @@ public class Canvas implements AutoCloseable {
         cleanedPaint.reset();
     }
 
+    //@formatter:off
     @ApiStatus.Experimental
     public static final int
-            QUAD_AA_FLAG_LEFT = 0b0001,
-            QUAD_AA_FLAG_TOP = 0b0010,
-            QUAD_AA_FLAG_RIGHT = 0b0100,
-            QUAD_AA_FLAG_BOTTOM = 0b1000,
-            QUAD_AA_FLAGS_NONE = 0b0000,
-            QUAD_AA_FLAGS_ALL = QUAD_AA_FLAG_LEFT|QUAD_AA_FLAG_TOP|QUAD_AA_FLAG_RIGHT|QUAD_AA_FLAG_BOTTOM;
-
+            EDGE_AA_FLAG_LEFT   = 0b0001,
+            EDGE_AA_FLAG_TOP    = 0b0010,
+            EDGE_AA_FLAG_RIGHT  = 0b0100,
+            EDGE_AA_FLAG_BOTTOM = 0b1000;
     @ApiStatus.Experimental
-    public final void drawEdgeAAQuad(Rect2fc rect, @Size(8) float[] clip,
-                                     @MagicConstant(flags = {QUAD_AA_FLAG_LEFT, QUAD_AA_FLAG_TOP, QUAD_AA_FLAG_RIGHT,
-                                             QUAD_AA_FLAG_BOTTOM}) int edgeFlags, Paint paint) {
+    public static final int
+            EDGE_AA_FLAGS_NONE  = 0b0000,
+            EDGE_AA_FLAGS_ALL   = EDGE_AA_FLAG_LEFT|EDGE_AA_FLAG_TOP|EDGE_AA_FLAG_RIGHT|EDGE_AA_FLAG_BOTTOM;
+    //@formatter:on
+
+    /**
+     * This is an API from the Chromium project.
+     * <p>
+     * This draws a quadrilateral, it behaves very similarly to drawRect() combined with a
+     * clipPath() formed by clip quadrilateral. <var>clip</var> and <var>rect</var> are
+     * in the same coordinate space. The quadrilateral is defined either by <var>clip</var>
+     * or by <var>rect</var>. If both are defined, then <var>rect</var> is considered to
+     * be clipped by the quadrilateral defined by <var>clip</var>, and <var>rect</var> must
+     * contain <var>clip</var>. If <var>clip</var> is not null,
+     * then it must contain 4 points (8 floats) starting from <var>clipOffset</var>.
+     * <p>
+     * In addition to combining the draw and clipping into one operation, this function adds the
+     * additional capability of controlling each of the rectangle's edges anti-aliasing
+     * independently. The edges of the clip will respect the per-edge AA flags. It is required that
+     * <var>clip</var> be contained inside <var>rect</var>. In terms of mapping to edge labels,
+     * the <var>clip</var> points should be ordered top-left, top-right, bottom-right, bottom-left.
+     * <p>
+     * The paint's style and all stroke parameters are ignored and assumed to be fill.
+     * The paint's AA hint is also ignored, as is specified by <var>edgeFlags</var>.
+     * Therefore, solid color, Shader, ColorFilter, Blender, and dither hint will be used.
+     *
+     * @param rect       the rect as defined above
+     * @param clip       the clip points as defined above
+     * @param clipOffset the start offset to the clip array
+     * @param edgeFlags  the flags indicate which edges needs anti-aliasing
+     * @param paint      the paint as defined above
+     */
+    @Contract(mutates = "this")
+    @ApiStatus.Experimental
+    public final void drawEdgeAAQuad(@Nullable Rect2fc rect,
+                                     float @Nullable [] clip, int clipOffset,
+                                     @MagicConstant(flags = {EDGE_AA_FLAG_LEFT, EDGE_AA_FLAG_TOP,
+                                             EDGE_AA_FLAG_RIGHT, EDGE_AA_FLAG_BOTTOM}) int edgeFlags,
+                                     Paint paint) {
+        if (rect == null && clip == null) {
+            // no geometry is defined
+            return;
+        }
         var cleanedPaint = mTmpPaint;
         cleanedPaint.set(paint);
         cleanedPaint.setStyle(Paint.FILL);
         cleanedPaint.setPathEffect(null);
-        onDrawEdgeAAQuad(rect, clip, edgeFlags, cleanedPaint);
+        onDrawEdgeAAQuad(rect, clip, clipOffset, edgeFlags, cleanedPaint);
         cleanedPaint.reset();
     }
 
@@ -2110,13 +2144,13 @@ public class Canvas implements AutoCloseable {
         }
     }
 
-    protected void onDrawEdgeAAQuad(Rect2fc rect, @Size(8) float[] clip, int edgeFlags, Paint paint) {
-        if ((clip == null || rect != null) && internalQuickReject(rect, paint)) {
+    protected void onDrawEdgeAAQuad(@Nullable Rect2fc rect, float @Nullable [] clip, int clipOffset, int edgeFlags, Paint paint) {
+        if (rect != null && internalQuickReject(rect, paint)) {
             return;
         }
 
         if (predrawNotify(false)) {
-            topDevice().drawEdgeAAQuad(rect, clip, edgeFlags, paint);
+            topDevice().drawEdgeAAQuad(rect, clip, clipOffset, edgeFlags, paint);
         }
     }
 

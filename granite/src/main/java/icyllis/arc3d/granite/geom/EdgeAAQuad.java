@@ -21,6 +21,7 @@ package icyllis.arc3d.granite.geom;
 
 import icyllis.arc3d.core.Rect2f;
 import icyllis.arc3d.core.Rect2fc;
+import org.jspecify.annotations.NonNull;
 
 public class EdgeAAQuad {
 
@@ -39,7 +40,7 @@ public class EdgeAAQuad {
     private final byte mEdgeFlags;
     private final boolean mIsRect;
 
-    public EdgeAAQuad(Rect2fc rect, int edgeFlags) {
+    public EdgeAAQuad(@NonNull Rect2fc rect, int edgeFlags) {
         x0=rect.left();
         x1=rect.right();
         x2=rect.right();
@@ -52,15 +53,15 @@ public class EdgeAAQuad {
         mIsRect = true;
     }
 
-    public EdgeAAQuad(float[] points, int edgeFlags) {
-        x0=points[0];
-        x1=points[2];
-        x2=points[4];
-        x3=points[6];
-        y0=points[1];
-        y1=points[3];
-        y2=points[5];
-        y3=points[7];
+    public EdgeAAQuad(float @NonNull [] points, int offset, int edgeFlags) {
+        x0=points[offset+0];
+        x1=points[offset+2];
+        x2=points[offset+4];
+        x3=points[offset+6];
+        y0=points[offset+1];
+        y1=points[offset+3];
+        y2=points[offset+5];
+        y3=points[offset+7];
         mEdgeFlags = (byte) edgeFlags;
         mIsRect = false;
     }

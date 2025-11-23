@@ -324,8 +324,6 @@ public class TestGraniteRenderer {
         final ColorFilter[] mBlendModeColorFilters = new ColorFilter[BlendMode.COUNT];
 
         float[] mMarkPts1;
-        float[] mMarkPts2;
-        float[] mTriPts;
 
         public Painter(ImmediateContext immediateContext) {
             mRC = RecordingContext.makeRecordingContext(
@@ -584,14 +582,10 @@ public class TestGraniteRenderer {
                     114f, 156f,
                     100, 170,
                     140, 210,
-            };
-            mMarkPts2 = new float[]{
                     140, 210,
                     220, 130,
                     206f, 116f,
                     140, 182f,
-            };
-            mTriPts = new float[]{
                     520, 20,
                     520, 100,
                     590, 60,
@@ -812,13 +806,13 @@ public class TestGraniteRenderer {
                 canvas.drawVertices(mVertices2, BlendMode.MODULATE, paint);
                 //}
                 canvas.drawEdgeAAQuad(null,
-                        mMarkPts1, Canvas.QUAD_AA_FLAG_RIGHT | Canvas.QUAD_AA_FLAG_TOP | Canvas.QUAD_AA_FLAG_BOTTOM,
+                        mMarkPts1, 0, Canvas.EDGE_AA_FLAG_RIGHT | Canvas.EDGE_AA_FLAG_TOP | Canvas.EDGE_AA_FLAG_BOTTOM,
                         paint);
                 canvas.drawEdgeAAQuad(null,
-                        mMarkPts2, Canvas.QUAD_AA_FLAG_RIGHT | Canvas.QUAD_AA_FLAG_TOP | Canvas.QUAD_AA_FLAG_BOTTOM,
+                        mMarkPts1, 8, Canvas.EDGE_AA_FLAG_RIGHT | Canvas.EDGE_AA_FLAG_TOP | Canvas.EDGE_AA_FLAG_BOTTOM,
                         paint);
                 canvas.drawEdgeAAQuad(null,
-                        mTriPts, Canvas.QUAD_AA_FLAGS_ALL, paint);
+                        mMarkPts1, 16, Canvas.EDGE_AA_FLAGS_ALL, paint);
 
                 paint.setColor4(233, 30, 99, 255);
                 rect.set(0, 0, 16, 16);

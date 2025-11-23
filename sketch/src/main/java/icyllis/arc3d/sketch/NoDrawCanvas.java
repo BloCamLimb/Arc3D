@@ -22,6 +22,8 @@ package icyllis.arc3d.sketch;
 import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.Rect2fc;
 import icyllis.arc3d.core.SamplingOptions;
+import icyllis.arc3d.core.Size;
+import org.jspecify.annotations.Nullable;
 
 public class NoDrawCanvas extends Canvas {
 
@@ -84,7 +86,7 @@ public class NoDrawCanvas extends Canvas {
     }
 
     @Override
-    protected void onDrawEdgeAAQuad(Rect2fc rect, float[] clip, int edgeFlags, Paint paint) {
+    protected void onDrawEdgeAAQuad(Rect2fc rect, float @Nullable [] clip, int clipOffset, int edgeFlags, Paint paint) {
     }
 
     @Override

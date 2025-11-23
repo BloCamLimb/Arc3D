@@ -297,7 +297,7 @@ public abstract class Device extends RefCnt {
     public abstract void drawVertices(Vertices vertices, Blender blender,
                                       Paint paint);
 
-    public void drawEdgeAAQuad(Rect2fc r, float[] clip, int flags, Paint paint) {
+    public void drawEdgeAAQuad(Rect2fc r, float[] clip, int clipOffset, int flags, Paint paint) {
     }
 
     public boolean drawBlurredRRect(RRect rr, Paint paint, float blurRadius, float noiseAlpha) {
