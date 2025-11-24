@@ -891,10 +891,10 @@ public class Paint implements AutoCloseable {
     @Override
     public int hashCode() {
         int result = mFlags;
-        result = 31 * result + (mR != 0.0f ? Float.floatToIntBits(mR) : 0);
-        result = 31 * result + (mG != 0.0f ? Float.floatToIntBits(mG) : 0);
-        result = 31 * result + (mB != 0.0f ? Float.floatToIntBits(mB) : 0);
-        result = 31 * result + (mA != 0.0f ? Float.floatToIntBits(mA) : 0);
+        result = 31 * result + Float.floatToIntBits(mR);
+        result = 31 * result + Float.floatToIntBits(mG);
+        result = 31 * result + Float.floatToIntBits(mB);
+        result = 31 * result + Float.floatToIntBits(mA);
         result = 31 * result + (mWidth != 0.0f ? Float.floatToIntBits(mWidth) : 0);
         result = 31 * result + (mMiterLimit != 0.0f ? Float.floatToIntBits(mMiterLimit) : 0);
         result = 31 * result + Objects.hashCode(mPathEffect);
@@ -911,13 +911,13 @@ public class Paint implements AutoCloseable {
         return equals(paint);
     }
 
-    protected final boolean equals(Paint paint) {
+    protected final boolean equals(@NonNull Paint paint) {
         return mFlags == paint.mFlags &&
-                // use IEEE comparison, so that -0.0 == +0.0
                 mR == paint.mR &&
                 mG == paint.mG &&
                 mB == paint.mB &&
                 mA == paint.mA &&
+                // use IEEE comparison, so that -0.0 == +0.0
                 mWidth == paint.mWidth &&
                 mMiterLimit == paint.mMiterLimit &&
                 Objects.equals(mPathEffect, paint.mPathEffect) &&
