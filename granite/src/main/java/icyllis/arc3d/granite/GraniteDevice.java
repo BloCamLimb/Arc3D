@@ -23,7 +23,8 @@ import icyllis.arc3d.core.*;
 import icyllis.arc3d.engine.Engine;
 import icyllis.arc3d.engine.ISurface;
 import icyllis.arc3d.engine.ImageDesc;
-import icyllis.arc3d.engine.ImageViewProxy;
+import icyllis.arc3d.engine.ImageProxy;
+import icyllis.arc3d.engine.ImageProxyView;
 import icyllis.arc3d.granite.geom.ArcShape;
 import icyllis.arc3d.granite.geom.BoundsManager;
 import icyllis.arc3d.granite.geom.BoxShape;
@@ -128,20 +129,21 @@ public final class GraniteDevice extends Device {
         short readSwizzle = rc.getCaps().getReadSwizzle(
                 desc, deviceInfo.colorType());
         @SharedPtr
-        ImageViewProxy targetView = ImageViewProxy.make(rc, desc,
-                origin, readSwizzle,
+        ImageProxy target = ImageProxy.make(rc, desc,
                 (surfaceFlags & ISurface.FLAG_BUDGETED) != 0, label);
-        if (targetView == null) {
+        if (target == null) {
             return null;
         }
 
-        return make(rc, targetView, deviceInfo, initialLoadOp, trackDevice);
+        return make(rc, new ImageProxyView(target, // move
+                        origin, readSwizzle), // move
+                deviceInfo, initialLoadOp, trackDevice);
     }
 
     @Nullable
     @SharedPtr
     public static GraniteDevice make(@RawPtr RecordingContext rc,
-                                     @SharedPtr ImageViewProxy targetView,
+                                     @SharedPtr ImageProxyView targetView,
                                      ImageInfo deviceInfo,
                                      byte initialLoadOp,
                                      boolean trackDevice) {
@@ -149,7 +151,8 @@ public final class GraniteDevice extends Device {
             return null;
         }
         SurfaceDrawContext sdc = SurfaceDrawContext.make(rc,
-                targetView, deviceInfo);
+                targetView, // move
+                deviceInfo);
         if (sdc == null) {
             return null;
         }
@@ -205,7 +208,7 @@ public final class GraniteDevice extends Device {
      * @return raw ptr to the read view
      */
     @RawPtr
-    public ImageViewProxy getReadView() {
+    public ImageProxyView getReadView() {
         return mSDC.getReadView();
     }
 
@@ -221,7 +224,7 @@ public final class GraniteDevice extends Device {
         var srcInfo = getImageInfo();
         @RawPtr
         var srcView = mSDC.getReadView();
-        String label = srcView.getLabel();
+        String label = srcView.getProxy().getLabel();
         if (label == null || label.isEmpty()) {
             label = "CopyDeviceTexture";
         } else {

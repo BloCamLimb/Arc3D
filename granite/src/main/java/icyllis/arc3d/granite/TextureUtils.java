@@ -28,7 +28,7 @@ import org.jspecify.annotations.Nullable;
 public class TextureUtils {
 
     @Nullable
-    public static ObjectIntPair<@SharedPtr ImageViewProxy> makePixmapViewProxy(
+    public static ObjectIntPair<@SharedPtr ImageProxyView> makePixmapProxyView(
             RecordingContext context,
             Pixmap pixmap,
             boolean mipmapped,
@@ -78,16 +78,14 @@ public class TextureUtils {
         }
 
         @SharedPtr
-        ImageViewProxy view = ImageViewProxy.make(
+        ImageProxy proxy = ImageProxy.make(
                 context,
                 desc,
-                Engine.SurfaceOrigin.kUpperLeft,
-                readSwizzle,
                 budgeted,
                 label
         );
 
-        if (view == null) {
+        if (proxy == null) {
             return null;
         }
 
@@ -95,7 +93,7 @@ public class TextureUtils {
         @SharedPtr
         var task = ImageUploadTask.make(
                 context,
-                view,   // move
+                proxy,  // move
                 srcCT,
                 imageInfo.alphaType(),
                 imageInfo.colorSpace(),
@@ -115,8 +113,10 @@ public class TextureUtils {
 
         context.addTask(task); // move
 
-        view.ref();
-        return ObjectIntPair.of(view, dstCT);
+        proxy.ref();
+        return ObjectIntPair.of(new ImageProxyView(proxy, // move
+                Engine.SurfaceOrigin.kUpperLeft,
+                readSwizzle), dstCT);
     }
 
     @Nullable
@@ -128,7 +128,7 @@ public class TextureUtils {
             boolean budgeted,
             String label
     ) {
-        var result = makePixmapViewProxy(context, pixmap, mipmapped, budgeted, label);
+        var result = makePixmapProxyView(context, pixmap, mipmapped, budgeted, label);
         if (result == null) {
             return null;
         }

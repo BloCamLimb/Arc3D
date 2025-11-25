@@ -19,9 +19,9 @@
 
 package icyllis.arc3d.granite;
 
-import icyllis.arc3d.core.RefCnt;
+import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.SharedPtr;
-import icyllis.arc3d.engine.ImageViewProxy;
+import icyllis.arc3d.engine.ImageProxyView;
 import icyllis.arc3d.engine.SamplerDesc;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -32,11 +32,12 @@ import java.util.function.Function;
 
 public class TextureDataGatherer implements AutoCloseable {
 
-    private final IdentityHashMap<ImageViewProxy, Integer> mTextureToIndex = new IdentityHashMap<>();
-    private ObjectArrayList<@SharedPtr ImageViewProxy> mIndexToTexture = new ObjectArrayList<>();
-    private final Function<ImageViewProxy, Integer> mTextureAccumulator = texture -> {
+    private final IdentityHashMap<@RawPtr ImageProxyView, Integer> mTextureToIndex = new IdentityHashMap<>();
+    private ObjectArrayList<@SharedPtr ImageProxyView> mIndexToTexture = new ObjectArrayList<>();
+    private final Function<@RawPtr ImageProxyView, Integer> mTextureAccumulator = (@RawPtr ImageProxyView texture) -> {
         int index = mIndexToTexture.size();
-        mIndexToTexture.add(RefCnt.create(texture));
+        // persist the proxy ref, since ImageProxyView represents a single owner, just create new one
+        mIndexToTexture.add(new ImageProxyView(texture));
         return index;
     };
 
@@ -50,10 +51,9 @@ public class TextureDataGatherer implements AutoCloseable {
 
     final IntArrayList mTextureData = new IntArrayList();
 
-    public void add(@SharedPtr ImageViewProxy textureView, SamplerDesc samplerDesc) {
+    public void add(@RawPtr ImageProxyView textureView, SamplerDesc samplerDesc) {
         assert samplerDesc != null;
         int textureIndex = mTextureToIndex.computeIfAbsent(textureView, mTextureAccumulator);
-        RefCnt.move(textureView);
         int samplerIndex = mSamplerToIndex.computeIfAbsent(samplerDesc, mSamplerAccumulator);
         mTextureData.add(textureIndex);
         mTextureData.add(samplerIndex);
@@ -71,13 +71,13 @@ public class TextureDataGatherer implements AutoCloseable {
         return mTextureData.toIntArray();
     }
 
-    ObjectArrayList<@SharedPtr ImageViewProxy> detachTextures() {
+    ObjectArrayList<@SharedPtr ImageProxyView> detachTextureViews() {
         var res = mIndexToTexture;
         mIndexToTexture = null;
         return res;
     }
 
-    ObjectArrayList<SamplerDesc> detachSamplers() {
+    ObjectArrayList<SamplerDesc> detachSamplerDescs() {
         var res = mIndexToSampler;
         mIndexToSampler = null;
         return res;
@@ -86,7 +86,7 @@ public class TextureDataGatherer implements AutoCloseable {
     @Override
     public void close() {
         if (mIndexToTexture != null) {
-            mIndexToTexture.forEach(RefCnt::unref);
+            mIndexToTexture.forEach(ImageProxyView::close);
         }
         mIndexToTexture = null;
     }

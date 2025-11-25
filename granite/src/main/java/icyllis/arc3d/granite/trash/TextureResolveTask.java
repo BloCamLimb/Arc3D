@@ -20,7 +20,7 @@
 package icyllis.arc3d.granite.trash;
 
 import icyllis.arc3d.core.*;
-import icyllis.arc3d.engine.ImageViewProxy;
+import icyllis.arc3d.engine.ImageProxy;
 import icyllis.arc3d.engine.RenderTargetProxy;
 import icyllis.arc3d.engine.SurfaceProxy;
 import icyllis.arc3d.granite.RenderTask;
@@ -60,7 +60,7 @@ public final class TextureResolveTask extends RenderTask {
         }
 
         if ((resolveFlags & RESOLVE_FLAG_MIPMAPS) != 0) {
-            ImageViewProxy imageViewProxy = proxy.asImageProxy();
+            ImageProxy imageViewProxy = proxy.asImageProxy();
             assert imageViewProxy != null;
             /*assert (imageProxy.isMipmapped() && imageProxy.isMipmapsDirty());
             imageProxy.setMipmapsDirty(false);*/

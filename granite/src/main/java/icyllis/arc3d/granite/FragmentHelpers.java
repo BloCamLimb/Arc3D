@@ -21,7 +21,7 @@ package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.*;
 import icyllis.arc3d.engine.Engine;
-import icyllis.arc3d.engine.ImageViewProxy;
+import icyllis.arc3d.engine.ImageProxyView;
 import icyllis.arc3d.engine.KeyBuilder;
 import icyllis.arc3d.engine.SamplerDesc;
 import icyllis.arc3d.sketch.BlendMode;
@@ -209,7 +209,7 @@ public class FragmentHelpers {
             SamplingOptions sampling,
             int imageWidth, int imageHeight,
             @ColorInfo.AlphaType int srcAT,
-            @SharedPtr ImageViewProxy view
+            @RawPtr ImageProxyView view
     ) {
         boolean useHwTiling = !sampling.mUseCubic &&
                 subset.contains(0, 0, imageWidth, imageHeight) &&
@@ -261,7 +261,7 @@ public class FragmentHelpers {
                 SamplerDesc.ADDRESS_MODE_CLAMP_TO_EDGE)
                 : SamplerDesc.make(filterMode);
 
-        textureDataGatherer.add(view, samplerDesc); // move
+        textureDataGatherer.add(view, samplerDesc);
     }
 
     public static class GradientData {
@@ -728,8 +728,8 @@ public class FragmentHelpers {
             return;
         }
 
-        @SharedPtr
-        ImageViewProxy view = RefCnt.create(imageToDraw.getImageViewProxy());
+        @RawPtr
+        ImageProxyView view = imageToDraw.getImageProxyView();
         if (view == null) {
             keyBuilder.addInt(FragmentStage.kError_BuiltinStageID);
             return;
@@ -806,7 +806,7 @@ public class FragmentHelpers {
         var matrix = new Matrix();
         if (baseShader instanceof ImageShader imageShader) {
             if (imageShader.getImage() instanceof GraniteImage textureImage) {
-                var view = textureImage.getImageViewProxy();
+                var view = textureImage.getImageProxyView();
                 if (view.getOrigin() == Engine.SurfaceOrigin.kLowerLeft) {
                     matrix.setScaleTranslate(1, -1, 0, view.getHeight());
                 }

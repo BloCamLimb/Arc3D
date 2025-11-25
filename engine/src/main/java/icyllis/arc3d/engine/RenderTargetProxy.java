@@ -39,7 +39,7 @@ public final class RenderTargetProxy extends SurfaceProxy {
     // for deferred single color target
     // if MSAA, this is the resolve target
     //TODO instantiate this
-    private ImageViewProxy mColorImageProxy;
+    private ImageProxy mColorImageProxy;
 
     // Deferred version - no data
     // single color target
@@ -202,7 +202,7 @@ public final class RenderTargetProxy extends SurfaceProxy {
     }
 
     @Override
-    public ImageViewProxy asImageProxy() {
+    public ImageProxy asImageProxy() {
         return mColorImageProxy;
     }
 

@@ -21,6 +21,9 @@ package icyllis.arc3d.engine;
 
 import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.SharedPtr;
+import org.jspecify.annotations.NonNull;
+
+import java.util.Objects;
 
 import static icyllis.arc3d.engine.Engine.SurfaceOrigin;
 
@@ -31,20 +34,29 @@ import static icyllis.arc3d.engine.Engine.SurfaceOrigin;
 public class ImageProxyView implements AutoCloseable {
 
     @SharedPtr
-    ImageViewProxy mProxy;
+    ImageProxy mProxy;
     int mOrigin;
     short mSwizzle;
 
-    public ImageProxyView(@SharedPtr ImageViewProxy proxy) {
+    public ImageProxyView(@SharedPtr ImageProxy proxy) {
         mProxy = proxy; // std::move()
         mOrigin = SurfaceOrigin.kUpperLeft;
         mSwizzle = Swizzle.RGBA;
     }
 
-    public ImageProxyView(@SharedPtr ImageViewProxy proxy, int origin, short swizzle) {
+    public ImageProxyView(@SharedPtr ImageProxy proxy, int origin, short swizzle) {
         mProxy = proxy; // std::move()
         mOrigin = origin;
         mSwizzle = swizzle;
+    }
+
+    public ImageProxyView(@RawPtr @NonNull ImageProxyView view) {
+        mProxy = view.mProxy;
+        if (mProxy != null) {
+            mProxy.ref();
+        }
+        mOrigin = view.mOrigin;
+        mSwizzle = view.mSwizzle;
     }
 
     public int getWidth() {
@@ -63,7 +75,7 @@ public class ImageProxyView implements AutoCloseable {
      * Returns smart pointer value (raw ptr).
      */
     @RawPtr
-    public ImageViewProxy getProxy() {
+    public ImageProxy getProxy() {
         return mProxy;
     }
 
@@ -71,7 +83,7 @@ public class ImageProxyView implements AutoCloseable {
      * Returns a smart pointer (as if on the stack).
      */
     @SharedPtr
-    public ImageViewProxy refProxy() {
+    public ImageProxy refProxy() {
         mProxy.ref();
         return mProxy;
     }
@@ -81,9 +93,9 @@ public class ImageProxyView implements AutoCloseable {
      * properties associated with the detached proxy.
      */
     @SharedPtr
-    public ImageViewProxy detachProxy() {
+    public ImageProxy detachProxy() {
         // just like std::move(), R-value reference
-        ImageViewProxy surfaceProxy = mProxy;
+        ImageProxy surfaceProxy = mProxy;
         mProxy = null;
         return surfaceProxy;
     }
@@ -105,8 +117,15 @@ public class ImageProxyView implements AutoCloseable {
     /**
      * Concat swizzle.
      */
-    public void concat(short swizzle) {
+    public void concatSwizzle(short swizzle) {
         mSwizzle = Swizzle.concat(mSwizzle, swizzle);
+    }
+
+    /**
+     * Replace the view's swizzle.
+     */
+    public void replaceSwizzle(short swizzle) {
+        mSwizzle = swizzle;
     }
 
     /**
@@ -132,11 +151,11 @@ public class ImageProxyView implements AutoCloseable {
         mProxy = null;
     }
 
-    /*@Override
+    @Override
     public int hashCode() {
-        int result = mProxy != null ? mProxy.getUniqueID().hashCode() : 0;
+        int result = Objects.hashCode(mProxy);
         result = 31 * result + mOrigin;
-        result = 31 * result + (int) mSwizzle;
+        result = 31 * result + mSwizzle;
         return result;
     }
 
@@ -144,10 +163,19 @@ public class ImageProxyView implements AutoCloseable {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
+
         ImageProxyView that = (ImageProxyView) o;
-        if (mOrigin != that.mOrigin) return false;
-        if (mSwizzle != that.mSwizzle) return false;
-        return (mProxy == null && that.mProxy == null) ||
-                (mProxy != null && that.mProxy != null && mProxy.getUniqueID() == that.mProxy.getUniqueID());
-    }*/
+        return mOrigin == that.mOrigin &&
+                mSwizzle == that.mSwizzle &&
+                Objects.equals(mProxy, that.mProxy);
+    }
+
+    @Override
+    public String toString() {
+        return "ImageProxyView{" +
+                "mProxy=" + mProxy +
+                ", mOrigin=" + mOrigin +
+                ", mSwizzle=" + Swizzle.toString(mSwizzle) +
+                '}';
+    }
 }

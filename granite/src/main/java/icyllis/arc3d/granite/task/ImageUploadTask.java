@@ -90,7 +90,7 @@ public class ImageUploadTask extends Task {
     @RawPtr
     private Buffer mBuffer;
     @SharedPtr
-    private ImageViewProxy mImageViewProxy;
+    private ImageProxy mImageProxy;
     private int mSrcColorType;
     private int mDstColorType;
     private BufferImageCopyData[] mCopyData;
@@ -98,13 +98,13 @@ public class ImageUploadTask extends Task {
     private UploadCondition mUploadCondition;
 
     ImageUploadTask(@RawPtr Buffer buffer,
-                    @SharedPtr ImageViewProxy imageViewProxy,
+                    @SharedPtr ImageProxy imageProxy,
                     int srcColorType,
                     int dstColorType,
                     BufferImageCopyData[] copyData,
                     @Nullable UploadCondition uploadCondition) {
         mBuffer = buffer;
-        mImageViewProxy = imageViewProxy;
+        mImageProxy = imageProxy;
         mSrcColorType = srcColorType;
         mDstColorType = dstColorType;
         mCopyData = copyData;
@@ -114,7 +114,7 @@ public class ImageUploadTask extends Task {
     @Nullable
     @SharedPtr
     public static ImageUploadTask make(RecordingContext context,
-                                       @SharedPtr ImageViewProxy imageViewProxy,
+                                       @SharedPtr ImageProxy imageProxy,
                                        int srcColorType,
                                        int srcAlphaType,
                                        ColorSpace srcColorSpace,
@@ -124,7 +124,7 @@ public class ImageUploadTask extends Task {
                                        MipLevel[] levels,
                                        Rect2ic dstRect,
                                        UploadCondition condition) {
-        assert imageViewProxy != null;
+        assert imageProxy != null;
         //TODO take account of Vulkan's optimalBufferCopyOffsetAlignment and
         // optimalBufferCopyRowPitchAlignment
 
@@ -134,31 +134,31 @@ public class ImageUploadTask extends Task {
         int mipLevelCount = levels.length;
         // The assumption is either that we have no mipmaps, or that our rect is the entire texture
         assert mipLevelCount == 1 ||
-                (dstRect.width() == imageViewProxy.getWidth() &&
-                        dstRect.height() == imageViewProxy.getHeight());
+                (dstRect.width() == imageProxy.getWidth() &&
+                        dstRect.height() == imageProxy.getHeight());
 
         if (dstRect.isEmpty()) {
-            imageViewProxy.unref();
+            imageProxy.unref();
             return null;
         }
         for (int i = 0; i < mipLevelCount; i++) {
             // We do not allow any gaps in the mip data
             if (levels[i].mAddress == MemoryUtil.NULL) {
-                imageViewProxy.unref();
+                imageProxy.unref();
                 return null;
             }
         }
 
         if (srcColorType == ColorInfo.CT_UNKNOWN ||
                 dstColorType == ColorInfo.CT_UNKNOWN) {
-            imageViewProxy.unref();
+            imageProxy.unref();
             return null;
         }
 
         @ColorInfo.ColorType
         int actualColorType = (int) context.getCaps().getSupportedWriteColorType(
                 dstColorType,
-                imageViewProxy.getDesc(),
+                imageProxy.getDesc(),
                 srcColorType
         );
         if (actualColorType == ColorInfo.CT_UNKNOWN) {
@@ -184,7 +184,7 @@ public class ImageUploadTask extends Task {
         if (writer == MemoryUtil.NULL) {
             context.getLogger().warn("Failed to get write-mapped buffer for pixel upload of size {}",
                     combinedBufferSize);
-            imageViewProxy.unref();
+            imageProxy.unref();
             return null;
         }
 
@@ -232,7 +232,7 @@ public class ImageUploadTask extends Task {
 
         return new ImageUploadTask(
                 bufferInfo.mBuffer,
-                imageViewProxy, // move
+                imageProxy, // move
                 srcColorType,
                 dstColorType,
                 copyData,
@@ -242,12 +242,12 @@ public class ImageUploadTask extends Task {
 
     @Override
     protected void deallocate() {
-        mImageViewProxy = RefCnt.move(mImageViewProxy);
+        mImageProxy = RefCnt.move(mImageProxy);
     }
 
     @Override
     public int prepare(RecordingContext context) {
-        if (!mImageViewProxy.instantiateIfNonLazy(context.getResourceProvider())) {
+        if (!mImageProxy.instantiateIfNonLazy(context.getResourceProvider())) {
             return RESULT_FAILURE;
         }
         return RESULT_SUCCESS;
@@ -255,21 +255,21 @@ public class ImageUploadTask extends Task {
 
     @Override
     public int execute(ImmediateContext context, CommandBuffer commandBuffer) {
-        assert mImageViewProxy != null && mImageViewProxy.isInstantiated();
+        assert mImageProxy != null && mImageProxy.isInstantiated();
 
         if (mUploadCondition != null && !mUploadCondition.needsUpload(context)) {
             return RESULT_SUCCESS;
         }
 
         if (!commandBuffer.copyBufferToImage(mBuffer,
-                mImageViewProxy.getImage(),
+                mImageProxy.getImage(),
                 mSrcColorType,
                 mDstColorType,
                 mCopyData)) {
             return RESULT_FAILURE;
         }
 
-        commandBuffer.trackCommandBufferResource(mImageViewProxy.refImage());
+        commandBuffer.trackCommandBufferResource(mImageProxy.refImage());
 
         if (mUploadCondition != null && mUploadCondition.onUploadSubmitted() == UploadCondition.DISCARD) {
             return RESULT_DISCARD;

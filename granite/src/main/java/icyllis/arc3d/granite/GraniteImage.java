@@ -27,7 +27,8 @@ import icyllis.arc3d.core.Rect2ic;
 import icyllis.arc3d.core.RefCnt;
 import icyllis.arc3d.core.SharedPtr;
 import icyllis.arc3d.engine.ISurface;
-import icyllis.arc3d.engine.ImageViewProxy;
+import icyllis.arc3d.engine.ImageProxy;
+import icyllis.arc3d.engine.ImageProxyView;
 import icyllis.arc3d.granite.task.CopyImageTask;
 import icyllis.arc3d.sketch.Image;
 import org.jspecify.annotations.NonNull;
@@ -41,22 +42,22 @@ public final class GraniteImage extends Image {
     @RawPtr
     RecordingContext mContext;
     @SharedPtr
-    ImageViewProxy mImageViewProxy;
+    ImageProxyView mImageProxyView;
 
     public GraniteImage(@NonNull @RawPtr RecordingContext context,
-                        @NonNull @SharedPtr ImageViewProxy view,
+                        @NonNull @SharedPtr ImageProxyView view,
                         int colorType, int alphaType,
                         @Nullable ColorSpace colorSpace) {
         super(ImageInfo.make(view.getWidth(), view.getHeight(),
                 colorType, alphaType, colorSpace));
         mContext = context;
-        mImageViewProxy = view;
+        mImageProxyView = view;
     }
 
     @Nullable
     @SharedPtr
     public static GraniteImage copy(@RawPtr RecordingContext rc,
-                                    @RawPtr ImageViewProxy srcView,
+                                    @RawPtr ImageProxyView srcView,
                                     @NonNull ImageInfo srcInfo,
                                     @NonNull Rect2ic subset,
                                     boolean budgeted,
@@ -77,13 +78,13 @@ public final class GraniteImage extends Image {
             height = ISurface.getApproxSize(height);
         }
         var dstDesc = rc.getCaps().getImageDescForSampledCopy(
-                srcView.getDesc(), width, height, 1,
+                srcView.getProxy().getDesc(), width, height, 1,
                 mipmapped ? ISurface.FLAG_MIPMAPPED : 0
         );
 
         @SharedPtr
-        ImageViewProxy dst = ImageViewProxy.make(
-                rc, dstDesc, srcView.getOrigin(), srcView.getSwizzle(),
+        ImageProxy dst = ImageProxy.make(
+                rc, dstDesc,
                 budgeted, label
         );
         if (dst == null) {
@@ -92,7 +93,7 @@ public final class GraniteImage extends Image {
 
         @SharedPtr
         CopyImageTask copyTask = CopyImageTask.make(
-                RefCnt.create(srcView),
+                srcView.refProxy(),
                 subset,
                 RefCnt.create(dst),
                 0, 0, 0
@@ -104,13 +105,14 @@ public final class GraniteImage extends Image {
 
         rc.addTask(copyTask); // move
 
-        return new GraniteImage(rc, dst, // move
+        return new GraniteImage(rc, new ImageProxyView(dst, srcView.getOrigin(), srcView.getSwizzle()), // move
                 srcInfo.colorType(), srcInfo.alphaType(), srcInfo.colorSpace());
     }
 
     @Override
     protected void deallocate() {
-        mImageViewProxy = RefCnt.move(mImageViewProxy);
+        mImageProxyView.close();
+        mImageProxyView = null;
     }
 
     @Override
@@ -119,8 +121,8 @@ public final class GraniteImage extends Image {
     }
 
     @RawPtr
-    public ImageViewProxy getImageViewProxy() {
-        return mImageViewProxy;
+    public ImageProxyView getImageProxyView() {
+        return mImageProxyView;
     }
 
     @Override
@@ -130,14 +132,14 @@ public final class GraniteImage extends Image {
 
     @Override
     public long getTextureSize() {
-        return mImageViewProxy.getMemorySize();
+        return mImageProxyView.getProxy().getMemorySize();
     }
 
     @Override
     public String toString() {
         return "GraniteImage{" +
                 "mContext=" + mContext +
-                ", mImageViewProxy=" + mImageViewProxy +
+                ", mImageProxyView=" + mImageProxyView +
                 '}';
     }
 }

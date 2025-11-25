@@ -22,7 +22,7 @@ package icyllis.arc3d.granite;
 import icyllis.arc3d.core.RefCnt;
 import icyllis.arc3d.core.SharedPtr;
 import icyllis.arc3d.engine.GpuSurface;
-import icyllis.arc3d.engine.ImageViewProxy;
+import icyllis.arc3d.engine.ImageProxy;
 import icyllis.arc3d.engine.RenderTargetProxy;
 import icyllis.arc3d.engine.SurfaceAllocator;
 import icyllis.arc3d.engine.SurfaceProxy;
@@ -308,7 +308,7 @@ public abstract class RenderTask extends RefCnt {
             }
         }
 
-        ImageViewProxy imageViewProxy = dependency.asImageProxy();
+        ImageProxy imageViewProxy = dependency.asImageProxy();
         /*if (SamplerDesc.isMipmapped(samplerState)) {
             assert imageViewProxy != null;
             if (imageProxy.isMipmapped() && imageProxy.isMipmapsDirty()) {

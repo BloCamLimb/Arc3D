@@ -20,25 +20,27 @@
 package icyllis.arc3d.granite.task;
 
 import icyllis.arc3d.core.RefCnt;
+import icyllis.arc3d.core.SharedPtr;
 import icyllis.arc3d.engine.CommandBuffer;
-import icyllis.arc3d.engine.ImageViewProxy;
+import icyllis.arc3d.engine.ImageProxy;
 import icyllis.arc3d.engine.ImmediateContext;
 import icyllis.arc3d.granite.RecordingContext;
 
 public final class DrawTask extends Task {
 
-    private ImageViewProxy mTargetView;
+    @SharedPtr
+    private ImageProxy mTarget;
     private TaskList mChildTasks;
 
-    public DrawTask(ImageViewProxy targetView, TaskList childTasks) {
-        mTargetView = targetView;
+    public DrawTask(@SharedPtr ImageProxy target, TaskList childTasks) {
+        mTarget = target;
         mChildTasks = childTasks;
     }
 
     @Override
     protected void deallocate() {
         super.deallocate();
-        mTargetView = RefCnt.move(mTargetView);
+        mTarget = RefCnt.move(mTarget);
         mChildTasks.close();
         mChildTasks = null;
     }
@@ -50,7 +52,7 @@ public final class DrawTask extends Task {
 
     @Override
     public int execute(ImmediateContext context, CommandBuffer commandBuffer) {
-        assert mTargetView.isInstantiated();
+        assert mTarget.isInstantiated();
         return mChildTasks.execute(context, commandBuffer);
     }
 }

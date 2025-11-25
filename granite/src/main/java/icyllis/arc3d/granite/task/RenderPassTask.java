@@ -33,15 +33,15 @@ public final class RenderPassTask extends Task {
     DrawPass mDrawPass;
     RenderPassDesc mRenderPassDesc;
     @SharedPtr
-    ImageViewProxy mColorTarget;
+    ImageProxy mColorTarget;
     @SharedPtr
-    ImageViewProxy mResolveTarget;
+    ImageProxy mResolveTarget;
     float[] mClearColor;
 
     private RenderPassTask(DrawPass drawPass,
                            RenderPassDesc renderPassDesc,
-                           @SharedPtr ImageViewProxy colorTarget,
-                           @SharedPtr ImageViewProxy resolveTarget,
+                           @SharedPtr ImageProxy colorTarget,
+                           @SharedPtr ImageProxy resolveTarget,
                            float[] clearColor) {
         mDrawPass = drawPass;
         mRenderPassDesc = renderPassDesc;
@@ -57,8 +57,8 @@ public final class RenderPassTask extends Task {
     @SharedPtr
     public static RenderPassTask make(RecordingContext context,
                                       DrawPass drawPass,
-                                      @SharedPtr ImageViewProxy colorTarget,
-                                      @SharedPtr ImageViewProxy resolveTarget,
+                                      @SharedPtr ImageProxy colorTarget,
+                                      @SharedPtr ImageProxy resolveTarget,
                                       byte loadOp, byte storeOp,
                                       float[] clearColor) {
         Objects.requireNonNull(drawPass);

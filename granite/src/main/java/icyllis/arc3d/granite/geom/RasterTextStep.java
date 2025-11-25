@@ -209,10 +209,10 @@ public class RasterTextStep extends GeometryStep {
                                          boolean mayRequireLocalCoords) {
         var subRunData = (SubRunData) draw.mGeometry;
         @RawPtr
-        var texture = context.getAtlasProvider().getGlyphAtlasManager().getCurrentTexture(
+        var textureView = context.getAtlasProvider().getGlyphAtlasManager().getCurrentTextureView(
                 subRunData.getSubRun().getMaskFormat()
         );
-        assert texture != null;
+        assert textureView != null;
 
         // SubRunToDevice
         if (!mayRequireLocalCoords && draw.mTransform.isTranslate()) {
@@ -226,10 +226,10 @@ public class RasterTextStep extends GeometryStep {
             uniformDataGatherer.writeMatrix3f(subRunData.getSubRunToLocal());
         }
         uniformDataGatherer.write2f(
-                1.f / texture.getWidth(),
-                1.f / texture.getHeight()
+                1.f / textureView.getWidth(),
+                1.f / textureView.getHeight()
         );
 
-        textureDataGatherer.add(RefCnt.create(texture), SamplerDesc.make(subRunData.getFilter()));
+        textureDataGatherer.add(textureView, SamplerDesc.make(subRunData.getFilter()));
     }
 }

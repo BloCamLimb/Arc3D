@@ -118,9 +118,10 @@ public class GlyphAtlasManager extends DrawAtlas.AtlasGenerationCounter
         return true;
     }
 
+    //TODO needs to return an ObjectArrayList once multitexturing (multi page) is supported
     @RawPtr
-    public ImageViewProxy getCurrentTexture(int maskFormat) {
-        return getAtlas(maskFormat).getTexture(0);
+    public ImageProxyView getCurrentTextureView(int maskFormat) {
+        return getAtlas(maskFormat).getTextureView(0);
     }
 
     public boolean hasGlyph(int maskFormat, @NonNull BakedGlyph glyph) {

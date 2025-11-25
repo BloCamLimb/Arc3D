@@ -85,7 +85,7 @@ public final class GraniteSurface extends Surface {
         }
         // A non-budgeted surface should be fully instantiated before we return it
         // to the client.
-        assert (budgeted || device.getReadView().isInstantiated());
+        assert (budgeted || device.getReadView().getProxy().isInstantiated());
         return new GraniteSurface(device); // move
     }
 

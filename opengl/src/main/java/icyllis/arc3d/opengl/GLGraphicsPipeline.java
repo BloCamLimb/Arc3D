@@ -146,7 +146,7 @@ public final class GLGraphicsPipeline extends GraphicsPipeline {
     @Deprecated
     public boolean bindTextures(GLCommandBuffer commandBuffer,
                                 /*GraphicsPipelineDesc_Old graphicsPipelineDesc,*/
-                                ImageViewProxy[] geomTextures) {
+                                ImageProxy[] geomTextures) {
         int unit = 0;
         /*for (int i = 0, n = graphicsPipelineDesc.geomProc().numTextureSamplers(); i < n; i++) {
             GLTexture texture = (GLTexture) geomTextures[i].getImage();

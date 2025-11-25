@@ -34,14 +34,15 @@ import org.jspecify.annotations.Nullable;
 import java.util.Arrays;
 
 /**
- * Used by {@link GraniteDevice}
+ * Used by {@link GraniteDevice}, this class records draw commands into a specific Surface,
+ * via a general task graph representing GPU work and their inter-dependencies.
  */
 public final class SurfaceDrawContext implements AutoCloseable {
 
     private final ImageInfo mImageInfo;
 
     @SharedPtr
-    private final ImageViewProxy mReadView;
+    private final ImageProxyView mReadView;
     private final short mWriteSwizzle;
 
     private TaskList mDrawTaskList;
@@ -59,7 +60,7 @@ public final class SurfaceDrawContext implements AutoCloseable {
     private byte mPendingStoreOp = Engine.StoreOp.kStore;
     private final float[] mPendingClearColor = new float[4];
 
-    private SurfaceDrawContext(@SharedPtr ImageViewProxy readView,
+    private SurfaceDrawContext(@SharedPtr ImageProxyView readView,
                                short writeSwizzle,
                                ImageInfo imageInfo) {
         mReadView = readView;
@@ -72,23 +73,23 @@ public final class SurfaceDrawContext implements AutoCloseable {
     @Nullable
     public static SurfaceDrawContext make(
             RecordingContext context,
-            @SharedPtr ImageViewProxy targetView,
+            @SharedPtr ImageProxyView targetView,
             ImageInfo deviceInfo) {
         if (targetView == null) {
             return null;
         }
         if (context == null || context.isDiscarded()) {
-            targetView.unref();
+            targetView.close();
             return null;
         }
         if (deviceInfo.alphaType() != ColorInfo.AT_OPAQUE &&
                 deviceInfo.alphaType() != ColorInfo.AT_PREMUL) {
             // we only render to premultiplied alpha type
-            targetView.unref();
+            targetView.close();
             return null;
         }
-        if (!targetView.getDesc().isRenderable()) {
-            targetView.unref();
+        if (!targetView.getProxy().getDesc().isRenderable()) {
+            targetView.close();
             return null;
         }
 
@@ -99,7 +100,7 @@ public final class SurfaceDrawContext implements AutoCloseable {
                 targetView.getHeight() >= deviceInfo.height();
 
         short writeSwizzle = context.getCaps().getWriteSwizzle(
-                targetView.getDesc(), deviceInfo.colorType());
+                targetView.getProxy().getDesc(), deviceInfo.colorType());
 
         return new SurfaceDrawContext(
                 targetView,
@@ -112,7 +113,7 @@ public final class SurfaceDrawContext implements AutoCloseable {
      */
     @Override
     public void close() {
-        mReadView.unref();
+        mReadView.close();
         mDrawTaskList.close();
         mPendingDraws.forEach(Draw::close);
         mPendingDraws.clear();
@@ -124,7 +125,7 @@ public final class SurfaceDrawContext implements AutoCloseable {
      * @return raw ptr to the read view
      */
     @RawPtr
-    public ImageViewProxy getReadView() {
+    public ImageProxyView getReadView() {
         return mReadView;
     }
 
@@ -213,17 +214,25 @@ public final class SurfaceDrawContext implements AutoCloseable {
         mNumSteps += draw.mRenderer.numSteps();
     }
 
+    public void recordDraw(Draw draw,
+                           KeyBuilder paintParamsKey,
+                           boolean useStepSolidColor,
+                           UniformDataGatherer uniformDataGatherer,
+                           TextureDataGatherer textureDataGatherer) {
+
+    }
+
     public boolean recordUpload(RecordingContext context,
-                                @SharedPtr ImageViewProxy imageViewProxy,
+                                @SharedPtr ImageProxy imageProxy,
                                 int srcColorType, int srcAlphaType, ColorSpace srcColorSpace,
                                 int dstColorType, int dstAlphaType, ColorSpace dstColorSpace,
                                 ImageUploadTask.MipLevel[] levels, Rect2ic dstRect,
                                 ImageUploadTask.UploadCondition condition) {
-        assert new Rect2i(0, 0, imageViewProxy.getWidth(), imageViewProxy.getHeight()).contains(dstRect);
+        assert new Rect2i(0, 0, imageProxy.getWidth(), imageProxy.getHeight()).contains(dstRect);
         @SharedPtr
         ImageUploadTask uploadTask = ImageUploadTask.make(
                 context,
-                imageViewProxy, // move
+                imageProxy, // move
                 srcColorType, srcAlphaType, srcColorSpace,
                 dstColorType, dstAlphaType, dstColorSpace,
                 levels,
@@ -274,7 +283,7 @@ public final class SurfaceDrawContext implements AutoCloseable {
             RenderPassTask renderPassTask = RenderPassTask.make(
                     context,
                     pass,
-                    RefCnt.create(mReadView),
+                    mReadView.refProxy(),
                     null,
                     mPendingLoadOp,
                     mPendingStoreOp,
@@ -298,7 +307,7 @@ public final class SurfaceDrawContext implements AutoCloseable {
             return null;
         }
 
-        DrawTask task = new DrawTask(RefCnt.create(mReadView), mDrawTaskList);
+        DrawTask task = new DrawTask(mReadView.refProxy(), mDrawTaskList);
         mDrawTaskList = new TaskList();
         return task;
     }

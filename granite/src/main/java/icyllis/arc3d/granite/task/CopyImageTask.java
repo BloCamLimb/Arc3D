@@ -27,16 +27,16 @@ import org.jspecify.annotations.NonNull;
 public class CopyImageTask extends Task {
 
     @SharedPtr
-    private ImageViewProxy mSrcProxy;
+    private ImageProxy mSrcProxy;
     private final int mSrcL, mSrcT, mSrcR, mSrcB;
     @SharedPtr
-    private ImageViewProxy mDstProxy;
+    private ImageProxy mDstProxy;
     private final int mDstX, mDstY;
     private final int mDstLevel;
 
-    CopyImageTask(@SharedPtr ImageViewProxy srcProxy,
+    CopyImageTask(@SharedPtr ImageProxy srcProxy,
                   int srcL, int srcT, int srcR, int srcB,
-                  @SharedPtr ImageViewProxy dstProxy,
+                  @SharedPtr ImageProxy dstProxy,
                   int dstX, int dstY, int dstLevel) {
         mSrcProxy = srcProxy;
         mSrcL = srcL;
@@ -50,9 +50,9 @@ public class CopyImageTask extends Task {
     }
 
     @SharedPtr
-    public static CopyImageTask make(@SharedPtr ImageViewProxy srcProxy,
+    public static CopyImageTask make(@SharedPtr ImageProxy srcProxy,
                                      @NonNull Rect2ic subset,
-                                     @SharedPtr ImageViewProxy dstProxy,
+                                     @SharedPtr ImageProxy dstProxy,
                                      int dstX, int dstY, int dstLevel) {
         if (srcProxy == null || dstProxy == null) {
             RefCnt.move(srcProxy);

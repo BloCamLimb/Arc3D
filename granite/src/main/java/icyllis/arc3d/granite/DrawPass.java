@@ -66,7 +66,7 @@ public class DrawPass implements AutoCloseable {
     private final ObjectArrayList<GraphicsPipelineDesc> mPipelineDescs;
     private final ObjectArrayList<SamplerDesc> mSamplerDescs;
 
-    private final ObjectArrayList<@SharedPtr ImageViewProxy> mTextures;
+    private final ObjectArrayList<@SharedPtr ImageProxyView> mTexturesViews;
 
     private volatile @SharedPtr GraphicsPipeline[] mPipelines;
     private volatile @SharedPtr Sampler[] mSamplers;
@@ -74,13 +74,13 @@ public class DrawPass implements AutoCloseable {
     private DrawPass(DrawCommandList commandList, Rect2i bounds, int depthStencilFlags,
                      ObjectArrayList<GraphicsPipelineDesc> pipelineDescs,
                      ObjectArrayList<SamplerDesc> samplerDescs,
-                     ObjectArrayList<@SharedPtr ImageViewProxy> textures) {
+                     ObjectArrayList<@SharedPtr ImageProxyView> texturesViews) {
         mCommandList = commandList;
         mBounds = bounds;
         mDepthStencilFlags = depthStencilFlags;
         mPipelineDescs = pipelineDescs;
         mSamplerDescs = samplerDescs;
-        mTextures = textures;
+        mTexturesViews = texturesViews;
     }
 
     /**
@@ -95,7 +95,7 @@ public class DrawPass implements AutoCloseable {
     public static DrawPass make(RecordingContext context,
                                 ObjectArrayList<Draw> drawList,
                                 int numSteps,
-                                @RawPtr ImageViewProxy targetView,
+                                @RawPtr ImageProxyView targetView,
                                 ImageInfo deviceInfo) {
 
         var bufferManager = context.getDynamicBufferManager();
@@ -321,8 +321,8 @@ public class DrawPass implements AutoCloseable {
             return new DrawPass(commandList, bounds,
                     depthStencilFlags,
                     indexToPipeline,
-                    textureDataGatherer.detachSamplers(),
-                    textureDataGatherer.detachTextures());
+                    textureDataGatherer.detachSamplerDescs(),
+                    textureDataGatherer.detachTextureViews());
         }
     }
 
@@ -395,8 +395,8 @@ public class DrawPass implements AutoCloseable {
                 commandBuffer.trackResource(RefCnt.create(sampler));
             }
         }
-        for (var texture : mTextures) {
-            commandBuffer.trackCommandBufferResource(texture.refImage());
+        for (var textureView : mTexturesViews) {
+            commandBuffer.trackCommandBufferResource(textureView.getProxy().refImage());
         }
         var cmdList = getCommandList();
         var p = cmdList.mPrimitives.elements();
@@ -474,13 +474,13 @@ public class DrawPass implements AutoCloseable {
                     int numBindings = p[i++];
                     for (int binding = 0; binding < numBindings; binding++) {
                         @RawPtr
-                        var texture = mTextures.get(p[i]);
+                        var textureView = mTexturesViews.get(p[i]);
                         @RawPtr
                         var sampler = mSamplers[p[i + 1]];
                         commandBuffer.bindTextureSampler(binding,
-                                texture.getImage(),
+                                textureView.getProxy().getImage(),
                                 sampler,
-                                texture.getSwizzle());
+                                textureView.getSwizzle());
                         i += 2;
                     }
                 }
@@ -501,8 +501,8 @@ public class DrawPass implements AutoCloseable {
                 mSamplers[i] = RefCnt.move(mSamplers[i]);
             }
         }
-        mTextures.forEach(RefCnt::unref);
-        mTextures.clear();
+        mTexturesViews.forEach(ImageProxyView::close);
+        mTexturesViews.clear();
     }
 
     /**

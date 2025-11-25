@@ -270,7 +270,7 @@ public abstract class Image extends Resource {
     }*/
 
     /**
-     * Storage key of {@link Image}, may be compared with {@link ImageViewProxy}.
+     * Storage key of {@link Image}, may be compared with {@link ImageProxy}.
      */
     public static final class ResourceKey implements IResourceKey {
 
@@ -308,7 +308,7 @@ public abstract class Image extends Resource {
         }
 
         /**
-         * Keep {@link ImageViewProxy#hashCode()} sync with this.
+         * Keep {@link ImageProxy#hashCode()} sync with this.
          */
         @Override
         public int hashCode() {
@@ -320,7 +320,7 @@ public abstract class Image extends Resource {
         }
 
         /**
-         * Keep {@link ImageViewProxy#equals(Object)}} sync with this.
+         * Keep {@link ImageProxy#equals(Object)}} sync with this.
          */
         @Override
         public boolean equals(Object o) {

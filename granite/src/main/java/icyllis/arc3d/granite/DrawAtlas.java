@@ -26,13 +26,13 @@ import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.Rect2i;
 import icyllis.arc3d.core.Rect2ic;
 import icyllis.arc3d.core.RectanglePacker;
-import icyllis.arc3d.core.RefCnt;
 import icyllis.arc3d.core.SharedPtr;
 import icyllis.arc3d.engine.Caps;
 import icyllis.arc3d.engine.Engine;
 import icyllis.arc3d.engine.ISurface;
 import icyllis.arc3d.engine.ImageDesc;
-import icyllis.arc3d.engine.ImageViewProxy;
+import icyllis.arc3d.engine.ImageProxy;
+import icyllis.arc3d.engine.ImageProxyView;
 import icyllis.arc3d.engine.Swizzle;
 import icyllis.arc3d.granite.task.ImageUploadTask;
 import icyllis.arc3d.granite.task.RenderPassTask;
@@ -562,7 +562,7 @@ public class DrawAtlas implements AutoCloseable {
         Plot mTail;
 
         @SharedPtr
-        ImageViewProxy mTexture;
+        ImageProxyView mTextureView;
 
         Page() {
         }
@@ -747,7 +747,10 @@ public class DrawAtlas implements AutoCloseable {
                 plot.close();
             }
             page.mPlots = null;
-            page.mTexture = RefCnt.move(page.mTexture);
+            if (page.mTextureView != null) {
+                page.mTextureView.close();
+            }
+            page.mTextureView = null;
         }
     }
 
@@ -885,8 +888,9 @@ public class DrawAtlas implements AutoCloseable {
             Page page = mPages[pageIndex];
             for (Plot plot = page.mHead; plot != null; plot = plot.mNext) {
                 if (plot.needsUpload()) {
-                    ImageViewProxy texture = page.mTexture;
-                    assert texture != null;
+                    @RawPtr
+                    ImageProxyView textureView = page.mTextureView;
+                    assert textureView != null;
 
                     var dstRect = new Rect2i();
                     long dataPtr = plot.prepareForUpload(dstRect);
@@ -907,7 +911,7 @@ public class DrawAtlas implements AutoCloseable {
                     // playback, so we might as well switch back to the "Iron Fist" method so this bug can be addressed.
 
                     // Src and dst colorInfo are the same
-                    if (!sdc.recordUpload(context, RefCnt.create(texture),
+                    if (!sdc.recordUpload(context, textureView.refProxy(),
                             mColorType, ColorInfo.AT_PREMUL, null,
                             mColorType, ColorInfo.AT_PREMUL, null,
                             levels, dstRect, /*uploadCondition*/ null)) {
@@ -920,8 +924,8 @@ public class DrawAtlas implements AutoCloseable {
     }
 
     @RawPtr
-    public ImageViewProxy getTexture(int pageIndex) {
-        return mPages[pageIndex].mTexture;
+    public ImageProxyView getTextureView(int pageIndex) {
+        return mPages[pageIndex].mTextureView;
     }
 
     public long getAtlasGeneration() {
@@ -1167,7 +1171,7 @@ public class DrawAtlas implements AutoCloseable {
 
     private boolean activateNextPage(@NonNull RecordingContext context) {
         assert mNumActivePages < getMaxPages();
-        assert mPages[mNumActivePages].mTexture == null;
+        assert mPages[mNumActivePages].mTextureView == null;
 
         Caps caps = context.getCaps();
         ImageDesc desc = caps.getDefaultColorImageDesc(
@@ -1183,17 +1187,19 @@ public class DrawAtlas implements AutoCloseable {
         }
         // Remember that for DrawAtlas, we do not use texture swizzle, then the
         // corresponding geometry step must handle the swizzle in shader code
-        mPages[mNumActivePages].mTexture = ImageViewProxy.make(
+        @SharedPtr
+        var texture = ImageProxy.make(
                 context,
                 desc,
-                Engine.SurfaceOrigin.kUpperLeft,
-                Swizzle.RGBA,
                 true,
                 mLabel
         );
-        if (mPages[mNumActivePages].mTexture == null) {
+        if (texture == null) {
             return false;
         }
+        mPages[mNumActivePages].mTextureView = new ImageProxyView(texture, // move
+                Engine.SurfaceOrigin.kUpperLeft,
+                Swizzle.RGBA);
 
         ++mNumActivePages;
         return true;
@@ -1223,13 +1229,14 @@ public class DrawAtlas implements AutoCloseable {
         }
 
         // remove ref to the texture proxy
-        lastPage.mTexture = RefCnt.move(lastPage.mTexture);
+        lastPage.mTextureView.close();
+        lastPage.mTextureView = null;
         --mNumActivePages;
     }
 
     private boolean addRectToPage(int pageIndex, int width, int height,
                                   AtlasLocator atlasLocator) {
-        assert mPages[pageIndex].mTexture != null;
+        assert mPages[pageIndex].mTextureView != null;
 
         // look through all allocated plots for one we can share, in Most Recently Used order
         Page page = mPages[pageIndex];

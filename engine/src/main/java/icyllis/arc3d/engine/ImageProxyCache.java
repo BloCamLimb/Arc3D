@@ -41,7 +41,7 @@ public final class ImageProxyCache {
 
     // This holds the texture proxies that have unique keys. The resourceCache does not get a ref
     // on these proxies, but they must send a message to the resourceCache when they are deleted.
-    private final Object2ObjectOpenHashMap<IUniqueKey, ImageViewProxy> mUniquelyKeyedProxies;
+    private final Object2ObjectOpenHashMap<IUniqueKey, ImageProxy> mUniquelyKeyedProxies;
 
     public ImageProxyCache(Context context) {
         mContext = context;
@@ -58,7 +58,7 @@ public final class ImageProxyCache {
      * Assigns a unique key to a texture. The texture will be findable via this key using
      * {@link #findProxyByUniqueKey()}. It is an error if an existing texture already has a key.
      */
-    public boolean assignUniqueKeyToProxy(IUniqueKey key, ImageViewProxy proxy) {
+    public boolean assignUniqueKeyToProxy(IUniqueKey key, ImageProxy proxy) {
         assert key != null;
         if (mContext.isDeviceLost() || proxy == null) {
             return false;
@@ -91,17 +91,17 @@ public final class ImageProxyCache {
      * Sets the unique key of the provided texture to the unique key of the GPU texture.
      * The GPU texture must have a valid unique key.
      */
-    public void adoptUniqueKeyFromSurface(ImageViewProxy proxy, GpuSurface texture) {
+    public void adoptUniqueKeyFromSurface(ImageProxy proxy, GpuSurface texture) {
         //TODO
     }
 
-    public void processInvalidUniqueKey(Object key, ImageViewProxy proxy, boolean invalidateResource) {
+    public void processInvalidUniqueKey(Object key, ImageProxy proxy, boolean invalidateResource) {
     }
 
     /**
-     * Create a lazy {@link ImageViewProxy} without any data.
+     * Create a lazy {@link ImageProxy} without any data.
      *
-     * @see ImageViewProxy
+     * @see ImageProxy
      * @see ISurface#FLAG_BUDGETED
      * @see ISurface#FLAG_APPROX_FIT
      * @see ISurface#FLAG_MIPMAPPED
@@ -111,9 +111,9 @@ public final class ImageProxyCache {
     @Deprecated
     @Nullable
     @SharedPtr
-    public ImageViewProxy createTexture(BackendFormat format,
-                                        int width, int height,
-                                        int surfaceFlags) {
+    public ImageProxy createTexture(BackendFormat format,
+                                    int width, int height,
+                                    int surfaceFlags) {
         assert mContext.isOwnerThread();
         if (mContext.isDeviceLost()) {
             return null;
@@ -140,7 +140,7 @@ public final class ImageProxyCache {
     }
 
     /**
-     * Creates a lazy {@link ImageViewProxy} for the pixel map.
+     * Creates a lazy {@link ImageProxy} for the pixel map.
      *
      * @param pixmap       pixel map
      * @param pixelRef       raw ptr to pixel ref, must be immutable
@@ -153,10 +153,10 @@ public final class ImageProxyCache {
     @Deprecated
     @Nullable
     @SharedPtr
-    public ImageViewProxy createTextureFromPixels(@NonNull Pixmap pixmap,
-                                                  @NonNull @RawPtr PixelRef pixelRef,
-                                                  int dstColorType,
-                                                  int surfaceFlags) {
+    public ImageProxy createTextureFromPixels(@NonNull Pixmap pixmap,
+                                              @NonNull @RawPtr PixelRef pixelRef,
+                                              int dstColorType,
+                                              int surfaceFlags) {
         mContext.checkOwnerThread();
         assert ((surfaceFlags & ISurface.FLAG_APPROX_FIT) == 0) ||
                 ((surfaceFlags & ISurface.FLAG_MIPMAPPED) == 0);
@@ -342,10 +342,10 @@ public final class ImageProxyCache {
     @Deprecated
     @Nullable
     @SharedPtr
-    public ImageViewProxy createLazyTexture(BackendFormat format,
-                                            int width, int height,
-                                            int surfaceFlags,
-                                            SurfaceProxy.LazyInstantiateCallback callback) {
+    public ImageProxy createLazyTexture(BackendFormat format,
+                                        int width, int height,
+                                        int surfaceFlags,
+                                        SurfaceProxy.LazyInstantiateCallback callback) {
         mContext.checkOwnerThread();
         if (mContext.isDeviceLost()) {
             return null;

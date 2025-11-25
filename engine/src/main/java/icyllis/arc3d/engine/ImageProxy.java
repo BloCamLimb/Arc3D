@@ -27,7 +27,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.Objects;
 
 /**
- * The {@link ImageViewProxy} implements the proxy pattern for {@link Image},
+ * The {@link ImageProxy} implements the proxy pattern for {@link Image},
  * it targets an {@link Image} with three instantiation methods: deferred,
  * lazy-callback and wrapped.
  * <p>
@@ -64,7 +64,7 @@ import java.util.Objects;
  *
  * @see ImageProxyCache
  */
-public final class ImageViewProxy extends RefCnt {
+public final class ImageProxy extends RefCnt {
 
     ImageDesc mDesc;
 
@@ -74,8 +74,6 @@ public final class ImageViewProxy extends RefCnt {
      */
     @SharedPtr
     Image mImage;
-    int mOrigin;
-    short mSwizzle;
 
     String mLabel;
 
@@ -95,7 +93,7 @@ public final class ImageViewProxy extends RefCnt {
      *     <li>True: {@link SurfaceAllocator} should instantiate this surface.</li>
      * </ul>
      * <p>
-     * DeferredProvider: For {@link ImageViewProxy}s created in a deferred list recording thread it is
+     * DeferredProvider: For {@link ImageProxy}s created in a deferred list recording thread it is
      * possible for the uniqueKey to be cleared on the backing Texture while the uniqueKey
      * remains on the surface. A 'mDeferredProvider' of 'true' loosens up asserts that the key of an
      * instantiated uniquely-keyed texture is also always set on the backing {@link Image}.
@@ -120,13 +118,10 @@ public final class ImageViewProxy extends RefCnt {
     /**
      * Deferred version - no data
      */
-    ImageViewProxy(ImageDesc desc,
-                   int origin, short swizzle,
-                   boolean budgeted,
-                   String label) {
+    ImageProxy(ImageDesc desc,
+               boolean budgeted,
+               String label) {
         mDesc = Objects.requireNonNull(desc);
-        mOrigin = origin;
-        mSwizzle = swizzle;
         mLabel = label;
         mBudgeted = budgeted;
         mVolatile = false;
@@ -136,15 +131,12 @@ public final class ImageViewProxy extends RefCnt {
     /**
      * Lazy-callback version - takes a new UniqueID from the shared resource/proxy pool.
      */
-    ImageViewProxy(ImageDesc desc,
-                   int origin, short swizzle,
-                   boolean budgeted,
-                   boolean isVolatile,
-                   boolean lazyDimensions,
-                   LazyInstantiateCallback callback) {
+    ImageProxy(ImageDesc desc,
+               boolean budgeted,
+               boolean isVolatile,
+               boolean lazyDimensions,
+               LazyInstantiateCallback callback) {
         mDesc = Objects.requireNonNull(desc);
-        mOrigin = origin;
-        mSwizzle = swizzle;
         mLabel = "";
         mBudgeted = budgeted;
         mVolatile = isVolatile;
@@ -161,11 +153,9 @@ public final class ImageViewProxy extends RefCnt {
     /**
      * Wrapped version.
      */
-    ImageViewProxy(@SharedPtr Image image, int origin, short swizzle) {
+    ImageProxy(@SharedPtr Image image) {
         assert (image != null);
         mDesc = image.getDesc();
-        mOrigin = origin;
-        mSwizzle = swizzle;
         mLabel = image.getLabel();
         mBudgeted = image.isBudgeted();
         mVolatile = false;
@@ -219,15 +209,14 @@ public final class ImageViewProxy extends RefCnt {
 
     @Nullable
     @SharedPtr
-    public static ImageViewProxy make(@NonNull Context context,
-                                      @Nullable ImageDesc desc,
-                                      int origin, short swizzle,
-                                      boolean budgeted,
-                                      @Nullable String label) {
+    public static ImageProxy make(@NonNull Context context,
+                                  @Nullable ImageDesc desc,
+                                  boolean budgeted,
+                                  @Nullable String label) {
         if (desc == null) {
             return null;
         }
-        var proxy = new ImageViewProxy(desc, origin, swizzle, budgeted, label);
+        var proxy = new ImageProxy(desc, budgeted, label);
         if (!budgeted) {
             // Instantiate immediately to avoid races later on if the client starts to use the wrapping
             // object on multiple threads.
@@ -241,35 +230,32 @@ public final class ImageViewProxy extends RefCnt {
 
     @Nullable
     @SharedPtr
-    public static ImageViewProxy make(@NonNull Context context,
-                                      int imageType,
-                                      int colorType,
-                                      int width, int height,
-                                      int depthOrArraySize,
-                                      int imageFlags,
-                                      int origin, short swizzle) {
+    public static ImageProxy make(@NonNull Context context,
+                                  int imageType,
+                                  int colorType,
+                                  int width, int height,
+                                  int depthOrArraySize,
+                                  int imageFlags) {
         var desc = context.getCaps().getDefaultColorImageDesc(imageType, colorType, width, height, depthOrArraySize,
                 imageFlags);
         if (desc == null) {
             return null;
         }
-        return make(context, desc, origin, swizzle, true, "");
+        return make(context, desc, true, "");
     }
 
     @SharedPtr
-    public static ImageViewProxy makeLazy(@NonNull ImageDesc desc,
-                                          int origin, short swizzle,
-                                          boolean budgeted,
-                                          boolean isVolatile,
-                                          boolean lazyDimensions,
-                                          @NonNull LazyInstantiateCallback callback) {
-        return new ImageViewProxy(desc, origin, swizzle, budgeted, isVolatile, lazyDimensions, callback);
+    public static ImageProxy makeLazy(@NonNull ImageDesc desc,
+                                      boolean budgeted,
+                                      boolean isVolatile,
+                                      boolean lazyDimensions,
+                                      @NonNull LazyInstantiateCallback callback) {
+        return new ImageProxy(desc, budgeted, isVolatile, lazyDimensions, callback);
     }
 
     @SharedPtr
-    public static ImageViewProxy wrap(@SharedPtr Image image,
-                                      int origin, short swizzle) {
-        return new ImageViewProxy(image, origin, swizzle);
+    public static ImageProxy wrap(@SharedPtr Image image) {
+        return new ImageProxy(image);
     }
 
     @Override
@@ -320,31 +306,6 @@ public final class ImageViewProxy extends RefCnt {
     public int getHeight() {
         assert (!isLazyMost() || isInstantiated());
         return isInstantiated() ? mImage.getHeight() : mDesc.getHeight();
-    }
-
-    /**
-     * @see Engine.SurfaceOrigin
-     */
-    public int getOrigin() {
-        return mOrigin;
-    }
-
-    /**
-     * @see Swizzle
-     */
-    public short getSwizzle() {
-        return mSwizzle;
-    }
-
-    public void concatSwizzle(short swizzle) {
-        mSwizzle = Swizzle.concat(mSwizzle, swizzle);
-    }
-
-    /**
-     * Replace the view's swizzle.
-     */
-    public void setSwizzle(short swizzle) {
-        mSwizzle = swizzle;
     }
 
     /**
@@ -518,8 +479,6 @@ public final class ImageViewProxy extends RefCnt {
         return "ImageViewProxy{" +
                 "mDesc=" + mDesc +
                 ", mImage=" + mImage +
-                ", mOrigin=" + mOrigin +
-                ", mSwizzle=" + Swizzle.toString(mSwizzle) +
                 ", mLabel='" + mLabel + '\'' +
                 ", mBudgeted=" + mBudgeted +
                 ", mVolatile=" + mVolatile +
