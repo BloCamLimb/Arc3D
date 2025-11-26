@@ -45,7 +45,8 @@ import java.util.Arrays;
  * If corner curves overlap, radii are proportionally reduced to fit within bounds.
  */
 @NullMarked
-public class RRect {
+public class RRect implements Bounded {
+    //TODO this should implement Shape
 
     // these are compile-time constants
     @ApiStatus.Internal
@@ -811,7 +812,8 @@ public class RRect {
      * greater than or equal to left; bounds bottom is greater than or equal to top.
      * Result is identical to {@link #getRect}.
      */
-    public void getBounds(Rect2f dest) {
+    @Override
+    public void getBounds(@NonNull Rect2f dest) {
         dest.set(mLeft, mTop, mRight, mBottom);
     }
 

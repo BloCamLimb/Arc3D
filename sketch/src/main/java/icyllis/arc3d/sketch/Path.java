@@ -59,6 +59,7 @@ import java.util.Arrays;
  * few methods are actually implemented.
  */
 public class Path implements Shape, java.awt.Shape, PathConsumer {
+    //TODO make Path immutable and use PathBuilder
 
     /**
      * The fill rule constant for specifying an even-odd rule

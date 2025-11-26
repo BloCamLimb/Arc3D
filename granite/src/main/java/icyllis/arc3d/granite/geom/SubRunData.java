@@ -22,10 +22,12 @@ package icyllis.arc3d.granite.geom;
 import icyllis.arc3d.core.Rect2f;
 import icyllis.arc3d.core.Rect2fc;
 import icyllis.arc3d.granite.SubRunContainer;
+import icyllis.arc3d.sketch.Bounded;
 import icyllis.arc3d.sketch.Matrix;
 import icyllis.arc3d.sketch.Matrixc;
+import org.jspecify.annotations.NonNull;
 
-public class SubRunData {
+public class SubRunData implements Bounded {
 
     private final SubRunContainer.AtlasSubRun mSubRun;
     private final Matrix mSubRunToLocal;
@@ -72,7 +74,8 @@ public class SubRunData {
         return mSubRun.getBounds();
     }
 
-    public void getBounds(Rect2f dest) {
+    @Override
+    public void getBounds(@NonNull Rect2f dest) {
         mSubRun.getBounds().store(dest);
     }
 }

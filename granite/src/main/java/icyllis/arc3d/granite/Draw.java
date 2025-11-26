@@ -19,16 +19,15 @@
 
 package icyllis.arc3d.granite;
 
-import icyllis.arc3d.core.*;
-import icyllis.arc3d.granite.geom.ArcShape;
-import icyllis.arc3d.granite.geom.BoxShape;
-import icyllis.arc3d.granite.geom.EdgeAAQuad;
-import icyllis.arc3d.granite.geom.SubRunData;
+import icyllis.arc3d.core.MathUtil;
+import icyllis.arc3d.core.Rect2f;
+import icyllis.arc3d.core.Rect2fc;
+import icyllis.arc3d.core.Rect2ic;
+import icyllis.arc3d.sketch.Bounded;
 import icyllis.arc3d.sketch.Matrixc;
 import icyllis.arc3d.sketch.Paint;
-import icyllis.arc3d.sketch.RRect;
 import icyllis.arc3d.sketch.StrokeRec;
-import icyllis.arc3d.sketch.Vertices;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -91,9 +90,13 @@ public final class Draw implements AutoCloseable {
     @Nullable
     public PaintParams mPaintParams;
 
-    public Draw(Matrixc transform, Object geometry) {
+    //TODO finally we disallow Rect2f as input, and use a custom class that implements Shape instead
+    public Draw(@NonNull Matrixc transform,
+                Object geometry, boolean inverseFill) {
         mTransform = transform;
         mGeometry = geometry;
+        mInverseFill = inverseFill;
+        assert geometry == null || geometry instanceof Bounded || geometry instanceof Rect2f;
     }
 
     @Override
@@ -104,24 +107,18 @@ public final class Draw implements AutoCloseable {
         mPaintParams = null;
     }
 
-    public void getBounds(Rect2f dest) {
+    public void getBounds(@NonNull Rect2f dest) {
         final Object g = mGeometry;
         if (g == null)
             dest.setEmpty();
-        else if (g instanceof BoxShape)
-            ((BoxShape) g).getBounds(dest);
-        else if (g instanceof RRect)
-            ((RRect) g).getBounds(dest);
-        else if (g instanceof SubRunData)
-            ((SubRunData) g).getBounds(dest);
-        else if (g instanceof EdgeAAQuad)
-            ((EdgeAAQuad) g).getBounds(dest);
+        else if (g instanceof Bounded)
+            ((Bounded) g).getBounds(dest);
         else if (g instanceof Rect2f)
             ((Rect2f) g).store(dest);
-        else if (g instanceof ArcShape)
-            ((ArcShape) g).getBounds(dest);
-        else if (g instanceof Vertices)
-            ((Vertices) g).getBounds(dest);
+    }
+
+    public boolean isFloodFill() {
+        return mGeometry == null && mInverseFill;
     }
 
     public boolean isClippedOut() {

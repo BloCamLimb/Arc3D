@@ -21,9 +21,10 @@ package icyllis.arc3d.granite.geom;
 
 import icyllis.arc3d.core.Rect2f;
 import icyllis.arc3d.core.Rect2fc;
+import icyllis.arc3d.sketch.Bounded;
 import org.jspecify.annotations.NonNull;
 
-public class EdgeAAQuad {
+public class EdgeAAQuad implements Bounded {
 
     // see Canvas
     public static final int
@@ -74,7 +75,8 @@ public class EdgeAAQuad {
         return mIsRect;
     }
 
-    public void getBounds(Rect2f dest) {
+    @Override
+    public void getBounds(@NonNull Rect2f dest) {
         if (mIsRect) {
             dest.set(x0, y0, x2, y2);
         } else {

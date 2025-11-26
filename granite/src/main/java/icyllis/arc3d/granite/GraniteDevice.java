@@ -41,8 +41,6 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-import java.util.function.BiConsumer;
-
 /**
  * The device that is backed by GPU.
  */
@@ -309,7 +307,7 @@ public final class GraniteDevice extends Device {
         }
 
         // An empty shape with an inverse fill completely floods the clip
-        drawGeometry(getLocalToDevice33(), null, (__, dest) -> dest.setEmpty(),
+        drawGeometry(getLocalToDevice33(), null,
                 true, paint, mRendererProvider.getNonAABoundsFill(), null);
     }
 
@@ -347,7 +345,7 @@ public final class GraniteDevice extends Device {
                          @Paint.Cap int cap, float width, Paint paint) {
         var shape = new BoxShape();
         shape.setLine(x0, y0, x1, y1, cap, width);
-        drawGeometry(getLocalToDevice33(), shape, BoxShape::getBounds, false, paint,
+        drawGeometry(getLocalToDevice33(), shape, false, paint,
                 mRendererProvider.getAnalyticBox(false), null);
     }
 
@@ -356,11 +354,11 @@ public final class GraniteDevice extends Device {
         if (paint.getStyle() == Paint.FILL) {
             if (paint.isAntiAlias()) {
                 drawGeometry(getLocalToDevice33(),
-                        new BoxShape(r), BoxShape::getBounds, false, paint,
+                                new BoxShape(r), false, paint,
                         mRendererProvider.getAnalyticBox(false), null);
             } else {
                 drawGeometry(getLocalToDevice33(),
-                        new Rect2f(r), Rect2f::store, false, paint,
+                                new Rect2f(r), false, paint,
                         mRendererProvider.getNonAABoundsFill(), null);
             }
         } else {
@@ -368,10 +366,10 @@ public final class GraniteDevice extends Device {
             boolean complex = join == Paint.JOIN_BEVEL ||
                     (join == Paint.JOIN_MITER && paint.getStrokeMiter() < MathUtil.SQRT2);
             if (complex) {
-                drawGeometry(getLocalToDevice33(), new RRect(r), RRect::getBounds, false, paint,
+                drawGeometry(getLocalToDevice33(), new RRect(r), false, paint,
                         mRendererProvider.getAnalyticRRect(), null);
             } else {
-                drawGeometry(getLocalToDevice33(), new BoxShape(r), BoxShape::getBounds, false, paint,
+                drawGeometry(getLocalToDevice33(), new BoxShape(r), false, paint,
                         mRendererProvider.getAnalyticBox(false), null);
             }
         }
@@ -390,10 +388,10 @@ public final class GraniteDevice extends Device {
             }
         };
         if (complex) {
-            drawGeometry(getLocalToDevice33(), new RRect(rr), RRect::getBounds, false, paint,
+            drawGeometry(getLocalToDevice33(), new RRect(rr), false, paint,
                     mRendererProvider.getAnalyticRRect(), null);
         } else {
-            drawGeometry(getLocalToDevice33(), new BoxShape(rr), BoxShape::getBounds, false, paint,
+            drawGeometry(getLocalToDevice33(), new BoxShape(rr), false, paint,
                     mRendererProvider.getAnalyticBox(false), null);
         }
     }
@@ -404,12 +402,12 @@ public final class GraniteDevice extends Device {
             //TODO stroking an ellipse requires new renderer
             var shape = new RRect();
             shape.setEllipse(cx, cy, rx, ry);
-            drawGeometry(getLocalToDevice33(), shape, RRect::getBounds, false, paint,
+            drawGeometry(getLocalToDevice33(), shape, false, paint,
                     mRendererProvider.getAnalyticRRect(), null);
         } else {
             var shape = new BoxShape();
             shape.setCircle(cx, cy, rx);
-            drawGeometry(getLocalToDevice33(), shape, BoxShape::getBounds, false, paint,
+            drawGeometry(getLocalToDevice33(), shape, false, paint,
                     mRendererProvider.getAnalyticBox(false), null);
         }
     }
@@ -424,7 +422,7 @@ public final class GraniteDevice extends Device {
             case Paint.CAP_SQUARE -> ArcShape.kArcSquare_Type;
             default -> throw new AssertionError();
         };
-        drawGeometry(getLocalToDevice33(), shape, ArcShape::getBounds, false, paint,
+        drawGeometry(getLocalToDevice33(), shape, false, paint,
                 mRendererProvider.getArc(shape.mType), null);
     }
 
@@ -433,7 +431,7 @@ public final class GraniteDevice extends Device {
                         float sweepAngle, Paint paint) {
         var shape = new ArcShape(cx, cy, radius, startAngle, sweepAngle, 0);
         shape.mType = ArcShape.kPie_Type;
-        drawGeometry(getLocalToDevice33(), shape, ArcShape::getBounds, false, paint,
+        drawGeometry(getLocalToDevice33(), shape, false, paint,
                 mRendererProvider.getArc(shape.mType), null);
     }
 
@@ -442,7 +440,7 @@ public final class GraniteDevice extends Device {
                           float sweepAngle, Paint paint) {
         var shape = new ArcShape(cx, cy, radius, startAngle, sweepAngle, 0);
         shape.mType = ArcShape.kChord_Type;
-        drawGeometry(getLocalToDevice33(), shape, ArcShape::getBounds, false, paint,
+        drawGeometry(getLocalToDevice33(), shape, false, paint,
                 mRendererProvider.getArc(shape.mType), null);
     }
 
@@ -503,7 +501,7 @@ public final class GraniteDevice extends Device {
 
     @Override
     public void drawVertices(Vertices vertices, Blender blender, Paint paint) {
-        drawGeometry(getLocalToDevice33(), vertices, Vertices::getBounds, false, paint,
+        drawGeometry(getLocalToDevice33(), vertices, false, paint,
                 mRendererProvider.getVertices(
                         vertices.getVertexMode(), vertices.hasColors(), vertices.hasTexCoords()),
                 blender); // move
@@ -514,7 +512,7 @@ public final class GraniteDevice extends Device {
         EdgeAAQuad quad = clip != null ? new EdgeAAQuad(clip, clipOffset, flags) : new EdgeAAQuad(r, flags);
         drawGeometry(getLocalToDevice33(),
                 quad,
-                EdgeAAQuad::getBounds, false, paint,
+                false, paint,
                 mRendererProvider.getPerEdgeAAQuad(), null);
     }
 
@@ -533,7 +531,7 @@ public final class GraniteDevice extends Device {
         }
         var shape = new BoxShape();
         shape.setBlur(rr, blurRadius, noiseAlpha);
-        drawGeometry(getLocalToDevice33(), shape, BoxShape::getBounds, false, paint,
+        drawGeometry(getLocalToDevice33(), shape, false, paint,
                 mRendererProvider.getAnalyticBox(true), null);
         return true;
     }
@@ -578,7 +576,7 @@ public final class GraniteDevice extends Device {
                 }
                 subRunPaint.setStyle(Paint.FILL);
 
-                drawGeometry(subRunToDevice, subRunData, SubRunData::getBounds, false, paint,
+                drawGeometry(subRunToDevice, subRunData, false, paint,
                         mRendererProvider.getRasterText(maskFormat),
                         BlendMode.DST_IN);
             } else if (flushed) {
@@ -648,15 +646,14 @@ public final class GraniteDevice extends Device {
                 null);
     }
 
-    public <GEO> void drawGeometry(Matrixc localToDevice,
-                                   GEO geometry,
-                                   BiConsumer<GEO, Rect2f> boundsFn,
-                                   boolean inverseFill,
-                                   Paint paint,
-                                   GeometryRenderer renderer,
-                                   Blender primitiveBlender) {
-        Draw draw = new Draw(localToDevice, geometry);
-        draw.mInverseFill = inverseFill;
+    public void drawGeometry(@NonNull Matrixc localToDevice,
+                             @Nullable Object geometry,
+                             boolean inverseFill,
+                             @NonNull Paint paint,
+                             GeometryRenderer renderer,
+                             Blender primitiveBlender) {
+        Draw draw = new Draw(localToDevice, geometry, inverseFill);
+        assert geometry != null || draw.isFloodFill();
         draw.mRenderer = renderer;
 
         if (paint.getStyle() != Paint.FILL) {
@@ -674,7 +671,7 @@ public final class GraniteDevice extends Device {
         // draw without updating the clip stack.
         final boolean outsetBoundsForAA = renderer.outsetBoundsForAA();
         mElementsForMask.clear();
-        boolean clippedOut = mClipStack.prepareForDraw(draw, geometry, boundsFn,
+        boolean clippedOut = mClipStack.prepareForDraw(draw,
                 outsetBoundsForAA, mElementsForMask);
         if (clippedOut) {
             return;

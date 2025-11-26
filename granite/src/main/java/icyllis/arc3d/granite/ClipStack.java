@@ -198,9 +198,7 @@ public final class ClipStack {
     //
     // The returned clip element list will be empty if the shape is clipped out or if the draw is
     // unaffected by any of the clip elements.
-    public <GEO> boolean prepareForDraw(Draw draw,
-                                        GEO geometry,
-                                        BiConsumer<GEO, Rect2f> boundsFn,
+    public boolean prepareForDraw(Draw draw,
                                         boolean outsetBoundsForAA,
                                         List<Element> elementsForMask) {
         SaveRecord save = mSaves.element();
@@ -210,7 +208,7 @@ public final class ClipStack {
         }
 
         Rect2f shapeBounds = mTmpShapeBounds;
-        boundsFn.accept(geometry, shapeBounds);
+        draw.getBounds(shapeBounds);
 
         if (!shapeBounds.isFinite()) {
             // Discard all non-finite geometry as if it were clipped out
@@ -924,8 +922,7 @@ public final class ClipStack {
                         mMaxDepth + 1, mPaintersOrder
                 );
                 //TODO maybe not need a copy of matrix
-                Draw draw = new Draw(mViewMatrix.clone(), new Rect2f(mShape));
-                draw.mInverseFill = mInverseFill;
+                Draw draw = new Draw(mViewMatrix.clone(), new Rect2f(mShape), mInverseFill);
                 draw.mDrawBounds = drawBounds;
                 draw.mTransformedShapeBounds = drawBounds;
                 draw.mScissorRect = scissor;

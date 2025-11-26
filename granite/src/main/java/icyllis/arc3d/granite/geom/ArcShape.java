@@ -21,8 +21,10 @@ package icyllis.arc3d.granite.geom;
 
 import icyllis.arc3d.core.MathUtil;
 import icyllis.arc3d.core.Rect2f;
+import icyllis.arc3d.sketch.Bounded;
+import org.jspecify.annotations.NonNull;
 
-public class ArcShape {
+public class ArcShape implements Bounded {
 
     /**
      * The arc is a closed shape, paint's cap is ignored, this cap determines the shape
@@ -67,7 +69,8 @@ public class ArcShape {
         };
     }
 
-    public void getBounds(Rect2f dest) {
+    @Override
+    public void getBounds(@NonNull Rect2f dest) {
         dest.set(
                 mCenterX - mRadius, mCenterY - mRadius,
                 mCenterX + mRadius, mCenterY + mRadius

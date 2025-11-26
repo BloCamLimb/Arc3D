@@ -22,13 +22,15 @@ package icyllis.arc3d.granite.geom;
 import icyllis.arc3d.core.MathUtil;
 import icyllis.arc3d.core.Rect2f;
 import icyllis.arc3d.core.Rect2fc;
+import icyllis.arc3d.sketch.Bounded;
 import icyllis.arc3d.sketch.Paint;
 import icyllis.arc3d.sketch.Point;
 import icyllis.arc3d.sketch.RRect;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
 
 @NullMarked
-public class BoxShape {
+public class BoxShape implements Bounded {
 
     /**
      * For line: LeftTop becomes the start point, RightBottom becomes the end point,
@@ -133,7 +135,8 @@ public class BoxShape {
         mType = kBlurBox_Type;
     }
 
-    public void getBounds(Rect2f dest) {
+    @Override
+    public void getBounds(@NonNull Rect2f dest) {
         dest.set(mLeft, mTop, mRight, mBottom);
         switch (mType) {
             case kLine_Type, kLineRound_Type -> {

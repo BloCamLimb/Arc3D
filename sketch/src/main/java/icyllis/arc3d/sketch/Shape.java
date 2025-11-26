@@ -19,23 +19,14 @@
 
 package icyllis.arc3d.sketch;
 
-import icyllis.arc3d.core.Rect2f;
 import org.jspecify.annotations.NonNull;
 
 import java.awt.geom.PathIterator;
 
 /**
- * Interface for geometric shapes that have area.
+ * Interface for geometric shapes that have area and are path-iterable.
  */
-public interface Shape {
-
-    /**
-     * Similar to {@link java.awt.Shape#getBounds2D()}, but stores
-     * the result to dst.
-     *
-     * @param dest the destination rectangle to store the bounds to
-     */
-    void getBounds(@NonNull Rect2f dest);
+public interface Shape extends Bounded {
 
     /**
      * Returns the filling rule for determining the interior of the

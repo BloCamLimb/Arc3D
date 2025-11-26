@@ -31,7 +31,7 @@ import java.util.Arrays;
 /**
  * An immutable set of vertex data that can be used with {@link Canvas#drawVertices}.
  */
-public class Vertices {
+public class Vertices implements Bounded {
 
     public static final int
             kPoints_VertexMode = 0,
@@ -143,7 +143,8 @@ public class Vertices {
         return mBounds;
     }
 
-    public void getBounds(Rect2f bounds) {
+    @Override
+    public void getBounds(@NonNull Rect2f bounds) {
         mBounds.store(bounds);
     }
 
