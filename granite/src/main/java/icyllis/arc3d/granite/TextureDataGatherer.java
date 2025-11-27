@@ -24,60 +24,105 @@ import icyllis.arc3d.core.SharedPtr;
 import icyllis.arc3d.engine.ImageProxyView;
 import icyllis.arc3d.engine.SamplerDesc;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntArrays;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import org.jspecify.annotations.NonNull;
 
-import java.util.HashMap;
-import java.util.IdentityHashMap;
-import java.util.function.Function;
+import java.util.function.ToIntFunction;
 
-public class TextureDataGatherer implements AutoCloseable {
+/**
+ * This class serves two purposes: it collects texture view and sampler information for
+ * a Draw; and it provides backing storage and deduplication for all texture data
+ * within a DrawPass.
+ * <p>
+ * Since at most one step performs shading, fragment textures (providing color) come first,
+ * followed by geometry textures (providing coverage, rewind for each step).
+ */
+public final class TextureDataGatherer implements AutoCloseable {
 
-    private final IdentityHashMap<@RawPtr ImageProxyView, Integer> mTextureToIndex = new IdentityHashMap<>();
+    private final Object2IntOpenHashMap<@RawPtr ImageProxyView> mTextureToIndex = new Object2IntOpenHashMap<>();
     private ObjectArrayList<@SharedPtr ImageProxyView> mIndexToTexture = new ObjectArrayList<>();
-    private final Function<@RawPtr ImageProxyView, Integer> mTextureAccumulator = (@RawPtr ImageProxyView texture) -> {
+    private final ToIntFunction<@RawPtr ImageProxyView> mTextureAccumulator = (@RawPtr ImageProxyView texture) -> {
         int index = mIndexToTexture.size();
         // persist the proxy ref, since ImageProxyView represents a single owner, just create new one
         mIndexToTexture.add(new ImageProxyView(texture));
         return index;
     };
 
-    private final HashMap<SamplerDesc, Integer> mSamplerToIndex = new HashMap<>();
+    private final Object2IntOpenHashMap<SamplerDesc> mSamplerToIndex = new Object2IntOpenHashMap<>();
     private ObjectArrayList<SamplerDesc> mIndexToSampler = new ObjectArrayList<>();
-    private final Function<SamplerDesc, Integer> mSamplerAccumulator = sampler -> {
+    private final ToIntFunction<SamplerDesc> mSamplerAccumulator = sampler -> {
         int index = mIndexToSampler.size();
         mIndexToSampler.add(sampler);
         return index;
     };
 
     final IntArrayList mTextureData = new IntArrayList();
+    int mPaintTextureCount;
 
-    public void add(@RawPtr ImageProxyView textureView, SamplerDesc samplerDesc) {
-        assert samplerDesc != null;
+    public void add(@RawPtr @NonNull ImageProxyView textureView, @NonNull SamplerDesc samplerDesc) {
         int textureIndex = mTextureToIndex.computeIfAbsent(textureView, mTextureAccumulator);
         int samplerIndex = mSamplerToIndex.computeIfAbsent(samplerDesc, mSamplerAccumulator);
         mTextureData.add(textureIndex);
         mTextureData.add(samplerIndex);
     }
 
-    public void reset() {
+    public void resetForDraw() {
         mTextureData.clear();
+        mPaintTextureCount = 0;
+    }
+
+    public void mark() {
+        mPaintTextureCount = mTextureData.size();
+    }
+
+    /**
+     * Rewind to collect data for another step using the same paint data.
+     */
+    public void rewindToMark() {
+        mTextureData.size(mPaintTextureCount);
     }
 
     /**
      * Returns a copied int array representing the texture binding.
      * Holds repeated texture index and sampler index.
      */
-    public int[] finish() {
-        return mTextureData.toIntArray();
+    public int @NonNull [] finish(boolean includePaintBlock) {
+        int off;
+        if (includePaintBlock || (off = mPaintTextureCount) == 0) {
+            // intended behavior: if empty, this returns a singleton instead of a new empty array
+            return mTextureData.toIntArray();
+        } else {
+            // toIntArray for a slice
+            int len = mTextureData.size() - off;
+            assert len >= 0 && len % 2 == 0;
+            if (len == 0) return IntArrays.EMPTY_ARRAY;
+            int[] ret = new int[len];
+            mTextureData.getElements(off, ret, 0, len);
+            return ret;
+        }
     }
 
-    ObjectArrayList<@SharedPtr ImageProxyView> detachTextureViews() {
+    public void resetCache() {
+        // intended behavior: only ArrayLists shrink, HashMaps will not shrink
+        mTextureToIndex.clear();
+        if (mIndexToTexture != null) {
+            mIndexToTexture.forEach(ImageProxyView::close);
+        }
+        mIndexToTexture = new ObjectArrayList<>();
+
+        mSamplerToIndex.clear();
+        mIndexToSampler = new ObjectArrayList<>();
+    }
+
+    public ObjectArrayList<@SharedPtr ImageProxyView> detachTextureViews() {
         var res = mIndexToTexture;
         mIndexToTexture = null;
         return res;
     }
 
-    ObjectArrayList<SamplerDesc> detachSamplerDescs() {
+    public ObjectArrayList<SamplerDesc> detachSamplerDescs() {
         var res = mIndexToSampler;
         mIndexToSampler = null;
         return res;

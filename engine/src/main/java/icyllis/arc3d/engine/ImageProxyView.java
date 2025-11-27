@@ -28,10 +28,10 @@ import java.util.Objects;
 import static icyllis.arc3d.engine.Engine.SurfaceOrigin;
 
 /**
- * Surface views contain additional metadata for pipeline operations on surfaces.
- * This class is a tuple of {@link SurfaceProxy}, SurfaceOrigin and Swizzle.
+ * Image views contain additional metadata for pipeline operations on images.
+ * This class is a tuple of {@link ImageProxy}, SurfaceOrigin and Swizzle.
  */
-public class ImageProxyView implements AutoCloseable {
+public final class ImageProxyView implements AutoCloseable {
 
     @SharedPtr
     ImageProxy mProxy;
@@ -50,11 +50,13 @@ public class ImageProxyView implements AutoCloseable {
         mSwizzle = swizzle;
     }
 
+    @SuppressWarnings("IncompleteCopyConstructor")
     public ImageProxyView(@RawPtr @NonNull ImageProxyView view) {
-        mProxy = view.mProxy;
-        if (mProxy != null) {
-            mProxy.ref();
+        var proxy = view.mProxy;
+        if (proxy != null) {
+            proxy.ref();
         }
+        mProxy = proxy; // move
         mOrigin = view.mOrigin;
         mSwizzle = view.mSwizzle;
     }

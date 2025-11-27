@@ -476,7 +476,7 @@ public final class ImageProxy extends RefCnt {
 
     @Override
     public String toString() {
-        return "ImageViewProxy{" +
+        return "ImageProxy{" +
                 "mDesc=" + mDesc +
                 ", mImage=" + mImage +
                 ", mLabel='" + mLabel + '\'' +

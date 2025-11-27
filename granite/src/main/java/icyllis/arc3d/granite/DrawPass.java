@@ -159,7 +159,7 @@ public class DrawPass implements AutoCloseable {
                         BlendMode finalBlendMode = null;
                         boolean useFastSolidColor = false;
 
-                        textureDataGatherer.reset();
+                        textureDataGatherer.resetForDraw();
 
                         // collect fragment data and pipeline key
                         uniformDataGatherer.reset();
@@ -194,7 +194,7 @@ public class DrawPass implements AutoCloseable {
 
                         // geometry texture samplers and then fragment texture samplers
                         // we build shader code and set binding points in this order as well
-                        var textures = textureDataGatherer.finish();
+                        var textures = textureDataGatherer.finish(true);
 
                         var geometryUniformIndex = geometryUniformTracker.trackUniforms(
                                 pipelineIndex,
