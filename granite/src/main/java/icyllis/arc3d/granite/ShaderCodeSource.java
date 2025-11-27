@@ -77,8 +77,8 @@ public class ShaderCodeSource {
     // 8x8 lime and white checkerboard
     public static final String ARC_ERROR = """
             vec4 arc_error(vec2 coords) {
-                return mix(vec4(1.0), vec4(0.0,1.0,0.0,1.0),
-                       bool((int(coords.x) >> 3 ^ int(coords.y) >> 3) & 1));
+                uint v = ((uint(coords.x) >> 3) ^ (uint(coords.y) >> 3)) & 1;
+                return mix(vec4(1.0), vec4(0.0,1.0,0.0,1.0), float(v));
             }
             """;
     public static final String ARC_PASSTHROUGH = """
