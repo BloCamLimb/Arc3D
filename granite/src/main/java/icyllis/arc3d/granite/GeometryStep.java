@@ -483,7 +483,7 @@ public abstract class GeometryStep {
                           boolean mayRequireLocalCoords) {
     }
 
-    public void writeUniformsAndTextures(RecordingContext context, Draw draw,
+    public void writeUniformsAndTextures(Draw draw,
                                          UniformDataGatherer uniformDataGatherer,
                                          TextureDataGatherer textureDataGatherer,
                                          boolean mayRequireLocalCoords) {

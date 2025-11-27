@@ -188,7 +188,7 @@ public class DrawPass implements AutoCloseable {
                         uniformDataGatherer.reset();
                         // first add the 2D orthographic projection
                         uniformDataGatherer.write4f(projX, projY, projZ, projW);
-                        step.writeUniformsAndTextures(context, draw, uniformDataGatherer, textureDataGatherer,
+                        step.writeUniformsAndTextures(draw, uniformDataGatherer, textureDataGatherer,
                                 lookupDesc.mayRequireLocalCoords());
                         var geometryUniforms = uniformDataCache.insert(uniformDataGatherer.finish());
 

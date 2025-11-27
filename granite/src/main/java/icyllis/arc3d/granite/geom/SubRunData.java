@@ -19,8 +19,10 @@
 
 package icyllis.arc3d.granite.geom;
 
+import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.Rect2f;
 import icyllis.arc3d.core.Rect2fc;
+import icyllis.arc3d.granite.AtlasProvider;
 import icyllis.arc3d.granite.SubRunContainer;
 import icyllis.arc3d.sketch.Bounded;
 import icyllis.arc3d.sketch.Matrix;
@@ -34,16 +36,20 @@ public class SubRunData implements Bounded {
     private final int mFilter;
     private final int mStartGlyphIndex;
     private final int mGlyphCount;
+    @RawPtr
+    private final AtlasProvider mAtlasProvider;
 
     // subRunToLocal is affine, no copy
     public SubRunData(SubRunContainer.AtlasSubRun subRun,
                       Matrix subRunToLocal, int filter,
-                      int startGlyphIndex, int glyphCount) {
+                      int startGlyphIndex, int glyphCount,
+                      @RawPtr AtlasProvider atlasProvider) {
         mSubRun = subRun;
         mSubRunToLocal = subRunToLocal;
         mFilter = filter;
         mStartGlyphIndex = startGlyphIndex;
         mGlyphCount = glyphCount;
+        mAtlasProvider = atlasProvider;
     }
 
     public SubRunContainer.AtlasSubRun getSubRun() {
@@ -69,6 +75,17 @@ public class SubRunData implements Bounded {
     public int getGlyphCount() {
         return mGlyphCount;
     }
+
+    /**
+     * Used to get atlas.
+     */
+    public @RawPtr AtlasProvider getAtlasProvider() {
+        return mAtlasProvider;
+    }
+
+
+
+
 
     public Rect2fc getBounds() {
         return mSubRun.getBounds();

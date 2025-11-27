@@ -568,7 +568,8 @@ public final class GraniteDevice extends Device {
                         subRunToDevice);
                 SubRunData subRunData = new SubRunData(subRun,
                         subRunToLocal, filter,
-                        subRunCursor, glyphsPrepared);
+                        subRunCursor, glyphsPrepared,
+                        mRC.getAtlasProvider());
 
                 subRunPaint.set(paint);
                 if (subRun.getMaskFormat() == Engine.MASK_FORMAT_ARGB) {

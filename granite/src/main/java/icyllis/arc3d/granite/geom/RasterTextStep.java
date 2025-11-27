@@ -29,7 +29,6 @@ import icyllis.arc3d.engine.VertexInputLayout.AttributeSet;
 import icyllis.arc3d.granite.*;
 import icyllis.arc3d.granite.shading.UniformHandler;
 import icyllis.arc3d.granite.shading.VaryingHandler;
-import icyllis.arc3d.granite.RecordingContext;
 import icyllis.arc3d.sketch.Matrix;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -203,13 +202,13 @@ public class RasterTextStep extends GeometryStep {
     }
 
     @Override
-    public void writeUniformsAndTextures(RecordingContext context, Draw draw,
+    public void writeUniformsAndTextures(Draw draw,
                                          UniformDataGatherer uniformDataGatherer,
                                          TextureDataGatherer textureDataGatherer,
                                          boolean mayRequireLocalCoords) {
         var subRunData = (SubRunData) draw.mGeometry;
         @RawPtr
-        var textureView = context.getAtlasProvider().getGlyphAtlasManager().getCurrentTextureView(
+        var textureView = subRunData.getAtlasProvider().getGlyphAtlasManager().getCurrentTextureView(
                 subRunData.getSubRun().getMaskFormat()
         );
         assert textureView != null;

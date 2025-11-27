@@ -21,7 +21,6 @@ package icyllis.arc3d.granite.geom;
 
 import icyllis.arc3d.core.PixelUtils;
 import icyllis.arc3d.compiler.ShaderDataType;
-import icyllis.arc3d.granite.RecordingContext;
 import icyllis.arc3d.sketch.Vertices;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.engine.Engine.PrimitiveType;
@@ -214,7 +213,7 @@ public class VerticesStep extends GeometryStep {
     }
 
     @Override
-    public void writeUniformsAndTextures(RecordingContext context, Draw draw,
+    public void writeUniformsAndTextures(Draw draw,
                                          UniformDataGatherer uniformDataGatherer,
                                          TextureDataGatherer textureDataGatherer,
                                          boolean mayRequireLocalCoords) {
