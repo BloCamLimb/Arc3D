@@ -19,6 +19,9 @@
 
 package icyllis.arc3d.core;
 
+import org.jetbrains.annotations.Contract;
+import org.jspecify.annotations.NonNull;
+
 import java.lang.invoke.*;
 
 /**
@@ -62,6 +65,7 @@ public class MathUtil {
     private static final MethodHandle FLOAT16_TO_FLOAT = getFloat16ToFloat();
 
     // VCVTPH2PS, convert packed half to packed single
+    @SuppressWarnings("JavaLangInvokeHandleSignature")
     private static MethodHandle getFloat16ToFloat() {
         try {
             return MethodHandles.lookup().findStatic(
@@ -74,6 +78,7 @@ public class MathUtil {
     private static final MethodHandle FLOAT_TO_FLOAT16 = getFloatToFloat16();
 
     // VCVTPS2PH, convert packed single to packed half
+    @SuppressWarnings("JavaLangInvokeHandleSignature")
     private static MethodHandle getFloatToFloat16() {
         try {
             return MethodHandles.lookup().findStatic(
@@ -120,6 +125,24 @@ public class MathUtil {
     }
 
     /**
+     * Fast floor. The return value is the same as {@code (int) Math.floor(a)}, at least
+     * <var>a</var> is within the range of integers or NaN.
+     */
+    public static int floor(float a) {
+        int i = (int) a;
+        return a < i ? i - 1 : i;
+    }
+
+    /**
+     * Fast ceil. The return value is the same as {@code (int) Math.ceil(a)}, at least
+     * <var>a</var> is within the range of integers or NaN.
+     */
+    public static int ceil(float a) {
+        int i = (int) a;
+        return a > i ? i + 1 : i;
+    }
+
+    /**
      * Decomposes <var>x</var> into a floating-point significand in the
      * range <code>(-1,-0.5], [0.5,1.0)</code>, and an integral exponent of two,
      * such that
@@ -131,7 +154,7 @@ public class MathUtil {
      * @param exp the resulting exponent
      * @return the resulting significand
      */
-    public static float frexp(float x, int[] exp) { // fraction exponent
+    public static float frexp(float x, @Size(1) int @NonNull [] exp) { // fraction exponent
         int bits = Float.floatToRawIntBits(x);
         int high = bits & 0x7fffffff;
         exp[0] = 0;
@@ -401,7 +424,7 @@ public class MathUtil {
      * Linear interpolation between two values, matches GLSL {@code mix} intrinsic function.
      * Slower than {@link #lerp(float, float, float)} but without intermediate overflow or underflow.
      */
-    public static float mix(float a, float b, float t) {
+    public static float lerpStable(float a, float b, float t) {
         return a * (1 - t) + b * t;
     }
 
@@ -409,7 +432,7 @@ public class MathUtil {
      * Linear interpolation between two values, matches GLSL {@code mix} intrinsic function.
      * Slower than {@link #lerp(double, double, double)} but without intermediate overflow or underflow.
      */
-    public static double mix(double a, double b, double t) {
+    public static double lerpStable(double a, double b, double t) {
         return a * (1 - t) + b * t;
     }
 
@@ -637,12 +660,18 @@ public class MathUtil {
         return (a + alignment - 1) & -alignment;
     }
 
+    /**
+     * Aligns {@code a} up to a non power of two.
+     */
     public static int alignUp(int a, int alignment) {
         assert alignment > 0;
         int r = a % alignment;
         return r == 0 ? a : a + alignment - r;
     }
 
+    /**
+     * Aligns {@code a} up to a non power of two, but only returns the padding.
+     */
     public static int alignUpPad(int a, int alignment) {
         assert alignment > 0;
         return (alignment - a % alignment) % alignment;
@@ -841,6 +870,249 @@ public class MathUtil {
         }
         // portable version
         return FP16.toHalf(f);
+    }
+
+    /**
+     * Calculate arithmetic mean without intermediate overflow or underflow.
+     */
+    @Contract(pure = true)
+    public static double averageStable(double @NonNull [] a) {
+        double r = 0;
+        for (int i = 0, e = a.length; i < e; )
+            r += (a[i] - r) / ++i;
+        return r;
+    }
+
+    /**
+     * Calculate arithmetic mean without intermediate overflow or underflow.
+     */
+    public static double averageStable(double @NonNull [] a, int start, int end) {
+        assert (start | end - start | a.length - end) >= 0;
+        double r = 0, t = 0;
+        for (int i = start; i < end; )
+            r += (a[i++] - r) / ++t;
+        return r;
+    }
+
+    /**
+     * Returns {@code b^k}, no overflow checks. Asserts {@code k >= 0}.
+     *
+     * @param b the base
+     * @param k the exponent
+     */
+    public static int pow(int b, int k) {
+        assert k >= 0;
+        int res = 1;
+        for (; k != 0; k >>= 1, b *= b)
+            if ((k & 1) != 0) res *= b;
+        return res;
+    }
+
+    /**
+     * Returns {@code b^k}, no overflow checks. Asserts {@code k >= 0}.
+     *
+     * @param b the base
+     * @param k the exponent
+     */
+    public static long pow(long b, long k) {
+        assert k >= 0;
+        long res = 1;
+        for (; k != 0; k >>= 1, b *= b)
+            if ((k & 1) != 0) res *= b;
+        return res;
+    }
+
+    /**
+     * Returns {@code b^k mod m}, no overflow checks. Asserts {@code k >= 0 && m > 0}.
+     */
+    public static int pow(int b, int k, int m) {
+        assert k >= 0 && m > 0;
+        int res = 1;
+        for (; k != 0; k >>= 1, b = b * b % m)
+            if ((k & 1) != 0) res = res * b % m;
+        return res;
+    }
+
+    /**
+     * Returns {@code b^k mod m}, no overflow checks. Asserts {@code k >= 0 && m > 0}.
+     */
+    public static long pow(long b, long k, long m) {
+        assert k >= 0 && m > 0;
+        long res = 1;
+        for (; k != 0; k >>= 1, b = b * b % m)
+            if ((k & 1) != 0) res = res * b % m;
+        return res;
+    }
+
+    /**
+     * Returns the least common multiple of {@code a, b}, saturated at {@code Integer.MAX_VALUE}.
+     * Returns {@code 0} if {@code a == 0 || b == 0}. Asserts {@code a >= 0 && b >= 0}.
+     */
+    public static int lcm(int a, int b) {
+        assert a >= 0 && b >= 0;
+        if (a == 0 | b == 0)
+            return 0;
+        int g = gcd(a, b);
+        long x = (long) (a / g) * b;
+        if (x > Integer.MAX_VALUE)
+            return Integer.MAX_VALUE;
+        return (int) x;
+    }
+
+    /**
+     * Returns the least common multiple of {@code a, b}, saturated at {@code Long.MAX_VALUE}.
+     * Returns {@code 0} if {@code a == 0 || b == 0}. Asserts {@code a >= 0 && b >= 0}.
+     */
+    public static long lcm(long a, long b) {
+        assert a >= 0 && b >= 0;
+        if (a == 0 | b == 0)
+            return 0;
+        long g = gcd(a, b);
+        return saturatedMultiply(a / g, b);
+    }
+
+    // The following two gcd() methods are from Guava
+    //
+    // Copyright (C) 2011 The Guava Authors
+    //
+    // Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+    // in compliance with the License. You may obtain a copy of the License at
+    //
+    // http://www.apache.org/licenses/LICENSE-2.0
+    //
+    // Unless required by applicable law or agreed to in writing, software distributed under the License
+    // is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+    // or implied. See the License for the specific language governing permissions and limitations under
+    // the License.
+
+    /**
+     * Returns the greatest common divisor of {@code a, b}. Returns {@code 0} if {@code a == 0 && b ==
+     * 0}. Asserts {@code a >= 0 && b >= 0}.
+     */
+    // https://github.com/google/guava/blob/master/guava/src/com/google/common/math/IntMath.java
+    public static int gcd(int a, int b) {
+        /*
+         * The reason we require both arguments to be >= 0 is because otherwise, what do you return on
+         * gcd(0, Integer.MIN_VALUE)? BigInteger.gcd would return positive 2^31, but positive 2^31 isn't
+         * an int.
+         */
+        assert a >= 0 && b >= 0;
+        if (a == 0)
+            // 0 % b == 0, so b divides a, but the converse doesn't hold.
+            // BigInteger.gcd is consistent with this decision.
+            return b;
+        if (b == 0) return a; // similar logic
+        /*
+         * Uses the binary GCD algorithm; see http://en.wikipedia.org/wiki/Binary_GCD_algorithm. This is
+         * >40% faster than the Euclidean algorithm in benchmarks.
+         */
+        int aTwos = Integer.numberOfTrailingZeros(a);
+        a >>= aTwos; // divide out all 2s
+        int bTwos = Integer.numberOfTrailingZeros(b);
+        b >>= bTwos; // divide out all 2s
+        while (a != b) { // both a, b are odd
+            // The key to the binary GCD algorithm is as follows:
+            // Both a and b are odd. Assume a > b; then gcd(a - b, b) = gcd(a, b).
+            // But in gcd(a - b, b), a - b is even and b is odd, so we can divide out powers of two.
+
+            // We bend over backwards to avoid branching, adapting a technique from
+            // http://graphics.stanford.edu/~seander/bithacks.html#IntegerMinOrMax
+
+            int delta = a - b; // can't overflow, since a and b are nonnegative
+
+            int minDeltaOrZero = delta & (delta >> (Integer.SIZE - 1));
+            // equivalent to Math.min(delta, 0)
+
+            a = delta - minDeltaOrZero - minDeltaOrZero; // sets a to Math.abs(a - b)
+            // a is now nonnegative and even
+
+            b += minDeltaOrZero; // sets b to min(old a, b)
+            a >>= Integer.numberOfTrailingZeros(a); // divide out all 2s, since 2 doesn't divide b
+        }
+        return a << Math.min(aTwos, bTwos);
+    }
+
+    /**
+     * Returns the greatest common divisor of {@code a, b}. Returns {@code 0} if {@code a == 0 && b ==
+     * 0}. Asserts {@code a >= 0 && b >= 0}.
+     */
+    // https://github.com/google/guava/blob/master/guava/src/com/google/common/math/LongMath.java
+    public static long gcd(long a, long b) {
+        /*
+         * The reason we require both arguments to be >= 0 is because otherwise, what do you return on
+         * gcd(0, Long.MIN_VALUE)? BigInteger.gcd would return positive 2^63, but positive 2^63 isn't an
+         * int.
+         */
+        assert a >= 0 && b >= 0;
+        if (a == 0)
+            // 0 % b == 0, so b divides a, but the converse doesn't hold.
+            // BigInteger.gcd is consistent with this decision.
+            return b;
+        if (b == 0) return a; // similar logic
+        /*
+         * Uses the binary GCD algorithm; see http://en.wikipedia.org/wiki/Binary_GCD_algorithm. This is
+         * >60% faster than the Euclidean algorithm in benchmarks.
+         */
+        int aTwos = Long.numberOfTrailingZeros(a);
+        a >>= aTwos; // divide out all 2s
+        int bTwos = Long.numberOfTrailingZeros(b);
+        b >>= bTwos; // divide out all 2s
+        while (a != b) { // both a, b are odd
+            // The key to the binary GCD algorithm is as follows:
+            // Both a and b are odd. Assume a > b; then gcd(a - b, b) = gcd(a, b).
+            // But in gcd(a - b, b), a - b is even and b is odd, so we can divide out powers of two.
+
+            // We bend over backwards to avoid branching, adapting a technique from
+            // http://graphics.stanford.edu/~seander/bithacks.html#IntegerMinOrMax
+
+            long delta = a - b; // can't overflow, since a and b are nonnegative
+
+            long minDeltaOrZero = delta & (delta >> (Long.SIZE - 1));
+            // equivalent to Math.min(delta, 0)
+
+            a = delta - minDeltaOrZero - minDeltaOrZero; // sets a to Math.abs(a - b)
+            // a is now nonnegative and even
+
+            b += minDeltaOrZero; // sets b to min(old a, b)
+            a >>= Long.numberOfTrailingZeros(a); // divide out all 2s, since 2 doesn't divide b
+        }
+        return a << Math.min(aTwos, bTwos);
+    }
+
+    /**
+     * Returns the product of {@code a} and {@code b} unless it would overflow or underflow in which
+     * case {@code Long.MAX_VALUE} or {@code Long.MIN_VALUE} is returned, respectively.
+     */
+    public static long saturatedMultiply(long a, long b) {
+        // Hacker's Delight, Section 2-12
+        int leadingZeros = Long.numberOfLeadingZeros(a)
+                        + Long.numberOfLeadingZeros(~a)
+                        + Long.numberOfLeadingZeros(b)
+                        + Long.numberOfLeadingZeros(~b);
+        /*
+         * If leadingZeros > Long.SIZE + 1 it's definitely fine, if it's < Long.SIZE it's definitely
+         * bad. We do the leadingZeros check to avoid the division below if at all possible.
+         *
+         * Otherwise, if b == Long.MIN_VALUE, then the only allowed values of a are 0 and 1. We take
+         * care of all a < 0 with their own check, because in particular, the case a == -1 will
+         * incorrectly pass the division check below.
+         *
+         * In all other cases, we check that either a is 0 or the result is consistent with division.
+         */
+        if (leadingZeros > Long.SIZE + 1) {
+            return a * b;
+        }
+        // the return value if we will overflow (which we calculate by overflowing a long :) )
+        long limit = Long.MAX_VALUE + ((a ^ b) >>> (Long.SIZE - 1));
+        if (leadingZeros < Long.SIZE | (a < 0 & b == Long.MIN_VALUE)) {
+            // overflow
+            return limit;
+        }
+        long result = a * b;
+        if (a == 0 || result / a == b) {
+            return result;
+        }
+        return limit;
     }
 
     protected MathUtil() {
