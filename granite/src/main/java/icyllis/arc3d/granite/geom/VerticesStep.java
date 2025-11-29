@@ -155,7 +155,7 @@ public class VerticesStep extends GeometryStep {
 
     @Override
     public void writeMesh(MeshDrawWriter writer, Draw draw,
-            float @Nullable[] solidColor,
+                          float @Nullable[] solidColor,
                           boolean mayRequireLocalCoords) {
         assert solidColor == null;
         Vertices vertices = (Vertices) draw.mGeometry;
@@ -172,7 +172,7 @@ public class VerticesStep extends GeometryStep {
         //TODO currently we don't have separate vertex streams and an actual index buffer
         writer.beginVertices();
         if (indices != null) {
-            long vertexData = writer.append(indexCount);
+            long vertexData = writer.appendVertices(indexCount);
             for (int i = 0; i < indexCount; i++) {
                 int index = indices[i] & 0xFFFF;
                 MemoryUtil.memPutFloat(vertexData, positions[index<<1]);
@@ -191,7 +191,7 @@ public class VerticesStep extends GeometryStep {
                 }
             }
         } else {
-            long vertexData = writer.append(vertexCount);
+            long vertexData = writer.appendVertices(vertexCount);
             for (int i = 0; i < vertexCount; i++) {
                 MemoryUtil.memPutFloat(vertexData, positions[i<<1]);
                 MemoryUtil.memPutFloat(vertexData+4, positions[(i<<1)+1]);
@@ -209,7 +209,6 @@ public class VerticesStep extends GeometryStep {
                 }
             }
         }
-        writer.endAppender();
     }
 
     @Override

@@ -393,7 +393,7 @@ public class PerEdgeAAQuadStep extends GeometryStep {
     public void writeMesh(MeshDrawWriter writer, Draw draw,
                           float @Nullable [] solidColor, boolean mayRequireLocalCoords) {
         writer.beginInstances(mVertexBuffer, mIndexBuffer, INDEX_COUNT);
-        long instanceData = writer.append(1);
+        long instanceData = writer.appendInstances(1);
         if (solidColor != null) {
             memPutFloat(instanceData, solidColor[0]);
             memPutFloat(instanceData + 4, solidColor[1]);
@@ -435,6 +435,5 @@ public class PerEdgeAAQuadStep extends GeometryStep {
 
         memPutInt(instanceData+48, edgeSigns | (draw.getDepth() << 16));
         draw.mTransform.store(instanceData+52);
-        writer.endAppender();
     }
 }

@@ -19,66 +19,103 @@
 
 package icyllis.arc3d.granite;
 
+import icyllis.arc3d.core.MathUtil;
+import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.engine.*;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
+import icyllis.arc3d.granite.DrawBufferManager.BufferSubAllocator;
 
 import static org.lwjgl.system.MemoryUtil.NULL;
 
-public class MeshDrawWriter implements AutoCloseable {
+public final class MeshDrawWriter implements AutoCloseable {
 
-    private final DrawBufferManager mDrawBufferManager;
+    @RawPtr
+    private final DrawBufferManager mBufferManager;
     private final DrawCommandList mCommandList;
 
-    // Pipeline state matching currently bound pipeline
-    private int mVertexBinding;
-    private int mInstanceBinding;
-    private int mVertexStride;
-    private int mInstanceStride;
+    private BufferSubAllocator mCurrentBuffer;
 
-    private final BufferViewInfo mVertexBufferInfo = new BufferViewInfo();
-    private final BufferViewInfo mIndexBufferInfo = new BufferViewInfo();
-    private final BufferViewInfo mInstanceBufferInfo = new BufferViewInfo();
+    // Pipeline state matching currently bound pipeline
+    private int mStaticStride;
+    private int mAppendStride;
+
+    private boolean mAppendVertices;
+
+    private final BufferViewInfo mAppend = new BufferViewInfo();
+    private final BufferViewInfo mStatic = new BufferViewInfo();
+    private final BufferViewInfo mIndices = new BufferViewInfo();
+
+    @RawPtr
+    private Buffer mBoundAppendBuffer = null;
+    private final BufferViewInfo mBoundStatic = new BufferViewInfo();
+    private final BufferViewInfo mBoundIndices = new BufferViewInfo();
+
     private int mTemplateCount;
 
     private int mPendingCount; // # of vertices or instances (depending on mode) to be drawn
-    private int mPendingBase; // vertex/instance offset (depending on mode) applied to buffer
-    private boolean mPendingBufferBinds; // true if {fVertices,fIndices,fInstances} has changed since last draw
 
     // storage address for VertexWriter when GPU buffer mapping fails
     private long mFailureStorage = NULL;
     private int mFailureCapacity = 0;
 
-    public MeshDrawWriter(DrawBufferManager drawBufferManager, DrawCommandList commandList) {
-        mDrawBufferManager = drawBufferManager;
+    public MeshDrawWriter(@RawPtr DrawBufferManager bufferManager, DrawCommandList commandList) {
+        mBufferManager = bufferManager;
         mCommandList = commandList;
     }
 
     @Override
     public void close() {
+        if (mCurrentBuffer != null) {
+            mCurrentBuffer.reset();
+        }
+        mCurrentBuffer = null;
         if (mFailureStorage != NULL) {
             MemoryUtil.nmemFree(mFailureStorage);
         }
         mFailureStorage = NULL;
     }
 
+    /**
+     * Notify that a new pipeline state will be bound, providing vertex binding points and strides.
+     * This issues draw calls for pending data that relied on the old pipeline, so this must be
+     * called <em>before</em> binding new pipeline.
+     */
     public void newPipelineState(int vertexBinding,
                                  int instanceBinding,
                                  int vertexStride,
                                  int instanceStride) {
         flush();
-        mVertexBinding = vertexBinding;
-        mInstanceBinding = instanceBinding;
-        mVertexStride = vertexStride;
-        mInstanceStride = instanceStride;
 
-        // NOTE: resetting pending base is sufficient to redo bindings for vertex/instance data that
-        // is later appended but doesn't invalidate bindings for fixed buffers that might not need
-        // to change between pipelines.
-        mPendingBase = 0;
+        // Once flushed, any pending data must have been drawn.
         assert (mPendingCount == 0);
+
+        assert vertexStride > 0 || instanceStride > 0;
+
+        mStaticStride = instanceStride > 0 ? vertexStride : 0;
+        mAppendStride = instanceStride > 0 ? instanceStride : vertexStride;
+        mAppendVertices = instanceStride == 0;
+        //TODO we should make backend not assume input binding is associated with pipeline
+        // currently we force a rebind at higher-level, let backend handle actual state changes
+        mBoundAppendBuffer = null;
+        mBoundStatic.set(null);
+        mBoundIndices.set(null);
+
+        if (mCurrentBuffer != null) {
+            // ARM hardware: On a new pipeline, the initial offset when appending
+            // vertices must be 4-count aligned, otherwise align to the stride so that access can use
+            // the baseInstance parameter of draw calls.
+            int baseAlign = mAppendVertices ? 4 * vertexStride : instanceStride;
+
+            mCurrentBuffer.getMappedSubrange(0,
+                    mAppendStride, baseAlign, mAppend);
+        }
     }
 
+    /**
+     * Notify that a new dynamic state, like scissor, descriptor set, blend constant, will be set.
+     * This issues draw calls for any pending vertex and instance data collected by the writer.
+     */
     public void newDynamicState() {
         flush();
     }
@@ -87,108 +124,93 @@ public class MeshDrawWriter implements AutoCloseable {
     // A != B || (A != null && C != D)
 
     // note if buffer is null, offset must be 0
-    void setTemplate(@Nullable BufferViewInfo vertexBufferInfo,
-                     @Nullable BufferViewInfo indexBufferInfo,
-                     @Nullable BufferViewInfo instanceBufferInfo,
+    void setTemplate(@Nullable BufferViewInfo vertices,
+                     @Nullable BufferViewInfo indices,
                      int templateCount) {
-        boolean vertexChange = !mVertexBufferInfo.equals(vertexBufferInfo);
-        boolean instanceChange = !mInstanceBufferInfo.equals(instanceBufferInfo);
-        if (vertexChange || instanceChange ||
-                !mIndexBufferInfo.equals(indexBufferInfo)) {
-            if (mPendingCount > 0) {
-                flush();
-            }
-
-            boolean willAppendVertices = templateCount == 0;
-            boolean isAppendingVertices = mTemplateCount == 0;
-            if (willAppendVertices != isAppendingVertices ||
-                    (isAppendingVertices && vertexChange) ||
-                    (!isAppendingVertices && instanceChange)) {
-                // The buffer binding target for appended data is changing, so reset the base offset
-                mPendingBase = 0;
-            }
-
-            mVertexBufferInfo.set(vertexBufferInfo);
-            mIndexBufferInfo.set(indexBufferInfo);
-            mInstanceBufferInfo.set(instanceBufferInfo);
-
+        if (mPendingCount == 0) {
+            mStatic.set(vertices);
+            mIndices.set(indices);
             mTemplateCount = templateCount;
-
-            mPendingBufferBinds = true;
-        } else if ((templateCount >= 0 && templateCount != mTemplateCount) || // vtx or reg. instances
-                (templateCount < 0 && mTemplateCount >= 0)) {              // dynamic index instances
-            if (mPendingCount > 0) {
-                flush();
-            }
-            if ((templateCount == 0) != (mTemplateCount == 0)) {
-                // Switching from appending vertices to instances, or vice versa, so the pending
-                // base vertex for appended data is invalid
-                mPendingBase = 0;
-            }
-            mTemplateCount = templateCount;
+        } else {
+            assert mStatic.equals(vertices) && mIndices.equals(indices);
+            assert mAppendStride == 0 || mAppend.mOffset % mAppendStride == 0;
+            assert mTemplateCount == templateCount;
         }
-
-
     }
 
     public void flush() {
-        // If nothing was appended, or the only appended data was through dynamic instances and the
-        // final vertex count per instance is 0 (-1 in the sign encoded field), nothing should be drawn.
-        if (mPendingCount == 0 || mTemplateCount == -1) {
+        int pendingCount = mPendingCount;
+        // Skip flush if no items appended
+        if (pendingCount == 0) {
             return;
         }
-        if (mPendingBufferBinds) {
-            if (mIndexBufferInfo.isValid()) {
-                mCommandList.bindIndexBuffer(Engine.IndexType.kUShort, mIndexBufferInfo);
+
+        // How much to advance mAppend.mOffset when the flush is completed
+        int advanceCount = pendingCount;
+
+        // ARM hardware: Unreferenced vertices in sequential indexes of 4 will be
+        // speculatively executed. To work around this, we pad the buffer by requesting additional
+        // space, and then ensure valid, minimally deleterious data by memsetting the padding to zero.
+        if (mAppendVertices) {
+            int countDiff = (-pendingCount) & 3;
+            if (countDiff != 0) {
+                long writer = mCurrentBuffer.appendMappedWithStride(countDiff);
+                assert writer != NULL;
+                //noinspection IntegerMultiplicationImplicitCastToLong
+                MemoryUtil.memSet(writer, 0, countDiff * mAppendStride);
+                advanceCount += countDiff;
             }
-            if (mVertexBufferInfo.isValid()) {
-                assert mVertexBinding != -1 && mVertexStride > 0;
-                mCommandList.bindVertexBuffer(mVertexBinding, mVertexBufferInfo);
+        }
+
+        boolean indexed = false;
+        if (mIndices.isValid()) {
+            if (!mBoundIndices.equals(mIndices)) {
+                mBoundIndices.set(mIndices);
+                mCommandList.bindIndexBuffer(Engine.IndexType.kUShort, mIndices);
             }
-            if (mInstanceBufferInfo.isValid()) {
-                assert mInstanceBinding != -1 && mInstanceStride > 0;
-                mCommandList.bindVertexBuffer(mInstanceBinding, mInstanceBufferInfo);
+            indexed = true;
+        }
+
+        // append buffer should always match the current stride, use pendingBase as a
+        // pseudo-alias for offset and use offset 0 for bind() to reduce vertex binds
+        assert mAppend.mOffset % mAppendStride == 0;
+        int pendingBase = (int) mAppend.mOffset / mAppendStride;
+        assert mAppend.mBuffer != null;
+        if (mBoundAppendBuffer != mAppend.mBuffer) {
+            mCommandList.bindVertexBuffer(0, mAppend.mBuffer, 0);
+            mBoundAppendBuffer = mAppend.mBuffer;
+        }
+
+        if (mStatic.isValid()) {
+            if (!mBoundStatic.equals(mStatic)) {
+                mBoundStatic.set(mStatic);
+                mCommandList.bindVertexBuffer(1, mStatic);
             }
-            mPendingBufferBinds = false;
         }
 
         if (mTemplateCount != 0) {
             // Instanced drawing
-            int realVertexCount;
-            if (mTemplateCount < 0) {
-                realVertexCount = -mTemplateCount - 1;
-                mTemplateCount = -1; // reset to re-accumulate max index account for next flush
+            assert !mAppendVertices;
+            if (indexed) {
+                mCommandList.drawIndexedInstanced(mTemplateCount, 0,
+                        pendingCount, pendingBase, 0);
             } else {
-                realVertexCount = mTemplateCount;
-            }
-
-            if (mIndexBufferInfo.isValid()) {
-                mCommandList.drawIndexedInstanced(realVertexCount, 0,
-                        mPendingCount, mPendingBase, 0);
-            } else {
-                mCommandList.drawInstanced(mPendingCount, mPendingBase,
-                        realVertexCount, 0);
+                mCommandList.drawInstanced(pendingCount, pendingBase,
+                        mTemplateCount, 0);
             }
         } else {
-            assert !mInstanceBufferInfo.isValid();
-            if (mIndexBufferInfo.isValid()) {
-                mCommandList.drawIndexed(mPendingCount, 0, mPendingBase);
+            assert mAppendVertices;
+            if (indexed) {
+                mCommandList.drawIndexed(pendingCount, 0, pendingBase);
             } else {
-                mCommandList.draw(mPendingCount, mPendingBase);
+                mCommandList.draw(pendingCount, pendingBase);
             }
         }
 
-        mPendingBase += mPendingCount;
+        //noinspection IntegerMultiplicationImplicitCastToLong
+        mAppend.mOffset += advanceCount * mAppendStride;
         mPendingCount = 0;
     }
-
-    private BufferViewInfo mCurrentTarget = null;
-    private int mCurrentStride;
-
-    private int mReservedCount;
-
-    private long mCurrentWriter;
-    private final BufferViewInfo mTempAllocInfo = new BufferViewInfo();
 
     private long getFailureStorage(int size) {
         if (size > mFailureCapacity) {
@@ -203,90 +225,104 @@ public class MeshDrawWriter implements AutoCloseable {
         return mFailureStorage;
     }
 
+    //// Vertices
+
     public void beginVertices() {
-        assert mCurrentTarget == null;
-        assert mVertexStride > 0;
-        setTemplate(mVertexBufferInfo, null, null, 0);
-        mCurrentTarget = mVertexBufferInfo;
-        mCurrentStride = mVertexStride;
+        assert mAppendStride > 0;
+        assert mAppendVertices;
+        setTemplate(null, null, 0);
     }
+
+    private void reallocForVertices(int count) {
+        flush();
+
+        if (mCurrentBuffer != null) {
+            mCurrentBuffer.reset();
+        }
+        // alignment issue
+        int align = 4 * mAppendStride;
+        mCurrentBuffer = mBufferManager.getMappableVertexBuffer(
+                /*reservedCount*/ MathUtil.align4(count),
+                mAppendStride, align);
+        if (mCurrentBuffer != null) {
+            mCurrentBuffer.getMappedSubrange(0, mAppendStride, 1, mAppend);
+        }
+    }
+
+    public void reserveVertices(int count) {
+        // alignment issue
+        count = Math.max(MathUtil.align4(mPendingCount + count) - mPendingCount, count);
+        if (mCurrentBuffer == null || count > mCurrentBuffer.availableWithStride()) {
+           reallocForVertices(count);
+        }
+    }
+
+    public long appendVertices(int count) {
+        reserveVertices(count);
+        assert count > 0;
+        assert mCurrentBuffer == null || mCurrentBuffer.availableWithStride() >= count;
+        long writer;
+        if (mCurrentBuffer == null || (writer = mCurrentBuffer.appendMappedWithStride(count)) == NULL) {
+            int size = count * mAppendStride;
+            return getFailureStorage(size);
+        }
+        mPendingCount += count;
+        return writer;
+    }
+
+    //// Instances
 
     /**
      * Start writing instance data and bind static vertex buffer and index buffer.
-     *
-     * @param vertexBufferInfo
-     * @param indexBufferInfo
-     * @param vertexCount
      */
-    public void beginInstances(@Nullable BufferViewInfo vertexBufferInfo,
-                               @Nullable BufferViewInfo indexBufferInfo,
+    public void beginInstances(@Nullable BufferViewInfo vertices,
+                               @Nullable BufferViewInfo indices,
                                int vertexCount) {
+        assert mAppendStride > 0;
+        assert !mAppendVertices;
         assert vertexCount > 0;
-        assert mCurrentTarget == null;
-        assert mInstanceStride > 0;
-        setTemplate(vertexBufferInfo, indexBufferInfo,
-                mInstanceBufferInfo, vertexCount);
-        mCurrentTarget = mInstanceBufferInfo;
-        mCurrentStride = mInstanceStride;
+        setTemplate(vertices, indices, vertexCount);
     }
 
-    public void reserve(int count) {
-        if (mReservedCount >= count) {
-            return;
-        }
-        assert mCurrentTarget != null;
-        if (mReservedCount > 0) {
-            // Have contiguous bytes that can't satisfy request, so return them in the event the
-            // DBM has additional contiguous bytes after the prior reserved range.
-            mDrawBufferManager.putBackVertexBytes(mReservedCount * mCurrentStride);
-        }
+    private void reallocForInstances(int count) {
+        flush();
 
-        mReservedCount = count;
-        var writer = mDrawBufferManager.getVertexPointer(count * mCurrentStride,
-                mTempAllocInfo);
-        if (mTempAllocInfo.mBuffer != mCurrentTarget.mBuffer ||
-                mTempAllocInfo.mOffset !=
-                        (mCurrentTarget.mOffset + (long) (mPendingBase + mPendingCount) * mCurrentStride)) {
-            // Not contiguous, so flush and update binding to 'mTempAllocInfo'
-            flush();
-            mCurrentTarget.set(mTempAllocInfo);
-            mPendingBase = 0;
-            mPendingBufferBinds = true;
+        if (mCurrentBuffer != null) {
+            mCurrentBuffer.reset();
         }
-        mCurrentWriter = writer;
+        int align = mAppendStride;
+        mCurrentBuffer = mBufferManager.getMappableVertexBuffer(
+                /*reservedCount*/ count,
+                mAppendStride, align);
+        if (mCurrentBuffer != null) {
+            mCurrentBuffer.getMappedSubrange(0, mAppendStride, 1, mAppend);
+        }
+    }
+
+    public void reserveInstances(int count) {
+        if (mCurrentBuffer == null || count > mCurrentBuffer.availableWithStride()) {
+            reallocForInstances(count);
+        }
     }
 
     /**
      * The caller must write <code>count * stride</code> bytes to the pointer.
      *
-     * @param count vertex count or instance count
+     * @param count instance count
      */
-    public long append(int count) {
+    public long appendInstances(int count) {
+        reserveInstances(count);
         assert count > 0;
-        reserve(count);
-
-        int size = count * mCurrentStride;
-        if (mCurrentWriter == NULL) {
+        assert mCurrentBuffer == null || mCurrentBuffer.availableWithStride() >= count;
+        long writer;
+        if (mCurrentBuffer == null || (writer = mCurrentBuffer.appendMappedWithStride(count)) == NULL) {
             // If the GPU mapped buffer failed, ensure we have a sufficiently large CPU address to
             // write to so that GeometrySteps don't have to worry about error handling. The Recording
             // will fail since the map failure is tracked by BufferManager.
+            int size = count * mAppendStride;
             return getFailureStorage(size);
         }
-
-        assert (mReservedCount >= count);
-        mReservedCount -= count;
         mPendingCount += count;
-        var writer = mCurrentWriter;
-        mCurrentWriter += size;
         return writer;
-    }
-
-    public void endAppender() {
-        assert mCurrentTarget != null;
-        if (mReservedCount > 0) {
-            mDrawBufferManager.putBackVertexBytes(mReservedCount * mCurrentStride);
-        }
-        mCurrentTarget = null;
-        mCurrentWriter = NULL;
     }
 }

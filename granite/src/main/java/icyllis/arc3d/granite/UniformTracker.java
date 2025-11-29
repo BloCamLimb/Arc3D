@@ -95,11 +95,13 @@ public class UniformTracker {
             int dataSize = blocks.get(0).remaining() << 2;
             int blockSize = bufferManager.alignUniformBlockSize(dataSize);
 
-            var writer = bufferManager.getUniformPointer(
-                    blockSize * numBlocks, cache.mBufferInfo);
-            if (writer == MemoryUtil.NULL) {
+            var currentBuffer = bufferManager.getMappableUniformBuffer(numBlocks, blockSize);
+            if (currentBuffer == null) {
                 return false;
             }
+            var writer = currentBuffer.getMappedSubrange(
+                    numBlocks, blockSize, 1, cache.mBufferInfo);
+            assert writer != MemoryUtil.NULL;
             cache.mBufferInfo.mSize = blockSize;
 
             for (int i = 0; i < numBlocks; i++) {
@@ -112,6 +114,7 @@ public class UniformTracker {
                 );
                 writer += blockSize;
             }
+            currentBuffer.reset();
         }
 
         return true;

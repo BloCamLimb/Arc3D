@@ -130,7 +130,7 @@ public class CoverBoundsStep extends GeometryStep {
                           float @Nullable [] solidColor,
                           boolean mayRequireLocalCoords) {
         writer.beginInstances(null, null, 4);
-        long instanceData = writer.append(1);
+        long instanceData = writer.appendInstances(1);
         if (solidColor != null) {
             MemoryUtil.memPutFloat(instanceData, solidColor[0]);
             MemoryUtil.memPutFloat(instanceData + 4, solidColor[1]);
@@ -157,6 +157,5 @@ public class CoverBoundsStep extends GeometryStep {
         }
         MemoryUtil.memPutFloat(instanceData + 32, draw.getDepthAsFloat());
         draw.mTransform.store(instanceData + 36);
-        writer.endAppender();
     }
 }

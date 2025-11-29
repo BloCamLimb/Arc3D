@@ -142,7 +142,7 @@ public class SubRunContainer {
                                      int offset, int count,
                                      float depth) {
             writer.beginInstances(null, null, 4);
-            long instanceData = writer.append(count);
+            long instanceData = writer.appendInstances(count);
 
             var glyphs = mGlyphs.getGlyphs();
             var positions = mPositions;
@@ -162,7 +162,6 @@ public class SubRunContainer {
                 instanceData += 20;
             }
 
-            writer.endAppender();
         }
 
         /**
@@ -173,7 +172,7 @@ public class SubRunContainer {
                                      float offsetX, float offsetY,
                                      float depth) {
             writer.beginInstances(null, null, 4);
-            long instanceData = writer.append(count);
+            long instanceData = writer.appendInstances(count);
 
             var glyphs = mGlyphs.getGlyphs();
             var positions = mPositions;
@@ -193,7 +192,6 @@ public class SubRunContainer {
                 instanceData += 20;
             }
 
-            writer.endAppender();
         }
 
         public Rect2fc getBounds() {

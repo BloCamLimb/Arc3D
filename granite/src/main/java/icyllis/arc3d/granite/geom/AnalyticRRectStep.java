@@ -448,7 +448,7 @@ public class AnalyticRRectStep extends GeometryStep {
                           float @Nullable [] solidColor,
                           boolean mayRequireLocalCoords) {
         writer.beginInstances(mVertexBuffer, mIndexBuffer, kIndexCount);
-        long instanceData = writer.append(1);
+        long instanceData = writer.appendInstances(1);
 
         if (solidColor != null) {
             memPutFloat(instanceData, solidColor[0]);
@@ -589,6 +589,5 @@ public class AnalyticRRectStep extends GeometryStep {
         memPutFloat(instanceData+76, aaRadius);
         memPutFloat(instanceData+80, draw.getDepthAsFloat());
         draw.mTransform.store(instanceData+84);
-        writer.endAppender();
     }
 }

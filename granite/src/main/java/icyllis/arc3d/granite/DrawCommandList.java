@@ -125,6 +125,15 @@ public class DrawCommandList {
         mPointers.add(bufferInfo.mBuffer);
     }
 
+    public final void bindVertexBuffer(int binding,
+                                       @RawPtr Buffer buffer,
+                                       int offset) {
+        mPrimitives.add(CMD_BIND_VERTEX_BUFFER);
+        mPrimitives.add(binding);
+        mPrimitives.add(offset);
+        mPointers.add(buffer);
+    }
+
     /**
      * Flush scissor.
      *
@@ -229,6 +238,31 @@ public class DrawCommandList {
                     long offset = p[i++];
                     pw.printf("[BindVertexBuffer binding:%d buffer:%s offset:%d]%n",
                             binding, oa[oi++], offset);
+                }
+                case DrawCommandList.CMD_SET_SCISSOR -> {
+                    int x = p[i];
+                    int y = p[i + 1];
+                    int width = p[i + 2];
+                    int height = p[i + 3];
+                    pw.printf("[SetScissor x:%d y:%d width:%d height:%d]%n",
+                            x, y, width, height);
+                    i += 4;
+                }
+                case DrawCommandList.CMD_BIND_UNIFORM_BUFFER -> {
+                    int binding = p[i];
+                    long offset = p[i + 1];
+                    long size = p[i + 2];
+                    pw.printf("[BindUniformBuffer binding:%d buffer:%s offset:%d size:%d]%n",
+                            binding, oa[oi++], offset, size);
+                    i += 3;
+                }
+                case DrawCommandList.CMD_BIND_TEXTURES -> {
+                    int numBindings = p[i++];
+                    for (int binding = 0; binding < numBindings; binding++) {
+                        pw.printf("[BindTextureSampler textureViewIndex:%d samplerIndex:%d]%n",
+                                p[i], p[i + 1]);
+                        i += 2;
+                    }
                 }
             }
         }

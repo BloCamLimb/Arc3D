@@ -180,15 +180,15 @@ public abstract class GeometryStep {
             mName = className + "[" + variantName + "]";
         }
         int binding = 0;
-        if (vertexAttributes != null) {
-            mVertexBinding = binding++;
-        } else {
-            mVertexBinding = -1;
-        }
         if (instanceAttributes != null) {
             mInstanceBinding = binding++;
         } else {
             mInstanceBinding = -1;
+        }
+        if (vertexAttributes != null) {
+            mVertexBinding = binding++;
+        } else {
+            mVertexBinding = -1;
         }
         var inputBindings = new AttributeSet[binding];
         if (vertexAttributes != null) {
