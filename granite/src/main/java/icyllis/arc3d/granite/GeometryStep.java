@@ -20,8 +20,19 @@
 package icyllis.arc3d.granite;
 
 import icyllis.arc3d.compiler.ShaderDataType;
-import icyllis.arc3d.engine.*;
-import icyllis.arc3d.granite.shading.*;
+import icyllis.arc3d.engine.DepthStencilSettings;
+import icyllis.arc3d.engine.Engine;
+import icyllis.arc3d.engine.KeyBuilder;
+import icyllis.arc3d.engine.SamplerDesc;
+import icyllis.arc3d.engine.ShaderCaps;
+import icyllis.arc3d.engine.ShaderVar;
+import icyllis.arc3d.engine.Swizzle;
+import icyllis.arc3d.engine.UniformDataManager;
+import icyllis.arc3d.engine.VertexInputLayout;
+import icyllis.arc3d.granite.shading.FPFragmentBuilder;
+import icyllis.arc3d.granite.shading.UniformHandler;
+import icyllis.arc3d.granite.shading.VaryingHandler;
+import icyllis.arc3d.granite.shading.VertexGeomBuilder;
 import icyllis.arc3d.sketch.Matrix;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -32,6 +43,7 @@ import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static icyllis.arc3d.engine.Engine.*;
+import static icyllis.arc3d.engine.VertexInputLayout.*;
 import static icyllis.arc3d.granite.shading.UniformHandler.SamplerHandle;
 
 /**
@@ -65,8 +77,8 @@ public abstract class GeometryStep {
      * GPs that need to use either float or ubyte colors can just call this to get a correctly
      * configured Attribute struct
      */
-    protected static VertexInputLayout.@NonNull Attribute makeColorAttribute(String name, boolean wideColor) {
-        return new VertexInputLayout.Attribute(
+    protected static @NonNull Attribute makeColorAttribute(String name, boolean wideColor) {
+        return new Attribute(
                 name,
                 wideColor
                         ? VertexAttribType.kFloat4
@@ -78,18 +90,18 @@ public abstract class GeometryStep {
     /**
      * Painter's depth.
      */
-    public static final VertexInputLayout.Attribute DEPTH =
-            new VertexInputLayout.Attribute("Depth", VertexAttribType.kFloat, ShaderDataType.kFloat);
+    public static final Attribute DEPTH =
+            new Attribute("Depth", VertexAttribType.kFloat, ShaderDataType.kFloat);
     /**
      * Pre-multiplied solid color in destination color space.
      */
-    public static final VertexInputLayout.Attribute SOLID_COLOR =
-            new VertexInputLayout.Attribute("SolidColor", VertexAttribType.kFloat4, ShaderDataType.kFloat4);
+    public static final Attribute SOLID_COLOR =
+            new Attribute("SolidColor", VertexAttribType.kFloat4, ShaderDataType.kFloat4);
     /**
      * Local-to-device transform.
      */
-    public static final VertexInputLayout.Attribute MODEL_VIEW =
-            new VertexInputLayout.Attribute("ModelView", VertexAttribType.kFloat3, ShaderDataType.kFloat3x3);
+    public static final Attribute MODEL_VIEW =
+            new Attribute("ModelView", VertexAttribType.kFloat3, ShaderDataType.kFloat3x3);
 
     /**
      * Set if there's fragment shader code and color output, otherwise this is
@@ -156,8 +168,8 @@ public abstract class GeometryStep {
     private final DepthStencilSettings mDepthStencilSettings;
 
     protected GeometryStep(@NonNull String className, @NonNull String variantName,
-            VertexInputLayout.@Nullable AttributeSet vertexAttributes,
-            VertexInputLayout.@Nullable AttributeSet instanceAttributes,
+                           @Nullable AttributeSet vertexAttributes,
+                           @Nullable AttributeSet instanceAttributes,
                            int flags,
                            byte primitiveType,
                            DepthStencilSettings depthStencilSettings) {
@@ -178,15 +190,14 @@ public abstract class GeometryStep {
         } else {
             mInstanceBinding = -1;
         }
-        var attributeSets = new VertexInputLayout.AttributeSet[binding];
-        binding = 0;
+        var inputBindings = new AttributeSet[binding];
         if (vertexAttributes != null) {
-            attributeSets[binding++] = vertexAttributes;
+            inputBindings[mVertexBinding] = vertexAttributes;
         }
         if (instanceAttributes != null) {
-            attributeSets[binding++] = instanceAttributes;
+            inputBindings[mInstanceBinding] = instanceAttributes;
         }
-        mInputLayout = new VertexInputLayout(attributeSets);
+        mInputLayout = new VertexInputLayout(inputBindings);
         if (mVertexBinding != -1) {
             mVertexStride = mInputLayout.getStride(mVertexBinding);
         } else {
@@ -303,7 +314,7 @@ public abstract class GeometryStep {
      * </ol>
      */
     @NonNull
-    public final Iterator<VertexInputLayout.Attribute> vertexAttributes() {
+    public final Iterator<Attribute> vertexAttributes() {
         return mInputLayout.getAttributes(mVertexBinding);
     }
 
@@ -359,7 +370,7 @@ public abstract class GeometryStep {
      * </ol>
      */
     @NonNull
-    public final Iterator<VertexInputLayout.Attribute> instanceAttributes() {
+    public final Iterator<Attribute> instanceAttributes() {
         return mInputLayout.getAttributes(mInstanceBinding);
     }
 
@@ -410,11 +421,11 @@ public abstract class GeometryStep {
     public abstract void appendToKey(@NonNull KeyBuilder b);
 
     public final void appendAttributesToKey(@NonNull KeyBuilder b) {
-        /*VertexInputLayout.AttributeSet vertexAttributes = allVertexAttributes();
+        /*AttributeSet vertexAttributes = allVertexAttributes();
         if (vertexAttributes != null) {
             vertexAttributes.appendToKey(b, mVertexAttributesMask);
         }
-        VertexInputLayout.AttributeSet instanceAttributes = allInstanceAttributes();
+        AttributeSet instanceAttributes = allInstanceAttributes();
         if (instanceAttributes != null) {
             instanceAttributes.appendToKey(b, mInstanceAttributesMask);
         }*/
@@ -479,7 +490,7 @@ public abstract class GeometryStep {
     }
 
     public void writeMesh(MeshDrawWriter writer, Draw draw,
-            float @Nullable[] solidColor,
+                          float @Nullable [] solidColor,
                           boolean mayRequireLocalCoords) {
     }
 

@@ -46,16 +46,16 @@ public class VerticesStep extends GeometryStep {
             new Attribute("UV", VertexAttribType.kFloat2, ShaderDataType.kFloat2);
 
     public static final AttributeSet ATTRIBS_POS =
-            AttributeSet.makeImplicit(VertexInputLayout.INPUT_RATE_VERTEX,
+            AttributeSet.make(VertexInputLayout.INPUT_RATE_VERTEX,
                     POSITION);
     public static final AttributeSet ATTRIBS_POS_COLOR =
-            AttributeSet.makeImplicit(VertexInputLayout.INPUT_RATE_VERTEX,
+            AttributeSet.make(VertexInputLayout.INPUT_RATE_VERTEX,
                     POSITION, COLOR);
     public static final AttributeSet ATTRIBS_POS_UV =
-            AttributeSet.makeImplicit(VertexInputLayout.INPUT_RATE_VERTEX,
+            AttributeSet.make(VertexInputLayout.INPUT_RATE_VERTEX,
                     POSITION, TEX_COORD);
     public static final AttributeSet ATTRIBS_POS_COLOR_UV =
-            AttributeSet.makeImplicit(VertexInputLayout.INPUT_RATE_VERTEX,
+            AttributeSet.make(VertexInputLayout.INPUT_RATE_VERTEX,
                     POSITION, COLOR, TEX_COORD);
 
     private final boolean mHasColor;

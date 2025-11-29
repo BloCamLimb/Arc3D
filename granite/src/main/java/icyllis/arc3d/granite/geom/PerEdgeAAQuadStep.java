@@ -104,10 +104,10 @@ public class PerEdgeAAQuadStep extends GeometryStep {
             new Attribute("FlagsAndDepth", VertexAttribType.kUInt, ShaderDataType.kUInt);
 
     public static final AttributeSet VERTEX_ATTRIBS =
-            AttributeSet.makeImplicit(VertexInputLayout.INPUT_RATE_VERTEX,
+            AttributeSet.make(VertexInputLayout.INPUT_RATE_VERTEX,
                     NORMAL);
     public static final AttributeSet INSTANCE_ATTRIBS =
-            AttributeSet.makeImplicit(VertexInputLayout.INPUT_RATE_INSTANCE,
+            AttributeSet.make(VertexInputLayout.INPUT_RATE_INSTANCE,
                     SOLID_COLOR, QUAD_XS, QUAD_YS, FLAGS_AND_DEPTH, MODEL_VIEW);
 
     public static final int CORNER_COUNT = 4;

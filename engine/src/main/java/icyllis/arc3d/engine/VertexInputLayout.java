@@ -19,17 +19,20 @@
 
 package icyllis.arc3d.engine;
 
-import icyllis.arc3d.core.MathUtil;
 import icyllis.arc3d.compiler.ShaderDataType;
+import icyllis.arc3d.core.MathUtil;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import javax.annotation.concurrent.Immutable;
-import java.util.*;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 /**
  * Describes the vertex input state of a graphics pipeline.
  */
+@SuppressWarnings("DataFlowIssue")
 @Immutable
 public final class VertexInputLayout {
 
@@ -178,13 +181,13 @@ public final class VertexInputLayout {
     @Immutable
     public static class AttributeSet implements Iterable<Attribute> {
 
-        private final Attribute[] mAttributes;
+        private final @NonNull Attribute @NonNull [] mAttributes;
         private final int mStride;
         private final int mInputRate;
 
         final int mAllMask;
 
-        private AttributeSet(Attribute @NonNull[] attributes, int stride, int inputRate) {
+        private AttributeSet(@NonNull Attribute @NonNull [] attributes, int stride, int inputRate) {
             int offset = 0;
             for (Attribute attr : attributes) {
                 if (attr.offset() != Attribute.IMPLICIT_OFFSET) {
@@ -209,10 +212,12 @@ public final class VertexInputLayout {
          * <p>
          * Note: GPU does not reorder vertex attributes, so when a vertex attribute has an
          * explicit offset, the subsequent implicit offsets will start from there.
+         * <p>
+         * The method wraps the given attrs array (no copy), the caller should ensure the immutability.
          */
         @NonNull
-        public static AttributeSet makeImplicit(int inputRate, @NonNull Attribute... attrs) {
-            if (attrs.length == 0 || attrs.length > Integer.SIZE) {
+        public static AttributeSet make(int inputRate, @NonNull Attribute @NonNull ... attrs) {
+            if (attrs.length > Integer.SIZE) {
                 throw new IllegalArgumentException();
             }
             return new AttributeSet(attrs, Attribute.IMPLICIT_OFFSET, inputRate);
@@ -225,10 +230,12 @@ public final class VertexInputLayout {
          * <p>
          * Note: GPU does not reorder vertex attributes, so when a vertex attribute has an
          * explicit offset, the subsequent implicit offsets will start from there.
+         * <p>
+         * The method wraps the given attrs array (no copy), the caller should ensure the immutability.
          */
         @NonNull
-        public static AttributeSet makeExplicit(int stride, int inputRate, @NonNull Attribute... attrs) {
-            if (attrs.length == 0 || attrs.length > Integer.SIZE) {
+        public static AttributeSet makeWithStride(int stride, int inputRate, @NonNull Attribute @NonNull ... attrs) {
+            if (attrs.length > Integer.SIZE) {
                 throw new IllegalArgumentException();
             }
             if (stride <= 0 || stride > 32768) {
@@ -357,16 +364,17 @@ public final class VertexInputLayout {
         }
     }
 
-    private final AttributeSet[] mAttributeSets;
+    private final @Nullable AttributeSet @NonNull [] mBindings;
     private final int[] mMasks;
 
     /**
-     * Enable all attributes for each AttributeSet.
+     * The constructor wraps the given array (no copy), the caller should ensure the immutability.
+     * A null AttributeSet element indicates that binding point is not used.
      *
      * @see #VertexInputLayout(AttributeSet[], int[])
      */
-    public VertexInputLayout(@NonNull AttributeSet... attributeSets) {
-        this(attributeSets, null);
+    public VertexInputLayout(@Nullable AttributeSet @NonNull ... bindings) {
+        this(bindings, null);
     }
 
     /**
@@ -379,16 +387,16 @@ public final class VertexInputLayout {
      * <p>
      * E.g. if you want the 0, 2, 3 attributes are enabled, then mask is 0b1101.
      */
-    public VertexInputLayout(AttributeSet @NonNull[] attributeSets,
-                             int @Nullable[] masks) {
-        assert attributeSets.length > 0 && attributeSets.length <= Caps.MAX_VERTEX_BINDINGS;
-        assert masks == null || attributeSets.length == masks.length;
-        mAttributeSets = attributeSets;
+    public VertexInputLayout(@Nullable AttributeSet @NonNull [] bindings,
+                             int @Nullable [] masks) {
+        assert bindings.length > 0 && bindings.length <= Caps.MAX_VERTEX_BINDINGS;
+        assert masks == null || bindings.length == masks.length;
+        mBindings = bindings;
         if (masks != null) {
             for (int i = 0; i < masks.length; i++) {
                 if (masks[i] != 0) {
                     // mask is non-zero then AttributeSet is non-null
-                    masks[i] &= attributeSets[i].mAllMask; // sanitize
+                    masks[i] &= bindings[i].mAllMask; // sanitize
                 }
             }
         }
@@ -397,9 +405,11 @@ public final class VertexInputLayout {
 
     /**
      * Returns the number of binding points.
+     *
+     * @see Caps#MAX_VERTEX_BINDINGS
      */
     public int getBindingCount() {
-        return mAttributeSets.length;
+        return mBindings.length;
     }
 
     /**
@@ -412,7 +422,7 @@ public final class VertexInputLayout {
         if (mMasks != null) {
             return Integer.bitCount(mMasks[binding]);
         }
-        var attributes = mAttributeSets[binding];
+        var attributes = mBindings[binding];
         return attributes != null ? attributes.mAttributes.length : 0;
     }
 
@@ -426,7 +436,7 @@ public final class VertexInputLayout {
      * @see Caps#MAX_VERTEX_ATTRIBUTES
      */
     public int getLocationCount(int binding) {
-        var attributes = mAttributeSets[binding];
+        var attributes = mBindings[binding];
         if (mMasks != null) {
             int mask = mMasks[binding];
             return mask != 0 ? attributes.numLocations(mask) : 0;
@@ -440,7 +450,7 @@ public final class VertexInputLayout {
      * structs. In this case, it is best to assert that: stride == sizeof(struct).
      */
     public int getStride(int binding) {
-        var attributes = mAttributeSets[binding];
+        var attributes = mBindings[binding];
         if (mMasks != null) {
             int mask = mMasks[binding];
             return mask != 0 ? attributes.stride(mask) : 0;
@@ -453,7 +463,7 @@ public final class VertexInputLayout {
      * 1 means per-instance data.
      */
     public int getInputRate(int binding) {
-        var attributes = mAttributeSets[binding];
+        var attributes = mBindings[binding];
         return attributes != null ? attributes.mInputRate : 0;
     }
 
@@ -467,7 +477,7 @@ public final class VertexInputLayout {
      */
     @NonNull
     public Iterator<Attribute> getAttributes(int binding) {
-        var attributes = mAttributeSets[binding];
+        var attributes = mBindings[binding];
         if (mMasks != null) {
             int mask = mMasks[binding];
             return mask != 0 ? attributes.new Iter(mask) : Collections.emptyIterator();

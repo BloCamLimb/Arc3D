@@ -132,10 +132,10 @@ public class AnalyticRRectStep extends GeometryStep {
             new Attribute("Center", VertexAttribType.kFloat4, ShaderDataType.kFloat4);
 
     public static final AttributeSet VERTEX_ATTRIBS =
-            AttributeSet.makeImplicit(VertexInputLayout.INPUT_RATE_VERTEX,
+            AttributeSet.make(VertexInputLayout.INPUT_RATE_VERTEX,
                     POSITION, NORMAL, NORMAL_SCALE, CENTER_WEIGHT);
     public static final AttributeSet INSTANCE_ATTRIBS =
-            AttributeSet.makeImplicit(VertexInputLayout.INPUT_RATE_INSTANCE,
+            AttributeSet.make(VertexInputLayout.INPUT_RATE_INSTANCE,
                     SOLID_COLOR, X_RADII_OR_FLAGS, RADII_OR_QUAD_XS, LTRB_OR_QUAD_YS, CENTER, DEPTH, MODEL_VIEW);
 
     // Allowed values for the center weight instance value (selected at record time based on style

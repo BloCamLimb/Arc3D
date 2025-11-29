@@ -52,7 +52,7 @@ public class RasterTextStep extends GeometryStep {
             new Attribute("Size", VertexAttribType.kUShort2, ShaderDataType.kUInt2);
 
     public static final AttributeSet INSTANCE_ATTRIBS =
-            AttributeSet.makeImplicit(VertexInputLayout.INPUT_RATE_INSTANCE,
+            AttributeSet.make(VertexInputLayout.INPUT_RATE_INSTANCE,
                     XY, UV, SIZE, DEPTH);
 
     private final int mMaskFormat;

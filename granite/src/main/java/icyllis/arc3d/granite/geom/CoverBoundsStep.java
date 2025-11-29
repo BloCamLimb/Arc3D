@@ -52,7 +52,7 @@ public class CoverBoundsStep extends GeometryStep {
             new Attribute("Bounds", VertexAttribType.kFloat4, ShaderDataType.kFloat4);
 
     public static final AttributeSet INSTANCE_ATTRIBS =
-            AttributeSet.makeImplicit(VertexInputLayout.INPUT_RATE_INSTANCE,
+            AttributeSet.make(VertexInputLayout.INPUT_RATE_INSTANCE,
                     SOLID_COLOR, BOUNDS, DEPTH, MODEL_VIEW);
 
     public CoverBoundsStep(@NonNull String variantName, DepthStencilSettings depthStencilSettings) {

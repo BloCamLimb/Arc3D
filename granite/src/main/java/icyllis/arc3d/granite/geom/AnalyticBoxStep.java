@@ -88,7 +88,7 @@ public class AnalyticBoxStep extends GeometryStep {
             new Attribute("FlagsAndDepth", VertexAttribType.kUInt, ShaderDataType.kUInt);
 
     public static final AttributeSet INSTANCE_ATTRIBS =
-            AttributeSet.makeImplicit(VertexInputLayout.INPUT_RATE_INSTANCE,
+            AttributeSet.make(VertexInputLayout.INPUT_RATE_INSTANCE,
                     SOLID_COLOR, LOCAL_RECT, RADII, FLAGS_AND_DEPTH, MODEL_VIEW);
 
     private final boolean mBlur;
