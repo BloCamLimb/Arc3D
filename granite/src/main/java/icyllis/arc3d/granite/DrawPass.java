@@ -37,6 +37,7 @@ import java.util.function.Function;
  *
  * @see PipelineBuilder
  */
+@SuppressWarnings("ForLoopReplaceableByForEach")
 public class DrawPass implements AutoCloseable {
 
     public static final int GEOMETRY_UNIFORM_BLOCK_BINDING = 0; // i.e. RenderBlock/StepBlock
@@ -119,21 +120,22 @@ public class DrawPass implements AutoCloseable {
         var passBounds = Rect2f.makeInfiniteInverted();
         int depthStencilFlags = Engine.DepthStencilFlags.kNone;
 
-        var geometryUniformTracker = new UniformTracker();
-        var fragmentUniformTracker = new UniformTracker();
+        var textureTracker = new TextureTracker();
 
         SortKey[] keys = new SortKey[numSteps];
         int keyIndex = 0;
 
         try (var textureDataGatherer = new TextureDataGatherer();
+             var geometryUniformDataCache = new UniformDataCache();
+             var fragmentUniformDataCache = new UniformDataCache();
+             var geometryUniformTracker = new UniformTracker(bufferManager, geometryUniformDataCache);
+             var fragmentUniformTracker = new UniformTracker(bufferManager, fragmentUniformDataCache);
              var drawWriter = new MeshDrawWriter(bufferManager, commandList)) {
-            var textureTracker = new TextureTracker();
 
             int surfaceHeight = targetView.getHeight();
             int surfaceOrigin = targetView.getOrigin();
 
-            try (var uniformDataCache = new UniformDataCache();
-                 var uniformDataGatherer = new UniformDataGatherer(
+            try (var uniformDataGatherer = new UniformDataGatherer(
                          UniformDataGatherer.Std140Layout)) {
 
                 var paintParamsKeyBuilder = new KeyBuilder();
@@ -150,8 +152,8 @@ public class DrawPass implements AutoCloseable {
 
                 var keyContext = new KeyContext(context, deviceInfo);
 
-                for (var draw : drawList) {
-
+                for (int i = 0; i < drawList.size(); i++) {
+                    Draw draw = drawList.get(i);
                     for (int stepIndex = 0; stepIndex < draw.mRenderer.numSteps(); stepIndex++) {
                         var step = draw.mRenderer.step(stepIndex);
 
@@ -178,7 +180,7 @@ public class DrawPass implements AutoCloseable {
                             }
                             finalBlendMode = draw.mPaintParams.getFinalBlendMode();
                         }
-                        var fragmentUniforms = uniformDataCache.insert(uniformDataGatherer.finish());
+                        var fragmentUniformIndex = fragmentUniformDataCache.insert(uniformDataGatherer.finish());
 
                         int pipelineIndex = pipelineToIndex.computeIfAbsent(
                                 lookupDesc.set(step, paintParamsKeyBuilder, finalBlendMode, useFastSolidColor),
@@ -190,20 +192,11 @@ public class DrawPass implements AutoCloseable {
                         uniformDataGatherer.write4f(projX, projY, projZ, projW);
                         step.writeUniformsAndTextures(draw, uniformDataGatherer, textureDataGatherer,
                                 lookupDesc.mayRequireLocalCoords());
-                        var geometryUniforms = uniformDataCache.insert(uniformDataGatherer.finish());
+                        var geometryUniformIndex = geometryUniformDataCache.insert(uniformDataGatherer.finish());
 
                         // geometry texture samplers and then fragment texture samplers
                         // we build shader code and set binding points in this order as well
                         var textures = textureDataGatherer.finish(true);
-
-                        var geometryUniformIndex = geometryUniformTracker.trackUniforms(
-                                pipelineIndex,
-                                geometryUniforms
-                        );
-                        var fragmentUniformIndex = fragmentUniformTracker.trackUniforms(
-                                pipelineIndex,
-                                fragmentUniforms
-                        );
 
                         keys[keyIndex++] = new SortKey(
                                 draw,
@@ -217,11 +210,6 @@ public class DrawPass implements AutoCloseable {
 
                     passBounds.joinNoCheck(draw.mDrawBounds);
                     depthStencilFlags |= draw.mRenderer.depthStencilFlags();
-                }
-
-                if (!geometryUniformTracker.writeUniforms(bufferManager) ||
-                        !fragmentUniformTracker.writeUniforms(bufferManager)) {
-                    return null;
                 }
             }
 
@@ -244,11 +232,11 @@ public class DrawPass implements AutoCloseable {
 
                 Rect2ic newScissor = !draw.mScissorRect.equals(lastScissor)
                         ? draw.mScissorRect : null;
-                boolean geometryBindingChange = geometryUniformTracker.setCurrentUniforms(
-                        pipelineIndex, key.geometryUniformIndex()
+                boolean geometryBindingChange = geometryUniformTracker.writeUniforms(
+                        key.geometryUniformIndex()
                 );
-                boolean fragmentBindingChange = fragmentUniformTracker.setCurrentUniforms(
-                        pipelineIndex, key.fragmentUniformIndex()
+                boolean fragmentBindingChange = fragmentUniformTracker.writeUniforms(
+                        key.fragmentUniformIndex()
                 );
                 boolean textureBindingChange = textureTracker.setCurrentTextures(key.mTextures);
 
@@ -395,8 +383,8 @@ public class DrawPass implements AutoCloseable {
                 commandBuffer.trackResource(RefCnt.create(sampler));
             }
         }
-        for (var textureView : mTexturesViews) {
-            commandBuffer.trackCommandBufferResource(textureView.getProxy().refImage());
+        for (int i = 0; i < mTexturesViews.size(); i++) {
+            commandBuffer.trackCommandBufferResource(mTexturesViews.get(i).getProxy().refImage());
         }
         var cmdList = getCommandList();
         var p = cmdList.mPrimitives.elements();

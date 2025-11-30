@@ -159,13 +159,22 @@ public class DrawCommandList {
     }
 
     public final void bindUniformBuffer(int binding,
-                                        @RawPtr Buffer buffer,
-                                        long offset,
-                                        long size) {
+                                        BufferViewInfo bufferInfo) {
         mPrimitives.add(CMD_BIND_UNIFORM_BUFFER);
         mPrimitives.add(binding);
-        mPrimitives.add((int) offset);
-        mPrimitives.add((int) size);
+        mPrimitives.add((int) bufferInfo.mOffset);
+        mPrimitives.add((int) bufferInfo.mSize);
+        mPointers.add(bufferInfo.mBuffer);
+    }
+
+    public final void bindUniformBuffer(int binding,
+                                        @RawPtr Buffer buffer,
+                                        int offset,
+                                        int size) {
+        mPrimitives.add(CMD_BIND_UNIFORM_BUFFER);
+        mPrimitives.add(binding);
+        mPrimitives.add(offset);
+        mPrimitives.add(size);
         mPointers.add(buffer);
     }
 

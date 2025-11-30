@@ -42,14 +42,14 @@ public class TestUniformDataCache {
             gatherer.write3f(3f, 4f, 5f);
             var finish1 = gatherer.finish();
             var cached1 = cache.insert(finish1);
-            log(1, finish1, cached1);
+            log(0, finish1, cached1, cache.lookup(cached1).mPointer);
 
             gatherer.reset();
             gatherer.writeMatrix3f(new Matrix());
             gatherer.write4i(20, 30, 40, 50);
             var finish2 = gatherer.finish();
             var cached2 = cache.insert(finish2);
-            log(2, finish2, cached2);
+            log(1, finish2, cached2, cache.lookup(cached2).mPointer);
 
             gatherer.reset();
             gatherer.write2f(5f, 11.5f);
@@ -57,14 +57,14 @@ public class TestUniformDataCache {
             gatherer.write3f(3f, 4f, 5f);
             var finish3 = gatherer.finish();
             var cached3 = cache.insert(finish3);
-            log(3, finish3, cached3);
+            log(2, finish3, cached3, cache.lookup(cached3).mPointer);
         }
 
         LOGGER.info(ClassLayout.parseClass(DrawPass.SortKey.class).toPrintable());
     }
 
-    static void log(int index, IntBuffer finish, IntBuffer cached) {
+    static void log(int index, IntBuffer finish, int cachedIndex, IntBuffer cached) {
         LOGGER.info("Finish {}: {}@{}", index, finish, Integer.toHexString(System.identityHashCode(finish)));
-        LOGGER.info("Cached {}: {}@{}", index, cached, Integer.toHexString(System.identityHashCode(cached)));
+        LOGGER.info("Cached {}: {}@{}", cachedIndex, cached, Integer.toHexString(System.identityHashCode(cached)));
     }
 }

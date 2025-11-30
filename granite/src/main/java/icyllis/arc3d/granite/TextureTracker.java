@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2024 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2024-2025 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -20,15 +20,16 @@
 package icyllis.arc3d.granite;
 
 import it.unimi.dsi.fastutil.ints.IntArrays;
+import org.jspecify.annotations.NonNull;
 
 import java.util.Arrays;
 
-public class TextureTracker {
+public final class TextureTracker {
 
     private int[] mLastBinding = IntArrays.EMPTY_ARRAY;
 
     // the array is not de-duplicated, so compare their contents
-    public boolean setCurrentTextures(int[] textures) {
+    public boolean setCurrentTextures(int @NonNull [] textures) {
         if (textures.length != 0 && !Arrays.equals(mLastBinding, textures)) {
             mLastBinding = textures;
             return true;
@@ -37,7 +38,7 @@ public class TextureTracker {
         return false;
     }
 
-    public void bindTextures(DrawCommandList commandList) {
+    public void bindTextures(@NonNull DrawCommandList commandList) {
         assert mLastBinding.length != 0;
         commandList.bindTextures(mLastBinding);
     }

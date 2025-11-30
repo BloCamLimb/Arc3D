@@ -20,11 +20,13 @@
 package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.MathUtil;
+import icyllis.arc3d.engine.BufferViewInfo;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.nio.IntBuffer;
-import java.util.HashMap;
 
 import static org.lwjgl.system.MemoryUtil.*;
 
@@ -37,10 +39,26 @@ import static org.lwjgl.system.MemoryUtil.*;
  *
  * @see UniformDataGatherer
  */
-public class UniformDataCache implements AutoCloseable {
+public final class UniformDataCache implements AutoCloseable {
 
-    // key and value are same object
-    private final HashMap<IntBuffer, IntBuffer> mPointers = new HashMap<>();
+    public static final class CacheSlot {
+        // this is stable pointer to the cache, copied from the source data,
+        // and the memory is managed by cache
+        public final IntBuffer mPointer;
+        // GPU buffer binding info
+        public final BufferViewInfo mBufferInfo = new BufferViewInfo();
+
+        CacheSlot(IntBuffer pointer) {
+            mPointer = pointer;
+        }
+    }
+
+    private final Object2IntOpenHashMap<IntBuffer> mDataToIndex = new Object2IntOpenHashMap<>();
+    private final ObjectArrayList<CacheSlot> mIndexToData = new ObjectArrayList<>();
+
+    {
+        mDataToIndex.defaultReturnValue(-1);
+    }
 
     /**
      * Find an existing data block with the contents of the given <var>block</var>.
@@ -49,40 +67,53 @@ public class UniformDataCache implements AutoCloseable {
      * The {@link IntBuffer#hashCode()} and {@link IntBuffer#equals(Object)} of
      * the given <var>block</var> will be used. If absent, a copy of the given data
      * will be made and its memory is managed by this object, return value is a
-     * stable pointer to that memory, you can simply check the reference equality
-     * via <code>==</code> as it's deduplicated.
+     * stable pointer to that memory.
      *
      * @param block an immutable view of uniform data
      * @return a stable pointer to existing or copied uniform data
      */
-    @Nullable
-    public IntBuffer insert(@Nullable IntBuffer block) {
+    public int insert(@Nullable IntBuffer block) {
         if (block == null || !block.hasRemaining()) {
-            return null;
+            // empty data returns max index
+            return DrawPass.INVALID_INDEX;
         }
         // the key of HashMap and the given ByteBuffer will never be the same object
         // so we are hashing and comparing their contents via vectorizedMismatch()
-        IntBuffer existing = mPointers.get(block);
-        if (existing != null) {
+        int existing = mDataToIndex.getInt(block);
+        if (existing >= 0) {
             return existing;
         } else {
+            int index = mIndexToData.size();
             IntBuffer copy = allocate(block);
-            mPointers.put(copy, copy);
-            return copy;
+            mDataToIndex.put(copy, index);
+            mIndexToData.add(new CacheSlot(copy));
+            return index;
         }
+    }
+
+    /**
+     * Caller should first check if index is valid or not.
+     */
+    public @NonNull CacheSlot lookup(int index) {
+        return mIndexToData.get(index);
     }
 
     /**
      * The number of unique data blocks in the cache.
      */
     public int size() {
-        return mPointers.size();
+        return mDataToIndex.size();
+    }
+
+    public void reset() {
+        freeBlocks(); // free the arena alloc
+        mDataToIndex.clear();
+        mIndexToData.clear();
     }
 
     @Override
     public void close() {
-        freeBlocks();
-        mPointers.clear();
+        reset();
     }
 
     // To return a stable pointer, we may not modify the address of existing ByteBuffer,
@@ -94,7 +125,7 @@ public class UniformDataCache implements AutoCloseable {
     // the initial block size is 1024 bytes based on the practical size of uniform data
 
     // the underlying block allocation
-    static class Block {
+    static final class Block {
 
         // pointer to native memory
         final long mStorage;
