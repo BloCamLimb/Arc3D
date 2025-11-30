@@ -254,7 +254,11 @@ public class UniformDataGatherer implements AutoCloseable {
 
         long dst = mStorage + mPosition - count;
         if (padding > 0) {
-            memSet(dst, 0, padding);
+            // given that the padding must be these values, using a custom loop is faster than memset
+            assert padding == 4 || padding == 8 || padding == 12;
+            for (int i = 0; i < padding; i += 4) {
+                memPutInt(dst + i, 0);
+            }
             dst += padding;
         }
         assert dst == mStorage + mPosition - size;

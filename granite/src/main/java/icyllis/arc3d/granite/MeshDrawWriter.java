@@ -156,8 +156,12 @@ public final class MeshDrawWriter implements AutoCloseable {
             if (countDiff != 0) {
                 long writer = mCurrentBuffer.appendMappedWithStride(countDiff);
                 assert writer != NULL;
-                //noinspection IntegerMultiplicationImplicitCastToLong
-                MemoryUtil.memSet(writer, 0, countDiff * mAppendStride);
+                // Given that sizeof(Vertex) is 4-aligned and generally does not exceed 24, a custom loop is faster than memset.
+                int bytesToZero = countDiff * mAppendStride;
+                assert MathUtil.isAlign4(bytesToZero) && bytesToZero <= 96;
+                for (int i = 0; i < bytesToZero; i += 4) {
+                    MemoryUtil.memPutInt(writer + i, 0);
+                }
                 advanceCount += countDiff;
             }
         }
