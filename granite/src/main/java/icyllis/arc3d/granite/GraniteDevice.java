@@ -30,6 +30,7 @@ import icyllis.arc3d.granite.geom.BoundsManager;
 import icyllis.arc3d.granite.geom.BoxShape;
 import icyllis.arc3d.granite.geom.EdgeAAQuad;
 import icyllis.arc3d.granite.geom.HybridBoundsManager;
+import icyllis.arc3d.granite.geom.Rect;
 import icyllis.arc3d.granite.geom.SubRunData;
 import icyllis.arc3d.granite.task.DrawTask;
 import icyllis.arc3d.granite.task.RenderPassTask;
@@ -352,34 +353,31 @@ public final class GraniteDevice extends Device {
     @Override
     public void drawRect(Rect2fc r, Paint paint) {
         if (paint.getStyle() == Paint.FILL) {
-            if (paint.isAntiAlias()) {
-                drawGeometry(getLocalToDevice33(),
-                                new BoxShape(r), false, paint,
-                        mRendererProvider.getAnalyticBox(false), null);
-            } else {
-                drawGeometry(getLocalToDevice33(),
-                                new Rect2f(r), false, paint,
+            if (!paint.isAntiAlias()) {
+                drawGeometry(getLocalToDevice33(), new Rect(r), false, paint,
                         mRendererProvider.getNonAABoundsFill(), null);
+                return;
             }
         } else {
             var join = paint.getStrokeJoin();
             boolean complex = join == Paint.JOIN_BEVEL ||
                     (join == Paint.JOIN_MITER && paint.getStrokeMiter() < MathUtil.SQRT2);
             if (complex) {
+                // since it's a stroke, promote it to RRect and lose the original geometric info
                 drawGeometry(getLocalToDevice33(), new RRect(r), false, paint,
                         mRendererProvider.getAnalyticRRect(), null);
-            } else {
-                drawGeometry(getLocalToDevice33(), new BoxShape(r), false, paint,
-                        mRendererProvider.getAnalyticBox(false), null);
+                return;
             }
         }
+        drawGeometry(getLocalToDevice33(), new Rect(r), false, paint,
+                mRendererProvider.getAnalyticBox(false), null);
     }
 
     @Override
     public void drawRRect(RRect rr, Paint paint) {
         //TODO stroking an ellipse requires new renderer
         boolean complex = switch (rr.getType()) {
-            case RRect.kOval_Type, RRect.kSimple_Type -> rr.getSimpleRadiusX() != rr.getSimpleRadiusY();
+            case RRect.kOval_Type, RRect.kSimple_Type -> rr.isSimpleCircular() || rr.isCircle();
             case RRect.kNineSlice_Type, RRect.kComplex_Type -> true;
             default -> {
                 // empty and rect are handled by Canvas
@@ -398,7 +396,7 @@ public final class GraniteDevice extends Device {
 
     @Override
     public void drawEllipse(float cx, float cy, float rx, float ry, Paint paint) {
-        if (rx != ry) {
+        if (!RRect.radiiAlmostEqual(rx, ry)) {
             //TODO stroking an ellipse requires new renderer
             var shape = new RRect();
             shape.setEllipse(cx, cy, rx, ry);
@@ -648,7 +646,7 @@ public final class GraniteDevice extends Device {
     }
 
     public void drawGeometry(@NonNull Matrixc localToDevice,
-                             @Nullable Object geometry,
+                             @Nullable Bounded geometry,
                              boolean inverseFill,
                              @NonNull Paint paint,
                              GeometryRenderer renderer,

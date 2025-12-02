@@ -46,7 +46,7 @@ public final class Draw implements AutoCloseable {
      * This matrix transforms geometry's local space to device space.
      */
     public Matrixc mTransform;
-    public final Object mGeometry;
+    public Bounded mGeometry;
     public boolean mInverseFill;
     /**
      * Clip params (immutable), set by {@link ClipStack}.
@@ -90,13 +90,12 @@ public final class Draw implements AutoCloseable {
     @Nullable
     public PaintParams mPaintParams;
 
-    //TODO finally we disallow Rect2f as input, and use a custom class that implements Shape instead
     public Draw(@NonNull Matrixc transform,
-                Object geometry, boolean inverseFill) {
+                Bounded geometry, boolean inverseFill) {
+        assert geometry != null || inverseFill;
         mTransform = transform;
         mGeometry = geometry;
         mInverseFill = inverseFill;
-        assert geometry == null || geometry instanceof Bounded || geometry instanceof Rect2f;
     }
 
     @Override
@@ -108,13 +107,9 @@ public final class Draw implements AutoCloseable {
     }
 
     public void getBounds(@NonNull Rect2f dest) {
-        final Object g = mGeometry;
-        if (g == null)
-            dest.setEmpty();
-        else if (g instanceof Bounded)
-            ((Bounded) g).getBounds(dest);
-        else if (g instanceof Rect2f)
-            ((Rect2f) g).store(dest);
+        final Bounded g = mGeometry;
+        if (g == null) dest.setEmpty();
+        else g.getBounds(dest);
     }
 
     public boolean isFloodFill() {

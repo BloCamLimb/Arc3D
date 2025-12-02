@@ -21,7 +21,6 @@ package icyllis.arc3d.granite.geom;
 
 import icyllis.arc3d.core.MathUtil;
 import icyllis.arc3d.core.Rect2f;
-import icyllis.arc3d.core.Rect2fc;
 import icyllis.arc3d.sketch.Bounded;
 import icyllis.arc3d.sketch.Paint;
 import icyllis.arc3d.sketch.Point;
@@ -51,7 +50,7 @@ public class BoxShape implements Bounded {
     public float mBlurRadius;
     public float mNoiseAlpha;
 
-    public int mType = kBox_Type;
+    public int mType;
 
     public BoxShape() {
     }
@@ -62,13 +61,7 @@ public class BoxShape implements Bounded {
         mRight = src.right();
         mBottom = src.bottom();
         mRadius = src.getSimpleRadiusX();
-    }
-
-    public BoxShape(Rect2fc src) {
-        mLeft = src.left();
-        mTop = src.top();
-        mRight = src.right();
-        mBottom = src.bottom();
+        mType = kBox_Type;
     }
 
     public void setCircle(float cx, float cy, float radius) {

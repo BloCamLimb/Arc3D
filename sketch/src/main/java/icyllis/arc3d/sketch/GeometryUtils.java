@@ -325,12 +325,12 @@ public class GeometryUtils {
             return;
         }
 
-        float abx  = MathUtil.mix(x0,  x1,  t);
-        float aby  = MathUtil.mix(y0,  y1,  t);
-        float bcx  = MathUtil.mix(x1,  x2,  t);
-        float bcy  = MathUtil.mix(y1,  y2,  t);
-        float abcx = MathUtil.mix(abx, bcx, t);
-        float abcy = MathUtil.mix(aby, bcy, t);
+        float abx  = MathUtil.lerpStable(x0,  x1,  t);
+        float aby  = MathUtil.lerpStable(y0,  y1,  t);
+        float bcx  = MathUtil.lerpStable(x1,  x2,  t);
+        float bcy  = MathUtil.lerpStable(y1,  y2,  t);
+        float abcx = MathUtil.lerpStable(abx, bcx, t);
+        float abcy = MathUtil.lerpStable(aby, bcy, t);
 
         dst[off]   = x0;
         dst[off+1] = y0;
@@ -581,18 +581,18 @@ public class GeometryUtils {
             return;
         }
 
-        float abx   = MathUtil.mix(x0,   x1,   t);
-        float aby   = MathUtil.mix(y0,   y1,   t);
-        float bcx   = MathUtil.mix(x1,   x2,   t);
-        float bcy   = MathUtil.mix(y1,   y2,   t);
-        float cdx   = MathUtil.mix(x2,   x3,   t);
-        float cdy   = MathUtil.mix(y2,   y3,   t);
-        float abcx  = MathUtil.mix(abx,  bcx,  t);
-        float abcy  = MathUtil.mix(aby,  bcy,  t);
-        float bcdx  = MathUtil.mix(bcx,  cdx,  t);
-        float bcdy  = MathUtil.mix(bcy,  cdy,  t);
-        float abcdx = MathUtil.mix(abcx, bcdx, t);
-        float abcdy = MathUtil.mix(abcy, bcdy, t);
+        float abx   = MathUtil.lerpStable(x0,   x1,   t);
+        float aby   = MathUtil.lerpStable(y0,   y1,   t);
+        float bcx   = MathUtil.lerpStable(x1,   x2,   t);
+        float bcy   = MathUtil.lerpStable(y1,   y2,   t);
+        float cdx   = MathUtil.lerpStable(x2,   x3,   t);
+        float cdy   = MathUtil.lerpStable(y2,   y3,   t);
+        float abcx  = MathUtil.lerpStable(abx,  bcx,  t);
+        float abcy  = MathUtil.lerpStable(aby,  bcy,  t);
+        float bcdx  = MathUtil.lerpStable(bcx,  cdx,  t);
+        float bcdy  = MathUtil.lerpStable(bcy,  cdy,  t);
+        float abcdx = MathUtil.lerpStable(abcx, bcdx, t);
+        float abcdy = MathUtil.lerpStable(abcy, bcdy, t);
 
         dst[off]    = x0;
         dst[off+1]  = y0;

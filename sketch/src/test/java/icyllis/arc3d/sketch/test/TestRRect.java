@@ -46,6 +46,8 @@ public class TestRRect {
         testRun(TestRRect::rand_float_huge_ex, "rand_float_huge_ex");
 
         RRect rrect = new RRect();
+        rrect.setRectXY(2000,2000,6000,6000,500,500.002f);
+        System.out.println(rrect.isSimpleCircular());
         rrect.setRectRadii(20, 20, 60, 60,
                 new float[]{4,4,6,6,37,37,2,2});
         System.out.println(rrect.getType());

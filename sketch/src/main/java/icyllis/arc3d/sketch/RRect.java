@@ -28,6 +28,7 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
 import org.lwjgl.system.MemoryUtil;
 
+import java.awt.geom.PathIterator;
 import java.util.Arrays;
 
 /**
@@ -45,8 +46,7 @@ import java.util.Arrays;
  * If corner curves overlap, radii are proportionally reduced to fit within bounds.
  */
 @NullMarked
-public class RRect implements Bounded {
-    //TODO this should implement Shape
+public class RRect implements Shape {
 
     // these are compile-time constants
     @ApiStatus.Internal
@@ -230,8 +230,16 @@ public class RRect implements Bounded {
         return getType() == kOval_Type;
     }
 
+    public boolean isCircle() {
+        return isOval() && radiiAlmostEqual(mRadii[0], mRadii[1]);
+    }
+
     public boolean isSimple() {
         return getType() == kSimple_Type;
+    }
+
+    public boolean isSimpleCircular() {
+        return isSimple() && radiiAlmostEqual(mRadii[0], mRadii[1]);
     }
 
     public boolean isNineSlice() {
@@ -798,6 +806,95 @@ public class RRect implements Bounded {
         }
     }
 
+    private boolean checkCornerContainment(float x, float y) {
+        assert getType() != kEmpty_Type;
+        float px, py;
+        int index;
+
+        if (getType() == kOval_Type) {
+            px = x - centerX();
+            py = y - centerY();
+            index = kUpperLeftX; // any corner will do in this case
+        } else {
+            if (x < mLeft + mRadii[kUpperLeftX] &&
+                    y < mTop + mRadii[kUpperLeftY]) {
+                // UL corner
+                index = kUpperLeftX;
+                px = x - (mLeft + mRadii[kUpperLeftX]);
+                py = y - (mTop + mRadii[kUpperLeftY]);
+                assert px < 0 && py < 0;
+            } else if (x < mLeft + mRadii[kLowerLeftX] &&
+                    y > mBottom - mRadii[kLowerLeftY]) {
+                // LL corner
+                index = kLowerLeftX;
+                px = x - (mLeft + mRadii[kLowerLeftX]);
+                py = y - (mBottom - mRadii[kLowerLeftY]);
+                assert px < 0 && py > 0;
+            } else if (x > mRight - mRadii[kUpperRightX] &&
+                    y < mTop + mRadii[kUpperRightY]) {
+                // UR corner
+                index = kUpperRightX;
+                px = x - (mRight - mRadii[kUpperRightX]);
+                py = y - (mTop + mRadii[kUpperRightY]);
+                assert px > 0 && py < 0;
+            } else if (x > mRight - mRadii[kLowerRightX] &&
+                    y > mBottom - mRadii[kLowerRightY]) {
+                // LR corner
+                index = kLowerRightX;
+                px = x - (mRight - mRadii[kLowerRightX]);
+                py = y - (mBottom - mRadii[kLowerRightY]);
+                assert px > 0 && py > 0;
+            } else {
+                // not in any of the corners
+                return true;
+            }
+        }
+
+        float rx = mRadii[index], ry = mRadii[index+1];
+        // test a point is in an ellipse
+        return (px * px) * (ry * ry) + (py * py) * (rx * rx) <= (rx * rx) * (ry * ry);
+    }
+
+    @Override
+    public boolean contains(float x, float y) {
+        return (x >= mLeft && x < mRight && y >= mTop && y < mBottom) &&
+                checkCornerContainment(x, y);
+    }
+
+    @Override
+    public boolean contains(float left, float top, float right, float bottom) {
+        if (isEmpty()) {
+            return false;
+        }
+        if (mLeft <= left && mTop <= top
+                && mRight >= right && mBottom >= bottom) {
+            if (isRect()) {
+                return true;
+            }
+            return checkCornerContainment(left, top) &&
+                    checkCornerContainment(right, top) &&
+                    checkCornerContainment(right, bottom) &&
+                    checkCornerContainment(left, bottom);
+        }
+        return false;
+    }
+
+    @Override
+    public boolean contains(@NonNull Rect2fc rect) {
+        return contains(rect.left(), rect.top(), rect.right(), rect.bottom());
+    }
+
+    @Override
+    public int getWindingRule() {
+        return Path.WIND_NON_ZERO;
+    }
+
+    @Override
+    public @NonNull PathIterator getPathIterator() {
+        //TODO
+        return null;
+    }
+
     /**
      * Returns bounds. Bounds may have zero width or zero height. Bounds right is
      * greater than or equal to left; bounds bottom is greater than or equal to top.
@@ -1091,5 +1188,10 @@ public class RRect implements Bounded {
                 MathUtil.isApproxEqual(radii[2], radii[3], MathUtil.PATH_TOLERANCE) &&
                 MathUtil.isApproxEqual(radii[4], radii[5], MathUtil.PATH_TOLERANCE) &&
                 MathUtil.isApproxEqual(radii[6], radii[7], MathUtil.PATH_TOLERANCE);
+    }
+
+    public static boolean radiiAlmostEqual(float a, float b) {
+        // check if the ULP difference is <= 128, assuming input >= 0
+        return Math.abs(Float.floatToIntBits(a) - Float.floatToIntBits(b)) <= 128;
     }
 }

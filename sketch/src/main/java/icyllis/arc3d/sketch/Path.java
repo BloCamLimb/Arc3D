@@ -20,6 +20,7 @@
 package icyllis.arc3d.sketch;
 
 import icyllis.arc3d.core.Rect2f;
+import icyllis.arc3d.core.Rect2fc;
 import icyllis.arc3d.core.RefCnt;
 import icyllis.arc3d.core.SharedPtr;
 import org.intellij.lang.annotations.MagicConstant;
@@ -661,6 +662,24 @@ public class Path implements Shape, java.awt.Shape, PathConsumer {
     @SegmentMask
     public int getSegmentMask() {
         return mPathRef.mSegmentMask;
+    }
+
+    @Override
+    public boolean contains(float x, float y) {
+        //TODO to be implemented
+        return false;
+    }
+
+    @Override
+    public boolean contains(float left, float top, float right, float bottom) {
+        //TODO to be implemented
+        return false;
+    }
+
+    @Override
+    public boolean contains(@NonNull Rect2fc rect) {
+        //TODO to be implemented
+        return false;
     }
 
     @Override

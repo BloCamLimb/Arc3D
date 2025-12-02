@@ -19,6 +19,7 @@
 
 package icyllis.arc3d.sketch;
 
+import icyllis.arc3d.core.Rect2fc;
 import org.jspecify.annotations.NonNull;
 
 import java.awt.geom.PathIterator;
@@ -27,6 +28,12 @@ import java.awt.geom.PathIterator;
  * Interface for geometric shapes that have area and are path-iterable.
  */
 public interface Shape extends Bounded {
+
+    boolean contains(float x, float y);
+
+    boolean contains(float left, float top, float right, float bottom);
+
+    boolean contains(@NonNull Rect2fc rect);
 
     /**
      * Returns the filling rule for determining the interior of the

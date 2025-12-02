@@ -308,14 +308,14 @@ public class AnalyticBoxStep extends GeometryStep {
             MemoryUtil.memPutLong(instanceData, 0);
             MemoryUtil.memPutLong(instanceData + 8, 0);
         }
-        BoxShape shape = (BoxShape) draw.mGeometry;
-        // local rect
-        MemoryUtil.memPutFloat(instanceData + 16, shape.mLeft);
-        MemoryUtil.memPutFloat(instanceData + 20, shape.mTop);
-        MemoryUtil.memPutFloat(instanceData + 24, shape.mRight);
-        MemoryUtil.memPutFloat(instanceData + 28, shape.mBottom);
         if (mBlur) {
+            BoxShape shape = (BoxShape) draw.mGeometry;
             assert shape.mType == BoxShape.kBlurBox_Type;
+            // local rect
+            MemoryUtil.memPutFloat(instanceData + 16, shape.mLeft);
+            MemoryUtil.memPutFloat(instanceData + 20, shape.mTop);
+            MemoryUtil.memPutFloat(instanceData + 24, shape.mRight);
+            MemoryUtil.memPutFloat(instanceData + 28, shape.mBottom);
             // radii
             MemoryUtil.memPutFloat(instanceData + 32, shape.mRadius);
             MemoryUtil.memPutFloat(instanceData + 36, shape.mBlurRadius);
@@ -323,9 +323,33 @@ public class AnalyticBoxStep extends GeometryStep {
             // depth
             MemoryUtil.memPutInt(instanceData + 44, (draw.getDepth() << 16));
         } else {
-            assert shape.mType != BoxShape.kBlurBox_Type;
+            int type;
+            float radius;
+            if (draw.mGeometry instanceof Rect r) {
+                // local rect
+                MemoryUtil.memPutFloat(instanceData + 16, r.mLeft);
+                MemoryUtil.memPutFloat(instanceData + 20, r.mTop);
+                MemoryUtil.memPutFloat(instanceData + 24, r.mRight);
+                MemoryUtil.memPutFloat(instanceData + 28, r.mBottom);
+                type = 0;
+                radius = 0;
+            } else {
+                BoxShape shape = (BoxShape) draw.mGeometry;
+                assert shape.mType != BoxShape.kBlurBox_Type;
+                // local rect
+                MemoryUtil.memPutFloat(instanceData + 16, shape.mLeft);
+                MemoryUtil.memPutFloat(instanceData + 20, shape.mTop);
+                MemoryUtil.memPutFloat(instanceData + 24, shape.mRight);
+                MemoryUtil.memPutFloat(instanceData + 28, shape.mBottom);
+                type = switch (shape.mType) {
+                    case BoxShape.kLine_Type -> 2;
+                    case BoxShape.kLineRound_Type -> 1;
+                    default -> 0;
+                };
+                radius = shape.mRadius;
+            }
             // radii
-            MemoryUtil.memPutFloat(instanceData + 32, shape.mRadius);
+            MemoryUtil.memPutFloat(instanceData + 32, radius);
             MemoryUtil.memPutFloat(instanceData + 36, draw.mHalfWidth);
             MemoryUtil.memPutFloat(instanceData + 40, draw.mAARadius);
             int dir = switch (draw.mStrokeAlign) {
@@ -333,13 +357,8 @@ public class AnalyticBoxStep extends GeometryStep {
                 case Paint.ALIGN_OUTSIDE -> 8;
                 default -> 4;
             };
-            int type = switch (shape.mType) {
-                case BoxShape.kLine_Type -> 2;
-                case BoxShape.kLineRound_Type -> 1;
-                default -> 0;
-            };
             // only butt/square line and rect can have miter join
-            int join = (type == 2 || shape.mRadius == 0) && draw.mJoinLimit >= MathUtil.SQRT2 ? 16 : 0;
+            int join = (type == 2 || radius == 0) && draw.mJoinLimit >= MathUtil.SQRT2 ? 16 : 0;
             MemoryUtil.memPutInt(instanceData + 44, (draw.getDepth() << 16) | (join | dir | type));
         }
         draw.mTransform.store(instanceData + 48);
