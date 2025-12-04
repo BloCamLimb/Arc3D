@@ -23,7 +23,9 @@ import icyllis.arc3d.core.*;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.ClipStack;
 import icyllis.arc3d.granite.GraniteDevice;
+import icyllis.arc3d.granite.GraniteUtil;
 import icyllis.arc3d.granite.RecordingContext;
+import icyllis.arc3d.granite.geom.Rect;
 import icyllis.arc3d.opengl.GLUtil;
 import icyllis.arc3d.sketch.ClipOp;
 import icyllis.arc3d.core.ColorInfo;
@@ -63,6 +65,7 @@ public class TestClipStack {
         if (immediateContext == null) {
             throw new RuntimeException();
         }
+        GraniteUtil.init(immediateContext);
         RecordingContext recordingContext = RecordingContext.makeRecordingContext(
                 immediateContext, new RecordingContext.Options()
         );
@@ -79,9 +82,11 @@ public class TestClipStack {
         );
         assert drawDevice != null;
 
+        LOGGER.info(stateToString(drawDevice.getClipStack().currentClipState()));
         drawDevice.clipRect(
                 new Rect2f(0, 0, 60, 60),
                 ClipOp.CLIP_OP_INTERSECT, false);
+        LOGGER.info(stateToString(drawDevice.getClipStack().currentClipState()));
 
         drawDevice.pushClipStack();
         //viewMatrix.preRotateZ(MathUtil.DEG_TO_RAD * 5);
@@ -91,9 +96,9 @@ public class TestClipStack {
         LOGGER.info(stateToString(drawDevice.getClipStack().currentClipState()));
         drawDevice.getClipStack().elements().forEach(e -> LOGGER.info(e.toString()));
 
-        RRect rrect = new RRect();
-        rrect.setRect(15, 20, 35, 40);
-        drawDevice.drawRRect(rrect, new Paint());
+        Rect2f rect = new Rect2f();
+        rect.set(15, 20, 35, 40);
+        drawDevice.drawRect(rect, new Paint());
 
         /*var elementsForMask = new ArrayList<ClipStack.Element>();
         var draw = new DrawOp();

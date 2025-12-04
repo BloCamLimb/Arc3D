@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2022-2024 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2022-2025 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -20,6 +20,9 @@
 package icyllis.arc3d.granite;
 
 import icyllis.arc3d.compiler.ShaderDataType;
+import icyllis.arc3d.core.Rect2f;
+import icyllis.arc3d.core.Rect2i;
+import icyllis.arc3d.core.Rect2ic;
 import icyllis.arc3d.engine.DepthStencilSettings;
 import icyllis.arc3d.engine.Engine;
 import icyllis.arc3d.engine.KeyBuilder;
@@ -34,6 +37,7 @@ import icyllis.arc3d.granite.shading.UniformHandler;
 import icyllis.arc3d.granite.shading.VaryingHandler;
 import icyllis.arc3d.granite.shading.VertexGeomBuilder;
 import icyllis.arc3d.sketch.Matrix;
+import icyllis.arc3d.sketch.Shape;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -134,6 +138,10 @@ public abstract class GeometryStep {
      * Not compatible with {@link #FLAG_EMIT_PRIMITIVE_COLOR}.
      */
     public static final int FLAG_HANDLE_SOLID_COLOR = 1 << 7;
+    /**
+     * Rasterization of inverse fills scissor geometrically.
+     */
+    public static final int FLAG_INVERSE_FILL_SCISSOR = 1 << 8;
 
     private static final AtomicInteger sNextID = new AtomicInteger(0);
 
@@ -410,6 +418,53 @@ public abstract class GeometryStep {
                 (mDepthStencilSettings.mStencilTest
                         ? DepthStencilFlags.kStencil
                         : DepthStencilFlags.kNone);
+    }
+
+    // Returns false if no state change is necessary, otherwise returns the scissor rect
+    // that should be active for all draws recorded by a subsequent call to writeMesh().
+    public final boolean getScissor(@NonNull Draw draw, @NonNull Rect2i currentScissor,
+                                    @NonNull Rect2ic deviceBounds) {
+        if (currentScissor.equals(draw.mScissorRect)) {
+            // Trivially no change in scissor state is required
+            return false;
+        }
+
+        // For inverse filled shapes, the scissor is able to be handled in unique ways.
+        if ((mFlags & FLAG_INVERSE_FILL_SCISSOR) != 0 &&
+                draw.mInverseFill && (draw.mGeometry == null || draw.mGeometry instanceof Shape)) {
+            // In this case, the RenderStep geometrically respects the scissor so as long as the
+            // current scissor doesn't interfere, we don't need a state change.
+            if (currentScissor.contains(draw.mScissorRect)) {
+                return false;
+            } else {
+                // This draw doesn't need a scissor at all, so return the device bounds. It is
+                // expected that this will generally lead to fewer scissor state changes (for
+                // instance when applying the cover steps for a lot of inverse-filled intersect
+                // clip depth-only draws). However, it could lead to a redundant scissor change if
+                // the next draw would have used this draw's original scissor.
+                currentScissor.set(deviceBounds);
+                return true;
+            }
+        }
+
+        // Draws that are unaffected by a clip stack will have a scissor matching the device's bounds.
+        // If their transformed shape bounds clipped to the current scissor are no different than their
+        // draw bounds (clipped to the original scissor), then no state change is required.
+        Rect2f clippedBounds = new Rect2f(draw.mTransformedShapeBounds);
+        clippedBounds.intersectNoCheck(currentScissor);
+        if (clippedBounds.equals(draw.mDrawBounds)) {
+            return false;
+        }
+
+        if (draw.mTransformedShapeBounds.equals(draw.mDrawBounds)) {
+            // We need to change the scissor, but the registered scissor is a no-op so
+            // use the device bounds as a canonical scissor.
+            currentScissor.set(deviceBounds);
+            return true;
+        }
+
+        currentScissor.set(draw.mScissorRect);
+        return true;
     }
 
     /**

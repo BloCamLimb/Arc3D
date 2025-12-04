@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2024-2024 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2024-2025 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -20,6 +20,7 @@
 package icyllis.arc3d.granite.geom;
 
 import icyllis.arc3d.core.Rect2fc;
+import icyllis.arc3d.core.Rect2ic;
 
 /**
  * BoundsManager is an acceleration structure for device-space related pixel bounds queries.
@@ -35,6 +36,8 @@ public abstract class BoundsManager {
 
     // returns CompressedPaintersOrder
     public abstract int getMostRecentDraw(Rect2fc bounds);
+
+    public abstract int getMostRecentDraw(Rect2ic bounds);
 
     // draw bounds must be finite and not empty
     public abstract void recordDraw(Rect2fc bounds, int order);

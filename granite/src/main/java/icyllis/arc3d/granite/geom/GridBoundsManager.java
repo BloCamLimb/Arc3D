@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2024 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2024-2025 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -21,6 +21,7 @@ package icyllis.arc3d.granite.geom;
 
 import icyllis.arc3d.core.MathUtil;
 import icyllis.arc3d.core.Rect2fc;
+import icyllis.arc3d.core.Rect2ic;
 import icyllis.arc3d.granite.DrawOrder;
 import org.jspecify.annotations.NonNull;
 
@@ -76,6 +77,29 @@ public final class GridBoundsManager extends BoundsManager {
 
     @Override
     public int getMostRecentDraw(Rect2fc bounds) {
+        int l = MathUtil.clamp((int) (bounds.left()   * mScaleX), 0, mGridWidth  - 1);
+        int t = MathUtil.clamp((int) (bounds.top()    * mScaleY), 0, mGridHeight - 1);
+        int r = MathUtil.clamp((int) (bounds.right()  * mScaleX), 0, mGridWidth  - 1);
+        int b = MathUtil.clamp((int) (bounds.bottom() * mScaleY), 0, mGridHeight - 1);
+        int p = t * mGridWidth + l;
+        int h = b - t;
+        int w = r - l;
+        int max = DrawOrder.MIN_VALUE;
+        for (int y = 0; y <= h; ++y) {
+            for (int x = 0; x <= w; ++x) {
+                int v = mNodes[p + x] & 0xFFFF;
+                if (v > max) {
+                    max = v;
+                }
+            }
+            p = p + mGridWidth;
+        }
+
+        return max;
+    }
+
+    @Override
+    public int getMostRecentDraw(Rect2ic bounds) {
         int l = MathUtil.clamp((int) (bounds.left()   * mScaleX), 0, mGridWidth  - 1);
         int t = MathUtil.clamp((int) (bounds.top()    * mScaleY), 0, mGridHeight - 1);
         int r = MathUtil.clamp((int) (bounds.right()  * mScaleX), 0, mGridWidth  - 1);

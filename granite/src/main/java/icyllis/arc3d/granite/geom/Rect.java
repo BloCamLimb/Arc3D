@@ -21,6 +21,7 @@ package icyllis.arc3d.granite.geom;
 
 import icyllis.arc3d.core.Rect2f;
 import icyllis.arc3d.core.Rect2fc;
+import icyllis.arc3d.core.Rect2ic;
 import icyllis.arc3d.sketch.Path;
 import icyllis.arc3d.sketch.Shape;
 import org.jspecify.annotations.NonNull;
@@ -44,7 +45,21 @@ public final class Rect implements Shape {
         mBottom = rect.bottom();
     }
 
+    public Rect(@NonNull Rect2ic rect) {
+        mLeft = rect.left();
+        mTop = rect.top();
+        mRight = rect.right();
+        mBottom = rect.bottom();
+    }
+
     public void set(@NonNull Rect2fc rect) {
+        mLeft = rect.left();
+        mTop = rect.top();
+        mRight = rect.right();
+        mBottom = rect.bottom();
+    }
+
+    public void set(@NonNull Rect2ic rect) {
         mLeft = rect.left();
         mTop = rect.top();
         mRight = rect.right();
@@ -86,5 +101,11 @@ public final class Rect implements Shape {
     public @NonNull PathIterator getPathIterator() {
         //TODO
         return null;
+    }
+
+    @Override
+    public String toString() {
+        return "Rect(" + mLeft + ", " + mTop + ", "
+                + mRight + ", " + mBottom + ")";
     }
 }

@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2024-2024 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2024-2025 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -21,7 +21,6 @@ package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.MathUtil;
 import icyllis.arc3d.core.Rect2f;
-import icyllis.arc3d.core.Rect2fc;
 import icyllis.arc3d.core.Rect2ic;
 import icyllis.arc3d.sketch.Bounded;
 import icyllis.arc3d.sketch.Matrixc;
@@ -62,8 +61,8 @@ public final class Draw implements AutoCloseable {
      * draw to the device bounds. The scissor must contain DrawBounds and must already be
      * intersected with the device bounds.
      */
-    public Rect2fc mDrawBounds;
-    public Rect2fc mTransformedShapeBounds;
+    public Rect2f mDrawBounds;
+    public Rect2f mTransformedShapeBounds;
     public Rect2ic mScissorRect;
     /**
      * Precomputed local AA radius if {@link GeometryRenderer#outsetBoundsForAA()} is true,
@@ -118,6 +117,17 @@ public final class Draw implements AutoCloseable {
 
     public boolean isClippedOut() {
         return mDrawBounds.isEmpty();
+    }
+
+    public void outsetBoundsForAA() {
+        // We use 1px to handle both subpixel/hairline approaches and the standard 1/2px outset
+        // for shapes that cover multiple pixels.
+        mTransformedShapeBounds.outset(1f, 1f);
+        // This is a no-op for inverse fills (where mDrawBounds was already equal to mScissorRect),
+        // and equivalent to mDrawBounds = (mTransformedShapeBounds intersect mScissorRect) with
+        // the outset shape bounds.
+        mDrawBounds.outset(1f, 1f);
+        mDrawBounds.intersectNoCheck(mScissorRect);
     }
 
     /**

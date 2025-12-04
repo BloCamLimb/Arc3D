@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2022-2024 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2022-2025 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -428,6 +428,18 @@ public abstract sealed class Rect2fc permits Rect2f {
         }
         return mLeft == r.mLeft && mTop == r.mTop &&
                 mRight == r.mRight && mBottom == r.mBottom;
+    }
+
+    /**
+     * Returns true if all members in a: Left, Top, Right, and Bottom; are
+     * equal to the corresponding members in b.
+     * <p>
+     * a and b are not equal if either contain NaN. a and b are equal if members
+     * contain zeroes with different signs.
+     */
+    public boolean equals(float left, float top, float right, float bottom) {
+        return mLeft == left && mTop == top &&
+                mRight == right && mBottom == bottom;
     }
 
     /**

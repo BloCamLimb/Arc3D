@@ -217,11 +217,12 @@ public class DrawPass implements AutoCloseable {
             // TimSort - stable
             Arrays.sort(keys);
 
-            Rect2ic lastScissor = new Rect2i(0, 0, deviceInfo.width(), deviceInfo.height());
+            Rect2i deviceBounds = new Rect2i(0, 0, deviceInfo.width(), deviceInfo.height());
+            Rect2i currentScissor = new Rect2i(deviceBounds);
             int lastPipelineIndex = INVALID_INDEX;
             float[] tmpSolidColor = new float[4];
 
-            commandList.setScissor(lastScissor, surfaceHeight, surfaceOrigin);
+            commandList.setScissor(currentScissor, surfaceHeight, surfaceOrigin);
 
             for (var key : keys) {
                 var draw = key.mDraw;
@@ -230,8 +231,7 @@ public class DrawPass implements AutoCloseable {
 
                 boolean pipelineStateChange = pipelineIndex != lastPipelineIndex;
 
-                Rect2ic newScissor = !draw.mScissorRect.equals(lastScissor)
-                        ? draw.mScissorRect : null;
+                boolean scissorChange = step.getScissor(draw, currentScissor, deviceBounds);
                 boolean geometryBindingChange = geometryUniformTracker.writeUniforms(
                         key.geometryUniformIndex()
                 );
@@ -240,7 +240,7 @@ public class DrawPass implements AutoCloseable {
                 );
                 boolean textureBindingChange = textureTracker.setCurrentTextures(key.mTextures);
 
-                boolean dynamicStateChange = newScissor != null ||
+                boolean dynamicStateChange = scissorChange ||
                         geometryBindingChange ||
                         fragmentBindingChange ||
                         textureBindingChange;
@@ -262,9 +262,8 @@ public class DrawPass implements AutoCloseable {
                     lastPipelineIndex = pipelineIndex;
                 }
                 if (dynamicStateChange) {
-                    if (newScissor != null) {
-                        commandList.setScissor(newScissor, surfaceHeight, surfaceOrigin);
-                        lastScissor = newScissor;
+                    if (scissorChange) {
+                        commandList.setScissor(currentScissor, surfaceHeight, surfaceOrigin);
                     }
                     if (geometryBindingChange) {
                         geometryUniformTracker.bindUniforms(

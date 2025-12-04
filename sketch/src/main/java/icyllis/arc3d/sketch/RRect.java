@@ -806,6 +806,20 @@ public class RRect implements Shape {
         }
     }
 
+    /**
+     * Offset the RRect by adding dx to its left and right coordinates, and
+     * adding dy to its top and bottom coordinates.
+     *
+     * @param dx the amount to add to left and right
+     * @param dy the amount to add to top and bottom
+     */
+    public void offset(float dx, float dy) {
+        mLeft += dx;
+        mTop += dy;
+        mRight += dx;
+        mBottom += dy;
+    }
+
     private boolean checkCornerContainment(float x, float y) {
         assert getType() != kEmpty_Type;
         float px, py;
@@ -912,6 +926,70 @@ public class RRect implements Shape {
     @Override
     public void getBounds(@NonNull Rect2f dest) {
         dest.set(mLeft, mTop, mRight, mBottom);
+    }
+
+    // And by shifting all edges: just considering a corner ellipse, the maximum inscribed rect has
+    // a corner at sqrt(2)/2 * (rX, rY), so scale all corner shifts by (1 - sqrt(2)/2) to get the
+    // safe shift per edge (since the shifts already are the max radius for that edge).
+    // - We actually scale by a value slightly increased to make it so that the shifted corners are
+    //   safely inside the curves, otherwise numerical stability can cause it to fail contains().
+    private static final float kInsetScale = (1.0f - MathUtil.INV_SQRT2) + 1e-5f;
+
+    // Compute an approximate largest inscribed bounding box of the rounded rect. For empty,
+    // rect, oval, and simple types this will be the largest inscribed rectangle. Otherwise it may
+    // not be the global maximum, but will be non-empty, touch at least one edge and be contained
+    // in the round rect.
+    public void getInnerBounds(@NonNull Rect2f dest) {
+        if (isEmpty() || isRect()) {
+            dest.set(mLeft, mTop, mRight, mBottom);
+            return;
+        }
+
+        // We start with the outer bounds of the round rect and consider three subsets and take the
+        // one with maximum area. The first two are the horizontal and vertical rects inset from the
+        // corners, the third is the rect inscribed at the corner curves' maximal point. This forms
+        // the exact solution when all corners have the same radii (the radii do not have to be
+        // circular).
+
+        // Select maximum inset per edge, which may move an adjacent corner of the inscribed
+        // rectangle off of the rounded-rect path, but that is acceptable given that the general
+        // equation for inscribed area is non-trivial to evaluate.
+        float leftShift   = Math.max(mRadii[kUpperLeftX],   mRadii[kLowerLeftX]);
+        float topShift    = Math.max(mRadii[kUpperLeftY],   mRadii[kUpperRightY]);
+        float rightShift  = Math.max(mRadii[kUpperRightX],  mRadii[kLowerRightX]);
+        float bottomShift = Math.max(mRadii[kLowerLeftY],   mRadii[kLowerRightY]);
+
+        float w = width();
+        float h = height();
+        float dw = leftShift + rightShift;
+        float dh = topShift + bottomShift;
+
+        // Area removed by shifting left/right
+        float horizArea = (w - dw) * h;
+        // And by shifting top/bottom
+        float vertArea = (h - dh) * w;
+
+        float innerArea = (w - kInsetScale * dw) * (h - kInsetScale * dh);
+
+        if (horizArea > vertArea && horizArea > innerArea) {
+            // Cut off corners by insetting left and right
+            dest.set(mLeft + leftShift, mTop, mRight - rightShift, mBottom);
+        } else if (vertArea > innerArea) {
+            // Cut off corners by insetting top and bottom
+            dest.set(mLeft, mTop + topShift, mRight, mBottom - bottomShift);
+        } else if (innerArea > 0.f) {
+            // Inset on all sides, scaled to touch
+            dest.set(mLeft + kInsetScale * leftShift,
+                    mRight - kInsetScale * rightShift,
+                    mTop + kInsetScale * topShift,
+                    mBottom - kInsetScale * bottomShift);
+        } else {
+            // Inner region would collapse to empty
+            dest.setEmpty();
+            return;
+        }
+
+        assert dest.isSorted() && !dest.isEmpty();
     }
 
     public boolean isValid() {

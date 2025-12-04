@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2024 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2024-2025 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -21,6 +21,7 @@ package icyllis.arc3d.granite.geom;
 
 import icyllis.arc3d.core.Rect2f;
 import icyllis.arc3d.core.Rect2fc;
+import icyllis.arc3d.core.Rect2ic;
 import icyllis.arc3d.granite.DrawOrder;
 import it.unimi.dsi.fastutil.floats.FloatArrayList;
 import it.unimi.dsi.fastutil.shorts.ShortArrayList;
@@ -58,7 +59,26 @@ public final class FullBoundsManager extends BoundsManager {
         int max = DrawOrder.MIN_VALUE;
         for (int i = 0, j = 0; j < limit; i += 4, j += 1) {
             // fast overlap check
-            if (ar > r[i] && ab > r[i|1] && r[i|2] > al && r[i|3] > at) {
+            if (ar > r[i] && ab > r[i+1] && r[i+2] > al && r[i+3] > at) {
+                max = Math.max(max, Short.toUnsignedInt(orders[j]));
+            }
+        }
+        return max;
+    }
+
+    @Override
+    public int getMostRecentDraw(Rect2ic bounds) {
+        assert mRects.size() == mOrders.size() * 4;
+        assert (bounds.left() <= bounds.right() && bounds.top() <= bounds.bottom());
+
+        float al = bounds.left(), at = bounds.top(), ar = bounds.right(), ab = bounds.bottom();
+        float[] r = mRects.elements();
+        short[] orders = mOrders.elements();
+        int limit = mOrders.size();
+        int max = DrawOrder.MIN_VALUE;
+        for (int i = 0, j = 0; j < limit; i += 4, j += 1) {
+            // fast overlap check
+            if (ar > r[i] && ab > r[i+1] && r[i+2] > al && r[i+3] > at) {
                 max = Math.max(max, Short.toUnsignedInt(orders[j]));
             }
         }

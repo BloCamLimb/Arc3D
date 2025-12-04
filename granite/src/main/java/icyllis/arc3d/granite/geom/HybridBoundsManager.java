@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2024 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2024-2025 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -20,6 +20,7 @@
 package icyllis.arc3d.granite.geom;
 
 import icyllis.arc3d.core.Rect2fc;
+import icyllis.arc3d.core.Rect2ic;
 
 /**
  * A BoundsManager that first relies on {@link FullBoundsManager} for N draw calls, and then switches
@@ -57,6 +58,11 @@ public final class HybridBoundsManager extends BoundsManager {
 
     @Override
     public int getMostRecentDraw(Rect2fc bounds) {
+        return mCurrentManager.getMostRecentDraw(bounds);
+    }
+
+    @Override
+    public int getMostRecentDraw(Rect2ic bounds) {
         return mCurrentManager.getMostRecentDraw(bounds);
     }
 

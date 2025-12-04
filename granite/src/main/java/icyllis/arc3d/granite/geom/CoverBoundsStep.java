@@ -58,7 +58,7 @@ public class CoverBoundsStep extends GeometryStep {
     public CoverBoundsStep(@NonNull String variantName, DepthStencilSettings depthStencilSettings) {
         super("CoverBoundsStep", variantName,
                 null, INSTANCE_ATTRIBS,
-                FLAG_PERFORM_SHADING | FLAG_HANDLE_SOLID_COLOR,
+                FLAG_PERFORM_SHADING | FLAG_HANDLE_SOLID_COLOR | FLAG_INVERSE_FILL_SCISSOR,
                 PrimitiveType.kTriangleStrip,
                 depthStencilSettings);
     }

@@ -252,7 +252,7 @@ public final class GraniteDevice extends Device {
 
     @Override
     public void clipRect(Rect2fc rect, int clipOp, boolean doAA) {
-        mClipStack.clipRect(getLocalToDevice33(), rect, clipOp);
+        mClipStack.clipShape(getLocalToDevice33(), new Rect(rect), clipOp, doAA);
     }
 
     @Override
@@ -377,7 +377,7 @@ public final class GraniteDevice extends Device {
     public void drawRRect(RRect rr, Paint paint) {
         //TODO stroking an ellipse requires new renderer
         boolean complex = switch (rr.getType()) {
-            case RRect.kOval_Type, RRect.kSimple_Type -> rr.isSimpleCircular() || rr.isCircle();
+            case RRect.kOval_Type, RRect.kSimple_Type -> !rr.isSimpleCircular() && !rr.isCircle();
             case RRect.kNineSlice_Type, RRect.kComplex_Type -> true;
             default -> {
                 // empty and rect are handled by Canvas
@@ -668,12 +668,24 @@ public final class GraniteDevice extends Device {
 
         // Calculate the clipped bounds of the draw and determine the clip elements that affect the
         // draw without updating the clip stack.
-        final boolean outsetBoundsForAA = renderer.outsetBoundsForAA();
         mElementsForMask.clear();
         boolean clippedOut = mClipStack.prepareForDraw(draw,
-                outsetBoundsForAA, mElementsForMask);
+                mElementsForMask);
         if (clippedOut) {
             return;
+        }
+
+        if (draw.mRenderer == null) {
+            //TODO require a general way to choose renderer for flood-fill/rect/box/rrect
+            draw.mRenderer = mRendererProvider.getNonAABoundsFill();
+        }
+        renderer = draw.mRenderer;
+        assert renderer != null;
+
+        final boolean outsetBoundsForAA = renderer.outsetBoundsForAA();
+
+        if (outsetBoundsForAA) {
+            draw.outsetBoundsForAA();
         }
 
         // A primitive blender should be ignored if there is no primitive color to blend against.
@@ -726,7 +738,7 @@ public final class GraniteDevice extends Device {
     }
 
     public void drawClipShape(Draw draw) {
-        if (draw.mInverseFill || !(draw.mGeometry instanceof Rect2f)) {
+        if (draw.mInverseFill || !(draw.mGeometry instanceof Rect)) {
             //TODO not implement tessellation yet
             return;
         }
