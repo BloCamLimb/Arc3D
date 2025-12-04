@@ -1242,27 +1242,27 @@ public non-sealed class Matrix implements Matrixc, Cloneable {
 
     private boolean invertScaleTranslate(int mask, Matrix dest) {
         if ((mask & kScale_Mask) != 0) {
-            float invX = 1.0f / m11;
-            float invY = 1.0f / m22;
+            float invSx = 1.0f / m11;
+            float invSy = 1.0f / m22;
             // Denormalized (non-zero) scale factors will overflow when inverted, in which case
             // the inverse matrix would not be finite, so return false.
-            if (!Float.isFinite(invX) || !Float.isFinite(invY)) {
+            if (!Float.isFinite(invSx) || !Float.isFinite(invSy)) {
                 return false;
             }
-            float f41 = (float) ((double) -m41 / m11);
-            float f42 = (float) ((double) -m42 / m22);
-            if (!Float.isFinite(f41) || !Float.isFinite(f42)) {
+            float invTx = -m41 * invSx;
+            float invTy = -m42 * invSy;
+            if (!Float.isFinite(invTx) || !Float.isFinite(invTy)) {
                 return false;
             }
             if (dest != null) {
-                dest.m11 = invX;
+                dest.m11 = invSx;
                 dest.m12 = 0;
                 dest.m14 = 0;
                 dest.m21 = 0;
-                dest.m22 = invY;
+                dest.m22 = invSy;
                 dest.m24 = 0;
-                dest.m41 = f41;
-                dest.m42 = f42;
+                dest.m41 = invTx;
+                dest.m42 = invTy;
                 dest.m44 = 1;
                 dest.mTypeMask = mask | kAxisAligned_Mask;
             }
@@ -1888,6 +1888,9 @@ public non-sealed class Matrix implements Matrixc, Cloneable {
     public boolean mapRect(@NonNull Rect2fc src, @NonNull Rect2f dst) {
         int typeMask = getType();
         if (typeMask <= kTranslate_Mask) {
+            if (dst != src) {
+                dst.set(src);
+            }
             dst.offset(m41, m42);
             return true;
         }
