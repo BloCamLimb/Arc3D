@@ -2112,7 +2112,7 @@ public class Canvas implements AutoCloseable {
         }
     }
 
-    protected void onDrawTextBlob(TextBlob blob, float originX, float originY,
+    protected void onDrawTextBlob(@NonNull TextBlob blob, float originX, float originY,
                                   Paint paint) {
         GlyphRunList glyphRunList = mScratchGlyphRunBuilder.blobToGlyphRunList(
                 blob, originX, originY
@@ -2121,7 +2121,7 @@ public class Canvas implements AutoCloseable {
         mScratchGlyphRunBuilder.clear();
     }
 
-    protected void onDrawGlyphRunList(GlyphRunList glyphRunList, Paint paint) {
+    protected void onDrawGlyphRunList(@NonNull GlyphRunList glyphRunList, Paint paint) {
         var bounds = mTmpRect2;
         glyphRunList.getSourceBoundsWithOrigin(bounds);
         if (internalQuickReject(bounds, paint)) {

@@ -24,6 +24,7 @@ import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.Rect2fc;
 import icyllis.arc3d.core.SamplingOptions;
 import icyllis.arc3d.core.Size;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
@@ -209,14 +210,14 @@ public class NWayCanvas extends NoDrawCanvas {
     }
 
     @Override
-    protected void onDrawTextBlob(TextBlob blob, float originX, float originY, Paint paint) {
+    protected void onDrawTextBlob(@NonNull TextBlob blob, float originX, float originY, Paint paint) {
         for (int i = 0; i < mSize; i++) {
             mList[i].drawTextBlob(blob, originX, originY, paint);
         }
     }
 
     @Override
-    protected void onDrawGlyphRunList(GlyphRunList glyphRunList, Paint paint) {
+    protected void onDrawGlyphRunList(@NonNull GlyphRunList glyphRunList, Paint paint) {
         for (int i = 0; i < mSize; i++) {
             mList[i].onDrawGlyphRunList(glyphRunList, paint);
         }

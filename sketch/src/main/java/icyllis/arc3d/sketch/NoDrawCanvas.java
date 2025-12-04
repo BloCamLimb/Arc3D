@@ -22,7 +22,7 @@ package icyllis.arc3d.sketch;
 import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.Rect2fc;
 import icyllis.arc3d.core.SamplingOptions;
-import icyllis.arc3d.core.Size;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 public class NoDrawCanvas extends Canvas {
@@ -74,11 +74,11 @@ public class NoDrawCanvas extends Canvas {
     }
 
     @Override
-    protected void onDrawTextBlob(TextBlob blob, float originX, float originY, Paint paint) {
+    protected void onDrawTextBlob(@NonNull TextBlob blob, float originX, float originY, Paint paint) {
     }
 
     @Override
-    protected void onDrawGlyphRunList(GlyphRunList glyphRunList, Paint paint) {
+    protected void onDrawGlyphRunList(@NonNull GlyphRunList glyphRunList, Paint paint) {
     }
 
     @Override

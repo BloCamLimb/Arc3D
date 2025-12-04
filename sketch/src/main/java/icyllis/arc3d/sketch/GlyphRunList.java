@@ -90,4 +90,23 @@ public class GlyphRunList {
         }
         mOriginalTextBlob = null;
     }
+
+    // should return non-null
+    public TextBlob getOrCreateBlob() {
+        if (mOriginalTextBlob != null) {
+            return mOriginalTextBlob;
+        }
+        var builder = new TextBlob.Builder();
+        // when there is no original TextBlob, there should only be one run, guaranteed by Canvas
+        assert mGlyphRunCount == 1;
+        var run = mGlyphRuns[0];
+        var runCount = run.mGlyphCount;
+        assert runCount > 0; // guaranteed by Canvas
+        var runBuffer = builder.allocRunPos(run.font(), runCount, mSourceBounds);
+        runBuffer.addGlyphs(run.mGlyphs, 0, runCount);
+        runBuffer.addPositions(run.mPositions, 0, runCount);
+        var result = builder.build();
+        assert result != null; // this should not return null, since there's one run
+        return result;
+    }
 }
