@@ -93,6 +93,15 @@ public non-sealed class Rect2f extends Rect2fc {
     }
 
     /**
+     * Creates a new rect [-inf, -inf, inf, inf], useful for accumulating unchecked intersections.
+     */
+    @NonNull
+    public static Rect2f makeInfinite() {
+        return new Rect2f(Float.NEGATIVE_INFINITY, Float.NEGATIVE_INFINITY,
+                Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY);
+    }
+
+    /**
      * Creates a new rect [inf, inf, -inf, -inf], useful for accumulating unchecked unions.
      */
     @NonNull
@@ -106,7 +115,19 @@ public non-sealed class Rect2f extends Rect2fc {
      */
     @Contract(mutates = "this")
     public final void setEmpty() {
-        mLeft = mRight = mTop = mBottom = 0;
+        mLeft = mTop = mRight = mBottom = 0;
+    }
+
+    @Contract(mutates = "this")
+    public final void setInfinite() {
+        mLeft = mTop = Float.NEGATIVE_INFINITY;
+        mRight = mBottom = Float.POSITIVE_INFINITY;
+    }
+
+    @Contract(mutates = "this")
+    public final void setInfiniteInverted() {
+        mLeft = mTop = Float.POSITIVE_INFINITY;
+        mRight = mBottom = Float.NEGATIVE_INFINITY;
     }
 
     /**
@@ -789,35 +810,6 @@ public non-sealed class Rect2f extends Rect2fc {
             mTop = mBottom;
             mBottom = temp;
         }
-    }
-
-    @Override
-    public int hashCode() {
-        int result = (mLeft != 0.0f ? Float.floatToIntBits(mLeft) : 0);
-        result = 31 * result + (mTop != 0.0f ? Float.floatToIntBits(mTop) : 0);
-        result = 31 * result + (mRight != 0.0f ? Float.floatToIntBits(mRight) : 0);
-        result = 31 * result + (mBottom != 0.0f ? Float.floatToIntBits(mBottom) : 0);
-        return result;
-    }
-
-    /**
-     * Returns true if all members in a: Left, Top, Right, and Bottom; are
-     * equal to the corresponding members in b.
-     * <p>
-     * a and b are not equal if either contain NaN. a and b are equal if members
-     * contain zeroes with different signs.
-     *
-     * @param o rect to compare
-     * @return true if members are equal
-     */
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Rect2f r)) {
-            return false;
-        }
-        return mLeft == r.mLeft && mTop == r.mTop &&
-                mRight == r.mRight && mBottom == r.mBottom;
     }
 
     @Override

@@ -235,8 +235,7 @@ public abstract sealed class Rect2ic permits Rect2i {
         // check for empty first
         return mLeft < mRight && mTop < mBottom
                 // now check for containment
-                && mLeft <= left && mTop <= top
-                && mRight >= right && mBottom >= bottom;
+                && mLeft <= left && mTop <= top && mRight >= right && mBottom >= bottom;
     }
 
     /**
@@ -247,10 +246,11 @@ public abstract sealed class Rect2ic permits Rect2i {
      * @return true if the specified rectangle r is inside or equal to this
      * rectangle
      */
-    public final boolean contains(Rect2ic r) {
+    public final boolean contains(@NonNull Rect2ic r) {
         // check for empty first
-        // now check for containment
-        return mLeft < mRight && mTop < mBottom && mLeft <= r.mLeft && mTop <= r.mTop && mRight >= r.mRight && mBottom >= r.mBottom;
+        return mLeft < mRight && mTop < mBottom
+                // now check for containment
+                && mLeft <= r.mLeft && mTop <= r.mTop && mRight >= r.mRight && mBottom >= r.mBottom;
     }
 
     /**
@@ -281,10 +281,27 @@ public abstract sealed class Rect2ic permits Rect2i {
      * @return true if the specified rectangle r is inside or equal to this
      * rectangle
      */
-    public final boolean contains(Rect2fc r) {
+    public final boolean contains(@NonNull Rect2fc r) {
         // check for empty first
         return mLeft < mRight && mTop < mBottom
                 // now check for containment
                 && mLeft <= r.mLeft && mTop <= r.mTop && mRight >= r.mRight && mBottom >= r.mBottom;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = mLeft;
+        result = 31 * result + mTop;
+        result = 31 * result + mRight;
+        result = 31 * result + mBottom;
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof Rect2ic r)) {
+            return false;
+        }
+        return mLeft == r.mLeft && mTop == r.mTop && mRight == r.mRight && mBottom == r.mBottom;
     }
 }

@@ -229,8 +229,7 @@ public abstract sealed class Rect2fc permits Rect2f {
         // check for empty first
         return mLeft < mRight && mTop < mBottom
                 // now check for containment
-                && mLeft <= left && mTop <= top
-                && mRight >= right && mBottom >= bottom;
+                && mLeft <= left && mTop <= top && mRight >= right && mBottom >= bottom;
     }
 
     /**
@@ -260,8 +259,36 @@ public abstract sealed class Rect2fc permits Rect2f {
     @Contract(pure = true)
     public final boolean contains(@NonNull Rect2ic r) {
         // check for empty first
-        // now check for containment
-        return mLeft < mRight && mTop < mBottom && mLeft <= r.mLeft && mTop <= r.mTop && mRight >= r.mRight && mBottom >= r.mBottom;
+        return mLeft < mRight && mTop < mBottom
+                // now check for containment
+                && mLeft <= r.mLeft && mTop <= r.mTop && mRight >= r.mRight && mBottom >= r.mBottom;
+    }
+
+    /**
+     * Similar to {@link #contains(float, float, float, float)}, but without checking if this
+     * rect is empty.
+     */
+    @Contract(pure = true)
+    public final boolean containsNoCheck(float left, float top, float right, float bottom) {
+        return mLeft <= left && mTop <= top && mRight >= right && mBottom >= bottom;
+    }
+
+    /**
+     * Similar to {@link #contains(Rect2fc)}, but without checking if this
+     * rect is empty.
+     */
+    @Contract(pure = true)
+    public final boolean containsNoCheck(@NonNull Rect2fc r) {
+        return mLeft <= r.mLeft && mTop <= r.mTop && mRight >= r.mRight && mBottom >= r.mBottom;
+    }
+
+    /**
+     * Similar to {@link #contains(Rect2ic)}, but without checking if this
+     * rect is empty.
+     */
+    @Contract(pure = true)
+    public final boolean containsNoCheck(@NonNull Rect2ic r) {
+        return mLeft <= r.mLeft && mTop <= r.mTop && mRight >= r.mRight && mBottom >= r.mBottom;
     }
 
     /**
@@ -372,5 +399,48 @@ public abstract sealed class Rect2fc permits Rect2f {
     public final void roundOut(@NonNull Rect2f dst) {
         dst.set((float) Math.floor(mLeft), (float) Math.floor(mTop),
                 (float) Math.ceil(mRight), (float) Math.ceil(mBottom));
+    }
+
+    @Override
+    public int hashCode() {
+        int result = (mLeft != 0.0f ? Float.floatToIntBits(mLeft) : 0);
+        result = 31 * result + (mTop != 0.0f ? Float.floatToIntBits(mTop) : 0);
+        result = 31 * result + (mRight != 0.0f ? Float.floatToIntBits(mRight) : 0);
+        result = 31 * result + (mBottom != 0.0f ? Float.floatToIntBits(mBottom) : 0);
+        return result;
+    }
+
+    /**
+     * Returns true if all members in a: Left, Top, Right, and Bottom; are
+     * equal to the corresponding members in b.
+     * <p>
+     * a and b are not equal if either contain NaN. a and b are equal if members
+     * contain zeroes with different signs.
+     *
+     * @param o rect to compare
+     * @return true if members are equal
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Rect2fc r)) {
+            return false;
+        }
+        return mLeft == r.mLeft && mTop == r.mTop &&
+                mRight == r.mRight && mBottom == r.mBottom;
+    }
+
+    /**
+     * Returns true if all members in a: Left, Top, Right, and Bottom; are
+     * equal to the corresponding members in b, within the given tolerance.
+     * <p>
+     * a and b are not equal if either contain NaN. a and b are equal if members
+     * contain zeroes with different signs.
+     */
+    public boolean equalsWithTolerance(@NonNull Rect2fc o, float tol) {
+        return Math.abs(mLeft - o.mLeft) <= tol &&
+                Math.abs(mTop - o.mTop) <= tol &&
+                Math.abs(mRight - o.mRight) <= tol &&
+                Math.abs(mBottom - o.mBottom) <= tol;
     }
 }

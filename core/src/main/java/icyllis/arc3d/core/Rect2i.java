@@ -33,7 +33,7 @@ import org.jspecify.annotations.NonNull;
  * or if its bottom is less than or equal to its top, it is considered empty.
  * <p>
  * Note that the right and bottom coordinates are exclusive. This means a
- * {@link Rect2i} being drawn untransformed onto a {@link icyllis.arc3d.sketch.Canvas} will
+ * {@link Rect2i} being drawn untransformed onto a surface will
  * draw into the column and row described by its left and top coordinates,
  * but not those of its bottom and right.
  */
@@ -103,8 +103,21 @@ public non-sealed class Rect2i extends Rect2ic {
     /**
      * Set the rectangle to (0,0,0,0)
      */
+    @Contract(mutates = "this")
     public final void setEmpty() {
         mLeft = mRight = mTop = mBottom = 0;
+    }
+
+    @Contract(mutates = "this")
+    public final void setInfinite() {
+        mLeft = mTop = Integer.MIN_VALUE;
+        mRight = mBottom = Integer.MAX_VALUE;
+    }
+
+    @Contract(mutates = "this")
+    public final void setInfiniteInverted() {
+        mLeft = mTop = Integer.MAX_VALUE;
+        mRight = mBottom = Integer.MIN_VALUE;
     }
 
     /**
@@ -576,23 +589,6 @@ public non-sealed class Rect2i extends Rect2ic {
             mTop = mBottom;
             mBottom = temp;
         }
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (!(o instanceof Rect2i r)) {
-            return false;
-        }
-        return mLeft == r.mLeft && mTop == r.mTop && mRight == r.mRight && mBottom == r.mBottom;
-    }
-
-    @Override
-    public int hashCode() {
-        int result = mLeft;
-        result = 31 * result + mTop;
-        result = 31 * result + mRight;
-        result = 31 * result + mBottom;
-        return result;
     }
 
     @Override
