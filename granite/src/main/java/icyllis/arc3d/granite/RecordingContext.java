@@ -282,6 +282,15 @@ public final class RecordingContext extends Context {
     protected void deallocate() {
         super.deallocate();
 
+        for (int i = 0; i < mTrackedDevices.size(); i++) {
+            GraniteDevice device = mTrackedDevices.get(i);
+            if (device != null) {
+                device.discardRC();
+                device.unref();
+            }
+        }
+        mTrackedDevices.clear();
+
         mAtlasProvider.close();
 
         mRootTaskList.close();
