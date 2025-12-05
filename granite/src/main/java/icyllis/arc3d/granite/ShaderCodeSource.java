@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2024 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2024-2025 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -900,13 +900,23 @@ public class ShaderCodeSource {
                 float r = coords.y>fields.y ? r2.y : r2.x;
                 float2 b = (rect.zw - rect.xy) * 0.5;
                 float2 p = coords - (rect.xy + rect.zw) * 0.5;
-                float2 q = abs(p)-b+r;
-                float dis = min(max(q.x,q.y),0.0) + length(max(q,0.0)) - r;
-                float smoothRad = fields.z;
-                float alpha = smoothRad>0.0
-                    ? smoothstep(-smoothRad, 0.0, dis)
-                    : saturate(0.5 + dis/fwidth(dis));
-                return float4(0.5 + fields.w * (-alpha + 0.5));
+                float2 d = abs(p)-b+r;
+                float  g = max(d.x, d.y);
+                float2 q = max(d, 0.0);
+                float l = length(q);
+                float dis = min(g, 0.0) + l - r;
+                float coverage;
+                if (fields.z>0.0)
+                    coverage = smoothstep(-fields.z, 0.0, dis);
+                else if (fields.z==0.0)
+                    coverage = step(0.0, dis);
+                else {
+                    float2 localGrad = sign(p) * (g>0.0 ? q/l : (d.x>d.y ? float2(1,0) : float2(0,1)));
+                    float2 devGrad = localGrad * float2x2(dFdx(p), dFdy(p));
+                    float invlen = inversesqrt(dot(devGrad, devGrad));
+                    coverage = saturate(dis * invlen + 0.5);
+                }
+                return float4(0.5 + fields.w * (0.5 - coverage));
             }
             """;
     /**

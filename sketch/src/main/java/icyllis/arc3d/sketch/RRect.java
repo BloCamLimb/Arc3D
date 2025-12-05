@@ -1262,10 +1262,10 @@ public class RRect implements Shape {
     @ApiStatus.Internal
     public static boolean allCornersAreCircular(RRect rr) {
         var radii = rr.mRadii;
-        return MathUtil.isApproxEqual(radii[0], radii[1], MathUtil.PATH_TOLERANCE) &&
-                MathUtil.isApproxEqual(radii[2], radii[3], MathUtil.PATH_TOLERANCE) &&
-                MathUtil.isApproxEqual(radii[4], radii[5], MathUtil.PATH_TOLERANCE) &&
-                MathUtil.isApproxEqual(radii[6], radii[7], MathUtil.PATH_TOLERANCE);
+        return radiiAlmostEqual(radii[0], radii[1]) &&
+               radiiAlmostEqual(radii[2], radii[3]) &&
+               radiiAlmostEqual(radii[4], radii[5]) &&
+               radiiAlmostEqual(radii[6], radii[7]);
     }
 
     public static boolean radiiAlmostEqual(float a, float b) {

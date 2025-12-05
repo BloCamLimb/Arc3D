@@ -19,8 +19,6 @@
 
 package icyllis.arc3d.sketch.shaders;
 
-import icyllis.arc3d.sketch.Matrix;
-import icyllis.arc3d.sketch.Matrixc;
 import icyllis.arc3d.sketch.RRect;
 import icyllis.arc3d.core.SharedPtr;
 import org.jetbrains.annotations.ApiStatus;
@@ -64,12 +62,15 @@ public final class RRectShader implements Shader {
         mInverseFill = inverseFill;
     }
 
+    /**
+     * If smoothRadius > 0, it specifies the value used for smoothstep in local coordinates;
+     * if == 0, this produces hard edges; otherwise this produces analytic coverage anti-aliasing.
+     */
     @Nullable
     @SharedPtr
     public static Shader make(@NonNull RRect rrect,
                               float smoothRadius,
-                              boolean inverseFill,
-                              @Nullable Matrixc localMatrix) {
+                              boolean inverseFill) {
         if (rrect.isEmpty() ||
                 !Float.isFinite(smoothRadius)) {
             // empty, infinite or NaN
@@ -79,10 +80,10 @@ public final class RRectShader implements Shader {
             // elliptical corner is not supported
             return null;
         }
-        float topLeftRad = rrect.getRadius(0);
-        float topRightRad = rrect.getRadius(2);
-        float bottomRightRad = rrect.getRadius(4);
-        float bottomLeftRad = rrect.getRadius(6);
+        float topLeftRad = rrect.getRadius(RRect.kUpperLeftX);
+        float topRightRad = rrect.getRadius(RRect.kUpperRightX);
+        float bottomRightRad = rrect.getRadius(RRect.kLowerRightX);
+        float bottomLeftRad = rrect.getRadius(RRect.kLowerLeftX);
         if (topLeftRad + bottomRightRad > rrect.width() ||
                 topRightRad + bottomLeftRad > rrect.width() ||
                 topLeftRad + bottomRightRad > rrect.height() ||
@@ -91,14 +92,10 @@ public final class RRectShader implements Shader {
             return null;
         }
 
-        @SharedPtr
-        Shader s = new RRectShader(rrect,
+        return new RRectShader(rrect,
                 topLeftRad, topRightRad,
                 bottomRightRad, bottomLeftRad,
                 smoothRadius, inverseFill);
-        Matrix lm = localMatrix != null ? new Matrix(localMatrix) : new Matrix();
-        return new LocalMatrixShader(s, // move
-                lm);
     }
 
     public float getLeft() {
@@ -145,6 +142,10 @@ public final class RRectShader implements Shader {
         return mTop + Math.max(mTopRightRadius, mTopLeftRadius);
     }
 
+    /**
+     * If > 0, it specifies the value used for smoothstep in local coordinates;
+     * if == 0, this produces hard edges; otherwise this produces analytic coverage anti-aliasing.
+     */
     public float getSmoothRadius() {
         return mSmoothRadius;
     }
