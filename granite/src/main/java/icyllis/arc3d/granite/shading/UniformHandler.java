@@ -155,7 +155,6 @@ public class UniformHandler {
         assert (name != null && !name.isEmpty());
         assert ((visibility & ~(ShaderFlags.kVertex | ShaderFlags.kFragment)) == 0);
         assert (ShaderDataType.checkType(type));
-        assert (!ShaderDataType.isCombinedSamplerType(type));
         return internalAddUniformArray(visibility, type, name, ShaderVar.kNonArray, manglingSuffix);
     }
 
@@ -177,7 +176,6 @@ public class UniformHandler {
         assert (name != null && !name.isEmpty());
         assert ((visibility & ~(ShaderFlags.kVertex | ShaderFlags.kFragment)) == 0);
         assert (ShaderDataType.checkType(type));
-        assert (!ShaderDataType.isCombinedSamplerType(type));
         return internalAddUniformArray(visibility, type, name, arraySize, manglingSuffix);
     }
 
@@ -464,7 +462,6 @@ public class UniformHandler {
             case ShaderDataType.kVoid:
             case ShaderDataType.kSampler2D:
             case ShaderDataType.kTexture2D:
-            case ShaderDataType.kSampler:
             case ShaderDataType.kSubpassInput:
                 throw new IllegalStateException(String.valueOf(type));
         }
@@ -517,7 +514,6 @@ public class UniformHandler {
             case ShaderDataType.kVoid:
             case ShaderDataType.kSampler2D:
             case ShaderDataType.kTexture2D:
-            case ShaderDataType.kSampler:
             case ShaderDataType.kSubpassInput:
                 throw new IllegalStateException(String.valueOf(type));
         }

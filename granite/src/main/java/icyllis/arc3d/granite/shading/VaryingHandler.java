@@ -137,7 +137,7 @@ public class VaryingHandler {
                 mFragInputs.add(new ShaderVar(fsIn, v.mType, ShaderVar.kIn_TypeModifier,
                         ShaderVar.kNonArray, layoutQualifier, modifier));
             }
-            int locations = ShaderDataType.locations(v.mType);
+            int locations = ShaderDataType.locationCount(v.mType);
             assert (locations > 0);
             locationIndex += locations;
         }

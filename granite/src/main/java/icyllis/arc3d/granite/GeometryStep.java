@@ -306,7 +306,7 @@ public abstract class GeometryStep {
      * Returns the number of used per-vertex attribute locations (slots).
      * An attribute (variable) may take up multiple consecutive locations.
      *
-     * @see ShaderDataType#locations(byte)
+     * @see ShaderDataType#locationCount(byte)
      * @see #numVertexAttributes()
      */
     public final int numVertexLocations() {
@@ -362,7 +362,7 @@ public abstract class GeometryStep {
      * Returns the number of used per-instance attribute locations. (slots).
      * An attribute (variable) may take up multiple consecutive locations.
      *
-     * @see ShaderDataType#locations(byte)
+     * @see ShaderDataType#locationCount(byte)
      * @see #numInstanceAttributes()
      */
     public final int numInstanceLocations() {
@@ -599,7 +599,7 @@ public abstract class GeometryStep {
                 ShaderVar outPos) {
             assert (inPos.getType() == ShaderDataType.kFloat2 || inPos.getType() == ShaderDataType.kFloat3);
             vertBuilder.codeAppendf("vec%d _worldPos = %s;\n",
-                    ShaderDataType.vectorDim(inPos.getType()),
+                    ShaderDataType.rowCount(inPos.getType()),
                     inPos.getName());
             outPos.set("_worldPos", inPos.getType());
         }

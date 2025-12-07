@@ -199,7 +199,7 @@ public class PipelineBuilder {
                 var.addLayoutQualifier("location", locationIndex);
 
                 // matrix type can consume multiple locations
-                int locations = ShaderDataType.locations(var.getType());
+                int locations = ShaderDataType.locationCount(var.getType());
                 assert (locations > 0);
                 // we have no arrays
                 assert (!var.isArray());

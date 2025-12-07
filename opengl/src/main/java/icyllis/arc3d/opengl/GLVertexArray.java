@@ -200,7 +200,7 @@ public final class GLVertexArray extends ManagedResource {
         int j = 0;
         while (attribs.hasNext()) {
             var attrib = attribs.next();
-            int locations = attrib.locations();
+            int locations = attrib.locationCount();
             int offset = attrib.offset();
             for (int i = 0; i < locations; i++, j++) {
                 gl.glEnableVertexAttribArray(index);
@@ -282,7 +282,7 @@ public final class GLVertexArray extends ManagedResource {
         while (attribs.hasNext()) {
             var attrib = attribs.next();
             // a matrix can take up multiple locations
-            int locations = attrib.locations();
+            int locations = attrib.locationCount();
             int offset = attrib.offset();
             for (int i = 0; i < locations; i++) {
                 gl.glEnableVertexAttribArray(index);
@@ -366,7 +366,7 @@ public final class GLVertexArray extends ManagedResource {
         while (attribs.hasNext()) {
             var attrib = attribs.next();
             // a matrix can take up multiple locations
-            int locations = attrib.locations();
+            int locations = attrib.locationCount();
             int offset = attrib.offset();
             for (int i = 0; i < locations; i++) {
                 gl.glEnableVertexArrayAttrib(array, index);

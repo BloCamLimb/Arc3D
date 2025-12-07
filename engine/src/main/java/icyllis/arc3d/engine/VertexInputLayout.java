@@ -49,7 +49,7 @@ public final class VertexInputLayout {
     public static class Attribute {
 
         // 1 is not valid because it isn't aligned.
-        static final int IMPLICIT_OFFSET = 1;
+        public static final int IMPLICIT_OFFSET = 1;
 
         public static final int OFFSET_ALIGNMENT = 4;
 
@@ -75,19 +75,7 @@ public final class VertexInputLayout {
          * @param dstType the data type in vertex shader, see {@link ShaderDataType}
          */
         public Attribute(@NonNull String name, byte srcType, byte dstType) {
-            if (name.isEmpty() || name.startsWith("_")) {
-                throw new IllegalArgumentException();
-            }
-            if (srcType < 0 || srcType > Engine.VertexAttribType.kLast) {
-                throw new IllegalArgumentException();
-            }
-            if (ShaderDataType.locations(dstType) <= 0) {
-                throw new IllegalArgumentException();
-            }
-            mName = name;
-            mSrcType = srcType;
-            mDstType = dstType;
-            mOffset = IMPLICIT_OFFSET;
+            this(name, srcType, dstType, IMPLICIT_OFFSET);
         }
 
         /**
@@ -105,11 +93,13 @@ public final class VertexInputLayout {
             if (srcType < 0 || srcType > Engine.VertexAttribType.kLast) {
                 throw new IllegalArgumentException();
             }
-            if (ShaderDataType.locations(dstType) <= 0) {
+            if (ShaderDataType.locationCount(dstType) <= 0) {
                 throw new IllegalArgumentException();
             }
-            if (offset < 0 || offset >= 32768 || alignOffset(offset) != offset) {
-                throw new IllegalArgumentException();
+            if (offset != IMPLICIT_OFFSET) {
+                if (offset < 0 || offset >= 32768 || alignOffset(offset) != offset) {
+                    throw new IllegalArgumentException();
+                }
             }
             mName = name;
             mSrcType = srcType;
@@ -155,8 +145,8 @@ public final class VertexInputLayout {
         /**
          * @return the number of locations
          */
-        public final int locations() {
-            return ShaderDataType.locations(mDstType);
+        public final int locationCount() {
+            return ShaderDataType.locationCount(mDstType);
         }
 
         /**
@@ -164,7 +154,7 @@ public final class VertexInputLayout {
          */
         public final int stride() {
             int size = size();
-            int count = locations();
+            int count = locationCount();
             assert (size > 0 && count > 0);
             return size * count;
         }
@@ -265,13 +255,13 @@ public final class VertexInputLayout {
             return stride;
         }
 
-        final int numLocations(int mask) {
+        final int locationCount(int mask) {
             final int rawCount = mAttributes.length;
             int locations = 0;
             for (int i = 0, bit = 1; i < rawCount; i++, bit <<= 1) {
                 final Attribute attr = mAttributes[i];
                 if ((mask & bit) != 0) {
-                    locations += attr.locations();
+                    locations += attr.locationCount();
                 }
             }
             return locations;
@@ -424,7 +414,7 @@ public final class VertexInputLayout {
      * An attribute (variable) may take up multiple consecutive locations.
      * The max number of locations matches the max number of attributes in {@link Caps}.
      *
-     * @see ShaderDataType#locations(byte)
+     * @see ShaderDataType#locationCount(byte)
      * @see #getAttributeCount(int)
      * @see Caps#MAX_VERTEX_ATTRIBUTES
      */
@@ -432,9 +422,9 @@ public final class VertexInputLayout {
         var attributes = mBindings[binding];
         if (mMasks != null) {
             int mask = mMasks[binding];
-            return mask != 0 ? attributes.numLocations(mask) : 0;
+            return mask != 0 ? attributes.locationCount(mask) : 0;
         }
-        return attributes != null ? attributes.numLocations(attributes.mAllMask) : 0;
+        return attributes != null ? attributes.locationCount(attributes.mAllMask) : 0;
     }
 
     /**

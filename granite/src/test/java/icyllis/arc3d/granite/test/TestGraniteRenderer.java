@@ -51,6 +51,7 @@ import org.lwjgl.opengles.GLES20;
 import org.lwjgl.stb.STBImage;
 import org.lwjgl.stb.STBImageWrite;
 import org.lwjgl.system.MemoryUtil;
+import org.lwjgl.util.tinyfd.TinyFileDialogs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -221,7 +222,7 @@ public class TestGraniteRenderer {
                 int filter = CANVAS_WIDTH == WINDOW_WIDTH && CANVAS_HEIGHT == WINDOW_HEIGHT
                         ? GL33C.GL_NEAREST : GL33C.GL_LINEAR;
                 gl.glBindFramebuffer(GL33C.GL_DRAW_FRAMEBUFFER, 0);
-                gl.glBlitFramebuffer(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT,
+                gl.glBlitFramebuffer(0, CANVAS_HEIGHT, CANVAS_WIDTH, 0,
                         0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, GL33C.GL_COLOR_BUFFER_BIT,
                         filter);
                 if (!immediateContext.submit()) {
@@ -336,7 +337,7 @@ public class TestGraniteRenderer {
                         ImageInfo.make(CANVAS_WIDTH, CANVAS_HEIGHT, ColorInfo.CT_RGBA_8888,
                                 ColorInfo.AT_PREMUL, ColorSpace.get(ColorSpace.Named.SRGB)),
                         ISurface.FLAG_SAMPLED_IMAGE | ISurface.FLAG_RENDERABLE | ISurface.FLAG_BUDGETED,
-                        Engine.SurfaceOrigin.kLowerLeft,
+                        Engine.SurfaceOrigin.kUpperLeft,
                         Engine.LoadOp.kLoad,
                         "TestDevice",
                         true
@@ -462,7 +463,7 @@ public class TestGraniteRenderer {
             rrect.setRectXY(420, 480, 460, 520, 30, 30);
             mRRectShader = RRectShader.make(
                     rrect,
-                    20, true, null
+                    -1, true
             );
 
             Typeface_JDK typeface = new Typeface_JDK(

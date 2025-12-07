@@ -48,7 +48,7 @@ public class VertexShaderBuilder extends ShaderBuilderBase implements VertexGeom
             var.addLayoutQualifier("location", locationIndex);
 
             // may contain matrix that takes up multiple locations
-            int locations = ShaderDataType.locations(var.getType());
+            int locations = ShaderDataType.locationCount(var.getType());
             assert (locations > 0);
             // we have no arrays
             assert (!var.isArray());
