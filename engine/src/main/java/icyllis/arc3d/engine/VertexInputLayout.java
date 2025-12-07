@@ -389,17 +389,9 @@ public final class VertexInputLayout {
      */
     public VertexInputLayout(@Nullable AttributeSet @NonNull [] bindings,
                              int @Nullable [] masks) {
-        assert bindings.length > 0 && bindings.length <= Caps.MAX_VERTEX_BINDINGS;
+        assert bindings.length <= Caps.MAX_VERTEX_BINDINGS;
         assert masks == null || bindings.length == masks.length;
         mBindings = bindings;
-        if (masks != null) {
-            for (int i = 0; i < masks.length; i++) {
-                if (masks[i] != 0) {
-                    // mask is non-zero then AttributeSet is non-null
-                    masks[i] &= bindings[i].mAllMask; // sanitize
-                }
-            }
-        }
         mMasks = masks;
     }
 
@@ -419,11 +411,12 @@ public final class VertexInputLayout {
      * @see #getLocationCount(int)
      */
     public int getAttributeCount(int binding) {
-        if (mMasks != null) {
-            return Integer.bitCount(mMasks[binding]);
-        }
         var attributes = mBindings[binding];
-        return attributes != null ? attributes.mAttributes.length : 0;
+        int count = attributes != null ? attributes.mAttributes.length : 0;
+        if (mMasks != null) {
+            return Math.min(Integer.bitCount(mMasks[binding]), count); // sanitize
+        }
+        return count;
     }
 
     /**
