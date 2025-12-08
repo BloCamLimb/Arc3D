@@ -175,6 +175,8 @@ public final class ClipStack {
                 mSaves.top().pushSave();
             }
         }
+
+        element.mShape = null; // match rvalue, avoid leaking path data
     }
 
     public int maxDeferredClipDraws() {
@@ -1674,7 +1676,7 @@ public final class ClipStack {
      */
     // input is other rect, return is local rect
     //@formatter:off
-    static boolean inverseMapRect(@NonNull Matrixc localToOther, @NonNull Rect2f localOtherRect,
+    public static boolean inverseMapRect(@NonNull Matrixc localToOther, @NonNull Rect2f localOtherRect,
                                   boolean checkPrecision, Matrixc otherToDevice) {
         assert localToOther.isScaleTranslate();
 
@@ -1727,4 +1729,15 @@ public final class ClipStack {
         return true;
     }
     //@formatter:on
+
+    /**
+     * Conservatively computes the intersection of RRect and Rect, returns null to
+     * if there's no intersection or intersection is not RRect.
+     */
+    public static @Nullable RRect intersect(@NonNull RRect a, @NonNull Rect b) {
+        // a cannot be rect; both a,b cannot be empty
+        assert !a.isEmpty() && !a.isRect();
+        //TODO
+        return null;
+    }
 }
