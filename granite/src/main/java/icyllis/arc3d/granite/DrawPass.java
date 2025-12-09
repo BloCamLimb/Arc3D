@@ -21,14 +21,14 @@ package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.*;
 import icyllis.arc3d.engine.*;
-import icyllis.arc3d.sketch.BlendMode;
+import it.unimi.dsi.fastutil.ints.IntArrays;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrays;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.function.Function;
 
 /**
  * A draw pass represents a render pass, with limited and sorted draw commands.
@@ -109,13 +109,9 @@ public class DrawPass implements AutoCloseable {
         var commandList = new DrawCommandList();
 
 
-        var pipelineToIndex = new HashMap<GraphicsPipelineDesc, Integer>();
+        var pipelineToIndex = new Object2IntOpenHashMap<GraphicsPipelineDesc>();
+        pipelineToIndex.defaultReturnValue(-1);
         var indexToPipeline = new ObjectArrayList<GraphicsPipelineDesc>();
-        Function<GraphicsPipelineDesc, Integer> pipelineAccumulator = desc -> {
-            int index = indexToPipeline.size();
-            indexToPipeline.add(desc.copy()); // store immutable descriptors
-            return index;
-        };
 
         var passBounds = Rect2f.makeInfiniteInverted();
         int depthStencilFlags = Engine.DepthStencilFlags.kNone;
@@ -158,33 +154,35 @@ public class DrawPass implements AutoCloseable {
                         var step = draw.mRenderer.step(stepIndex);
 
                         paintParamsKeyBuilder.clear();
-                        BlendMode finalBlendMode = null;
-                        boolean useFastSolidColor = false;
+                        boolean useStepSolidColor = false;
 
                         textureDataGatherer.resetForDraw();
 
                         // collect fragment data and pipeline key
                         uniformDataGatherer.reset();
                         if (step.performsShading() && draw.mPaintParams != null) {
-                            if (!(step.handlesSolidColor() && draw.mPaintParams.isSolidColor())) {
-                                // Add fragment stages if this is the step that performs shading,
-                                // and not a depth-only draw, and cannot simplify for solid color draw
-                                keyContext.reset(draw.mPaintParams);
-                                draw.mPaintParams.appendToKey(keyContext,
-                                        paintParamsKeyBuilder,
-                                        uniformDataGatherer,
-                                        textureDataGatherer);
-                                assert !paintParamsKeyBuilder.isEmpty();
-                            } else {
-                                useFastSolidColor = true;
-                            }
-                            finalBlendMode = draw.mPaintParams.getFinalBlendMode();
+                            useStepSolidColor = step.handlesSolidColor() && draw.mPaintParams.isSolidColor();
+                            // Add paint fragment stages, final blender, clip shader,
+                            // if this is the step that performs shading, and not a depth-only draw
+                            keyContext.reset(draw.mPaintParams);
+                            draw.mPaintParams.appendToKey(keyContext,
+                                    paintParamsKeyBuilder,
+                                    uniformDataGatherer,
+                                    textureDataGatherer,
+                                    useStepSolidColor);
+                            assert !paintParamsKeyBuilder.isEmpty();
                         }
                         var fragmentUniformIndex = fragmentUniformDataCache.insert(uniformDataGatherer.finish());
 
-                        int pipelineIndex = pipelineToIndex.computeIfAbsent(
-                                lookupDesc.set(step, paintParamsKeyBuilder, finalBlendMode, useFastSolidColor),
-                                pipelineAccumulator);
+                        int pipelineIndex = pipelineToIndex.getInt(
+                                lookupDesc.set(step, paintParamsKeyBuilder, useStepSolidColor));
+                        if (pipelineIndex < 0) {
+                            int index = indexToPipeline.size();
+                            var finalDesc = lookupDesc.copy();
+                            indexToPipeline.add(finalDesc); // store immutable descriptors
+                            pipelineToIndex.put(finalDesc, index);
+                            pipelineIndex = index;
+                        }
 
                         // collect geometry data
                         uniformDataGatherer.reset();
@@ -215,7 +213,9 @@ public class DrawPass implements AutoCloseable {
 
             assert keyIndex == keys.length;
             // TimSort - stable
-            Arrays.sort(keys);
+            //Arrays.sort(keys);
+            // BM Quicksort - unstable
+            ObjectArrays.quickSort(keys);
 
             Rect2i deviceBounds = new Rect2i(0, 0, deviceInfo.width(), deviceInfo.height());
             Rect2i currentScissor = new Rect2i(deviceBounds);
@@ -225,7 +225,7 @@ public class DrawPass implements AutoCloseable {
             commandList.setScissor(currentScissor, surfaceHeight, surfaceOrigin);
 
             for (var key : keys) {
-                var draw = key.mDraw;
+                var draw = key.draw;
                 var step = key.step();
                 int pipelineIndex = key.pipelineIndex();
 
@@ -238,7 +238,7 @@ public class DrawPass implements AutoCloseable {
                 boolean fragmentBindingChange = fragmentUniformTracker.writeUniforms(
                         key.fragmentUniformIndex()
                 );
-                boolean textureBindingChange = textureTracker.setCurrentTextures(key.mTextures);
+                boolean textureBindingChange = textureTracker.setCurrentTextures(key.textures);
 
                 boolean dynamicStateChange = scissorChange ||
                         geometryBindingChange ||
@@ -284,7 +284,7 @@ public class DrawPass implements AutoCloseable {
 
                 float[] solidColor = null;
                 var pipelineDesc = indexToPipeline.get(pipelineIndex);
-                if (pipelineDesc.usesFastSolidColor()) {
+                if (pipelineDesc.useStepSolidColor()) {
                     assert draw.mPaintParams != null;
                     boolean res = draw.mPaintParams.getSolidColor(deviceInfo, tmpSolidColor);
                     assert res;
@@ -499,8 +499,10 @@ public class DrawPass implements AutoCloseable {
      * painter's order, stencil disjoint set index,
      * render step index, pipeline index, geometry uniform index,
      * fragment uniform index, texture and sampler binding
+     *
+     * @param orderKey 32-16 painter's order, 16-0 stencil disjoint set index
      */
-    public static final class SortKey implements Comparable<SortKey> {
+    public record SortKey(Draw draw, int orderKey, long pipelineKey, int[] textures) implements Comparable<SortKey> {
 
         public static final int PAINTERS_ORDER_OFFSET = 32;
         public static final int PAINTERS_ORDER_MASK = (1 << 16) - 1;
@@ -527,53 +529,49 @@ public class DrawPass implements AutoCloseable {
         public static final int FRAGMENT_UNIFORM_INDEX_OFFSET = 0;
         public static final int FRAGMENT_UNIFORM_INDEX_MASK = (1 << 17) - 1;
 
-        private final Draw mDraw;
-        // 32-16 painter's order, 16-0 stencil disjoint set index
-        private final int mOrderKey;
-        private final long mPipelineKey;
-        private final int[] mTextures;
-
         public SortKey(Draw draw,
                        int stepIndex,
                        int pipelineIndex,
                        int geometryUniformIndex,
                        int fragmentUniformIndex,
                        int[] textures) {
-            mDraw = draw;
-            // the 16-48 bits are just we want
-            mOrderKey = (int) (draw.mDrawOrder >>> DrawOrder.STENCIL_INDEX_SHIFT);
+            this(draw,
+                    // the 16-48 bits are just we want
+                    (int) (draw.mDrawOrder >>> DrawOrder.STENCIL_INDEX_SHIFT),
+                    ((long) stepIndex << STEP_INDEX_OFFSET) |
+                            ((long) pipelineIndex << PIPELINE_INDEX_OFFSET) |
+                            ((long) geometryUniformIndex << GEOMETRY_UNIFORM_INDEX_OFFSET) |
+                            ((long) fragmentUniformIndex << FRAGMENT_UNIFORM_INDEX_OFFSET),
+                    textures);
             assert (stepIndex & STEP_INDEX_MASK) == stepIndex;
-            mPipelineKey = ((long) stepIndex << STEP_INDEX_OFFSET) |
-                    ((long) pipelineIndex << PIPELINE_INDEX_OFFSET) |
-                    ((long) geometryUniformIndex << GEOMETRY_UNIFORM_INDEX_OFFSET) |
-                    ((long) fragmentUniformIndex << FRAGMENT_UNIFORM_INDEX_OFFSET);
-            mTextures = textures;
+            assert pipelineIndex >= 0;
+            assert textures.length > 0 || textures == IntArrays.EMPTY_ARRAY;
         }
 
         public GeometryStep step() {
-            return mDraw.mRenderer.step(
-                    (int) ((mPipelineKey >>> STEP_INDEX_OFFSET) & STEP_INDEX_MASK));
+            return draw.mRenderer.step(
+                    (int) ((pipelineKey >>> STEP_INDEX_OFFSET) & STEP_INDEX_MASK));
         }
 
         public int pipelineIndex() {
-            return (int) ((mPipelineKey >>> PIPELINE_INDEX_OFFSET) & PIPELINE_INDEX_MASK);
+            return (int) ((pipelineKey >>> PIPELINE_INDEX_OFFSET) & PIPELINE_INDEX_MASK);
         }
 
         public int geometryUniformIndex() {
-            return (int) ((mPipelineKey >>> GEOMETRY_UNIFORM_INDEX_OFFSET) & GEOMETRY_UNIFORM_INDEX_MASK);
+            return (int) ((pipelineKey >>> GEOMETRY_UNIFORM_INDEX_OFFSET) & GEOMETRY_UNIFORM_INDEX_MASK);
         }
 
         public int fragmentUniformIndex() {
-            return (int) ((mPipelineKey >>> FRAGMENT_UNIFORM_INDEX_OFFSET) & FRAGMENT_UNIFORM_INDEX_MASK);
+            return (int) ((pipelineKey >>> FRAGMENT_UNIFORM_INDEX_OFFSET) & FRAGMENT_UNIFORM_INDEX_MASK);
         }
 
         @Override
         public int compareTo(@NonNull SortKey o) {
-            int res = Integer.compareUnsigned(mOrderKey, o.mOrderKey);
+            int res = Integer.compareUnsigned(orderKey, o.orderKey);
             if (res != 0) return res;
-            res = Long.compareUnsigned(mPipelineKey, o.mPipelineKey);
+            res = Long.compareUnsigned(pipelineKey, o.pipelineKey);
             if (res != 0) return res;
-            return Arrays.compare(mTextures, o.mTextures);
+            return Arrays.compare(textures, o.textures);
         }
     }
 }

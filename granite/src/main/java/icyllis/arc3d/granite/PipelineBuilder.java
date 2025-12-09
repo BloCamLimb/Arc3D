@@ -103,7 +103,7 @@ public class PipelineBuilder {
 
     public PipelineDesc.GraphicsPipelineInfo build() {
 
-        mDesc.geomStep().emitVaryings(mVaryings, mDesc.usesFastSolidColor());
+        mDesc.geomStep().emitVaryings(mVaryings, mDesc.useStepSolidColor());
         if (needsLocalCoords()) {
             mVaryings.addVarying(LOCAL_COORDS_VARYING_NAME, ShaderDataType.kFloat2);
         }
@@ -126,7 +126,7 @@ public class PipelineBuilder {
         buildVertexShader();
 
         var info = new PipelineDesc.GraphicsPipelineInfo();
-        info.mPrimitiveType = mDesc.getPrimitiveType();
+        info.mPrimitiveType = mDesc.geomStep().primitiveType();
         info.mInputLayout = mDesc.geomStep().getInputLayout();
         info.mInputLayoutLabel = mDesc.geomStep().name();
 
@@ -139,7 +139,7 @@ public class PipelineBuilder {
         info.mFragLabel = mFragLabel;
 
         info.mBlendInfo = mBlendInfo;
-        info.mDepthStencilSettings = mDesc.getDepthStencilSettings();
+        info.mDepthStencilSettings = mDesc.geomStep().depthStencilSettings();
 
         // pipeline layout
         info.mUniformBlockInfos = new PipelineDesc.UniformBlockInfo[2];
@@ -156,7 +156,7 @@ public class PipelineBuilder {
 
         info.mPipelineLabel = info.mVertLabel + " + ";
         if (info.mFragLabel.isEmpty()) {
-            info.mPipelineLabel += mDesc.usesFastSolidColor() ? "(simple)" : "(empty)";
+            info.mPipelineLabel += mDesc.useStepSolidColor() ? "(simple)" : "(empty)";
         } else {
             info.mPipelineLabel += info.mFragLabel;
         }
@@ -222,7 +222,7 @@ public class PipelineBuilder {
         mDesc.geomStep().emitVertexGeomCode(vs,
                 WORLD_POS_VAR_NAME,
                 needsLocalCoords() ? LOCAL_COORDS_VARYING_NAME : null,
-                mDesc.usesFastSolidColor());
+                mDesc.useStepSolidColor());
 
         // map into clip space
         // remember to preserve the painter's depth in depth buffer, it must be first multiplied by w,
@@ -251,8 +251,20 @@ public class PipelineBuilder {
         }
         StringBuilder out = new StringBuilder();
 
-        BlendMode blendMode = mDesc.getFinalBlendMode();
-        assert blendMode != null;
+        boolean useStepSolidColor = mDesc.useStepSolidColor();
+        if (useStepSolidColor) {
+            assert mRootNodes.length == 1;
+        } else {
+            assert mRootNodes.length == 2;
+        }
+
+        FragmentNode sourceColorRoot = useStepSolidColor ? null : mRootNodes[0];
+        FragmentNode finalBlendRoot =  mRootNodes[useStepSolidColor ? 0 : 1];
+        int finalBlendStageID = finalBlendRoot.stageID();
+
+        assert finalBlendStageID >= FragmentStage.kFirstFixedBlend_BuiltinStageID &&
+                finalBlendStageID <= FragmentStage.kLastFixedBlend_BuiltinStageID;
+        BlendMode blendMode = BlendMode.modeAt(finalBlendStageID - FragmentStage.kFirstFixedBlend_BuiltinStageID);
 
         BlendFormula coverageBlendFormula = null;
         if (mDesc.geomStep().emitsCoverage()) {
@@ -324,7 +336,7 @@ public class PipelineBuilder {
         out.append("void main() {\n");
 
         String outputColor;
-        if (mDesc.usesFastSolidColor()) {
+        if (useStepSolidColor) {
             out.append("vec4 initialColor;\n");
             mDesc.geomStep().emitFragmentColorCode(fs, "initialColor");
             outputColor = "initialColor";
@@ -336,8 +348,8 @@ public class PipelineBuilder {
             outputColor = "vec4(0)";
         }
         String localCoords = needsLocalCoords() ? LOCAL_COORDS_VARYING_NAME : "vec2(0)";
-        for (FragmentNode root : mRootNodes) {
-            outputColor = ShaderCodeSource.invoke_node(root,
+        if (sourceColorRoot != null) {
+            outputColor = ShaderCodeSource.invoke_node(sourceColorRoot,
                     localCoords, outputColor, "vec4(1)", fs);
         }
 

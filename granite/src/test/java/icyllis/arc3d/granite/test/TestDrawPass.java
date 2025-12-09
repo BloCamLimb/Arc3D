@@ -155,7 +155,7 @@ public class TestDrawPass {
         PrintWriter pw = new PrintWriter(System.out, true);
         commandList.debug(pw);
 
-        GraphicsPipelineDesc graphicsPipelineDesc = new GraphicsPipelineDesc(step, Key.EMPTY, null, true);
+        GraphicsPipelineDesc graphicsPipelineDesc = new GraphicsPipelineDesc(step, Key.EMPTY, true);
 
         int ubo = glGenBuffers();
         glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);

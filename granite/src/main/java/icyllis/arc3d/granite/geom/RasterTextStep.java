@@ -93,8 +93,8 @@ public class RasterTextStep extends GeometryStep {
     }
 
     @Override
-    public void emitVaryings(VaryingHandler varyingHandler, boolean usesFastSolidColor) {
-        assert !usesFastSolidColor;
+    public void emitVaryings(VaryingHandler varyingHandler, boolean useStepSolidColor) {
+        assert !useStepSolidColor;
         varyingHandler.addVarying("f_TexCoords", ShaderDataType.kFloat2);
     }
 
@@ -122,8 +122,8 @@ public class RasterTextStep extends GeometryStep {
     public void emitVertexGeomCode(Formatter vs,
                                    @NonNull String worldPosVar,
                                    @Nullable String localPosVar,
-                                   boolean usesFastSolidColor) {
-        assert !usesFastSolidColor;
+                                   boolean useStepSolidColor) {
+        assert !useStepSolidColor;
         // {(0,0), (0,1), (1,0), (1,1)}
         // corner selector, CCW
         vs.format("vec2 position = vec2(SV_VertexID >> 1, SV_VertexID & 1) * vec2(%s);\n",

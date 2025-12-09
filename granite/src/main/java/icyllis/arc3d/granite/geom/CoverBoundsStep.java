@@ -73,8 +73,8 @@ public class CoverBoundsStep extends GeometryStep {
     }
 
     @Override
-    public void emitVaryings(VaryingHandler varyingHandler, boolean usesFastSolidColor) {
-        if (usesFastSolidColor) {
+    public void emitVaryings(VaryingHandler varyingHandler, boolean useStepSolidColor) {
+        if (useStepSolidColor) {
             // solid color
             varyingHandler.addVarying("f_Color", ShaderDataType.kFloat4,
                     VaryingHandler.kCanBeFlat_Interpolation);
@@ -88,7 +88,7 @@ public class CoverBoundsStep extends GeometryStep {
     @Override
     public void emitVertexGeomCode(Formatter vs,
                                    @NonNull String worldPosVar,
-                                   @Nullable String localPosVar, boolean usesFastSolidColor) {
+                                   @Nullable String localPosVar, boolean useStepSolidColor) {
         vs.format("""
                 float2 corner = float2(SV_VertexID >> 1, SV_VertexID & 1);
                 float4 bounds = %s;
@@ -111,7 +111,7 @@ public class CoverBoundsStep extends GeometryStep {
                 }
                 """, worldPosVar, DEPTH.name(), MODEL_VIEW.name());
 
-        if (usesFastSolidColor) {
+        if (useStepSolidColor) {
             vs.format("%s = %s;\n", "f_Color", SOLID_COLOR.name());
         }
         if (localPosVar != null) {

@@ -110,8 +110,8 @@ public class VerticesStep extends GeometryStep {
 
     @Override
     public void emitVaryings(VaryingHandler varyingHandler,
-                             boolean usesFastSolidColor) {
-        assert !usesFastSolidColor;
+                             boolean useStepSolidColor) {
+        assert !useStepSolidColor;
         // vertex color
         if (mHasColor) {
             varyingHandler.addVarying("f_Color", ShaderDataType.kFloat4);
@@ -131,8 +131,8 @@ public class VerticesStep extends GeometryStep {
     public void emitVertexGeomCode(Formatter vs,
                                    @NonNull String worldPosVar,
                                    @Nullable String localPosVar,
-                                   boolean usesFastSolidColor) {
-        assert !usesFastSolidColor;
+                                   boolean useStepSolidColor) {
+        assert !useStepSolidColor;
         if (mHasColor) {
             vs.format("""
                     %1$s = vec4(%2$s.bgr * %2$s.a, %2$s.a);

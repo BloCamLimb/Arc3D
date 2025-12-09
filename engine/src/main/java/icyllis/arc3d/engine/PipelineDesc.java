@@ -81,18 +81,6 @@ public abstract class PipelineDesc {
         throw new IllegalStateException();
     }
 
-    public byte getPrimitiveType() {
-        return 0;
-    }
-
-    public BlendInfo getBlendInfo() {
-        return null;
-    }
-
-    public DepthStencilSettings getDepthStencilSettings() {
-        return null;
-    }
-
     /**
      * Returns a bitfield that represents dynamic states of this pipeline.
      * These dynamic states must be supported by the backend.

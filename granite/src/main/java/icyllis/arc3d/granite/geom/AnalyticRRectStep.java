@@ -277,7 +277,7 @@ public class AnalyticRRectStep extends GeometryStep {
 
     @Override
     public void emitVaryings(VaryingHandler varyingHandler,
-                             boolean usesFastSolidColor) {
+                             boolean useStepSolidColor) {
         varyingHandler.addVarying("f_Jacobian", ShaderDataType.kFloat4); // float2x2
         // Distance to LTRB edges of unstroked shape. Depending on
         // 'perPixelControl' these will either be local or device-space values.
@@ -316,7 +316,7 @@ public class AnalyticRRectStep extends GeometryStep {
         //    below 0 to avoid adding coverage from extrapolation.
         varyingHandler.addVarying("f_PerPixelControl",
                 ShaderDataType.kFloat2);
-        if (usesFastSolidColor) {
+        if (useStepSolidColor) {
             // solid color
             varyingHandler.addVarying("f_Color", ShaderDataType.kFloat4,
                     VaryingHandler.kCanBeFlat_Interpolation);
@@ -370,7 +370,7 @@ public class AnalyticRRectStep extends GeometryStep {
     public void emitVertexGeomCode(Formatter vs,
                                    @NonNull String worldPosVar,
                                    @Nullable String localPosVar,
-                                   boolean usesFastSolidColor) {
+                                   boolean useStepSolidColor) {
         vs.format("""
                         float2 localPos;
                         float4 %s = analytic_rrect_vertex_fn(
@@ -382,7 +382,7 @@ public class AnalyticRRectStep extends GeometryStep {
                 worldPosVar, POSITION.name(), NORMAL.name(), NORMAL_SCALE.name(), CENTER_WEIGHT.name(),
                 X_RADII_OR_FLAGS.name(), RADII_OR_QUAD_XS.name(), LTRB_OR_QUAD_YS.name(), CENTER.name(),
                 DEPTH.name(), MODEL_VIEW.name());
-        if (usesFastSolidColor) {
+        if (useStepSolidColor) {
             // setup pass through color
             vs.format("%s = %s;\n", "f_Color", SOLID_COLOR.name());
         }

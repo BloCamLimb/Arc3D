@@ -497,7 +497,7 @@ public abstract class GeometryStep {
     public abstract ProgramImpl makeProgramImpl(ShaderCaps caps);
 
     public void emitVaryings(VaryingHandler varyingHandler,
-                             boolean usesFastSolidColor) {
+                             boolean useStepSolidColor) {
     }
 
     public void emitUniforms(UniformHandler uniformHandler,
@@ -519,7 +519,7 @@ public abstract class GeometryStep {
     public void emitVertexGeomCode(Formatter vs,
                                    @NonNull String worldPosVar,
                                    @Nullable String localPosVar,
-                                   boolean usesFastSolidColor) {
+                                   boolean useStepSolidColor) {
     }
 
     public void emitFragmentDefinitions(Formatter fs) {

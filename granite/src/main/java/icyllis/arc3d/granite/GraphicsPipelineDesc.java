@@ -20,9 +20,7 @@
 package icyllis.arc3d.granite;
 
 import icyllis.arc3d.engine.*;
-import icyllis.arc3d.sketch.BlendMode;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 
@@ -33,31 +31,25 @@ public final class GraphicsPipelineDesc extends PipelineDesc {
 
     private GeometryStep mGeometryStep;
     private Key mPaintParamsKey;
-    @Nullable
-    private BlendMode mFinalBlendMode;
-    private boolean mUseFastSolidColor;
+    private boolean mUseStepSolidColor;
 
     public GraphicsPipelineDesc() {
     }
 
     public GraphicsPipelineDesc(GeometryStep geometryStep,
                                 Key paintParamsKey,
-                                @Nullable BlendMode finalBlendMode,
-                                boolean useFastSolidColor) {
+                                boolean useStepSolidColor) {
         mGeometryStep = geometryStep;
         mPaintParamsKey = paintParamsKey;
-        mFinalBlendMode = finalBlendMode;
-        mUseFastSolidColor = useFastSolidColor;
+        mUseStepSolidColor = useStepSolidColor;
     }
 
     public GraphicsPipelineDesc set(GeometryStep geometryStep,
-                                    KeyBuilder paintParamsKey,
-                                    @Nullable BlendMode finalBlendMode,
-                                    boolean useFastSolidColor) {
+                                    Key paintParamsKey,
+                                    boolean useStepSolidColor) {
         mGeometryStep = geometryStep;
         mPaintParamsKey = paintParamsKey;
-        mFinalBlendMode = finalBlendMode;
-        mUseFastSolidColor = useFastSolidColor;
+        mUseStepSolidColor = useStepSolidColor;
         return this;
     }
 
@@ -65,23 +57,17 @@ public final class GraphicsPipelineDesc extends PipelineDesc {
         return mGeometryStep;
     }
 
-    public Key getPaintParamsKey() {
+    public Key paintParamsKey() {
         return mPaintParamsKey;
     }
 
-    @Nullable
-    public BlendMode getFinalBlendMode() {
-        return mFinalBlendMode;
-    }
-
-    public boolean usesFastSolidColor() {
-        return mUseFastSolidColor;
+    public boolean useStepSolidColor() {
+        return mUseStepSolidColor;
     }
 
     public boolean mayRequireLocalCoords() {
-        return !mUseFastSolidColor &&
-                (mPaintParamsKey.size() != 1 ||
-                        mPaintParamsKey.get(0) != FragmentStage.kSolidColorShader_BuiltinStageID);
+        return !mUseStepSolidColor && !mPaintParamsKey.isEmpty() &&
+                        mPaintParamsKey.get(0) != FragmentStage.kSolidColorShader_BuiltinStageID;
     }
 
     private FragmentNode createNode(ShaderCodeSource codeSource,
@@ -132,7 +118,8 @@ public final class GraphicsPipelineDesc extends PipelineDesc {
                                        StringBuilder label) {
         final int keySize = mPaintParamsKey.size();
 
-        var roots = new ObjectArrayList<FragmentNode>(7);
+        // There can be at most 3 root nodes.
+        var roots = new ObjectArrayList<FragmentNode>(5);
         int[] currentIndex = {0};
         while (currentIndex[0] < keySize) {
             FragmentNode root = createNode(codeSource, label, currentIndex);
@@ -147,8 +134,8 @@ public final class GraphicsPipelineDesc extends PipelineDesc {
     }
 
     public boolean isDepthOnlyPass() {
-        boolean depthOnly = mPaintParamsKey.isEmpty() && !mUseFastSolidColor;
-        assert depthOnly == (mFinalBlendMode == null);
+        boolean depthOnly = mPaintParamsKey.isEmpty();
+        assert !depthOnly || !mUseStepSolidColor;
         return depthOnly;
     }
 
@@ -159,41 +146,22 @@ public final class GraphicsPipelineDesc extends PipelineDesc {
     }
 
     @Override
-    public byte getPrimitiveType() {
-        return mGeometryStep.primitiveType();
-    }
-
-    @Override
-    public BlendInfo getBlendInfo() {
-        if (mFinalBlendMode != null) {
-            var info = PipelineBuilder.getSimpleBlendInfo(mFinalBlendMode);
-            return info != null ? info : BlendInfo.BLEND_SRC_OVER;
-        } else {
-            return BlendInfo.BLEND_DST;
-        }
-    }
-
-    @Override
-    public DepthStencilSettings getDepthStencilSettings() {
-        return mGeometryStep.depthStencilSettings();
-    }
-
-    @Override
     public GraphicsPipelineDesc copy() {
         if (mPaintParamsKey instanceof KeyBuilder keyBuilder) {
-            // at most one, no recursive copy
+            // deep copy
             return new GraphicsPipelineDesc(mGeometryStep, keyBuilder.toStorageKey(),
-                    mFinalBlendMode, mUseFastSolidColor);
+                    mUseStepSolidColor);
         }
-        return this;
+        // shallow copy
+        return new GraphicsPipelineDesc(mGeometryStep, mPaintParamsKey,
+                mUseStepSolidColor);
     }
 
     @Override
     public int hashCode() {
         int result = mGeometryStep.uniqueID();
         result = 31 * result + mPaintParamsKey.hashCode();
-        result = 31 * result + Objects.hashCode(mFinalBlendMode);
-        result = 31 * result + Boolean.hashCode(mUseFastSolidColor);
+        result = 31 * result + Boolean.hashCode(mUseStepSolidColor);
         return result;
     }
 
@@ -202,9 +170,8 @@ public final class GraphicsPipelineDesc extends PipelineDesc {
         if (this == o) return true;
         if (o instanceof GraphicsPipelineDesc desc) {
             return mGeometryStep.uniqueID() == desc.mGeometryStep.uniqueID() &&
-                    mUseFastSolidColor == desc.mUseFastSolidColor &&
-                    Objects.equals(mPaintParamsKey, desc.mPaintParamsKey) &&
-                    Objects.equals(mFinalBlendMode, desc.mFinalBlendMode);
+                    mUseStepSolidColor == desc.mUseStepSolidColor &&
+                    Objects.equals(mPaintParamsKey, desc.mPaintParamsKey);
         }
         return false;
     }

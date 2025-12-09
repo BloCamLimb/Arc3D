@@ -196,10 +196,10 @@ public class PerEdgeAAQuadStep extends GeometryStep {
     }
 
     @Override
-    public void emitVaryings(VaryingHandler varyingHandler, boolean usesFastSolidColor) {
+    public void emitVaryings(VaryingHandler varyingHandler, boolean useStepSolidColor) {
         // Device-space distance to LTRB edges of quad.
         varyingHandler.addVarying("f_EdgeDistances", ShaderDataType.kFloat4);
-        if (usesFastSolidColor) {
+        if (useStepSolidColor) {
             // solid color
             varyingHandler.addVarying("f_Color", ShaderDataType.kFloat4,
                     VaryingHandler.kCanBeFlat_Interpolation);
@@ -213,7 +213,7 @@ public class PerEdgeAAQuadStep extends GeometryStep {
     @Override
     public void emitVertexGeomCode(Formatter vs,
                                    @NonNull String worldPosVar,
-                                   @Nullable String localPosVar, boolean usesFastSolidColor) {
+                                   @Nullable String localPosVar, boolean useStepSolidColor) {
         vs.format("""
                 uint flags = %s;
                 // LTRB
@@ -341,7 +341,7 @@ public class PerEdgeAAQuadStep extends GeometryStep {
                 }
                 f_EdgeDistances = edgeDistances;
                 """);
-        if (usesFastSolidColor) {
+        if (useStepSolidColor) {
             // setup pass through color
             vs.format("%s = %s;\n", "f_Color", SOLID_COLOR.name());
         }

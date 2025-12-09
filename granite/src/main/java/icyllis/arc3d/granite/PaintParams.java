@@ -440,13 +440,26 @@ public final class PaintParams implements AutoCloseable {
     public void appendToKey(KeyContext keyContext,
                             KeyBuilder keyBuilder,
                             UniformDataGatherer uniformDataGatherer,
-                            TextureDataGatherer textureDataGatherer) {
+                            TextureDataGatherer textureDataGatherer,
+                            boolean useStepSolidColor) {
         //TODO
-        handleDithering(
-                keyContext,
-                keyBuilder,
-                uniformDataGatherer,
-                textureDataGatherer
+
+        // Optional Root 0 source color
+        if (!useStepSolidColor) {
+            handleDithering(
+                    keyContext,
+                    keyBuilder,
+                    uniformDataGatherer,
+                    textureDataGatherer
+            );
+        }
+
+        // Root 1 final blender
+        BlendMode finalBlend = getFinalBlendMode();
+        FragmentHelpers.appendFixedBlendMode(
+                keyContext, keyBuilder,
+                uniformDataGatherer, textureDataGatherer,
+                finalBlend
         );
     }
 }
