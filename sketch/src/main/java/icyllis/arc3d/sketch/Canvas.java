@@ -67,6 +67,13 @@ import java.util.function.Consumer;
 public class Canvas implements AutoCloseable {
 
     /**
+     * Clip ops.
+     */
+    public static final byte
+            CLIP_OP_DIFFERENCE = 0, // target minus operand
+            CLIP_OP_INTERSECT = 1;  // target intersected with operand
+
+    /**
      * SaveLayerFlags provides options that may be used in any combination in SaveLayerRec,
      * defining how layer allocated by saveLayer() operates.
      */
@@ -699,7 +706,7 @@ public class Canvas implements AutoCloseable {
      */
     public final void clipRect(Rect2ic rect) {
         mTmpRect.set(rect);
-        clipRect(mTmpRect, ClipOp.CLIP_OP_INTERSECT, false);
+        clipRect(mTmpRect, CLIP_OP_INTERSECT, false);
     }
 
     /**
@@ -711,7 +718,7 @@ public class Canvas implements AutoCloseable {
      * @param rect the rectangle to intersect with the current clip
      */
     public final void clipRect(Rect2fc rect) {
-        clipRect(rect, ClipOp.CLIP_OP_INTERSECT, false);
+        clipRect(rect, CLIP_OP_INTERSECT, false);
     }
 
     /**
@@ -730,7 +737,7 @@ public class Canvas implements AutoCloseable {
      */
     public final void clipRect(float left, float top, float right, float bottom) {
         mTmpRect.set(left, top, right, bottom);
-        clipRect(mTmpRect, ClipOp.CLIP_OP_INTERSECT, false);
+        clipRect(mTmpRect, CLIP_OP_INTERSECT, false);
     }
 
     /**
@@ -743,7 +750,7 @@ public class Canvas implements AutoCloseable {
      * @param doAA true if clip is to be anti-aliased
      */
     public final void clipRect(Rect2fc rect, boolean doAA) {
-        clipRect(rect, ClipOp.CLIP_OP_INTERSECT, doAA);
+        clipRect(rect, CLIP_OP_INTERSECT, doAA);
     }
 
     /**
@@ -763,7 +770,7 @@ public class Canvas implements AutoCloseable {
      */
     public final void clipRect(float left, float top, float right, float bottom, boolean doAA) {
         mTmpRect.set(left, top, right, bottom);
-        clipRect(mTmpRect, ClipOp.CLIP_OP_INTERSECT, doAA);
+        clipRect(mTmpRect, CLIP_OP_INTERSECT, doAA);
     }
 
     /**

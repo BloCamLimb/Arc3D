@@ -255,7 +255,7 @@ public class NoPixelsDevice extends Device {
                        int op, boolean isAA, boolean isRect) {
             mIsAA |= isAA;
             boolean isDeviceRect = isRect && localToDevice.isAxisAligned();
-            if (op == ClipOp.CLIP_OP_INTERSECT) {
+            if (op == Canvas.CLIP_OP_INTERSECT) {
                 if (!localBounds.isEmpty()) {
                     final Rect2i deviceRect = new Rect2i();
                     if (isAA) {
@@ -275,7 +275,7 @@ public class NoPixelsDevice extends Device {
                 // Conservatively, we can leave the clip bounds unchanged and respect the difference op.
                 // But, if we're subtracting out an axis-aligned rectangle that fully spans our existing
                 // clip on an axis, we can shrink the clip bounds.
-                assert op == ClipOp.CLIP_OP_DIFFERENCE;
+                assert op == Canvas.CLIP_OP_DIFFERENCE;
                 final Rect2i deviceRect = new Rect2i();
                 if (isAA) {
                     localToDevice.mapRectIn(localBounds, deviceRect);

@@ -25,13 +25,11 @@ import icyllis.arc3d.granite.ClipStack;
 import icyllis.arc3d.granite.GraniteDevice;
 import icyllis.arc3d.granite.GraniteUtil;
 import icyllis.arc3d.granite.RecordingContext;
-import icyllis.arc3d.granite.geom.Rect;
 import icyllis.arc3d.opengl.GLUtil;
-import icyllis.arc3d.sketch.ClipOp;
+import icyllis.arc3d.sketch.Canvas;
 import icyllis.arc3d.core.ColorInfo;
 import icyllis.arc3d.core.ImageInfo;
 import icyllis.arc3d.sketch.Paint;
-import icyllis.arc3d.sketch.RRect;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL;
 import org.slf4j.Logger;
@@ -85,14 +83,14 @@ public class TestClipStack {
         LOGGER.info(stateToString(drawDevice.getClipStack().currentClipState()));
         drawDevice.clipRect(
                 new Rect2f(0, 0, 60, 60),
-                ClipOp.CLIP_OP_INTERSECT, false);
+                Canvas.CLIP_OP_INTERSECT, false);
         LOGGER.info(stateToString(drawDevice.getClipStack().currentClipState()));
 
         drawDevice.pushClipStack();
         //viewMatrix.preRotateZ(MathUtil.DEG_TO_RAD * 5);
         drawDevice.clipRect(
                 new Rect2f(20, 20, 70, 60),
-                ClipOp.CLIP_OP_INTERSECT, false);
+                Canvas.CLIP_OP_INTERSECT, false);
         LOGGER.info(stateToString(drawDevice.getClipStack().currentClipState()));
         drawDevice.getClipStack().elements().forEach(e -> LOGGER.info(e.toString()));
 

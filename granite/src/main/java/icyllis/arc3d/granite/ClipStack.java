@@ -24,7 +24,7 @@ import icyllis.arc3d.granite.geom.BoundsManager;
 import icyllis.arc3d.granite.geom.EdgeAAQuad;
 import icyllis.arc3d.granite.geom.Rect;
 import icyllis.arc3d.sketch.Bounded;
-import icyllis.arc3d.sketch.ClipOp;
+import icyllis.arc3d.sketch.Canvas;
 import icyllis.arc3d.sketch.Matrix;
 import icyllis.arc3d.sketch.Matrixc;
 import icyllis.arc3d.sketch.Paint;
@@ -51,8 +51,8 @@ public final class ClipStack {
      * Clip ops.
      */
     public static final int
-            OP_DIFFERENCE = ClipOp.CLIP_OP_DIFFERENCE,  // target minus operand
-            OP_INTERSECT = ClipOp.CLIP_OP_INTERSECT;    // target intersected with operand
+            OP_DIFFERENCE = Canvas.CLIP_OP_DIFFERENCE,  // target minus operand
+            OP_INTERSECT = Canvas.CLIP_OP_INTERSECT;    // target intersected with operand
 
     /**
      * Clip states.

@@ -51,7 +51,6 @@ import org.lwjgl.opengles.GLES20;
 import org.lwjgl.stb.STBImage;
 import org.lwjgl.stb.STBImageWrite;
 import org.lwjgl.system.MemoryUtil;
-import org.lwjgl.util.tinyfd.TinyFileDialogs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -673,7 +672,7 @@ public class TestGraniteRenderer {
                 paint.setStrokeJoin(Paint.JOIN_MITER);
                 paint.setStrokeAlign(Paint.ALIGN_CENTER);
                 canvas.save();
-                canvas.clipRect(150, 160, 100, 330, ClipOp.CLIP_OP_DIFFERENCE);
+                canvas.clipRect(150, 160, 100, 330, Canvas.CLIP_OP_DIFFERENCE);
                 lines.run();
                 canvas.restore();
 
