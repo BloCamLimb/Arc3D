@@ -116,11 +116,12 @@ public class PipelineBuilder {
                 UniformHandler.PROJECTION_NAME,
                 -1);
         mDesc.geomStep().emitUniforms(mGeometryUniforms, mDesc.mayRequireLocalCoords());
-        mDesc.geomStep().emitSamplers(mFragmentUniforms);
 
         for (var root : mRootNodes) {
             getNodeUniforms(root);
         }
+
+        mDesc.geomStep().emitSamplers(mFragmentUniforms);
 
         buildFragmentShader();
         buildVertexShader();
