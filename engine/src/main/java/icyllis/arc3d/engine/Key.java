@@ -30,19 +30,20 @@ import java.util.Arrays;
  */
 public sealed class Key permits KeyBuilder {
 
-    public static final Key EMPTY = new Key(IntArrays.EMPTY_ARRAY);
+    public static final Key EMPTY = new Key(IntArrays.EMPTY_ARRAY, 1);
 
     transient int[] mData;
-    private transient int mHash;
+    transient int mHash;
 
     // Used by subclass
     Key() {
         mData = IntArrays.DEFAULT_EMPTY_ARRAY;
+        mHash = 1;
     }
 
-    Key(int[] storage) {
+    Key(int[] storage, int hash) {
         mData = storage;
-        mHash = Arrays.hashCode(mData);
+        mHash = hash;
     }
 
     public int size() {
@@ -60,7 +61,7 @@ public sealed class Key permits KeyBuilder {
     }
 
     @Override
-    public int hashCode() {
+    public final int hashCode() {
         return mHash;
     }
 

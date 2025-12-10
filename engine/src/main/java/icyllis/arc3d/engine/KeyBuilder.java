@@ -44,6 +44,7 @@ public non-sealed class KeyBuilder extends Key {
         int size = other.mSize;
         mData = size == 0 ? IntArrays.EMPTY_ARRAY : Arrays.copyOf(other.mData, size);
         mSize = size;
+        mHash = other.mHash;
     }
 
     /**
@@ -52,6 +53,7 @@ public non-sealed class KeyBuilder extends Key {
     public final void clear() {
         assert (mCurValue == 0 && mBitsUsed == 0);
         mSize = 0;
+        mHash = 1;
     }
 
     /**
@@ -86,6 +88,7 @@ public non-sealed class KeyBuilder extends Key {
     private void add(int k) {
         grow(mSize + 1);
         mData[mSize++] = k;
+        mHash = mHash * 31 + k;
     }
 
     public void addBits(int numBits, int value, String label) {
@@ -130,6 +133,8 @@ public non-sealed class KeyBuilder extends Key {
         grow(mSize + len);
         System.arraycopy(v, off, mData, mSize, len);
         mSize += len;
+        for (int i = off; i < off + len; i++)
+            mHash = 31 * mHash + v[i];
     }
 
     /**
@@ -166,21 +171,8 @@ public non-sealed class KeyBuilder extends Key {
         } else {
             int[] t = new int[mSize];
             System.arraycopy(mData, 0, t, 0, mSize);
-            return new Key(t);
+            return new Key(t, mHash);
         }
-    }
-
-    /**
-     * Same as {@link Arrays#hashCode(int[])}.
-     */
-    @Override
-    public final int hashCode() {
-        assert (mCurValue == 0 && mBitsUsed == 0); // ensure flushed
-        int[] e = mData;
-        int h = 1, s = size();
-        for (int i = 0; i < s; i++)
-            h = 31 * h + e[i];
-        return h;
     }
 
     /**
