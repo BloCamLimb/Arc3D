@@ -658,7 +658,6 @@ public final class GraniteDevice extends Device {
                              Blender primitiveBlender) {
         Draw draw = new Draw(localToDevice, geometry, inverseFill);
         assert geometry != null || draw.isFloodFill();
-        draw.mRenderer = renderer;
 
         if (paint.getStyle() != Paint.FILL) {
             draw.mHalfWidth = paint.getStrokeWidth() * 0.5f;
@@ -674,18 +673,19 @@ public final class GraniteDevice extends Device {
         // Calculate the clipped bounds of the draw and determine the clip elements that affect the
         // draw without updating the clip stack.
         assert mElementsForMask.isEmpty();
-        boolean clippedOut = mClipStack.prepareForDraw(draw,
+        int clipped = mClipStack.prepareForDraw(draw,
                 mElementsForMask);
-        if (clippedOut) {
+        if (clipped == ClipStack.CLIPPED_OUT) {
             return;
         }
 
-        if (draw.mRenderer == null) {
+        if (clipped == ClipStack.CLIPPED_GEOMETRICALLY) {
             //TODO require a general way to choose renderer for flood-fill/rect/box/rrect
-            draw.mRenderer = mRendererProvider.getNonAABoundsFill();
+            // currently this can only be flood fill
+            renderer = mRendererProvider.getNonAABoundsFill();
         }
-        renderer = draw.mRenderer;
         assert renderer != null;
+        draw.mRenderer = renderer;
 
         final boolean outsetBoundsForAA = renderer.outsetBoundsForAA();
 
@@ -741,7 +741,6 @@ public final class GraniteDevice extends Device {
         mColorDepthBoundsManager.recordDraw(draw.mDrawBounds, paintOrder);
         mCurrentDepth = drawDepth;
 
-        mPaintParams.reset();
         mElementsForMask.clear();
     }
 
@@ -779,6 +778,7 @@ public final class GraniteDevice extends Device {
      */
     public void flushPendingWork() {
         assert mRC.isOwnerThread();
+        mPaintParams.reset();
         // Push any pending uploads from the atlas provider that pending draws reference.
         mRC.getAtlasProvider().recordUploads(mSDC);
 

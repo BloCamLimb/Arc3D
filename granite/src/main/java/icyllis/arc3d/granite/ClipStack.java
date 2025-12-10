@@ -63,6 +63,14 @@ public final class ClipStack {
             STATE_DEVICE_RECT = 2,
             STATE_COMPLEX = 3;
 
+    /**
+     * Applied result.
+     */
+    public static final int
+            CLIPPED_OUT = 0,
+            CLIPPED_GEOMETRICALLY = 1,
+            CLIPPED = 2;
+
     // The default tolerance to use for fuzzy geometric comparisons that are already transformed
     // into device-space. Distances, containment checks, or equality tests closer than
     // DEFAULT_PIXEL_TOLERANCE (< ~0.004) can be considered perceptibly equivalent. This can be
@@ -219,19 +227,19 @@ public final class ClipStack {
     //
     // The returned clip element list will be empty if the shape is clipped out or if the draw is
     // unaffected by any of the clip elements.
-    public boolean prepareForDraw(@NonNull Draw draw,
+    public int prepareForDraw(@NonNull Draw draw,
                                   @NonNull List<Element> elementsForMask) {
         SaveRecord cs = mSaves.top();
         if (cs.state() == STATE_EMPTY) {
             // We know the draw is clipped out so don't bother computing the base draw bounds.
-            return true;
+            return CLIPPED_OUT;
         }
 
         DrawShape ds = mTmpDraw.init(
                 draw.mTransform, draw.mGeometry, draw.mInverseFill
         );
         if (!ds.applyStyle(draw, mDeviceBoundsF)) {
-            return true;
+            return CLIPPED_OUT;
         }
 
         // For intersect clips, the scissor rectangle is snapped outer bounds (to loosely restrict
@@ -249,13 +257,12 @@ public final class ClipStack {
         switch (getClipGeometry(cs, ds)) {
             case CLIP_GEOMETRY_EMPTY:
                 // The draw is offscreen or clipped out, so there is no need to visit the clip elements.
-                return true;
+                return CLIPPED_OUT;
 
             case CLIP_GEOMETRY_B_ONLY:
                 // The draw is unaffected by the clip stack (except possibly `scissor`), and there's no
                 // need to visit each clip element.
-                ds.toClip(draw);
-                return false;
+                return ds.toClip(draw);
 
             case CLIP_GEOMETRY_A_ONLY:
                 // The draw covers the clip entirely. Replace the shape with a flood fill, which can
@@ -290,7 +297,7 @@ public final class ClipStack {
                     // This can happen for difference op elements that have a larger fInnerBounds than
                     // can be preserved at the next level.
                     elementsForMask.clear();
-                    return true;
+                    return CLIPPED_OUT;
                 case CLIP_GEOMETRY_B_ONLY:
                     // This element does not interact, so continue to the next
                     continue;
@@ -343,8 +350,7 @@ public final class ClipStack {
             }
         }
 
-        ds.toClip(draw);
-        return false;
+        return ds.toClip(draw);
     }
 
     // Update the per-clip element state for later rendering using pre-computed clip state data for
@@ -1587,7 +1593,7 @@ public final class ClipStack {
             }
         }
 
-        public void toClip(Draw draw) {
+        public int toClip(Draw draw) {
             if (mShapeWasModified) {
                 assert mShapeCanBeModified;
 
@@ -1599,17 +1605,18 @@ public final class ClipStack {
                 mOuterBounds.set(mTransformedShapeBounds);
                 mOuterBounds.intersectNoCheck(mScissor);
                 draw.mAARadius = mLocalToDevice.localAARadius(mShapeBounds);
-
-                // Notify Device to choose a renderer again
-                draw.mRenderer = null;
             }
 
             Rect2f drawBounds = mInverted ? new Rect2f(mScissor) : new Rect2f(mOuterBounds);
             assert drawBounds.isEmpty() || mScissor.contains(drawBounds);
             assert !mScissor.isEmpty() || drawBounds.isEmpty();
+            if (drawBounds.isEmpty()) {
+                return CLIPPED_OUT;
+            }
             draw.mDrawBounds = drawBounds;
             draw.mTransformedShapeBounds = new Rect2f(mTransformedShapeBounds);
             draw.mScissorRect = new Rect2i(mScissor);
+            return mShapeWasModified ? CLIPPED_GEOMETRICALLY : CLIPPED;
         }
 
         @Override
