@@ -43,12 +43,6 @@ public final class TextureDataGatherer implements AutoCloseable {
 
     private final Object2IntOpenHashMap<@RawPtr ImageProxyView> mTextureToIndex = new Object2IntOpenHashMap<>();
     private ObjectArrayList<@SharedPtr ImageProxyView> mIndexToTexture = new ObjectArrayList<>();
-    private final ToIntFunction<@RawPtr ImageProxyView> mTextureAccumulator = (@RawPtr ImageProxyView texture) -> {
-        int index = mIndexToTexture.size();
-        // persist the proxy ref, since ImageProxyView represents a single owner, just create new one
-        mIndexToTexture.add(new ImageProxyView(texture));
-        return index;
-    };
 
     private final Object2IntOpenHashMap<SamplerDesc> mSamplerToIndex = new Object2IntOpenHashMap<>();
     private ObjectArrayList<SamplerDesc> mIndexToSampler = new ObjectArrayList<>();
@@ -61,8 +55,19 @@ public final class TextureDataGatherer implements AutoCloseable {
     final IntArrayList mTextureData = new IntArrayList();
     int mPaintTextureCount;
 
+    {
+        mTextureToIndex.defaultReturnValue(-1);
+    }
+
     public void add(@RawPtr @NonNull ImageProxyView textureView, @NonNull SamplerDesc samplerDesc) {
-        int textureIndex = mTextureToIndex.computeIfAbsent(textureView, mTextureAccumulator);
+        int textureIndex = mTextureToIndex.getInt(textureView);
+        if (textureIndex < 0) {
+            textureIndex = mIndexToTexture.size();
+            // persist the proxy ref, since ImageProxyView represents a single owner, just create new one
+            var copy = new ImageProxyView(textureView);
+            mIndexToTexture.add(copy);
+            mTextureToIndex.put(copy, textureIndex);
+        }
         int samplerIndex = mSamplerToIndex.computeIfAbsent(samplerDesc, mSamplerAccumulator);
         mTextureData.add(textureIndex);
         mTextureData.add(samplerIndex);
