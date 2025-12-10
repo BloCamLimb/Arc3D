@@ -34,7 +34,7 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * Draw contains multiple groups of data, each of which will be initialized step by step.
  */
-public final class Draw implements AutoCloseable {
+public final class Draw {
 
     /**
      * Pointer to the renderer instance, managed by {@link RendererProvider}.
@@ -83,11 +83,7 @@ public final class Draw implements AutoCloseable {
     // Paint::Align
     public byte mStrokeAlign;
 
-    /**
-     * Paint params, null implies depth-only draw (i.e. clipping mask).
-     */
-    @Nullable
-    public PaintParams mPaintParams;
+    public float @Nullable [] mSolidColor;
 
     public Draw(@NonNull Matrixc transform,
                 Bounded geometry, boolean inverseFill) {
@@ -95,14 +91,6 @@ public final class Draw implements AutoCloseable {
         mTransform = transform;
         mGeometry = geometry;
         mInverseFill = inverseFill;
-    }
-
-    @Override
-    public void close() {
-        if (mPaintParams != null) {
-            mPaintParams.close();
-        }
-        mPaintParams = null;
     }
 
     public void getBounds(@NonNull Rect2f dest) {

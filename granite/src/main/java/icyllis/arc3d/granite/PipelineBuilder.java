@@ -32,7 +32,7 @@ import java.util.*;
 /**
  * Build AST for graphics pipeline.
  */
-//TODO currently this build full GLSL source, wait for compiler backend development
+//TODO need cleanup
 public class PipelineBuilder {
 
     // devicePos + painter's depth is our worldPos

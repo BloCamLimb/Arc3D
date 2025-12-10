@@ -60,7 +60,7 @@ public class TestUniformDataCache {
             log(2, finish3, cached3, cache.lookup(cached3).mPointer);
         }
 
-        LOGGER.info(ClassLayout.parseClass(DrawPass.SortKey.class).toPrintable());
+        LOGGER.info(ClassLayout.parseClass(SurfaceDrawContext.SortKey.class).toPrintable());
     }
 
     static void log(int index, IntBuffer finish, int cachedIndex, IntBuffer cached) {

@@ -154,6 +154,14 @@ public class UniformDataGatherer implements AutoCloseable {
         memPutFloat(dst + 12, v3);
     }
 
+    public void write4f(float[] value) {
+        long dst = append(16, 16);
+        memPutFloat(dst, value[0]);
+        memPutFloat(dst + 4, value[1]);
+        memPutFloat(dst + 8, value[2]);
+        memPutFloat(dst + 12, value[3]);
+    }
+
     /**
      * @param offset the start index in the array
      * @param count  the number of float4

@@ -167,11 +167,11 @@ public final class GraphicsPipelineDesc extends PipelineDesc {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
+        // We will never compare ourselves or KeyBuilder
         if (o instanceof GraphicsPipelineDesc desc) {
             return mGeometryStep.uniqueID() == desc.mGeometryStep.uniqueID() &&
                     mUseStepSolidColor == desc.mUseStepSolidColor &&
-                    Objects.equals(mPaintParamsKey, desc.mPaintParamsKey);
+                    mPaintParamsKey.equals(desc.mPaintParamsKey);
         }
         return false;
     }

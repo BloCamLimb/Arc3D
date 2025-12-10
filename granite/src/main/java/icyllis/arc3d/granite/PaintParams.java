@@ -40,41 +40,47 @@ import java.util.Arrays;
  * Parameters used for shading.
  */
 //TODO currently we don't handle advanced blending
-public final class PaintParams implements AutoCloseable {
+public final class PaintParams {
 
     // color components using non-premultiplied alpha
-    private final float mR; // 0..1
-    private final float mG; // 0..1
-    private final float mB; // 0..1
-    private final float mA; // 0..1
+    private float mR; // 0..1
+    private float mG; // 0..1
+    private float mB; // 0..1
+    private float mA; // 0..1
     // A nullptr mPrimitiveBlender means there's no primitive color blending and it is skipped.
     // In the case where there is primitive blending, the primitive color is the source color and
     // the dest is the paint's color (or the paint's shader's computed color).
-    private final @Nullable Blender mPrimitiveBlender;
-    @SharedPtr
-    private final @Nullable Shader mShader;
-    private final @Nullable ColorFilter mColorFilter;
+    private @Nullable Blender mPrimitiveBlender;
+    @RawPtr
+    private @Nullable Shader mShader;
+    private @Nullable ColorFilter mColorFilter;
     // A nullptr here means SrcOver blending
-    private final @Nullable Blender mFinalBlender;
-    private final boolean mDither;
+    private @Nullable Blender mFinalBlender;
+    private boolean mDither;
 
-    public PaintParams(@NonNull Paint paint,
-                       @Nullable Blender primitiveBlender) {
+    public PaintParams() {
+    }
+
+    public PaintParams set(@NonNull Paint paint,
+                           @Nullable Blender primitiveBlender) {
         mR = paint.getRed();
         mG = paint.getGreen();
         mB = paint.getBlue();
         mA = paint.getAlpha();
         mPrimitiveBlender = primitiveBlender;
-        mShader = paint.refShader();
+        mShader = paint.getShader();
         mColorFilter = paint.getColorFilter();
         mFinalBlender = paint.getBlender();
         mDither = paint.isDither();
         // antialias flag is already handled
+        return this;
     }
 
-    @Override
-    public void close() {
-        RefCnt.move(mShader);
+    public void reset() {
+        mPrimitiveBlender = null;
+        mShader = null;
+        mColorFilter = null;
+        mFinalBlender = null;
     }
 
     /**

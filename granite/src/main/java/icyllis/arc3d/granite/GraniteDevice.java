@@ -67,6 +67,9 @@ public final class GraniteDevice extends Device {
 
     private final RendererProvider mRendererProvider;
 
+    private final KeyContext mKeyContext;
+    private final PaintParams mPaintParams = new PaintParams();
+
     private GraniteDevice(RecordingContext rc, SurfaceDrawContext sdc) {
         super(sdc.getImageInfo());
         mRC = rc;
@@ -87,6 +90,8 @@ public final class GraniteDevice extends Device {
         );
         //mColorDepthBoundsManager = new SimpleBoundsManager();
         mRendererProvider = rc.getSharedObject(GraniteUtil.RENDERER_PROVIDER);
+
+        mKeyContext = new KeyContext(rc, sdc.getImageInfo());
     }
 
     @Nullable
@@ -668,7 +673,7 @@ public final class GraniteDevice extends Device {
 
         // Calculate the clipped bounds of the draw and determine the clip elements that affect the
         // draw without updating the clip stack.
-        mElementsForMask.clear();
+        assert mElementsForMask.isEmpty();
         boolean clippedOut = mClipStack.prepareForDraw(draw,
                 mElementsForMask);
         if (clippedOut) {
@@ -697,7 +702,7 @@ public final class GraniteDevice extends Device {
             primitiveBlender = BlendMode.SRC_OVER;
         }
 
-        draw.mPaintParams = new PaintParams(paint, primitiveBlender); // move
+        var paintParams = mPaintParams.set(paint, primitiveBlender); // move
 
         final int numNewRenderSteps = renderer.numSteps();
 
@@ -719,7 +724,7 @@ public final class GraniteDevice extends Device {
         int paintOrder = clipOrder + 1;
         // If a draw is not opaque, it must be drawn after the most recent draw it intersects with in
         // order to blend correctly.
-        if (renderer.emitsCoverage() || paint_depends_on_dst(draw.mPaintParams)) {
+        if (renderer.emitsCoverage() || paint_depends_on_dst(paintParams)) {
             int prevDraw = mColorDepthBoundsManager.getMostRecentDraw(draw.mDrawBounds);
             paintOrder = Math.max(paintOrder, prevDraw + 1);
         }
@@ -730,11 +735,14 @@ public final class GraniteDevice extends Device {
                 drawDepth, paintOrder
         );
 
-        mSDC.recordDraw(draw);
+        mSDC.recordDraw(draw, paintParams, mKeyContext);
 
         // Post-draw book keeping (bounds manager, depth tracking, etc.)
         mColorDepthBoundsManager.recordDraw(draw.mDrawBounds, paintOrder);
         mCurrentDepth = drawDepth;
+
+        mPaintParams.reset();
+        mElementsForMask.clear();
     }
 
     public void drawClipShape(Draw draw) {
@@ -749,7 +757,7 @@ public final class GraniteDevice extends Device {
 
         assert !draw.mRenderer.emitsCoverage();
 
-        mSDC.recordDraw(draw);
+        mSDC.recordDraw(draw, null, null);
 
         int depth = draw.getDepth();
         if (depth > mCurrentDepth) {
