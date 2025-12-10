@@ -653,7 +653,7 @@ public class GeometryUtils {
         if (R2MinusQ3 < 0) {
             // we have 3 real roots
             // the divide/root can, due to finite precisions, be slightly outside of -1...1
-            final double theta = Math.acos(MathUtil.pin(R / Math.sqrt(Q3), 1.0, 1.0));
+            final double theta = Math.acos(MathUtil.pin(R / Math.sqrt(Q3), -1.0, 1.0));
             final double neg2RootQ = -2 * Math.sqrt(Q);
 
             roots[off]   = (float) MathUtil.pin(
