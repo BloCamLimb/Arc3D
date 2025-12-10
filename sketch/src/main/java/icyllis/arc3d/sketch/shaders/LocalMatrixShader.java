@@ -23,6 +23,8 @@ import icyllis.arc3d.sketch.Matrix;
 import icyllis.arc3d.sketch.Matrixc;
 import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.SharedPtr;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 public final class LocalMatrixShader implements Shader {
 
@@ -62,12 +64,17 @@ public final class LocalMatrixShader implements Shader {
         return mBase.isConstant();
     }
 
+    @Override
+    public float @Nullable [] getConstantColor(float @Nullable [] dst) {
+        return mBase.getConstantColor(dst);
+    }
+
     @RawPtr
-    public Shader getBase() {
+    public @NonNull Shader getBase() {
         return mBase;
     }
 
-    public Matrixc getLocalMatrix() {
+    public @NonNull Matrixc getLocalMatrix() {
         return mLocalMatrix;
     }
 }

@@ -29,6 +29,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.Arrays;
 import java.util.Objects;
 
 /**
@@ -392,10 +393,9 @@ public class Paint implements AutoCloseable {
     public final void setColor( @Size(min = 4) float @NonNull[] color,
                                 @Nullable ColorSpace colorSpace) {
         if (colorSpace != null && !colorSpace.isSrgb()) {
-            var c = ColorSpace.connect(colorSpace).transform(
-                    color
-            );
-            setColor4f(c[0], c[1], c[2], color[color.length - 1]);
+            float[] srgb = ColorSpace.connect(colorSpace)
+                    .transform(Arrays.copyOfRange(color, 0, color.length - 1));
+            setColor4f(srgb[0], srgb[1], srgb[2], color[color.length - 1]);
         } else {
             setColor4f(color[0], color[1], color[2], color[3]);
         }
@@ -411,10 +411,10 @@ public class Paint implements AutoCloseable {
      * @param a amount of alpha, from fully transparent (0) to fully opaque (255)
      */
     public final void setColor4(int r, int g, int b, int a) {
-        mR = MathUtil.pin(r * (1 / 255.0f), 0.0f, 1.0f);
-        mG = MathUtil.pin(g * (1 / 255.0f), 0.0f, 1.0f);
-        mB = MathUtil.pin(b * (1 / 255.0f), 0.0f, 1.0f);
-        mA = MathUtil.pin(a * (1 / 255.0f), 0.0f, 1.0f);
+        mR = MathUtil.clamp(r, 0, 255) * (1 / 255.0f);
+        mG = MathUtil.clamp(g, 0, 255) * (1 / 255.0f);
+        mB = MathUtil.clamp(b, 0, 255) * (1 / 255.0f);
+        mA = MathUtil.clamp(a, 0, 255) * (1 / 255.0f);
     }
 
     /**
@@ -428,9 +428,9 @@ public class Paint implements AutoCloseable {
      * @param a the new alpha component (0..1) of the paint's color.
      */
     public final void setColor4f(float r, float g, float b, float a) {
-        mR = MathUtil.pin(r, 0.0f, 1.0f);
-        mG = MathUtil.pin(g, 0.0f, 1.0f);
-        mB = MathUtil.pin(b, 0.0f, 1.0f);
+        mR = r;
+        mG = g;
+        mB = b;
         mA = MathUtil.pin(a, 0.0f, 1.0f);
     }
 
@@ -449,10 +449,9 @@ public class Paint implements AutoCloseable {
     public final void setColor4f(float r, float g, float b, float a,
                                  @Nullable ColorSpace colorSpace) {
         if (colorSpace != null && !colorSpace.isSrgb()) {
-            var c = ColorSpace.connect(colorSpace).transform(
-                    r, g, b
-            );
-            setColor4f(c[0], c[1], c[2], a);
+            float[] srgb = ColorSpace.connect(colorSpace)
+                    .transform(r, g, b);
+            setColor4f(srgb[0], srgb[1], srgb[2], a);
         } else {
             setColor4f(r, g, b, a);
         }

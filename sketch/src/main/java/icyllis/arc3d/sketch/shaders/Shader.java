@@ -19,6 +19,7 @@
 
 package icyllis.arc3d.sketch.shaders;
 
+import icyllis.arc3d.core.Size;
 import icyllis.arc3d.sketch.Matrix;
 import icyllis.arc3d.sketch.Matrixc;
 import icyllis.arc3d.core.RefCounted;
@@ -26,6 +27,7 @@ import icyllis.arc3d.core.SharedPtr;
 import org.intellij.lang.annotations.MagicConstant;
 import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Shaders specify the source color(s) for what is being drawn. If a paint
@@ -88,12 +90,30 @@ public sealed interface Shader extends RefCounted
     /**
      * Returns true if the shader is guaranteed to produce only a single color.
      * Subclasses can override this to allow loop-hoisting optimization.
+     * <p>
+     * This method is consistent with {@link #getConstantColor(float[])}.
      *
      * @hidden
      */
     @ApiStatus.Internal
     default boolean isConstant() {
         return false;
+    }
+
+    /**
+     * Returns non-null if the shader is guaranteed to produce only a single color.
+     * Subclasses can override this to allow loop-hoisting optimization.
+     * <p>
+     * Returned [r,g,b,a] color is in sRGB and non-premultiplied. This method is
+     * consistent with {@link #isConstant()}.
+     *
+     * @param dst the out constant color, if null, a new array is returned
+     * @return the constant color if shader is constant, or null if not constant
+     * @hidden
+     */
+    @ApiStatus.Internal
+    default float @Nullable [] getConstantColor(@Size(4) float @Nullable [] dst) {
+        return null;
     }
 
     /**

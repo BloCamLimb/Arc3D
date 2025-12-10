@@ -28,6 +28,8 @@ import org.jetbrains.annotations.VisibleForTesting;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Arrays;
+
 /**
  * A Shader that represents a single color. In general, this effect can be accomplished by just
  * using the color field on the paint, but if an actual shader object is needed, this provides that
@@ -63,20 +65,28 @@ public final class ColorShader implements Shader {
         mA = MathUtil.pin(a, 0.0f, 1.0f);
     }
 
-    @Contract(pure = true)
     @SharedPtr
-    public static @Nullable Shader make(@Size(4) float @NonNull [] color, @Nullable ColorSpace space) {
-        return make(color[0], color[1], color[2], color[3], space);
+    public static @Nullable Shader make(@Size(min = 4) float @NonNull[] color,
+                                        @Nullable ColorSpace colorSpace) {
+        if (!MathUtil.isFinite(color, 0, color.length)) {
+            return null;
+        }
+        if (colorSpace != null && !colorSpace.isSrgb()) {
+            float[] srgb = ColorSpace.connect(colorSpace)
+                    .transform(Arrays.copyOfRange(color, 0, color.length - 1));
+            return new ColorShader(srgb[0], srgb[1], srgb[2], color[color.length - 1]);
+        }
+        return new ColorShader(color[0], color[1], color[2], color[3]);
     }
 
-    @Contract(pure = true)
     @SharedPtr
-    public static @Nullable Shader make(float r, float g, float b, float a, @Nullable ColorSpace space) {
+    public static @Nullable Shader make(float r, float g, float b, float a,
+                                        @Nullable ColorSpace colorSpace) {
         if (!MathUtil.isFinite(r, g, b, a)) {
             return null;
         }
-        if (space != null && !space.isSrgb()) {
-            float[] srgb = ColorSpace.connect(space)
+        if (colorSpace != null && !colorSpace.isSrgb()) {
+            float[] srgb = ColorSpace.connect(colorSpace)
                     .transform(r, g, b);
             return new ColorShader(srgb[0], srgb[1], srgb[2], a);
         }
@@ -91,6 +101,18 @@ public final class ColorShader implements Shader {
     @Override
     public boolean isConstant() {
         return true;
+    }
+
+    @Override
+    public float @Nullable [] getConstantColor(float @Nullable [] dst) {
+        if (dst == null) {
+            return getColor();
+        }
+        dst[0] = mR;
+        dst[1] = mG;
+        dst[2] = mB;
+        dst[3] = mA;
+        return dst;
     }
 
     /**
