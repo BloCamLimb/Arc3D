@@ -31,11 +31,8 @@ public class KeyContext {
     private final RecordingContext mRecordingContext;
     private final Caps mCaps;
     private final ImageInfo mTargetInfo;
-    // color components using non-premultiplied alpha
-    private float mR; // 0..1
-    private float mG; // 0..1
-    private float mB; // 0..1
-    private float mA; // 0..1
+    // color components using non-premultiplied alpha, transformed into destination space
+    private final float[] mColor = new float[4];
 
     public KeyContext(@RawPtr RecordingContext recordingContext,
                       ImageInfo targetInfo) {
@@ -44,21 +41,11 @@ public class KeyContext {
         mTargetInfo = targetInfo;
     }
 
-    public void reset(PaintParams paintParams) {
-        var dstCS = mTargetInfo.colorSpace();
-        if (dstCS != null && !dstCS.isSrgb()) {
-            float[] col = ColorSpace.connect(
-                    ColorSpace.get(ColorSpace.Named.SRGB), dstCS
-            ).transform(paintParams.r(), paintParams.g(), paintParams.b());
-            mR = col[0];
-            mG = col[1];
-            mB = col[2];
-        } else {
-            mR = paintParams.r();
-            mG = paintParams.g();
-            mB = paintParams.b();
+    public void reset(float @Nullable [] paintColor) {
+        if (paintColor != null) {
+            System.arraycopy(paintColor, 0, mColor, 0, 4);
+            PaintParams.prepareColorForDst(mColor, mTargetInfo);
         }
-        mA = paintParams.a();
     }
 
     /**
@@ -75,31 +62,14 @@ public class KeyContext {
     }
 
     /**
-     * Returns the value of the red component, in destination space.
+     * Returns the current paint color, in destination space, non-premultiplied.
+     * This is not a copy, don't modify.
+     * <p>
+     * Since RGB and alpha are never used together, it is assumed to be opaque,
+     * no need to premultiply.
      */
-    public float r() {
-        return mR;
-    }
-
-    /**
-     * Returns the value of the green component, in destination space.
-     */
-    public float g() {
-        return mG;
-    }
-
-    /**
-     * Returns the value of the blue component, in destination space.
-     */
-    public float b() {
-        return mB;
-    }
-
-    /**
-     * Returns the value of the alpha component, in destination space.
-     */
-    public float a() {
-        return mA;
+    public float[] getPaintColor() {
+        return mColor;
     }
 
     public ImageInfo targetInfo() {

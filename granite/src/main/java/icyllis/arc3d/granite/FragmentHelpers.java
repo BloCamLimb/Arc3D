@@ -145,7 +145,7 @@ public class FragmentHelpers {
             UniformDataGatherer uniformDataGatherer,
             TextureDataGatherer textureDataGatherer
     ) {
-        uniformDataGatherer.writePaintColor(keyContext.r(), keyContext.g(), keyContext.b(), keyContext.a());
+        uniformDataGatherer.writePaintColor(keyContext.getPaintColor());
 
         keyBuilder.addInt(FragmentStage.kRGBOpaquePaintColor_BuiltinStageID);
     }
@@ -156,7 +156,7 @@ public class FragmentHelpers {
             UniformDataGatherer uniformDataGatherer,
             TextureDataGatherer textureDataGatherer
     ) {
-        uniformDataGatherer.writePaintColor(keyContext.r(), keyContext.g(), keyContext.b(), keyContext.a());
+        uniformDataGatherer.writePaintColor(keyContext.getPaintColor());
 
         keyBuilder.addInt(FragmentStage.kAlphaOnlyPaintColor_BuiltinStageID);
     }
@@ -933,7 +933,7 @@ public class FragmentHelpers {
                                       TextureDataGatherer textureDataGatherer,
                                       @RawPtr BlendModeColorFilter colorFilter) {
         float[] blendColor = colorFilter.getColor();
-        PaintParams.prepareColorForDst(blendColor, keyContext.targetInfo(), false);
+        PaintParams.prepareColorForDst(blendColor, keyContext.targetInfo());
         for (int i = 0; i < 3; i++) {
             blendColor[i] *= blendColor[3];
         }

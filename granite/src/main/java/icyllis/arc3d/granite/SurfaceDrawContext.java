@@ -266,7 +266,7 @@ public final class SurfaceDrawContext implements AutoCloseable {
                 useStepSolidColor = step.handlesSolidColor() && paintParams.isSolidColor();
                 // Add paint fragment stages, final blender, clip shader,
                 // if this is the step that performs shading, and not a depth-only draw
-                keyContext.reset(paintParams);
+                keyContext.reset(useStepSolidColor ? null : paintParams.getColor());
                 paintParams.appendToKey(keyContext,
                         mPaintParamsKeyBuilder,
                         mUniformDataGatherer,

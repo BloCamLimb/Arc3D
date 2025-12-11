@@ -635,7 +635,7 @@ public final class GraniteDevice extends Device {
     }
 
     private static boolean paint_depends_on_dst(PaintParams paintParams) {
-        return paint_depends_on_dst(paintParams.a(),
+        return paint_depends_on_dst(paintParams.getColor()[3],
                 paintParams.getShader(),
                 paintParams.getColorFilter(),
                 paintParams.getFinalBlender(),
@@ -702,7 +702,7 @@ public final class GraniteDevice extends Device {
             primitiveBlender = BlendMode.SRC_OVER;
         }
 
-        var paintParams = mPaintParams.set(paint, primitiveBlender); // move
+        var paintParams = mPaintParams.set(paint, primitiveBlender, false); // move
 
         final int numNewRenderSteps = renderer.numSteps();
 

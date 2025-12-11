@@ -69,7 +69,7 @@ public class Canvas implements AutoCloseable {
     /**
      * Clip ops.
      */
-    public static final byte
+    public static final int
             CLIP_OP_DIFFERENCE = 0, // target minus operand
             CLIP_OP_INTERSECT = 1;  // target intersected with operand
 

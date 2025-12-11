@@ -102,4 +102,8 @@ public final class GeometryRenderer {
     public boolean emitsCoverage() {
         return (mStepFlags & GeometryStep.FLAG_EMIT_COVERAGE) != 0;
     }
+
+    public boolean handlesSolidColor() {
+        return (mStepFlags & GeometryStep.FLAG_HANDLE_SOLID_COLOR) != 0;
+    }
 }

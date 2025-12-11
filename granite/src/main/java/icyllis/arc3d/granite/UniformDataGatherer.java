@@ -225,9 +225,9 @@ public class UniformDataGatherer implements AutoCloseable {
      * color. If a more general system is required, the deduplication logic can be added to the
      * other write methods (and this specialized method would be removed).
      */
-    public void writePaintColor(float r, float g, float b, float a) {
+    public void writePaintColor(float[] color) {
         if (!mWrotePaintColor) {
-            write4f(r, g, b, a);
+            write4f(color);
             mWrotePaintColor = true;
         }
     }

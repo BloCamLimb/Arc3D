@@ -26,8 +26,6 @@ import icyllis.arc3d.sketch.BlendMode;
 import icyllis.arc3d.sketch.Blender;
 import icyllis.arc3d.sketch.Paint;
 import icyllis.arc3d.core.RawPtr;
-import icyllis.arc3d.core.RefCnt;
-import icyllis.arc3d.core.SharedPtr;
 import icyllis.arc3d.sketch.effects.ColorFilter;
 import icyllis.arc3d.sketch.shaders.Shader;
 import icyllis.arc3d.engine.KeyBuilder;
@@ -43,10 +41,7 @@ import java.util.Arrays;
 public final class PaintParams {
 
     // color components using non-premultiplied alpha
-    private float mR; // 0..1
-    private float mG; // 0..1
-    private float mB; // 0..1
-    private float mA; // 0..1
+    private final float[] mColor = new float[4];
     // A nullptr mPrimitiveBlender means there's no primitive color blending and it is skipped.
     // In the case where there is primitive blending, the primitive color is the source color and
     // the dest is the paint's color (or the paint's shader's computed color).
@@ -62,13 +57,19 @@ public final class PaintParams {
     }
 
     public PaintParams set(@NonNull Paint paint,
-                           @Nullable Blender primitiveBlender) {
-        mR = paint.getRed();
-        mG = paint.getGreen();
-        mB = paint.getBlue();
-        mA = paint.getAlpha();
+                           @Nullable Blender primitiveBlender,
+                           boolean ignoreShader) {
+        paint.getColor4f(mColor);
         mPrimitiveBlender = primitiveBlender;
-        mShader = paint.getShader();
+        mShader = ignoreShader ? null : paint.getShader();
+        if (mShader != null) {
+            float origA = mColor[3];
+            if (mShader.getConstantColor(mColor) != null) {
+                // shader color is always modulated by paint's alpha, see handlePaintAlpha()
+                mColor[3] *= origA;
+                mShader = null;
+            }
+        }
         mColorFilter = paint.getColorFilter();
         mFinalBlender = paint.getBlender();
         mDither = paint.isDither();
@@ -84,31 +85,11 @@ public final class PaintParams {
     }
 
     /**
-     * Returns the value of the red component, in sRGB space.
+     * Returns the paint color, in sRGB space, non-premultiplied.
+     * This is not a copy, don't modify.
      */
-    public float r() {
-        return mR;
-    }
-
-    /**
-     * Returns the value of the green component, in sRGB space.
-     */
-    public float g() {
-        return mG;
-    }
-
-    /**
-     * Returns the value of the blue component, in sRGB space.
-     */
-    public float b() {
-        return mB;
-    }
-
-    /**
-     * Returns the value of the alpha component, in sRGB space.
-     */
-    public float a() {
-        return mA;
+    public float[] getColor() {
+        return mColor;
     }
 
     @RawPtr
@@ -142,16 +123,13 @@ public final class PaintParams {
     /**
      * Map into destination color space, in color and result color are non-premultiplied.
      */
-    public static float[] prepareColorForDst(float[] color,
-                                             ImageInfo dstInfo,
-                                             boolean copyOnWrite) {
+    public static void prepareColorForDst(float[] color,
+                                          ImageInfo dstInfo) {
         ColorSpace dstCS = dstInfo.colorSpace();
         if (dstCS != null && !dstCS.isSrgb()) {
-            float[] result = copyOnWrite ? Arrays.copyOfRange(color, 0, 4) : color;
-            return ColorSpace.connect(ColorSpace.get(ColorSpace.Named.SRGB), dstCS)
-                    .transform(result);
+            ColorSpace.connect(ColorSpace.get(ColorSpace.Named.SRGB), dstCS)
+                    .transform(color);
         }
-        return color;
     }
 
     /**
@@ -167,19 +145,19 @@ public final class PaintParams {
      * and stores the solid color. The color will be transformed to the
      * target's color space and premultiplied.
      */
-    public boolean getSolidColor(ImageInfo targetInfo, float @Nullable [] outColor) {
+    public boolean getSolidColor(ImageInfo dstInfo, float @Nullable [] outColor) {
         if (mShader == null && mPrimitiveBlender == null) {
             if (outColor != null) {
-                outColor[0] = mR;
-                outColor[1] = mG;
-                outColor[2] = mB;
-                outColor[3] = mA;
-                prepareColorForDst(outColor, targetInfo, false);
+                System.arraycopy(mColor, 0, outColor, 0, 4);
+                // color transform
+                prepareColorForDst(outColor, dstInfo);
+                // premul
                 for (int i = 0; i < 3; i++) {
                     outColor[i] *= outColor[3];
                 }
                 if (mColorFilter != null) {
-                    mColorFilter.filterColor4f(outColor, outColor, targetInfo.colorSpace());
+                    // color filter is applied is destination space
+                    mColorFilter.filterColor4f(outColor, outColor, dstInfo.colorSpace());
                 }
             }
             return true;
@@ -190,17 +168,20 @@ public final class PaintParams {
     /**
      * Similar to {@link #getSolidColor(ImageInfo, float[])}, without a PaintParams instance.
      */
-    public static boolean getSolidColor(Paint paint, ImageInfo targetInfo, float[] outColor) {
+    public static boolean getSolidColor(Paint paint, ImageInfo dstInfo, float[] outColor) {
         if (paint.getShader() == null) {
             if (outColor != null) {
                 paint.getColor4f(outColor);
-                prepareColorForDst(outColor, targetInfo, false);
+                // color transform
+                prepareColorForDst(outColor, dstInfo);
+                // premul
                 for (int i = 0; i < 3; i++) {
                     outColor[i] *= outColor[3];
                 }
                 var colorFilter = paint.getColorFilter();
                 if (colorFilter != null) {
-                    colorFilter.filterColor4f(outColor, outColor, targetInfo.colorSpace());
+                    // color filter is applied is destination space
+                    colorFilter.filterColor4f(outColor, outColor, dstInfo.colorSpace());
                 }
             }
             return true;
@@ -329,17 +310,21 @@ public final class PaintParams {
         if (mShader == null && mPrimitiveBlender == null) {
             // If there is no shader and no primitive blending the input to the colorFilter stage
             // is just the premultiplied paint color.
+            float[] paintColor = keyContext.getPaintColor();
+            // this is just paint color but has already been transformed into destination space
+            float a = paintColor[3];
             FragmentHelpers.appendSolidColorShaderBlock(
                     keyContext,
                     keyBuilder,
                     uniformDataGatherer,
                     textureDataGatherer,
-                    mR * mA, mG * mA, mB * mA, mA
+                    // but remember to premultiply
+                    paintColor[0] * a, paintColor[1] * a, paintColor[2] * a, a
             );
             return;
         }
 
-        if (mA != 1.0f) {
+        if (mColor[3] != 1.0f) {
             keyBuilder.addInt(FragmentStage.kBlend_BuiltinStageID);
 
             // src

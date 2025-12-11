@@ -72,6 +72,9 @@ public abstract sealed class ColorFilter
      * Applies this color filter with RGBA colors. col and out store premultiplied
      * R,G,B,A components from index 0 to 3. col and out can be the same pointer.
      * col is read-only, out may be written multiple times.
+     * <p>
+     * This method assumes that the input color col has already been transformed to the
+     * destination space, and the out color will be also in the destination space.
      *
      * @param col   base color
      * @param out   resulting color
