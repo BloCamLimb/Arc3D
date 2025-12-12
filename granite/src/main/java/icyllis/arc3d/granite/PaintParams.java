@@ -28,17 +28,29 @@ import icyllis.arc3d.sketch.Paint;
 import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.sketch.effects.ColorFilter;
 import icyllis.arc3d.sketch.shaders.Shader;
-import icyllis.arc3d.engine.KeyBuilder;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
-
-import java.util.Arrays;
 
 /**
  * Parameters used for shading.
  */
 //TODO currently we don't handle advanced blending
 public final class PaintParams {
+
+    /**
+     * The final blender combining paint color does not depend on dst.
+     */
+    public static final int DST_USAGE_NONE = 0x0;
+    /**
+     * The final blender depends on dst or pipeline has clip shader.
+     * This does not take into account the coverage of the renderer, as it may be
+     * coverage anti-aliasing (analytic XX) or masking (raster text, coverage mask).
+     */
+    public static final int DST_USAGE_DEPENDS_ON_DST = 0x1;
+    /**
+     * Additionally, cannot use hardware blending and requires dst read in shader.
+     */
+    public static final int DST_USAGE_DST_READ_REQUIRED = 0x2;
 
     // color components using non-premultiplied alpha
     private final float[] mColor = new float[4];
@@ -52,12 +64,15 @@ public final class PaintParams {
     // A nullptr here means SrcOver blending
     private @Nullable Blender mFinalBlender;
     private boolean mDither;
+    // Skip primitive color space transform
+    private boolean mSkipColorTransform;
 
     public PaintParams() {
     }
 
     public PaintParams set(@NonNull Paint paint,
                            @Nullable Blender primitiveBlender,
+                           boolean skipColorTransform,
                            boolean ignoreShader) {
         paint.getColor4f(mColor);
         mPrimitiveBlender = primitiveBlender;
@@ -73,6 +88,7 @@ public final class PaintParams {
         mColorFilter = paint.getColorFilter();
         mFinalBlender = paint.getBlender();
         mDither = paint.isDither();
+        mSkipColorTransform = skipColorTransform;
         // antialias flag is already handled
         return this;
     }
@@ -133,36 +149,26 @@ public final class PaintParams {
     }
 
     /**
-     * Returns true if the paint can be simplified to a solid color,
-     * and stores the solid color.
-     */
-    public boolean isSolidColor() {
-        return getSolidColor(null, null);
-    }
-
-    /**
-     * Returns true if the paint can be simplified to a solid color,
+     * Returns if the paint can be simplified to a solid color,
      * and stores the solid color. The color will be transformed to the
      * target's color space and premultiplied.
      */
-    public boolean getSolidColor(ImageInfo dstInfo, float @Nullable [] outColor) {
+    public float @Nullable [] getSolidColor(KeyContext keyContext) {
         if (mShader == null && mPrimitiveBlender == null) {
-            if (outColor != null) {
-                System.arraycopy(mColor, 0, outColor, 0, 4);
-                // color transform
-                prepareColorForDst(outColor, dstInfo);
-                // premul
-                for (int i = 0; i < 3; i++) {
-                    outColor[i] *= outColor[3];
-                }
-                if (mColorFilter != null) {
-                    // color filter is applied is destination space
-                    mColorFilter.filterColor4f(outColor, outColor, dstInfo.colorSpace());
-                }
+            // see handlePaintAlpha()
+            // this is just this.color but has already been transformed into destination space
+            float[] outColor = keyContext.paintColor.clone();
+            // premul
+            for (int i = 0; i < 3; i++) {
+                outColor[i] *= outColor[3];
             }
-            return true;
+            if (mColorFilter != null) {
+                // color filter is applied is the destination space
+                mColorFilter.filterColor4f(outColor, outColor, keyContext.dstInfo.colorSpace());
+            }
+            return outColor;
         }
-        return false;
+        return null;
     }
 
     /**
@@ -187,6 +193,23 @@ public final class PaintParams {
             return true;
         }
         return false;
+    }
+
+    private static boolean blend_depends_on_dst(BlendMode bm,
+                                                boolean srcIsOpaque) {
+        if (bm == null) {
+            return true;
+        }
+        if (bm == BlendMode.SRC || bm == BlendMode.CLEAR) {
+            // src and clear blending never depends on dst
+            return false;
+        }
+        if (bm == BlendMode.SRC_OVER || bm == BlendMode.DST_OUT) {
+            // src-over depends on dst if src is transparent (a != 1)
+            // dst-out simplifies to clear if a == 1
+            return !srcIsOpaque;
+        }
+        return true;
     }
 
     private boolean shouldDither(int dstCT) {
@@ -240,217 +263,186 @@ public final class PaintParams {
         };
     }
 
-    private void appendPaintColorToKey(KeyContext keyContext,
-                                       KeyBuilder keyBuilder,
-                                       UniformDataGatherer uniformDataGatherer,
-                                       TextureDataGatherer textureDataGatherer) {
+    private boolean appendPaintColorToKey(KeyContext keyContext) {
         if (mShader != null) {
             FragmentHelpers.appendToKey(
                     keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer,
                     mShader
             );
+            return mShader.isOpaque();
         } else {
             FragmentHelpers.appendRGBOpaquePaintColorBlock(
-                    keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer
+                    keyContext
             );
+            return true; // rgb1, always opaque
         }
     }
 
-    private void handlePrimitiveColor(KeyContext keyContext,
-                                      KeyBuilder keyBuilder,
-                                      UniformDataGatherer uniformDataGatherer,
-                                      TextureDataGatherer textureDataGatherer) {
+    private boolean handlePrimitiveColor(KeyContext keyContext) {
         if (mPrimitiveBlender != null) {
-            keyBuilder.addInt(FragmentStage.kBlend_BuiltinStageID);
+
+            //TODO handle skipping
+            BlendMode primBlend = mPrimitiveBlender.asBlendMode();
+
+            /*ColorSpace dstCS;
+            if (primBlend == BlendMode.DST && (mSkipColorTransform || ((dstCS = keyContext.targetInfo().colorSpace()) == null || dstCS.isSrgb()))) {
+
+            }*/
+
+            keyContext.addBlock(FragmentStage.kBlend_BuiltinStageID);
 
             // src
-            appendPaintColorToKey(
-                    keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer
+            boolean srcIsOpaque = appendPaintColorToKey(
+                    keyContext
             );
 
             // dst
             FragmentHelpers.appendPrimitiveColorBlock(
-                    keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer
+                    keyContext
             );
 
             // blend
             FragmentHelpers.appendToKey(
                     keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer,
                     mPrimitiveBlender
             );
+
+            if (srcIsOpaque && primBlend != null) {
+                // If the input paint/shader is opaque, the result is only opaque if the primitive blend
+                // mode is kSrc or kSrcOver. All other modes can introduce transparency.
+                return primBlend == BlendMode.SRC || primBlend == BlendMode.SRC_OVER;
+            }
+
+            // If the input was already transparent, or if it's a runtime/complex blend mode,
+            // the result cannot be considered opaque.
+            return false;
         } else {
-            appendPaintColorToKey(
-                    keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer
+            // If no primitive blending is required, simply add the paint color.
+            return appendPaintColorToKey(
+                    keyContext
             );
         }
     }
 
-    private void handlePaintAlpha(KeyContext keyContext,
-                                  KeyBuilder keyBuilder,
-                                  UniformDataGatherer uniformDataGatherer,
-                                  TextureDataGatherer textureDataGatherer) {
+    private boolean handlePaintAlpha(KeyContext keyContext) {
         if (mShader == null && mPrimitiveBlender == null) {
             // If there is no shader and no primitive blending the input to the colorFilter stage
             // is just the premultiplied paint color.
-            float[] paintColor = keyContext.getPaintColor();
+            float[] paintColor = keyContext.paintColor;
             // this is just paint color but has already been transformed into destination space
             float a = paintColor[3];
+            assert a == mColor[3];
             FragmentHelpers.appendSolidColorShaderBlock(
                     keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer,
                     // but remember to premultiply
                     paintColor[0] * a, paintColor[1] * a, paintColor[2] * a, a
             );
-            return;
+            return a == 1.0f;
         }
 
         if (mColor[3] != 1.0f) {
-            keyBuilder.addInt(FragmentStage.kBlend_BuiltinStageID);
+            keyContext.addBlock(FragmentStage.kBlend_BuiltinStageID);
 
             // src
             handlePrimitiveColor(
-                    keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer
+                    keyContext
             );
 
             // dst
             FragmentHelpers.appendAlphaOnlyPaintColorBlock(
-                    keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer
+                    keyContext
             );
 
             // blend
             FragmentHelpers.appendFixedBlendMode(
                     keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer,
                     BlendMode.SRC_IN
             );
+
+            // The result is guaranteed to be non-opaque because we're blending with mColor's alpha.
+            return false;
         } else {
-            handlePrimitiveColor(
-                    keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer
+            return handlePrimitiveColor(
+                    keyContext
             );
         }
     }
 
-    private void handleColorFilter(KeyContext keyContext,
-                                   KeyBuilder keyBuilder,
-                                   UniformDataGatherer uniformDataGatherer,
-                                   TextureDataGatherer textureDataGatherer) {
+    private boolean handleColorFilter(KeyContext keyContext) {
         if (mColorFilter != null) {
-            keyBuilder.addInt(FragmentStage.kCompose_BuiltinStageID);
+            keyContext.addBlock(FragmentStage.kCompose_BuiltinStageID);
 
-            handlePaintAlpha(
-                    keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer
+            boolean srcIsOpaque = handlePaintAlpha(
+                    keyContext
             );
 
             FragmentHelpers.appendToKey(
                     keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer,
                     mColorFilter
             );
+
+            return srcIsOpaque && mColorFilter.isAlphaUnchanged();
         } else {
-            handlePaintAlpha(
-                    keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer
+            return handlePaintAlpha(
+                    keyContext
             );
         }
     }
 
-    private void handleDithering(KeyContext keyContext,
-                                 KeyBuilder keyBuilder,
-                                 UniformDataGatherer uniformDataGatherer,
-                                 TextureDataGatherer textureDataGatherer) {
-        int dstCT = keyContext.targetInfo().colorType();
+    private boolean handleDithering(KeyContext keyContext) {
+        int dstCT = keyContext.dstInfo.colorType();
         if (shouldDither(dstCT)) {
             float ditherRange = getDitherRange(dstCT);
             if (ditherRange != 0) {
-                keyBuilder.addInt(FragmentStage.kCompose_BuiltinStageID);
+                keyContext.addBlock(FragmentStage.kCompose_BuiltinStageID);
 
-                handleColorFilter(
-                        keyContext,
-                        keyBuilder,
-                        uniformDataGatherer,
-                        textureDataGatherer
+                boolean srcIsOpaque = handleColorFilter(
+                        keyContext
                 );
 
                 FragmentHelpers.appendDitherShaderBlock(
                         keyContext,
-                        keyBuilder,
-                        uniformDataGatherer,
-                        textureDataGatherer,
                         ditherRange
                 );
-                return;
+                return srcIsOpaque;
             }
         }
 
-        handleColorFilter(
-                keyContext,
-                keyBuilder,
-                uniformDataGatherer,
-                textureDataGatherer
+        return handleColorFilter(
+                keyContext
         );
     }
 
-    public void appendToKey(KeyContext keyContext,
-                            KeyBuilder keyBuilder,
-                            UniformDataGatherer uniformDataGatherer,
-                            TextureDataGatherer textureDataGatherer,
-                            boolean useStepSolidColor) {
-        //TODO
-
-        // Optional Root 0 source color
-        if (!useStepSolidColor) {
-            handleDithering(
-                    keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer
+    /**
+     * Returns dst usage flags.
+     */
+    public int toKey(KeyContext keyContext,
+                     float @Nullable [] stepSolidColor,
+                     @Nullable Shader clipShader) {
+        // (Optional) Root 0 source color
+        // paint color or shader -> primitive color -> paint alpha -> color filter -> dither
+        boolean srcIsOpaque;
+        if (stepSolidColor == null) {
+            srcIsOpaque = handleDithering(
+                    keyContext
             );
+        } else {
+            srcIsOpaque = stepSolidColor[3] == 1.0f;
         }
 
+        boolean dependsOnDst = clipShader != null;
+
         // Root 1 final blender
+        //TODO custom blender and advanced blending is not supported yet
         BlendMode finalBlend = getFinalBlendMode();
         FragmentHelpers.appendFixedBlendMode(
-                keyContext, keyBuilder,
-                uniformDataGatherer, textureDataGatherer,
+                keyContext,
                 finalBlend
         );
+        dependsOnDst |= blend_depends_on_dst(finalBlend, srcIsOpaque);
+
+        // (Optional) Root 2 clipping
+
+        return dependsOnDst ? DST_USAGE_DEPENDS_ON_DST : 0;
     }
 }

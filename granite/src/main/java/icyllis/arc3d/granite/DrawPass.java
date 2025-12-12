@@ -31,7 +31,7 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
  * @see PipelineBuilder
  */
 @SuppressWarnings("ForLoopReplaceableByForEach")
-public class DrawPass implements AutoCloseable {
+public final class DrawPass implements AutoCloseable {
 
     public static final int GEOMETRY_UNIFORM_BLOCK_BINDING = 0; // i.e. RenderBlock/StepBlock
     public static final int FRAGMENT_UNIFORM_BLOCK_BINDING = 1; // i.e. PaintBlock/EffectBlock/ShadingBlock

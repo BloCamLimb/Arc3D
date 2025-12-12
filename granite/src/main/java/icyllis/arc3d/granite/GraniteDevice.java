@@ -25,6 +25,8 @@ import icyllis.arc3d.engine.ISurface;
 import icyllis.arc3d.engine.ImageDesc;
 import icyllis.arc3d.engine.ImageProxy;
 import icyllis.arc3d.engine.ImageProxyView;
+import icyllis.arc3d.engine.Key;
+import icyllis.arc3d.engine.KeyBuilder;
 import icyllis.arc3d.granite.geom.ArcShape;
 import icyllis.arc3d.granite.geom.BoundsManager;
 import icyllis.arc3d.granite.geom.BoxShape;
@@ -47,10 +49,10 @@ import org.jspecify.annotations.Nullable;
  */
 public final class GraniteDevice extends Device {
 
-    // raw pointer
-    private RecordingContext mRC;
-    // unique ref
-    private SurfaceDrawContext mSDC;
+    @RawPtr
+    private RecordingContext mContext;
+    @SharedPtr
+    private SurfaceDrawContext mDrawContext;
 
     private final ClipStack mClipStack;
     private final ObjectArrayList<ClipStack.Element> mElementsForMask = new ObjectArrayList<>();
@@ -65,15 +67,24 @@ public final class GraniteDevice extends Device {
     private final Paint mSubRunPaint = new Paint();
     private final TextBlobCache.FeatureKey mBlobKey = new TextBlobCache.FeatureKey();
 
+    @RawPtr
     private final RendererProvider mRendererProvider;
-
-    private final KeyContext mKeyContext;
+    @RawPtr
     private final PaintParams mPaintParams = new PaintParams();
 
-    private GraniteDevice(RecordingContext rc, SurfaceDrawContext sdc) {
-        super(sdc.getImageInfo());
-        mRC = rc;
-        mSDC = sdc;
+    /**
+     * Gatherer of {@link DrawPass#GEOMETRY_UNIFORM_BLOCK_NAME} and {@link DrawPass#FRAGMENT_UNIFORM_BLOCK_NAME}.
+     * But we will not gather both at the same time.
+     */
+    @SharedPtr
+    private UniformDataGatherer mUniformDataGatherer;
+    @RawPtr
+    private KeyContext mKeyContext;
+
+    private GraniteDevice(RecordingContext context, SurfaceDrawContext drawContext) {
+        super(drawContext.getImageInfo());
+        mContext = context;
+        mDrawContext = drawContext;
         mClipStack = new ClipStack(this);
         // These default tuning numbers for the HybridBoundsManager were chosen from looking at performance
         // and accuracy curves produced by the BoundsManagerBench for random draw bounding boxes. This
@@ -89,9 +100,13 @@ public final class GraniteDevice extends Device {
                 16, 64, 32
         );
         //mColorDepthBoundsManager = new SimpleBoundsManager();
-        mRendererProvider = rc.getSharedObject(GraniteUtil.RENDERER_PROVIDER);
+        mRendererProvider = context.getSharedObject(GraniteUtil.RENDERER_PROVIDER);
 
-        mKeyContext = new KeyContext(rc, sdc.getImageInfo());
+        // layout doesn't matter, our struct definition yields same layout in std140 and std430
+        mUniformDataGatherer = new UniformDataGatherer(UniformDataGatherer.Std140Layout);
+
+        mKeyContext = new KeyContext(context, drawContext, new KeyBuilder(),
+                mUniformDataGatherer, drawContext.getTextureDataGatherer(), drawContext.getImageInfo());
     }
 
     @Nullable
@@ -154,20 +169,20 @@ public final class GraniteDevice extends Device {
         if (rc == null) {
             return null;
         }
-        SurfaceDrawContext sdc = SurfaceDrawContext.make(rc,
+        SurfaceDrawContext drawContext = SurfaceDrawContext.make(rc,
                 targetView, // move
                 deviceInfo);
-        if (sdc == null) {
+        if (drawContext == null) {
             return null;
         }
         if (initialLoadOp == Engine.LoadOp.kClear) {
-            sdc.clear(null);
+            drawContext.clear(null);
         } else if (initialLoadOp == Engine.LoadOp.kDiscard) {
-            sdc.discard();
+            drawContext.discard();
         }
 
         @SharedPtr
-        GraniteDevice device = new GraniteDevice(rc, sdc);
+        GraniteDevice device = new GraniteDevice(rc, drawContext);
         if (trackDevice) {
             rc.trackDevice(RefCnt.create(device));
         }
@@ -177,35 +192,55 @@ public final class GraniteDevice extends Device {
     @Override
     protected void deallocate() {
         super.deallocate();
-        mSDC.close();
-        mSDC = null;
-        assert mRC == null;
+        freeDrawContext();
+        assert mContext == null;
     }
 
     public void setImmutable() {
-        if (mRC != null) {
+        if (mContext != null) {
             // Push any pending work to the RC now. setImmutable() is only called by the
             // destructor of a client-owned Surface, or explicitly in layer/filtering workflows. In
             // both cases this is restricted to the RC's thread. This is in contrast to deallocate(),
             // which might be called from another thread if it was linked to an Image used in multiple
             // recorders.
             flushPendingWork();
-            mRC.untrackDevice(this);
-            // Discarding the RC ensures that there are no further operations that can be recorded
+            mContext.untrackDevice(this);
+            // Discarding the context ensures that there are no further operations that can be recorded
             // and is relied on by Image::notifyInUse() to detect when it can unlink from a Device.
-            discardRC();
+            discardContext();
         }
     }
 
-    public void discardRC() {
-        mRC = null;
+    private void freeDrawContext() {
+        // we own these objects that used to record draws
+        mKeyContext = null;
+
+        if (mDrawContext != null) {
+            mDrawContext.close();
+        }
+        mDrawContext = null;
+
+        if (mUniformDataGatherer != null) {
+            mUniformDataGatherer.close();
+        }
+        mUniformDataGatherer = null;
+    }
+
+    public void discardContext() {
+        freeDrawContext();
+        mContext = null;
+    }
+
+    @RawPtr
+    public RecordingContext getContext() {
+        return mContext;
     }
 
     @NonNull
     @Override
     public RecordingContext getCommandContext() {
-        assert mRC != null;
-        return mRC;
+        assert mContext != null;
+        return mContext;
     }
 
     /**
@@ -213,7 +248,7 @@ public final class GraniteDevice extends Device {
      */
     @RawPtr
     public ImageProxyView getReadView() {
-        return mSDC.getReadView();
+        return mDrawContext.getReadView();
     }
 
     @Nullable
@@ -222,12 +257,12 @@ public final class GraniteDevice extends Device {
                                       boolean budgeted,
                                       boolean mipmapped,
                                       boolean approxFit) {
-        assert mRC.isOwnerThread();
+        assert mContext.isOwnerThread();
         flushPendingWork();
 
         var srcInfo = getImageInfo();
         @RawPtr
-        var srcView = mSDC.getReadView();
+        var srcView = mDrawContext.getReadView();
         String label = srcView.getProxy().getLabel();
         if (label == null || label.isEmpty()) {
             label = "CopyDeviceTexture";
@@ -236,7 +271,7 @@ public final class GraniteDevice extends Device {
         }
 
         return GraniteImage.copy(
-                mRC, srcView, srcInfo, subset,
+                mContext, srcView, srcInfo, subset,
                 budgeted, mipmapped, approxFit, label
         );
     }
@@ -303,12 +338,12 @@ public final class GraniteDevice extends Device {
             float[] color = new float[4];
             if (PaintParams.getSolidColor(paint, getImageInfo(), color)) {
                 // do fullscreen clear
-                mSDC.clear(color);
+                mDrawContext.clear(color);
                 return;
             } else {
                 // This paint does not depend on the destination and covers the entire surface, so
                 // discard everything previously recorded and proceed with the draw.
-                mSDC.discard();
+                mDrawContext.discard();
             }
         }
 
@@ -471,7 +506,7 @@ public final class GraniteDevice extends Device {
 
         if (glyphRunList.mOriginalTextBlob != null) {
             // use cache if it comes from TextBlob
-            var blobCache = mRC.getTextBlobCache();
+            var blobCache = mContext.getTextBlobCache();
             mBlobKey.update(glyphRunList, paint, positionMatrix);
             var entry = blobCache.find(glyphRunList.mOriginalTextBlob, mBlobKey);
             if (entry == null || !entry.canReuse(paint, positionMatrix,
@@ -543,7 +578,7 @@ public final class GraniteDevice extends Device {
                                 float originX, float originY,
                                 Paint paint) {
         int maskFormat = subRun.getMaskFormat();
-        if (!mRC.getAtlasProvider().getGlyphAtlasManager().initAtlas(
+        if (!mContext.getAtlasProvider().getGlyphAtlasManager().initAtlas(
                 maskFormat
         )) {
             return;
@@ -554,7 +589,7 @@ public final class GraniteDevice extends Device {
         boolean flushed = false;
         for (int subRunCursor = 0; subRunCursor < subRunEnd; ) {
             int glyphsPrepared = subRun.prepareGlyphs(subRunCursor, subRunEnd,
-                    mRC);
+                    mContext);
             if (glyphsPrepared < 0) {
                 // There was a problem allocating the glyph in the atlas.
                 break;
@@ -572,7 +607,7 @@ public final class GraniteDevice extends Device {
                 SubRunData subRunData = new SubRunData(subRun,
                         subRunToLocal, filter,
                         subRunCursor, glyphsPrepared,
-                        mRC.getAtlasProvider());
+                        mContext.getAtlasProvider());
 
                 subRunPaint.set(paint);
                 if (subRun.getMaskFormat() == Engine.MASK_FORMAT_ARGB) {
@@ -594,7 +629,7 @@ public final class GraniteDevice extends Device {
                 // We flush every Device because the glyphs that are being flushed/referenced are not
                 // necessarily specific to this Device. This addresses both multiple Surfaces within
                 // a Recorder, and nested layers.
-                mRC.flushTrackedDevices();
+                mContext.flushTrackedDevices();
                 flushed = true;
             }
         }
@@ -685,7 +720,6 @@ public final class GraniteDevice extends Device {
             renderer = mRendererProvider.getNonAABoundsFill();
         }
         assert renderer != null;
-        draw.mRenderer = renderer;
 
         final boolean outsetBoundsForAA = renderer.outsetBoundsForAA();
 
@@ -702,7 +736,25 @@ public final class GraniteDevice extends Device {
             primitiveBlender = BlendMode.SRC_OVER;
         }
 
-        var paintParams = mPaintParams.set(paint, primitiveBlender, false); // move
+        var paintParams = mPaintParams.set(paint, primitiveBlender, false, false); // move
+
+        // collect fragment data and pipeline key
+        KeyContext keyContext = mKeyContext.reset(paintParams.getColor());
+        if (renderer.handlesSolidColor()) {
+            draw.mSolidColor = paintParams.getSolidColor(keyContext);
+            // solid color will be non-null if paint is
+        }
+        // Add paint fragment stages, final blender, clip shader,
+        int dstUsage = paintParams.toKey(keyContext,
+                draw.mSolidColor,
+                null);
+        // KeyBuilder as a read-only view
+        Key paintParamsKey = keyContext.paintParamsKeyBuilder;
+        // at least there's final blender
+        assert !paintParamsKey.isEmpty();
+        // uniform data gatherer will be used for geometry steps, deduplicate now
+        int fragmentUniformIndex = mDrawContext.getFragmentUniformDataCache()
+                .insert(keyContext.uniformDataGatherer.finish());
 
         final int numNewRenderSteps = renderer.numSteps();
 
@@ -724,7 +776,7 @@ public final class GraniteDevice extends Device {
         int paintOrder = clipOrder + 1;
         // If a draw is not opaque, it must be drawn after the most recent draw it intersects with in
         // order to blend correctly.
-        if (renderer.emitsCoverage() || paint_depends_on_dst(paintParams)) {
+        if (renderer.emitsCoverage() || dstUsage != PaintParams.DST_USAGE_NONE) {
             int prevDraw = mColorDepthBoundsManager.getMostRecentDraw(draw.mDrawBounds);
             paintOrder = Math.max(paintOrder, prevDraw + 1);
         }
@@ -735,7 +787,7 @@ public final class GraniteDevice extends Device {
                 drawDepth, paintOrder
         );
 
-        mSDC.recordDraw(draw, paintParams, mKeyContext);
+        mDrawContext.recordDraw(renderer, draw, fragmentUniformIndex, paintParamsKey, mUniformDataGatherer);
 
         // Post-draw book keeping (bounds manager, depth tracking, etc.)
         mColorDepthBoundsManager.recordDraw(draw.mDrawBounds, paintOrder);
@@ -750,13 +802,13 @@ public final class GraniteDevice extends Device {
             return;
         }
         // difference clip => non-inverse-fill, draw rect
-        draw.mRenderer = mRendererProvider.getNonAABoundsFill();
+        GeometryRenderer renderer = mRendererProvider.getNonAABoundsFill();
 
-        assert mSDC.numPendingSteps() + draw.mRenderer.numSteps() < DrawPass.MAX_RENDER_STEPS;
+        assert mDrawContext.numPendingSteps() + draw.mRenderer.numSteps() < DrawPass.MAX_RENDER_STEPS;
 
         assert !draw.mRenderer.emitsCoverage();
 
-        mSDC.recordDraw(draw, null, null);
+        mDrawContext.recordDraw(renderer, draw, DrawPass.INVALID_INDEX, KeyBuilder.EMPTY, mUniformDataGatherer);
 
         int depth = draw.getDepth();
         if (depth > mCurrentDepth) {
@@ -768,7 +820,7 @@ public final class GraniteDevice extends Device {
         // Must also account for the elements in the clip stack that might need to be recorded.
         numNewRenderSteps += mClipStack.maxDeferredClipDraws() * GeometryRenderer.MAX_RENDER_STEPS;
         // Need flush if we don't have room to record into the current list.
-        return (DrawPass.MAX_RENDER_STEPS - mSDC.numPendingSteps()) < numNewRenderSteps;
+        return (DrawPass.MAX_RENDER_STEPS - mDrawContext.numPendingSteps()) < numNewRenderSteps;
     }
 
     /**
@@ -777,28 +829,28 @@ public final class GraniteDevice extends Device {
      * {@link GraniteDevice}'s {@link RecordingContext}.
      */
     public void flushPendingWork() {
-        assert mRC.isOwnerThread();
+        assert mContext.isOwnerThread();
         mPaintParams.reset();
         // Push any pending uploads from the atlas provider that pending draws reference.
-        mRC.getAtlasProvider().recordUploads(mSDC);
+        mContext.getAtlasProvider().recordUploads(mDrawContext);
 
         // Clip shapes are depth-only draws, but aren't recorded in the DrawContext until a flush in
         // order to determine the Z values for each element.
         mClipStack.recordDeferredClipDraws();
 
         // Flush all pending items to the internal task list and reset Device tracking state
-        mSDC.flush(mRC);
+        mDrawContext.flush(mContext);
 
         mColorDepthBoundsManager.clear();
         mCurrentDepth = DrawOrder.CLEAR_DEPTH;
 
         // Any cleanup in the AtlasProvider
-        mRC.getAtlasProvider().compact();
+        mContext.getAtlasProvider().compact();
 
-        DrawTask drawTask = mSDC.snapDrawTask(mRC);
+        DrawTask drawTask = mDrawContext.snapDrawTask(mContext);
 
         if (drawTask != null) {
-            mRC.addTask(drawTask);
+            mContext.addTask(drawTask);
         }
     }
 }

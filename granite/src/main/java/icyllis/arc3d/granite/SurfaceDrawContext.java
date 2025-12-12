@@ -75,10 +75,6 @@ public final class SurfaceDrawContext implements AutoCloseable {
     private final UniformDataCache mGeometryUniformDataCache;
     private final UniformDataCache mFragmentUniformDataCache;
 
-    // temp
-    private final UniformDataGatherer mUniformDataGatherer;
-    private final KeyBuilder mPaintParamsKeyBuilder;
-
     private final float[] mProjection;
 
     private SurfaceDrawContext(@SharedPtr ImageProxyView readView,
@@ -93,9 +89,6 @@ public final class SurfaceDrawContext implements AutoCloseable {
         mTextureDataGatherer = new TextureDataGatherer();
         mGeometryUniformDataCache = new UniformDataCache();
         mFragmentUniformDataCache = new UniformDataCache();
-
-        mUniformDataGatherer = new UniformDataGatherer(UniformDataGatherer.Std140Layout);
-        mPaintParamsKeyBuilder = new KeyBuilder();
 
         int surfaceHeight = readView.getHeight();
         int surfaceOrigin = readView.getOrigin();
@@ -161,7 +154,6 @@ public final class SurfaceDrawContext implements AutoCloseable {
         mTextureDataGatherer.close();
         mGeometryUniformDataCache.close();
         mFragmentUniformDataCache.close();
-        mUniformDataGatherer.close();
     }
 
     /**
@@ -233,57 +225,52 @@ public final class SurfaceDrawContext implements AutoCloseable {
         return mNumSteps;
     }
 
+    @RawPtr
+    public TextureDataGatherer getTextureDataGatherer() {
+        return mTextureDataGatherer;
+    }
+
+    @RawPtr
+    public UniformDataCache getFragmentUniformDataCache() {
+        return mFragmentUniformDataCache;
+    }
+
     /**
+     * For non-clipping mask, caller has collected paint textures.
      *
-     * @param draw will transfer the ownership of Draw
-     * @param paintParams Paint params, null implies depth-only draw (i.e. clipping mask).
-     * @param keyContext
+     * @param draw           will transfer the ownership of Draw
+     * @param paintParamsKey empty implies depth-only draw (i.e. clipping mask).
      */
-    public void recordDraw(@NonNull Draw draw,
-                           @Nullable PaintParams paintParams,
-                           KeyContext keyContext) {
+    public void recordDraw(@NonNull GeometryRenderer renderer,
+                           @NonNull Draw draw,
+                           int fragmentUniformIndex,
+                           @NonNull Key paintParamsKey,
+                           @NonNull UniformDataGatherer uniformDataGatherer) {
+        assert draw.mRenderer == null;
         assert !draw.mDrawBounds.isEmpty();
         assert new Rect2i(0, 0, mImageInfo.width(), mImageInfo.height()).contains(draw.mScissorRect);
-        assert ((draw.mRenderer.depthStencilFlags() & DepthStencilFlags.kStencil) == 0 ||
+        assert ((renderer.depthStencilFlags() & DepthStencilFlags.kStencil) == 0 ||
                 DrawOrder.getStencilIndex(draw.mDrawOrder) != DrawOrder.MIN_VALUE);
 
+        draw.mRenderer = renderer;
         // we need to persist the Draw so we can write the vertex data later
         // the matrix is a view to Device or ClipStack, so clone it first
         draw.mTransform = draw.mTransform.clone();
 
+        // for depth-only draw, there's no solid color
+        assert !paintParamsKey.isEmpty() || draw.mSolidColor == null;
+        // for depth-only draw, there's no paint block
+        assert !paintParamsKey.isEmpty() || fragmentUniformIndex == DrawPass.INVALID_INDEX;
 
-        for (int stepIndex = 0; stepIndex < draw.mRenderer.numSteps(); stepIndex++) {
-            var step = draw.mRenderer.step(stepIndex);
+        for (int stepIndex = 0; stepIndex < renderer.numSteps(); stepIndex++) {
+            var step = renderer.step(stepIndex);
 
-            mPaintParamsKeyBuilder.clear();
-            boolean useStepSolidColor = false;
+            mTextureDataGatherer.mark();
 
-            mTextureDataGatherer.resetForDraw();
-
-            // collect fragment data and pipeline key
-            mUniformDataGatherer.reset();
-            if (step.performsShading() && paintParams != null) {
-                useStepSolidColor = step.handlesSolidColor() && paintParams.isSolidColor();
-                // Add paint fragment stages, final blender, clip shader,
-                // if this is the step that performs shading, and not a depth-only draw
-                keyContext.reset(useStepSolidColor ? null : paintParams.getColor());
-                paintParams.appendToKey(keyContext,
-                        mPaintParamsKeyBuilder,
-                        mUniformDataGatherer,
-                        mTextureDataGatherer,
-                        useStepSolidColor);
-                assert !mPaintParamsKeyBuilder.isEmpty();
-                if (useStepSolidColor) {
-                    float[] tmpSolidColor = new float[4];
-                    boolean res = paintParams.getSolidColor(mImageInfo, tmpSolidColor);
-                    assert res;
-                    draw.mSolidColor = tmpSolidColor;
-                }
-            }
-            var fragmentUniformIndex = mFragmentUniformDataCache.insert(mUniformDataGatherer.finish());
+            boolean shadingPass = step.performsShading();
 
             int pipelineIndex = mPipelineToIndex.getInt(
-                    mLookupDesc.set(step, mPaintParamsKeyBuilder, useStepSolidColor));
+                    mLookupDesc.set(step, shadingPass ? paintParamsKey : Key.EMPTY, shadingPass && draw.mSolidColor != null));
             if (pipelineIndex < 0) {
                 pipelineIndex = mIndexToPipeline.size();
                 var finalDesc = mLookupDesc.copy();
@@ -292,31 +279,34 @@ public final class SurfaceDrawContext implements AutoCloseable {
             }
 
             // collect geometry data
-            mUniformDataGatherer.reset();
+            uniformDataGatherer.reset();
             // first add the 2D orthographic projection
-            mUniformDataGatherer.write4f(mProjection);
-            step.writeUniformsAndTextures(draw, mUniformDataGatherer, mTextureDataGatherer,
+            uniformDataGatherer.write4f(mProjection);
+            step.writeUniformsAndTextures(draw, uniformDataGatherer, mTextureDataGatherer,
                     mLookupDesc.mayRequireLocalCoords());
-            var geometryUniformIndex = mGeometryUniformDataCache.insert(mUniformDataGatherer.finish());
+            var geometryUniformIndex = mGeometryUniformDataCache.insert(uniformDataGatherer.finish());
 
-            // geometry texture samplers and then fragment texture samplers
+            // fragment texture samplers and then geometry texture samplers
             // we build shader code and set binding points in this order as well
-            var textures = mTextureDataGatherer.finish(true);
+            var textures = mTextureDataGatherer.finish(shadingPass && !paintParamsKey.isEmpty());
 
             mSortKeys.add(new SortKey(
                     draw,
                     stepIndex,
                     pipelineIndex,
                     geometryUniformIndex,
-                    fragmentUniformIndex,
+                    shadingPass ? fragmentUniformIndex : DrawPass.INVALID_INDEX,
                     textures
             ));
+
+            // Rewind to collect textures for another step using the same paint textures.
+            mTextureDataGatherer.rewindToMark();
         }
 
         mPassBounds.joinNoCheck(draw.mDrawBounds);
-        mDepthStencilFlags |= draw.mRenderer.depthStencilFlags();
+        mDepthStencilFlags |= renderer.depthStencilFlags();
 
-        mNumSteps += draw.mRenderer.numSteps();
+        mNumSteps += renderer.numSteps();
     }
 
     public boolean recordUpload(RecordingContext context,

@@ -19,60 +19,67 @@
 
 package icyllis.arc3d.granite;
 
-import icyllis.arc3d.core.ColorSpace;
 import icyllis.arc3d.core.ImageInfo;
 import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.engine.Caps;
+import icyllis.arc3d.engine.KeyBuilder;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-public class KeyContext {
+public final class KeyContext {
 
     @RawPtr
-    private final RecordingContext mRecordingContext;
-    private final Caps mCaps;
-    private final ImageInfo mTargetInfo;
-    // color components using non-premultiplied alpha, transformed into destination space
-    private final float[] mColor = new float[4];
-
-    public KeyContext(@RawPtr RecordingContext recordingContext,
-                      ImageInfo targetInfo) {
-        mRecordingContext = recordingContext;
-        mCaps = recordingContext.getCaps();
-        mTargetInfo = targetInfo;
-    }
-
-    public void reset(float @Nullable [] paintColor) {
-        if (paintColor != null) {
-            System.arraycopy(paintColor, 0, mColor, 0, 4);
-            PaintParams.prepareColorForDst(mColor, mTargetInfo);
-        }
-    }
-
+    public final Caps caps;
     /**
      * Raw ptr to context, null when pre-compiling shaders.
      */
     @RawPtr
-    @Nullable
-    public RecordingContext getRecordingContext() {
-        return mRecordingContext;
-    }
+    public final RecordingContext context;
+    @RawPtr
+    public final SurfaceDrawContext drawContext;
 
-    public Caps getCaps() {
-        return mCaps;
-    }
+    public final KeyBuilder paintParamsKeyBuilder;
+    @RawPtr
+    public final UniformDataGatherer uniformDataGatherer;
+    @RawPtr
+    public final TextureDataGatherer textureDataGatherer;
 
+    public final ImageInfo dstInfo;
     /**
-     * Returns the current paint color, in destination space, non-premultiplied.
-     * This is not a copy, don't modify.
+     * Color components using non-premultiplied alpha, transformed into destination space
      * <p>
      * Since RGB and alpha are never used together, it is assumed to be opaque,
-     * no need to premultiply.
+     * no need to premultiply here.
      */
-    public float[] getPaintColor() {
-        return mColor;
+    public final float[] paintColor = new float[4];
+
+    public KeyContext(@NonNull  @RawPtr RecordingContext context,
+                      @NonNull @RawPtr SurfaceDrawContext drawContext,
+                      @NonNull  KeyBuilder paintParamsKeyBuilder,
+                      @NonNull @RawPtr UniformDataGatherer uniformDataGatherer,
+                      @NonNull @RawPtr TextureDataGatherer textureDataGatherer,
+                      @NonNull  ImageInfo dstInfo) {
+        this.drawContext = drawContext;
+        this.context = context;
+        caps = context.getCaps();
+        this.paintParamsKeyBuilder = paintParamsKeyBuilder;
+        this.uniformDataGatherer = uniformDataGatherer;
+        this.textureDataGatherer = textureDataGatherer;
+        this.dstInfo = dstInfo;
     }
 
-    public ImageInfo targetInfo() {
-        return mTargetInfo;
+    public KeyContext reset(float @Nullable [] paintColor) {
+        paintParamsKeyBuilder.clear();
+        uniformDataGatherer.reset();
+        textureDataGatherer.resetForDraw();
+        if (paintColor != null) {
+            System.arraycopy(paintColor, 0, this.paintColor, 0, 4);
+            PaintParams.prepareColorForDst(this.paintColor, dstInfo);
+        }
+        return this;
+    }
+
+    public void addBlock(int stageID) {
+        paintParamsKeyBuilder.addInt(stageID);
     }
 }

@@ -255,9 +255,9 @@ public final class RecordingContext extends Context {
         while (it.hasNext()) {
             @RawPtr
             GraniteDevice device = it.next();
-            if (device == null || device.getCommandContext() == null || device.unique()) {
+            if (device == null || device.getContext() == null || device.unique()) {
                 if (device != null) {
-                    device.discardRC();
+                    device.discardContext();
                     device.unref();
                 }
                 it.remove();
@@ -285,7 +285,7 @@ public final class RecordingContext extends Context {
         for (int i = 0; i < mTrackedDevices.size(); i++) {
             GraniteDevice device = mTrackedDevices.get(i);
             if (device != null) {
-                device.discardRC();
+                device.discardContext();
                 device.unref();
             }
         }

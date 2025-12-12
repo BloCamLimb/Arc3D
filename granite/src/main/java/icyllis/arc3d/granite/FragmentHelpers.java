@@ -22,7 +22,6 @@ package icyllis.arc3d.granite;
 import icyllis.arc3d.core.*;
 import icyllis.arc3d.engine.Engine;
 import icyllis.arc3d.engine.ImageProxyView;
-import icyllis.arc3d.engine.KeyBuilder;
 import icyllis.arc3d.engine.SamplerDesc;
 import icyllis.arc3d.sketch.BlendMode;
 import icyllis.arc3d.sketch.Blender;
@@ -129,62 +128,47 @@ public class FragmentHelpers {
 
     public static void appendSolidColorShaderBlock(
             KeyContext keyContext,
-            KeyBuilder keyBuilder,
-            UniformDataGatherer uniformDataGatherer,
-            TextureDataGatherer textureDataGatherer,
             float r, float g, float b, float a
     ) {
-        uniformDataGatherer.write4f(r, g, b, a);
+        keyContext.uniformDataGatherer.write4f(r, g, b, a);
 
-        keyBuilder.addInt(FragmentStage.kSolidColorShader_BuiltinStageID);
+        keyContext.addBlock(FragmentStage.kSolidColorShader_BuiltinStageID);
     }
 
     public static void appendRGBOpaquePaintColorBlock(
-            KeyContext keyContext,
-            KeyBuilder keyBuilder,
-            UniformDataGatherer uniformDataGatherer,
-            TextureDataGatherer textureDataGatherer
+            KeyContext keyContext
     ) {
-        uniformDataGatherer.writePaintColor(keyContext.getPaintColor());
+        keyContext.uniformDataGatherer.writePaintColor(keyContext.paintColor);
 
-        keyBuilder.addInt(FragmentStage.kRGBOpaquePaintColor_BuiltinStageID);
+        keyContext.addBlock(FragmentStage.kRGBOpaquePaintColor_BuiltinStageID);
     }
 
     public static void appendAlphaOnlyPaintColorBlock(
-            KeyContext keyContext,
-            KeyBuilder keyBuilder,
-            UniformDataGatherer uniformDataGatherer,
-            TextureDataGatherer textureDataGatherer
+            KeyContext keyContext
     ) {
-        uniformDataGatherer.writePaintColor(keyContext.getPaintColor());
+        keyContext.uniformDataGatherer.writePaintColor(keyContext.paintColor);
 
-        keyBuilder.addInt(FragmentStage.kAlphaOnlyPaintColor_BuiltinStageID);
+        keyContext.addBlock(FragmentStage.kAlphaOnlyPaintColor_BuiltinStageID);
     }
 
     public static void appendDitherShaderBlock(
             KeyContext keyContext,
-            KeyBuilder keyBuilder,
-            UniformDataGatherer uniformDataGatherer,
-            TextureDataGatherer textureDataGatherer,
             float range
     ) {
-        uniformDataGatherer.write1f(range);
+        keyContext.uniformDataGatherer.write1f(range);
 
-        keyBuilder.addInt(FragmentStage.kDitherShader_BuiltinStageID);
+        keyContext.addBlock(FragmentStage.kDitherShader_BuiltinStageID);
     }
 
     public static void appendLocalMatrixShaderBlock(
             KeyContext keyContext,
-            KeyBuilder keyBuilder,
-            UniformDataGatherer uniformDataGatherer,
-            TextureDataGatherer textureDataGatherer,
             Matrixc localMatrix
     ) {
         Matrix inverse = new Matrix();
         localMatrix.invert(inverse);
-        uniformDataGatherer.writeMatrix3f(inverse);
+        keyContext.uniformDataGatherer.writeMatrix3f(inverse);
 
-        keyBuilder.addInt(FragmentStage.kLocalMatrixShader_BuiltinStageID);
+        keyContext.addBlock(FragmentStage.kLocalMatrixShader_BuiltinStageID);
     }
 
     public static final int kCubicClampUnpremul = 0;
@@ -201,9 +185,6 @@ public class FragmentHelpers {
 
     public static void appendImageShaderBlock(
             KeyContext keyContext,
-            KeyBuilder keyBuilder,
-            UniformDataGatherer uniformDataGatherer,
-            TextureDataGatherer textureDataGatherer,
             Rect2fc subset,
             int tileModeX, int tileModeY,
             SamplingOptions sampling,
@@ -213,42 +194,42 @@ public class FragmentHelpers {
     ) {
         boolean useHwTiling = !sampling.mUseCubic &&
                 subset.contains(0, 0, imageWidth, imageHeight) &&
-                (keyContext.getCaps().clampToBorderSupport() ||
+                (keyContext.caps.clampToBorderSupport() ||
                         (tileModeX != Shader.TILE_MODE_DECAL && tileModeY != Shader.TILE_MODE_DECAL));
         int filterMode = SamplingOptions.FILTER_MODE_NEAREST; // for subset
 
         if (useHwTiling || !sampling.mUseCubic) {
             // cubic does not require this
-            uniformDataGatherer.write2f(1.f / imageWidth, 1.f / imageHeight);
+            keyContext.uniformDataGatherer.write2f(1.f / imageWidth, 1.f / imageHeight);
         }
         if (useHwTiling) {
             // hardware (fast)
-            keyBuilder.addInt(FragmentStage.kHWImageShader_BuiltinStageID);
+            keyContext.addBlock(FragmentStage.kHWImageShader_BuiltinStageID);
         } else {
             // strict subset
             assert sampling.mMipmapMode == SamplingOptions.MIPMAP_MODE_NONE ||
-                    !keyContext.getCaps().clampToBorderSupport();
-            uniformDataGatherer.write4f(subset.left(), subset.top(),
+                    !keyContext.caps.clampToBorderSupport();
+            keyContext.uniformDataGatherer.write4f(subset.left(), subset.top(),
                     subset.right(), subset.bottom());
             if (sampling.mUseCubic) {
                 // Cubic sampling is handled in a shader, with the actual texture sampled by with
                 // nearest-neighbor
                 assert sampling.mMinFilter == SamplingOptions.FILTER_MODE_NEAREST &&
                         sampling.mMagFilter == SamplingOptions.FILTER_MODE_NEAREST;
-                uniformDataGatherer.writeMatrix4f(0,
+                keyContext.uniformDataGatherer.writeMatrix4f(0,
                         ImageShader.makeCubicMatrix(sampling.mCubicB, sampling.mCubicC));
-                uniformDataGatherer.write1i(srcAT == ColorInfo.AT_PREMUL
+                keyContext.uniformDataGatherer.write1i(srcAT == ColorInfo.AT_PREMUL
                         ? kCubicClampPremul
                         : kCubicClampUnpremul);
-                keyBuilder.addInt(FragmentStage.kCubicImageShader_BuiltinStageID);
+                keyContext.addBlock(FragmentStage.kCubicImageShader_BuiltinStageID);
             } else {
                 // Use linear filter if either is linear
                 filterMode = sampling.mMinFilter | sampling.mMagFilter;
-                uniformDataGatherer.write1i(filterMode);
-                keyBuilder.addInt(FragmentStage.kImageShader_BuiltinStageID);
+                keyContext.uniformDataGatherer.write1i(filterMode);
+                keyContext.addBlock(FragmentStage.kImageShader_BuiltinStageID);
             }
-            uniformDataGatherer.write1i(tileModeX);
-            uniformDataGatherer.write1i(tileModeY);
+            keyContext.uniformDataGatherer.write1i(tileModeX);
+            keyContext.uniformDataGatherer.write1i(tileModeY);
         }
 
         var samplerDesc = useHwTiling
@@ -261,7 +242,7 @@ public class FragmentHelpers {
                 SamplerDesc.ADDRESS_MODE_CLAMP_TO_EDGE)
                 : SamplerDesc.make(filterMode);
 
-        textureDataGatherer.add(view, samplerDesc);
+        keyContext.textureDataGatherer.add(view, samplerDesc);
     }
 
     public static class GradientData {
@@ -361,12 +342,10 @@ public class FragmentHelpers {
 
     public static void appendGradientShaderBlock(
             KeyContext keyContext,
-            KeyBuilder keyBuilder,
-            UniformDataGatherer uniformDataGatherer,
-            TextureDataGatherer textureDataGatherer,
             GradientData gradData
     ) {
         //TODO texture-based gradient
+        UniformDataGatherer uniformDataGatherer = keyContext.uniformDataGatherer;
         int stageID = FragmentStage.kError_BuiltinStageID;
         switch (gradData.mSrcShader.asGradient()) {
             case Shader.GRADIENT_TYPE_LINEAR -> {
@@ -399,19 +378,16 @@ public class FragmentHelpers {
                 append_gradient_tail(gradData, uniformDataGatherer);
             }
         }
-        keyBuilder.addInt(stageID);
+        keyContext.addBlock(stageID);
     }
 
     private static void append_gradient_to_key(
             KeyContext keyContext,
-            KeyBuilder keyBuilder,
-            UniformDataGatherer uniformDataGatherer,
-            TextureDataGatherer textureDataGatherer,
             Gradient1DShader shader,
             float bias, float scale
     ) {
         var colorTransformer = new Gradient1DShader.ColorTransformer(
-                shader, keyContext.targetInfo().colorSpace()
+                shader, keyContext.dstInfo.colorSpace()
         );
 
         GradientData data = new GradientData(
@@ -451,7 +427,7 @@ public class FragmentHelpers {
         //    whatever intermediate space we chose. That could even be something like XYZ, which will
         //    produce nonsense. So, in this particular case, we break Skia's rules, and treat a null
         //    destination as sRGB.
-        ColorSpace dstColorSpace = keyContext.targetInfo().colorSpace();
+        ColorSpace dstColorSpace = keyContext.dstInfo.colorSpace();
         if (dstColorSpace == null) {
             dstColorSpace = ColorSpace.get(ColorSpace.Named.SRGB);
         }
@@ -469,76 +445,70 @@ public class FragmentHelpers {
         // The gradient block and colorSpace conversion block need to be combined
         // (via the Compose block) so that the localMatrix block can treat them as
         // one child.
-        keyBuilder.addInt(FragmentStage.kCompose_BuiltinStageID);
+        keyContext.addBlock(FragmentStage.kCompose_BuiltinStageID);
 
         appendGradientShaderBlock(
                 keyContext,
-                keyBuilder,
-                uniformDataGatherer,
-                textureDataGatherer,
                 data);
 
         appendColorSpaceUniforms(
                 colorTransformer.mIntermediateColorSpace, intermediateAlphaType,
-                dstColorSpace, dstAlphaType, uniformDataGatherer);
-        keyBuilder.addInt(FragmentStage.kColorSpaceXformColorFilter_BuiltinStageID);
+                dstColorSpace, dstAlphaType, keyContext.uniformDataGatherer);
+        keyContext.addBlock(FragmentStage.kColorSpaceXformColorFilter_BuiltinStageID);
     }
 
     public static void appendBlendMode(
             KeyContext keyContext,
-            KeyBuilder keyBuilder,
-            UniformDataGatherer uniformDataGatherer,
-            TextureDataGatherer textureDataGatherer,
             BlendMode bm
     ) {
         boolean coeffs = false;
         switch (bm) {
             case CLEAR -> {
-                uniformDataGatherer.write4f(0, 0, 0, 0);
+                keyContext.uniformDataGatherer.write4f(0, 0, 0, 0);
                 coeffs = true;
             }
             case SRC -> {
-                uniformDataGatherer.write4f(1, 0, 0, 0);
+                keyContext.uniformDataGatherer.write4f(1, 0, 0, 0);
                 coeffs = true;
             }
             case DST -> {
-                uniformDataGatherer.write4f(0, 1, 0, 0);
+                keyContext.uniformDataGatherer.write4f(0, 1, 0, 0);
                 coeffs = true;
             }
             case SRC_OVER -> {
-                uniformDataGatherer.write4f(1, 1, 0, -1);
+                keyContext.uniformDataGatherer.write4f(1, 1, 0, -1);
                 coeffs = true;
             }
             case DST_OVER -> {
-                uniformDataGatherer.write4f(1, 1, -1, 0);
+                keyContext.uniformDataGatherer.write4f(1, 1, -1, 0);
                 coeffs = true;
             }
             case SRC_IN -> {
-                uniformDataGatherer.write4f(0, 0, 1, 0);
+                keyContext.uniformDataGatherer.write4f(0, 0, 1, 0);
                 coeffs = true;
             }
             case DST_IN -> {
-                uniformDataGatherer.write4f(0, 0, 0, 1);
+                keyContext.uniformDataGatherer.write4f(0, 0, 0, 1);
                 coeffs = true;
             }
             case SRC_OUT -> {
-                uniformDataGatherer.write4f(1, 0, -1, 0);
+                keyContext.uniformDataGatherer.write4f(1, 0, -1, 0);
                 coeffs = true;
             }
             case DST_OUT -> {
-                uniformDataGatherer.write4f(0, 1, 0, -1);
+                keyContext.uniformDataGatherer.write4f(0, 1, 0, -1);
                 coeffs = true;
             }
             case SRC_ATOP -> {
-                uniformDataGatherer.write4f(0, 1, 1, -1);
+                keyContext.uniformDataGatherer.write4f(0, 1, 1, -1);
                 coeffs = true;
             }
             case DST_ATOP -> {
-                uniformDataGatherer.write4f(1, 0, -1, 1);
+                keyContext.uniformDataGatherer.write4f(1, 0, -1, 1);
                 coeffs = true;
             }
             case XOR -> {
-                uniformDataGatherer.write4f(1, 1, -1, -1);
+                keyContext.uniformDataGatherer.write4f(1, 1, -1, -1);
                 coeffs = true;
             }
         }
@@ -546,13 +516,10 @@ public class FragmentHelpers {
         // The remaining advanced blends are fairly unique in their implementations.
         // To avoid having to compile all of their shader code, they are treated as fixed blend modes.
         if (coeffs) {
-            keyBuilder.addInt(FragmentStage.kPorterDuffBlender_BuiltinStageID);
+            keyContext.addBlock(FragmentStage.kPorterDuffBlender_BuiltinStageID);
         } else {
             appendFixedBlendMode(
                     keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer,
                     bm
             );
         }
@@ -560,12 +527,9 @@ public class FragmentHelpers {
 
     public static void appendFixedBlendMode(
             KeyContext keyContext,
-            KeyBuilder keyBuilder,
-            UniformDataGatherer uniformDataGatherer,
-            TextureDataGatherer textureDataGatherer,
             BlendMode bm
     ) {
-        keyBuilder.addInt(FragmentStage.kFirstFixedBlend_BuiltinStageID + bm.ordinal());
+        keyContext.addBlock(FragmentStage.kFirstFixedBlend_BuiltinStageID + bm.ordinal());
     }
 
     /*public static void appendBlendModeBlenderBlock(
@@ -577,20 +541,17 @@ public class FragmentHelpers {
     ) {
         uniformDataGatherer.write1i(bm.ordinal());
 
-        keyBuilder.addInt(FragmentStage.kBlendModeBlender_BuiltinStageID);
+        keyContext.addBlock(FragmentStage.kBlendModeBlender_BuiltinStageID);
     }*/
 
     public static void appendPrimitiveColorBlock(
-            KeyContext keyContext,
-            KeyBuilder keyBuilder,
-            UniformDataGatherer uniformDataGatherer,
-            TextureDataGatherer textureDataGatherer
+            KeyContext keyContext
     ) {
         appendColorSpaceUniforms(ColorSpace.get(ColorSpace.Named.SRGB), ColorInfo.AT_PREMUL,
-                keyContext.targetInfo().colorSpace(), ColorInfo.AT_PREMUL,
-                uniformDataGatherer);
+                keyContext.dstInfo.colorSpace(), ColorInfo.AT_PREMUL,
+                keyContext.uniformDataGatherer);
 
-        keyBuilder.addInt(FragmentStage.kPrimitiveColor_BuiltinStageID);
+        keyContext.addBlock(FragmentStage.kPrimitiveColor_BuiltinStageID);
     }
 
     /**
@@ -598,109 +559,66 @@ public class FragmentHelpers {
      * provided key.
      *
      * @param keyContext backend context for key creation
-     * @param keyBuilder builder for creating the key for this SkShader
      * @param shader     This function is a no-op if shader is null.
      */
     public static void appendToKey(KeyContext keyContext,
-                                   KeyBuilder keyBuilder,
-                                   UniformDataGatherer uniformDataGatherer,
-                                   TextureDataGatherer textureDataGatherer,
                                    @RawPtr Shader shader) {
         if (shader == null) {
             return;
         }
         if (shader instanceof LocalMatrixShader) {
             append_to_key(keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer,
                     (LocalMatrixShader) shader);
         } else if (shader instanceof ImageShader) {
             append_to_key(keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer,
                     (ImageShader) shader);
         } else if (shader instanceof ColorShader) {
             append_to_key(keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer,
                     (ColorShader) shader);
         } else if (shader instanceof Gradient1DShader) {
             append_to_key(keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer,
                     (Gradient1DShader) shader);
         } else if (shader instanceof BlendShader) {
             append_to_key(keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer,
                     (BlendShader) shader);
         } else if (shader instanceof RRectShader) {
             append_to_key(keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer,
                     (RRectShader) shader);
         } else if (shader instanceof EmptyShader) {
             append_to_key(keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer,
                     (EmptyShader) shader);
         }
     }
 
     public static void appendToKey(KeyContext keyContext,
-                                   KeyBuilder keyBuilder,
-                                   UniformDataGatherer uniformDataGatherer,
-                                   TextureDataGatherer textureDataGatherer,
                                    @RawPtr ColorFilter colorFilter) {
         if (colorFilter == null) {
             return;
         }
         if (colorFilter instanceof BlendModeColorFilter) {
             append_to_key(keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer,
                     (BlendModeColorFilter) colorFilter);
         } else if (colorFilter instanceof ComposeColorFilter) {
             append_to_key(keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer,
                     (ComposeColorFilter) colorFilter);
         }
     }
 
     public static void appendToKey(KeyContext keyContext,
-                                   KeyBuilder keyBuilder,
-                                   UniformDataGatherer uniformDataGatherer,
-                                   TextureDataGatherer textureDataGatherer,
                                    @RawPtr Blender blender) {
         if (blender == null) {
             return;
         }
         if (blender instanceof BlendMode) {
             append_to_key(keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer,
                     (BlendMode) blender);
         }
     }
 
     private static void append_to_key(KeyContext keyContext,
-                                      KeyBuilder keyBuilder,
-                                      UniformDataGatherer uniformDataGatherer,
-                                      TextureDataGatherer textureDataGatherer,
                                       @RawPtr ColorShader shader) {
         float[] color = shader.getColor();
-        ColorSpace dstCS = keyContext.targetInfo().colorSpace();
+        ColorSpace dstCS = keyContext.dstInfo.colorSpace();
         if (dstCS != null && !dstCS.isSrgb()) {
             ColorSpace.connect(ColorSpace.get(ColorSpace.Named.SRGB), dstCS)
                     .transform(color);
@@ -711,40 +629,31 @@ public class FragmentHelpers {
         }
         appendSolidColorShaderBlock(
                 keyContext,
-                keyBuilder,
-                uniformDataGatherer,
-                textureDataGatherer,
                 color[0], color[1], color[2], color[3]
         );
     }
 
     private static void append_to_key(KeyContext keyContext,
-                                      KeyBuilder keyBuilder,
-                                      UniformDataGatherer uniformDataGatherer,
-                                      TextureDataGatherer textureDataGatherer,
                                       @RawPtr ImageShader shader) {
         if (!(shader.getImage() instanceof GraniteImage imageToDraw)) {
-            keyBuilder.addInt(FragmentStage.kError_BuiltinStageID);
+            keyContext.addBlock(FragmentStage.kError_BuiltinStageID);
             return;
         }
 
         @RawPtr
         ImageProxyView view = imageToDraw.getImageProxyView();
         if (view == null) {
-            keyBuilder.addInt(FragmentStage.kError_BuiltinStageID);
+            keyContext.addBlock(FragmentStage.kError_BuiltinStageID);
             return;
         }
 
         final int srcAlphaType = imageToDraw.getAlphaType();
         final int dstAlphaType = ColorInfo.AT_PREMUL;
         if (imageToDraw.isAlphaOnly()) {
-            keyBuilder.addInt(FragmentStage.kBlend_BuiltinStageID);
+            keyContext.addBlock(FragmentStage.kBlend_BuiltinStageID);
 
             // src, ignore color space transform
             appendImageShaderBlock(keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer,
                     shader.getSubset(),
                     shader.getTileModeX(),
                     shader.getTileModeY(),
@@ -756,26 +665,17 @@ public class FragmentHelpers {
 
             // dst
             appendRGBOpaquePaintColorBlock(
-                    keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer
+                    keyContext
             );
 
             appendFixedBlendMode(
                     keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer,
                     BlendMode.DST_IN
             );
         } else {
-            keyBuilder.addInt(FragmentStage.kCompose_BuiltinStageID);
+            keyContext.addBlock(FragmentStage.kCompose_BuiltinStageID);
 
             appendImageShaderBlock(keyContext,
-                    keyBuilder,
-                    uniformDataGatherer,
-                    textureDataGatherer,
                     shader.getSubset(),
                     shader.getTileModeX(),
                     shader.getTileModeY(),
@@ -788,17 +688,14 @@ public class FragmentHelpers {
             appendColorSpaceUniforms(
                     imageToDraw.getColorSpace(),
                     srcAlphaType,
-                    keyContext.targetInfo().colorSpace(),
+                    keyContext.dstInfo.colorSpace(),
                     dstAlphaType,
-                    uniformDataGatherer);
-            keyBuilder.addInt(FragmentStage.kColorSpaceXformColorFilter_BuiltinStageID);
+                    keyContext.uniformDataGatherer);
+            keyContext.addBlock(FragmentStage.kColorSpaceXformColorFilter_BuiltinStageID);
         }
     }
 
     private static void append_to_key(KeyContext keyContext,
-                                      KeyBuilder keyBuilder,
-                                      UniformDataGatherer uniformDataGatherer,
-                                      TextureDataGatherer textureDataGatherer,
                                       @RawPtr LocalMatrixShader shader) {
         @RawPtr
         var baseShader = shader.getBase();
@@ -821,30 +718,18 @@ public class FragmentHelpers {
         matrix.postConcat(shader.getLocalMatrix());
 
         appendLocalMatrixShaderBlock(keyContext,
-                keyBuilder,
-                uniformDataGatherer,
-                textureDataGatherer,
                 matrix);
 
         appendToKey(keyContext,
-                keyBuilder,
-                uniformDataGatherer,
-                textureDataGatherer,
                 baseShader);
     }
 
     private static void append_to_key(KeyContext keyContext,
-                                      KeyBuilder keyBuilder,
-                                      UniformDataGatherer uniformDataGatherer,
-                                      TextureDataGatherer textureDataGatherer,
                                       @RawPtr Gradient1DShader shader) {
         switch (shader.asGradient()) {
             case Shader.GRADIENT_TYPE_LINEAR, Shader.GRADIENT_TYPE_RADIAL -> {
                 append_gradient_to_key(
                         keyContext,
-                        keyBuilder,
-                        uniformDataGatherer,
-                        textureDataGatherer,
                         shader,
                         0.0f,
                         0.0f
@@ -854,9 +739,6 @@ public class FragmentHelpers {
                 var angularGrad = (AngularGradient) shader;
                 append_gradient_to_key(
                         keyContext,
-                        keyBuilder,
-                        uniformDataGatherer,
-                        textureDataGatherer,
                         shader,
                         angularGrad.getTBias(),
                         angularGrad.getTScale()
@@ -866,135 +748,93 @@ public class FragmentHelpers {
     }
 
     private static void append_to_key(KeyContext keyContext,
-                                      KeyBuilder keyBuilder,
-                                      UniformDataGatherer uniformDataGatherer,
-                                      TextureDataGatherer textureDataGatherer,
                                       @RawPtr BlendShader shader) {
-        keyBuilder.addInt(FragmentStage.kBlend_BuiltinStageID);
+        keyContext.addBlock(FragmentStage.kBlend_BuiltinStageID);
 
         appendToKey(
                 keyContext,
-                keyBuilder,
-                uniformDataGatherer,
-                textureDataGatherer,
                 shader.getSrc()
         );
 
         appendToKey(
                 keyContext,
-                keyBuilder,
-                uniformDataGatherer,
-                textureDataGatherer,
                 shader.getDst()
         );
 
         appendBlendMode(
                 keyContext,
-                keyBuilder,
-                uniformDataGatherer,
-                textureDataGatherer,
                 shader.getMode()
         );
     }
 
     private static void append_to_key(KeyContext keyContext,
-                                      KeyBuilder keyBuilder,
-                                      UniformDataGatherer uniformDataGatherer,
-                                      TextureDataGatherer textureDataGatherer,
                                       @RawPtr RRectShader shader) {
-        uniformDataGatherer.write4f(
+        keyContext.uniformDataGatherer.write4f(
                 shader.getLeft(), shader.getTop(), shader.getRight(), shader.getBottom()
         );
-        uniformDataGatherer.write4f(
+        keyContext.uniformDataGatherer.write4f(
                 shader.getTopLeftRadius(), shader.getTopRightRadius(),
                 shader.getBottomRightRadius(), shader.getBottomLeftRadius()
         );
         float smooth = shader.getSmoothRadius();
         // smooth won't be NaN
-        uniformDataGatherer.write4f(
+        keyContext.uniformDataGatherer.write4f(
                 shader.getCenterX(), shader.getCenterY(),
                 smooth, shader.isInverseFill() ? -1.0f : 1.0f
         );
 
-        keyBuilder.addInt(FragmentStage.kAnalyticRRectShader_BuiltinStageID);
+        keyContext.addBlock(FragmentStage.kAnalyticRRectShader_BuiltinStageID);
     }
 
     private static void append_to_key(KeyContext keyContext,
-                                      KeyBuilder keyBuilder,
-                                      UniformDataGatherer uniformDataGatherer,
-                                      TextureDataGatherer textureDataGatherer,
                                       @RawPtr EmptyShader shader) {
-        keyBuilder.addInt(FragmentStage.kPassthrough_BuiltinStageID);
+        keyContext.addBlock(FragmentStage.kPassthrough_BuiltinStageID);
     }
 
     private static void append_to_key(KeyContext keyContext,
-                                      KeyBuilder keyBuilder,
-                                      UniformDataGatherer uniformDataGatherer,
-                                      TextureDataGatherer textureDataGatherer,
                                       @RawPtr BlendModeColorFilter colorFilter) {
         float[] blendColor = colorFilter.getColor();
-        PaintParams.prepareColorForDst(blendColor, keyContext.targetInfo());
+        PaintParams.prepareColorForDst(blendColor, keyContext.dstInfo);
         for (int i = 0; i < 3; i++) {
             blendColor[i] *= blendColor[3];
         }
 
-        keyBuilder.addInt(FragmentStage.kBlend_BuiltinStageID);
+        keyContext.addBlock(FragmentStage.kBlend_BuiltinStageID);
 
         // src
         appendSolidColorShaderBlock(
                 keyContext,
-                keyBuilder,
-                uniformDataGatherer,
-                textureDataGatherer,
                 blendColor[0], blendColor[1], blendColor[2], blendColor[3]
         );
 
         // dst
-        keyBuilder.addInt(FragmentStage.kPassthrough_BuiltinStageID);
+        keyContext.addBlock(FragmentStage.kPassthrough_BuiltinStageID);
 
         appendBlendMode(
                 keyContext,
-                keyBuilder,
-                uniformDataGatherer,
-                textureDataGatherer,
                 colorFilter.getMode()
         );
     }
 
     private static void append_to_key(KeyContext keyContext,
-                                      KeyBuilder keyBuilder,
-                                      UniformDataGatherer uniformDataGatherer,
-                                      TextureDataGatherer textureDataGatherer,
                                       @RawPtr ComposeColorFilter colorFilter) {
-        keyBuilder.addInt(FragmentStage.kCompose_BuiltinStageID);
+        keyContext.addBlock(FragmentStage.kCompose_BuiltinStageID);
 
         appendToKey(
                 keyContext,
-                keyBuilder,
-                uniformDataGatherer,
-                textureDataGatherer,
                 colorFilter.getBefore()
         );
 
         appendToKey(
                 keyContext,
-                keyBuilder,
-                uniformDataGatherer,
-                textureDataGatherer,
                 colorFilter.getAfter()
         );
     }
 
     private static void append_to_key(KeyContext keyContext,
-                                      KeyBuilder keyBuilder,
-                                      UniformDataGatherer uniformDataGatherer,
-                                      TextureDataGatherer textureDataGatherer,
                                       @RawPtr BlendMode blender) {
         appendBlendMode(
                 keyContext,
-                keyBuilder,
-                uniformDataGatherer,
-                textureDataGatherer,
                 blender
         );
     }
