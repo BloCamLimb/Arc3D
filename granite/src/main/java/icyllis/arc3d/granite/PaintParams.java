@@ -443,6 +443,9 @@ public final class PaintParams {
 
         // (Optional) Root 2 clipping
 
+        // at least there's final blender
+        assert !keyContext.paintParamsKeyBuilder.isEmpty();
+
         return dependsOnDst ? DST_USAGE_DEPENDS_ON_DST : 0;
     }
 }

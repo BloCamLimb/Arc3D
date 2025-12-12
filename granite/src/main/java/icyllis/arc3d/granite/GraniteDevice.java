@@ -37,9 +37,7 @@ import icyllis.arc3d.granite.geom.SubRunData;
 import icyllis.arc3d.granite.task.DrawTask;
 import icyllis.arc3d.granite.task.RenderPassTask;
 import icyllis.arc3d.sketch.*;
-import icyllis.arc3d.sketch.effects.ColorFilter;
 import icyllis.arc3d.sketch.shaders.ImageShader;
-import icyllis.arc3d.sketch.shaders.Shader;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -64,7 +62,6 @@ public final class GraniteDevice extends Device {
     // (i.e. depth-based clipping, and transparent blending)
     private final BoundsManager mColorDepthBoundsManager;
 
-    private final Paint mSubRunPaint = new Paint();
     private final TextBlobCache.FeatureKey mBlobKey = new TextBlobCache.FeatureKey();
 
     @RawPtr
@@ -334,22 +331,10 @@ public final class GraniteDevice extends Device {
 
     @Override
     public void drawPaint(Paint paint) {
-        if (isClipWideOpen() && !paint_depends_on_dst(paint)) {
-            float[] color = new float[4];
-            if (PaintParams.getSolidColor(paint, getImageInfo(), color)) {
-                // do fullscreen clear
-                mDrawContext.clear(color);
-                return;
-            } else {
-                // This paint does not depend on the destination and covers the entire surface, so
-                // discard everything previously recorded and proceed with the draw.
-                mDrawContext.discard();
-            }
-        }
-
         // An empty shape with an inverse fill completely floods the clip
-        drawGeometry(getLocalToDevice33(), null,
-                true, paint, mRendererProvider.getNonAABoundsFill(), null);
+        drawGeometry(getLocalToDevice33(), null, true,
+                mPaintParams.set(paint, null, false, false),
+                null, mRendererProvider.getNonAABoundsFill());
     }
 
     @Override
@@ -386,16 +371,19 @@ public final class GraniteDevice extends Device {
                          @Paint.Cap int cap, float width, Paint paint) {
         var shape = new BoxShape();
         shape.setLine(x0, y0, x1, y1, cap, width);
-        drawGeometry(getLocalToDevice33(), shape, false, paint,
-                mRendererProvider.getAnalyticBox(false), null);
+        drawGeometry(getLocalToDevice33(), shape, false,
+                mPaintParams.set(paint, null, false, false), paint,
+                mRendererProvider.getAnalyticBox(false));
     }
 
     @Override
     public void drawRect(Rect2fc r, Paint paint) {
+        PaintParams p = mPaintParams.set(paint, null, false, false);
         if (paint.getStyle() == Paint.FILL) {
             if (!paint.isAntiAlias()) {
-                drawGeometry(getLocalToDevice33(), new Rect(r), false, paint,
-                        mRendererProvider.getNonAABoundsFill(), null);
+                drawGeometry(getLocalToDevice33(), new Rect(r), false,
+                        p, paint,
+                        mRendererProvider.getNonAABoundsFill());
                 return;
             }
         } else {
@@ -404,13 +392,15 @@ public final class GraniteDevice extends Device {
                     (join == Paint.JOIN_MITER && paint.getStrokeMiter() < MathUtil.SQRT2);
             if (complex) {
                 // since it's a stroke, promote it to RRect and lose the original geometric info
-                drawGeometry(getLocalToDevice33(), new RRect(r), false, paint,
-                        mRendererProvider.getAnalyticRRect(), null);
+                drawGeometry(getLocalToDevice33(), new RRect(r), false,
+                        p, paint,
+                        mRendererProvider.getAnalyticRRect());
                 return;
             }
         }
-        drawGeometry(getLocalToDevice33(), new Rect(r), false, paint,
-                mRendererProvider.getAnalyticBox(false), null);
+        drawGeometry(getLocalToDevice33(), new Rect(r), false,
+                p, paint,
+                mRendererProvider.getAnalyticBox(false));
     }
 
     @Override
@@ -425,28 +415,34 @@ public final class GraniteDevice extends Device {
                 yield false;
             }
         };
+        PaintParams p = mPaintParams.set(paint, null, false, false);
         if (complex) {
-            drawGeometry(getLocalToDevice33(), new RRect(rr), false, paint,
-                    mRendererProvider.getAnalyticRRect(), null);
+            drawGeometry(getLocalToDevice33(), new RRect(rr), false,
+                    p, paint,
+                    mRendererProvider.getAnalyticRRect());
         } else {
-            drawGeometry(getLocalToDevice33(), new BoxShape(rr), false, paint,
-                    mRendererProvider.getAnalyticBox(false), null);
+            drawGeometry(getLocalToDevice33(), new BoxShape(rr), false,
+                    p, paint,
+                    mRendererProvider.getAnalyticBox(false));
         }
     }
 
     @Override
     public void drawEllipse(float cx, float cy, float rx, float ry, Paint paint) {
+        PaintParams p = mPaintParams.set(paint, null, false, false);
         if (!RRect.radiiAlmostEqual(rx, ry)) {
             //TODO stroking an ellipse requires new renderer
             var shape = new RRect();
             shape.setEllipse(cx, cy, rx, ry);
-            drawGeometry(getLocalToDevice33(), shape, false, paint,
-                    mRendererProvider.getAnalyticRRect(), null);
+            drawGeometry(getLocalToDevice33(), shape, false,
+                    p, paint,
+                    mRendererProvider.getAnalyticRRect());
         } else {
             var shape = new BoxShape();
             shape.setCircle(cx, cy, rx);
-            drawGeometry(getLocalToDevice33(), shape, false, paint,
-                    mRendererProvider.getAnalyticBox(false), null);
+            drawGeometry(getLocalToDevice33(), shape, false,
+                    p, paint,
+                    mRendererProvider.getAnalyticBox(false));
         }
     }
 
@@ -460,8 +456,9 @@ public final class GraniteDevice extends Device {
             case Paint.CAP_SQUARE -> ArcShape.kArcSquare_Type;
             default -> throw new AssertionError();
         };
-        drawGeometry(getLocalToDevice33(), shape, false, paint,
-                mRendererProvider.getArc(shape.mType), null);
+        drawGeometry(getLocalToDevice33(), shape, false,
+                mPaintParams.set(paint, null, false, false), paint,
+                mRendererProvider.getArc(shape.mType));
     }
 
     @Override
@@ -469,8 +466,9 @@ public final class GraniteDevice extends Device {
                         float sweepAngle, Paint paint) {
         var shape = new ArcShape(cx, cy, radius, startAngle, sweepAngle, 0);
         shape.mType = ArcShape.kPie_Type;
-        drawGeometry(getLocalToDevice33(), shape, false, paint,
-                mRendererProvider.getArc(shape.mType), null);
+        drawGeometry(getLocalToDevice33(), shape, false,
+                mPaintParams.set(paint, null, false, false), paint,
+                mRendererProvider.getArc(shape.mType));
     }
 
     @Override
@@ -478,8 +476,9 @@ public final class GraniteDevice extends Device {
                           float sweepAngle, Paint paint) {
         var shape = new ArcShape(cx, cy, radius, startAngle, sweepAngle, 0);
         shape.mType = ArcShape.kChord_Type;
-        drawGeometry(getLocalToDevice33(), shape, false, paint,
-                mRendererProvider.getArc(shape.mType), null);
+        drawGeometry(getLocalToDevice33(), shape, false,
+                mPaintParams.set(paint, null, false, false), paint,
+                mRendererProvider.getArc(shape.mType));
     }
 
     @Override
@@ -539,19 +538,18 @@ public final class GraniteDevice extends Device {
 
     @Override
     public void drawVertices(Vertices vertices, Blender blender, Paint paint) {
-        drawGeometry(getLocalToDevice33(), vertices, false, paint,
+        drawGeometry(getLocalToDevice33(), vertices, false,
+                mPaintParams.set(paint, blender, false, false), null,
                 mRendererProvider.getVertices(
-                        vertices.getVertexMode(), vertices.hasColors(), vertices.hasTexCoords()),
-                blender); // move
+                        vertices.getVertexMode(), vertices.hasColors(), vertices.hasTexCoords()));
     }
 
     @Override
     public void drawEdgeAAQuad(Rect2fc r, @Size(8) float @Nullable [] clip, int clipOffset, int flags, Paint paint) {
         EdgeAAQuad quad = clip != null ? new EdgeAAQuad(clip, clipOffset, flags) : new EdgeAAQuad(r, flags);
-        drawGeometry(getLocalToDevice33(),
-                quad,
-                false, paint,
-                mRendererProvider.getPerEdgeAAQuad(), null);
+        drawGeometry(getLocalToDevice33(), quad, false,
+                mPaintParams.set(paint, null, false, false), null,
+                mRendererProvider.getPerEdgeAAQuad());
     }
 
     @Override
@@ -569,8 +567,9 @@ public final class GraniteDevice extends Device {
         }
         var shape = new BoxShape();
         shape.setBlur(rr, blurRadius, noiseAlpha);
-        drawGeometry(getLocalToDevice33(), shape, false, paint,
-                mRendererProvider.getAnalyticBox(true), null);
+        drawGeometry(getLocalToDevice33(), shape, false,
+                mPaintParams.set(paint, null, false, false), null,
+                mRendererProvider.getAnalyticBox(true));
         return true;
     }
 
@@ -584,8 +583,10 @@ public final class GraniteDevice extends Device {
             return;
         }
 
+        boolean ignoreShader = subRun.getMaskFormat() == Engine.MASK_FORMAT_ARGB;
+        PaintParams p = mPaintParams.set(paint, ignoreShader ? BlendMode.DST_IN : null, false, ignoreShader);
+
         int subRunEnd = subRun.getGlyphCount();
-        Paint subRunPaint = mSubRunPaint;
         boolean flushed = false;
         for (int subRunCursor = 0; subRunCursor < subRunEnd; ) {
             int glyphsPrepared = subRun.prepareGlyphs(subRunCursor, subRunEnd,
@@ -609,15 +610,9 @@ public final class GraniteDevice extends Device {
                         subRunCursor, glyphsPrepared,
                         mContext.getAtlasProvider());
 
-                subRunPaint.set(paint);
-                if (subRun.getMaskFormat() == Engine.MASK_FORMAT_ARGB) {
-                    subRunPaint.setShader(null);
-                }
-                subRunPaint.setStyle(Paint.FILL);
-
-                drawGeometry(subRunToDevice, subRunData, false, paint,
-                        mRendererProvider.getRasterText(maskFormat),
-                        BlendMode.DST_IN);
+                drawGeometry(subRunToDevice, subRunData, false,
+                        p, null,
+                        mRendererProvider.getRasterText(maskFormat));
             } else if (flushed) {
                 // Treat as an error.
                 break;
@@ -633,83 +628,32 @@ public final class GraniteDevice extends Device {
                 flushed = true;
             }
         }
-        subRunPaint.reset();
-    }
-
-    private static boolean blender_depends_on_dst(Blender blender,
-                                                  boolean srcIsTransparent) {
-        BlendMode bm = blender != null ? blender.asBlendMode() : BlendMode.SRC_OVER;
-        if (bm == null) {
-            // custom blender
-            return true;
-        }
-        if (bm == BlendMode.SRC || bm == BlendMode.CLEAR) {
-            // src and clear blending never depends on dst
-            return false;
-        }
-        if (bm == BlendMode.SRC_OVER) {
-            // src-over depends on dst if src is transparent (a != 1)
-            return srcIsTransparent;
-        }
-        return true;
-    }
-
-    private static boolean paint_depends_on_dst(float a,
-                                                Shader shader,
-                                                ColorFilter colorFilter,
-                                                Blender finalBlender,
-                                                Blender primitiveBlender) {
-        boolean srcIsTransparent = a != 1.0f || (shader != null && !shader.isOpaque()) ||
-                (colorFilter != null && !colorFilter.isAlphaUnchanged());
-
-        if (primitiveBlender != null && blender_depends_on_dst(primitiveBlender, srcIsTransparent)) {
-            return true;
-        }
-
-        return blender_depends_on_dst(finalBlender, srcIsTransparent);
-    }
-
-    private static boolean paint_depends_on_dst(PaintParams paintParams) {
-        return paint_depends_on_dst(paintParams.getColor()[3],
-                paintParams.getShader(),
-                paintParams.getColorFilter(),
-                paintParams.getFinalBlender(),
-                paintParams.getPrimitiveBlender());
-    }
-
-    private static boolean paint_depends_on_dst(Paint paint) {
-        return paint_depends_on_dst(paint.getAlpha(),
-                paint.getShader(),
-                paint.getColorFilter(),
-                paint.getBlender(),
-                null);
     }
 
     public void drawGeometry(@NonNull Matrixc localToDevice,
                              @Nullable Bounded geometry,
                              boolean inverseFill,
-                             @NonNull Paint paint,
-                             GeometryRenderer renderer,
-                             Blender primitiveBlender) {
+                             @NonNull PaintParams paint,
+                             @Nullable Paint style,
+                             GeometryRenderer renderer) {
         Draw draw = new Draw(localToDevice, geometry, inverseFill);
         assert geometry != null || draw.isFloodFill();
 
-        if (paint.getStyle() != Paint.FILL) {
-            draw.mHalfWidth = paint.getStrokeWidth() * 0.5f;
-            switch (paint.getStrokeJoin()) {
+        if (style != null && style.getStyle() != Paint.FILL) {
+            draw.mHalfWidth = style.getStrokeWidth() * 0.5f;
+            switch (style.getStrokeJoin()) {
                 case Paint.JOIN_ROUND -> draw.mJoinLimit = -1;
                 case Paint.JOIN_BEVEL -> draw.mJoinLimit = 0;
-                case Paint.JOIN_MITER -> draw.mJoinLimit = paint.getStrokeMiter();
+                case Paint.JOIN_MITER -> draw.mJoinLimit = style.getStrokeMiter();
             }
-            draw.mStrokeCap = (byte) paint.getStrokeCap();
-            draw.mStrokeAlign = (byte) paint.getStrokeAlign();
+            draw.mStrokeCap = (byte) style.getStrokeCap();
+            draw.mStrokeAlign = (byte) style.getStrokeAlign();
         }
 
         // Calculate the clipped bounds of the draw and determine the clip elements that affect the
         // draw without updating the clip stack.
         assert mElementsForMask.isEmpty();
-        int clipped = mClipStack.prepareForDraw(draw,
-                mElementsForMask);
+        int clipped = mClipStack.prepareForDraw(draw, mElementsForMask);
         if (clipped == ClipStack.CLIPPED_OUT) {
             return;
         }
@@ -721,40 +665,53 @@ public final class GraniteDevice extends Device {
         }
         assert renderer != null;
 
-        final boolean outsetBoundsForAA = renderer.outsetBoundsForAA();
-
-        if (outsetBoundsForAA) {
+        if (renderer.outsetBoundsForAA()) {
             draw.outsetBoundsForAA();
         }
 
-        // A primitive blender should be ignored if there is no primitive color to blend against.
-        // Additionally, if a renderer emits a primitive color, then a null primitive blender should
-        // be interpreted as SrcOver blending mode.
-        if (!renderer.emitsPrimitiveColor()) {
-            primitiveBlender = null;
-        } else if (primitiveBlender == null) {
-            primitiveBlender = BlendMode.SRC_OVER;
-        }
-
-        var paintParams = mPaintParams.set(paint, primitiveBlender, false, false); // move
+        // A renderer that emits a primitive color should only be used by a drawX() call that sets a
+        // non-null primitive blender.
+        assert (paint.getPrimitiveBlender() != null) == (renderer.emitsPrimitiveColor());
 
         // collect fragment data and pipeline key
-        KeyContext keyContext = mKeyContext.reset(paintParams.getColor());
+        KeyContext keyContext = mKeyContext.reset(paint.getColor());
         if (renderer.handlesSolidColor()) {
-            draw.mSolidColor = paintParams.getSolidColor(keyContext);
+            draw.mSolidColor = paint.getSolidColor(keyContext);
             // solid color will be non-null if paint is
         }
         // Add paint fragment stages, final blender, clip shader,
-        int dstUsage = paintParams.toKey(keyContext,
+        int dstUsage = paint.toKey(keyContext,
                 draw.mSolidColor,
                 null);
         // KeyBuilder as a read-only view
         Key paintParamsKey = keyContext.paintParamsKeyBuilder;
-        // at least there's final blender
-        assert !paintParamsKey.isEmpty();
         // uniform data gatherer will be used for geometry steps, deduplicate now
         int fragmentUniformIndex = mDrawContext.getFragmentUniformDataCache()
                 .insert(keyContext.uniformDataGatherer.finish());
+
+        boolean overwritesEntireSurface = dstUsage == PaintParams.DST_USAGE_NONE
+                && draw.isFloodFill()
+                && mElementsForMask.isEmpty()
+                && draw.mScissorRect.contains(getBounds());
+        if (overwritesEntireSurface) {
+            BlendMode bm = paint.getFinalBlendMode();
+            // Since we don't depend on the dst, a dst-out blend mode implies source is
+            // opaque, which causes dst-out to behave like clear.
+            if (bm == BlendMode.CLEAR || bm == BlendMode.DST_OUT) {
+                // do fullscreen clear
+                mDrawContext.clear(null);
+                return;
+            }
+            // Since flood-fill uses cover bounds renderer, and it can handle solid color.
+            // If the color can be extracted, then solid color is not null.
+            if (draw.mSolidColor != null) {
+                // do fullscreen clear
+                mDrawContext.clear(draw.mSolidColor);
+                return;
+            }
+            mDrawContext.discard();
+            // But then continue to render the flood fill with shading
+        }
 
         final int numNewRenderSteps = renderer.numSteps();
 
@@ -804,9 +761,9 @@ public final class GraniteDevice extends Device {
         // difference clip => non-inverse-fill, draw rect
         GeometryRenderer renderer = mRendererProvider.getNonAABoundsFill();
 
-        assert mDrawContext.numPendingSteps() + draw.mRenderer.numSteps() < DrawPass.MAX_RENDER_STEPS;
+        assert mDrawContext.numPendingSteps() + renderer.numSteps() < DrawPass.MAX_RENDER_STEPS;
 
-        assert !draw.mRenderer.emitsCoverage();
+        assert !renderer.emitsCoverage();
 
         mDrawContext.recordDraw(renderer, draw, DrawPass.INVALID_INDEX, KeyBuilder.EMPTY, mUniformDataGatherer);
 

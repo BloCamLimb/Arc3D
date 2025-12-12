@@ -29,6 +29,7 @@ import icyllis.arc3d.opengl.GLUtil;
 import icyllis.arc3d.sketch.Canvas;
 import icyllis.arc3d.core.ColorInfo;
 import icyllis.arc3d.core.ImageInfo;
+import icyllis.arc3d.sketch.Matrix;
 import icyllis.arc3d.sketch.Paint;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL;
@@ -80,6 +81,9 @@ public class TestClipStack {
         );
         assert drawDevice != null;
 
+        Matrix m = new Matrix();
+        m.setRotate(MathUtil.DEG_TO_RAD * 30, 40, 40);
+        drawDevice.setGlobalCTM(m.toMatrix4());
         LOGGER.info(stateToString(drawDevice.getClipStack().currentClipState()));
         drawDevice.clipRect(
                 new Rect2f(0, 0, 60, 60),
@@ -94,9 +98,11 @@ public class TestClipStack {
         LOGGER.info(stateToString(drawDevice.getClipStack().currentClipState()));
         drawDevice.getClipStack().elements().forEach(e -> LOGGER.info(e.toString()));
 
+        drawDevice.drawRect(new Rect2f(30, 30, 50, 50), new Paint());
+
         Rect2f rect = new Rect2f();
         rect.set(15, 20, 35, 40);
-        drawDevice.drawRect(rect, new Paint());
+        //drawDevice.drawRect(rect, new Paint());
 
         /*var elementsForMask = new ArrayList<ClipStack.Element>();
         var draw = new DrawOp();
