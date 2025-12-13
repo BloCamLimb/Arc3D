@@ -36,7 +36,7 @@ public class BakedGlyph extends DrawAtlas.AtlasLocator {
     public static int chooseMaskFormat(byte mask) {
         // promote B/W to Alpha8
         return switch (mask) {
-            case Mask.kBW_Format, Mask.kA8_Format -> Engine.MASK_FORMAT_A8;
+            case Mask.kBW_Format, Mask.kA8_Format, Mask.kSDF_Format -> Engine.MASK_FORMAT_A8;
             case Mask.kARGB32_Format -> Engine.MASK_FORMAT_ARGB;
             default -> throw new AssertionError();
         };

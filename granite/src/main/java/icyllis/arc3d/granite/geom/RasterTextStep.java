@@ -60,7 +60,7 @@ public class RasterTextStep extends GeometryStep {
     public RasterTextStep(int maskFormat) {
         super("RasterTextStep",
                 switch (maskFormat) {
-                    case Engine.MASK_FORMAT_A8 -> "mask";
+                    case Engine.MASK_FORMAT_A8 -> "alpha";
                     case Engine.MASK_FORMAT_A565 -> "lcd";
                     case Engine.MASK_FORMAT_ARGB -> "color";
                     default -> throw new AssertionError();
@@ -152,8 +152,9 @@ public class RasterTextStep extends GeometryStep {
 
     @Override
     public void emitFragmentColorCode(Formatter fs, String outputColor) {
-        // ARGB only
-        fs.format("%s = texture(%s, %s);\n", outputColor, "u_GlyphAtlas", "f_TexCoords");
+        assert mMaskFormat == Engine.MASK_FORMAT_ARGB;
+        // ARGB is always backed by RGBA texture, mask colors are premultiplied
+        fs.format("%s = texture(%s, %s).bgra;\n", outputColor, "u_GlyphAtlas", "f_TexCoords");
     }
 
     /**
@@ -166,9 +167,10 @@ public class RasterTextStep extends GeometryStep {
     public void emitFragmentCoverageCode(Formatter fs, String outputCoverage) {
         // A8 and LCD only
         if (mMaskFormat == Engine.MASK_FORMAT_A8) {
-            // A8 is always backed by R8 texture, colors are premultiplied
+            // A8 is always backed by R8 texture, paint colors are premultiplied
             fs.format("%s = texture(%s, %s).rrrr;\n", outputCoverage, "u_GlyphAtlas", "f_TexCoords");
         } else {
+            assert mMaskFormat == Engine.MASK_FORMAT_A565;
             fs.format("%s = texture(%s, %s);\n", outputCoverage, "u_GlyphAtlas", "f_TexCoords");
         }
     }
