@@ -250,12 +250,9 @@ public final class SurfaceDrawContext implements AutoCloseable {
         assert !draw.mDrawBounds.isEmpty();
         assert new Rect2i(0, 0, mImageInfo.width(), mImageInfo.height()).contains(draw.mScissorRect);
         assert ((renderer.depthStencilFlags() & DepthStencilFlags.kStencil) == 0 ||
-                DrawOrder.getStencilIndex(draw.mDrawOrder) != DrawOrder.MIN_VALUE);
+                draw.mStencilIndex != Draw.UNASSIGNED);
 
         draw.mRenderer = renderer;
-        // we need to persist the Draw so we can write the vertex data later
-        // the matrix is a view to Device or ClipStack, so clone it first
-        draw.mTransform = draw.mTransform.clone();
 
         // for depth-only draw, there's no solid color
         assert !paintParamsKey.isEmpty() || draw.mSolidColor == null;
@@ -554,17 +551,8 @@ public final class SurfaceDrawContext implements AutoCloseable {
      */
     public record SortKey(Draw draw, int orderKey, long pipelineKey, int[] textures) implements Comparable<SortKey> {
 
-        public static final int PAINTERS_ORDER_OFFSET = 32;
-        public static final int PAINTERS_ORDER_MASK = (1 << 16) - 1;
-
-        public static final int STENCIL_INDEX_OFFSET = 16;
-        public static final int STENCIL_INDEX_MASK = (1 << 16) - 1;
-
-        static {
-            //noinspection ConstantValue
-            assert DrawOrder.PAINTERS_ORDER_SHIFT == PAINTERS_ORDER_OFFSET &&
-                    DrawOrder.STENCIL_INDEX_SHIFT == STENCIL_INDEX_OFFSET;
-        }
+        public static final int PAINTERS_ORDER_OFFSET = 16;
+        public static final int STENCIL_INDEX_OFFSET = 0;
 
         // 52-50 step, 50-34 pipeline, 34-17 geometry uniform, 17-0 fragment uniform
         public static final int STEP_INDEX_OFFSET = 50;
@@ -586,15 +574,15 @@ public final class SurfaceDrawContext implements AutoCloseable {
                        int fragmentUniformIndex,
                        int[] textures) {
             this(draw,
-                    // the 16-48 bits are just we want
-                    (int) (draw.mDrawOrder >>> DrawOrder.STENCIL_INDEX_SHIFT),
+                    (draw.mPaintOrder << PAINTERS_ORDER_OFFSET) |
+                            (draw.mStencilIndex << STENCIL_INDEX_OFFSET),
                     ((long) stepIndex << STEP_INDEX_OFFSET) |
                             ((long) pipelineIndex << PIPELINE_INDEX_OFFSET) |
                             ((long) geometryUniformIndex << GEOMETRY_UNIFORM_INDEX_OFFSET) |
                             ((long) fragmentUniformIndex << FRAGMENT_UNIFORM_INDEX_OFFSET),
                     textures);
             assert (stepIndex & STEP_INDEX_MASK) == stepIndex;
-            assert pipelineIndex >= 0;
+            assert pipelineIndex >= 0 && geometryUniformIndex >= 0 && fragmentUniformIndex >= 0;
             assert textures.length > 0 || textures == IntArrays.EMPTY_ARRAY;
         }
 

@@ -21,14 +21,14 @@ package icyllis.arc3d.granite.geom;
 
 import icyllis.arc3d.core.Rect2fc;
 import icyllis.arc3d.core.Rect2ic;
-import icyllis.arc3d.granite.DrawOrder;
+import icyllis.arc3d.granite.Draw;
 
 /**
  * A BoundsManager that produces exact painter's order and assumes nothing is occluded.
  */
 public final class SimpleBoundsManager extends BoundsManager {
 
-    private int mLatestDraw = DrawOrder.MIN_VALUE;
+    private int mLatestDraw = Draw.MIN_SEQUENCE_VALUE;
 
     public SimpleBoundsManager() {
     }
@@ -52,6 +52,6 @@ public final class SimpleBoundsManager extends BoundsManager {
 
     @Override
     public void clear() {
-        mLatestDraw = DrawOrder.MIN_VALUE;
+        mLatestDraw = Draw.MIN_SEQUENCE_VALUE;
     }
 }

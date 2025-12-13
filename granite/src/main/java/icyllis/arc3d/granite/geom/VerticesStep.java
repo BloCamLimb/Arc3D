@@ -217,6 +217,6 @@ public class VerticesStep extends GeometryStep {
                                          TextureDataGatherer textureDataGatherer,
                                          boolean mayRequireLocalCoords) {
         uniformDataGatherer.writeMatrix3f(draw.mTransform); // LocalToDevice
-        uniformDataGatherer.write1f(draw.getDepthAsFloat());
+        uniformDataGatherer.write1f(draw.clipDepthAsFloat());
     }
 }

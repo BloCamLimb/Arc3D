@@ -22,7 +22,7 @@ package icyllis.arc3d.granite.geom;
 import icyllis.arc3d.core.MathUtil;
 import icyllis.arc3d.core.Rect2fc;
 import icyllis.arc3d.core.Rect2ic;
-import icyllis.arc3d.granite.DrawOrder;
+import icyllis.arc3d.granite.Draw;
 import org.jspecify.annotations.NonNull;
 
 import java.util.Arrays;
@@ -84,7 +84,7 @@ public final class GridBoundsManager extends BoundsManager {
         int p = t * mGridWidth + l;
         int h = b - t;
         int w = r - l;
-        int max = DrawOrder.MIN_VALUE;
+        int max = Draw.MIN_SEQUENCE_VALUE;
         for (int y = 0; y <= h; ++y) {
             for (int x = 0; x <= w; ++x) {
                 int v = mNodes[p + x] & 0xFFFF;
@@ -107,7 +107,7 @@ public final class GridBoundsManager extends BoundsManager {
         int p = t * mGridWidth + l;
         int h = b - t;
         int w = r - l;
-        int max = DrawOrder.MIN_VALUE;
+        int max = Draw.MIN_SEQUENCE_VALUE;
         for (int y = 0; y <= h; ++y) {
             for (int x = 0; x <= w; ++x) {
                 int v = mNodes[p + x] & 0xFFFF;
@@ -144,6 +144,6 @@ public final class GridBoundsManager extends BoundsManager {
 
     @Override
     public void clear() {
-        Arrays.fill(mNodes, (short) DrawOrder.MIN_VALUE);
+        Arrays.fill(mNodes, (short) Draw.MIN_SEQUENCE_VALUE);
     }
 }

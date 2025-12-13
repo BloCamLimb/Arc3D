@@ -157,8 +157,11 @@ public class PipelineBuilder {
 
         info.mPipelineLabel = info.mVertLabel + " + ";
         if (info.mFragLabel.isEmpty()) {
-            info.mPipelineLabel += mDesc.useStepSolidColor() ? "(simple)" : "(empty)";
+            info.mPipelineLabel += "(empty)";
         } else {
+            if (mDesc.useStepSolidColor()) {
+                info.mPipelineLabel += "(simple) + ";
+            }
             info.mPipelineLabel += info.mFragLabel;
         }
 

@@ -22,7 +22,7 @@ package icyllis.arc3d.granite.geom;
 import icyllis.arc3d.core.Rect2f;
 import icyllis.arc3d.core.Rect2fc;
 import icyllis.arc3d.core.Rect2ic;
-import icyllis.arc3d.granite.DrawOrder;
+import icyllis.arc3d.granite.Draw;
 import it.unimi.dsi.fastutil.floats.FloatArrayList;
 import it.unimi.dsi.fastutil.shorts.ShortArrayList;
 
@@ -56,7 +56,7 @@ public final class FullBoundsManager extends BoundsManager {
         float[] r = mRects.elements();
         short[] orders = mOrders.elements();
         int limit = mOrders.size();
-        int max = DrawOrder.MIN_VALUE;
+        int max = Draw.MIN_SEQUENCE_VALUE;
         for (int i = 0, j = 0; j < limit; i += 4, j += 1) {
             // fast overlap check
             if (ar > r[i] && ab > r[i+1] && r[i+2] > al && r[i+3] > at) {
@@ -75,7 +75,7 @@ public final class FullBoundsManager extends BoundsManager {
         float[] r = mRects.elements();
         short[] orders = mOrders.elements();
         int limit = mOrders.size();
-        int max = DrawOrder.MIN_VALUE;
+        int max = Draw.MIN_SEQUENCE_VALUE;
         for (int i = 0, j = 0; j < limit; i += 4, j += 1) {
             // fast overlap check
             if (ar > r[i] && ab > r[i+1] && r[i+2] > al && r[i+3] > at) {

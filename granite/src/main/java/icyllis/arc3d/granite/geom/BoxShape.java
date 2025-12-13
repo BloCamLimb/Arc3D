@@ -140,4 +140,39 @@ public class BoxShape implements Bounded {
             case kBlurBox_Type -> dest.outset(mBlurRadius, mBlurRadius);
         }
     }
+
+    public void getInnerBounds(@NonNull Rect2f dest) {
+        assert mType == kBox_Type;
+        float r = mRadius;
+
+        float w = mRight - mLeft;
+        float h = mBottom - mTop;
+        float dr = r + r;
+
+        float horizArea = (w - dr) * h;
+        float vertArea = (h - dr) * w;
+
+        float innerArea = (w - RRect.kInsetScale * dr) * (h - RRect.kInsetScale * dr);
+
+        if (horizArea > vertArea && horizArea > innerArea) {
+            // Cut off corners by insetting left and right
+            dest.set(mLeft + r, mTop, mRight - r, mBottom);
+        } else if (vertArea > innerArea) {
+            // Cut off corners by insetting top and bottom
+            dest.set(mLeft, mTop + r, mRight, mBottom - r);
+        } else if (innerArea > 0.f) {
+            // Inset on all sides, scaled to touch
+            float inset = RRect.kInsetScale * r;
+            dest.set(mLeft + inset,
+                    mTop + inset,
+                    mRight - inset,
+                    mBottom - inset);
+        } else {
+            assert false;
+            dest.setEmpty();
+            return;
+        }
+
+        assert dest.isSorted() && !dest.isEmpty();
+    }
 }

@@ -142,6 +142,7 @@ public abstract class GeometryStep {
      * Rasterization of inverse fills scissor geometrically.
      */
     public static final int FLAG_INVERSE_FILL_SCISSOR = 1 << 8;
+    public static final int FLAG_USE_NON_AA_INNER_FILL = 1 << 9;
 
     private static final AtomicInteger sNextID = new AtomicInteger(0);
 

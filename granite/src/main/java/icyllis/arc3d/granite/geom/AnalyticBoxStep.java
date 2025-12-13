@@ -101,7 +101,7 @@ public class AnalyticBoxStep extends GeometryStep {
                 blur
                         ? (FLAG_PERFORM_SHADING | FLAG_EMIT_COVERAGE | FLAG_HANDLE_SOLID_COLOR)
                         : (FLAG_PERFORM_SHADING | FLAG_EMIT_COVERAGE | FLAG_OUTSET_BOUNDS_FOR_AA |
-                        FLAG_HANDLE_SOLID_COLOR),
+                        FLAG_USE_NON_AA_INNER_FILL | FLAG_HANDLE_SOLID_COLOR),
                 PrimitiveType.kTriangleStrip,
                 CommonDepthStencilSettings.kDirectDepthGreaterPass
         );
@@ -321,7 +321,7 @@ public class AnalyticBoxStep extends GeometryStep {
             MemoryUtil.memPutFloat(instanceData + 36, shape.mBlurRadius);
             MemoryUtil.memPutFloat(instanceData + 40, shape.mNoiseAlpha);
             // depth
-            MemoryUtil.memPutInt(instanceData + 44, (draw.getDepth() << 16));
+            MemoryUtil.memPutInt(instanceData + 44, (draw.clipDepth() << 16));
         } else {
             int type;
             float radius;
@@ -359,7 +359,7 @@ public class AnalyticBoxStep extends GeometryStep {
             };
             // only butt/square line and rect can have miter join
             int join = (type == 2 || radius == 0) && draw.mJoinLimit >= MathUtil.SQRT2 ? 16 : 0;
-            MemoryUtil.memPutInt(instanceData + 44, (draw.getDepth() << 16) | (join | dir | type));
+            MemoryUtil.memPutInt(instanceData + 44, (draw.clipDepth() << 16) | (join | dir | type));
         }
         draw.mTransform.store(instanceData + 48);
     }

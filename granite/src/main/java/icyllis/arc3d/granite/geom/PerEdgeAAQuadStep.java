@@ -142,7 +142,7 @@ public class PerEdgeAAQuadStep extends GeometryStep {
         super("PerEdgeAAQuadStep", "",
                 VERTEX_ATTRIBS, INSTANCE_ATTRIBS,
                 FLAG_PERFORM_SHADING | FLAG_EMIT_COVERAGE | FLAG_OUTSET_BOUNDS_FOR_AA |
-                FLAG_HANDLE_SOLID_COLOR,
+                FLAG_USE_NON_AA_INNER_FILL | FLAG_HANDLE_SOLID_COLOR,
                 PrimitiveType.kTriangleStrip,
                 CommonDepthStencilSettings.kDirectDepthGreaterPass
         );
@@ -433,7 +433,7 @@ public class PerEdgeAAQuadStep extends GeometryStep {
             memPutFloat(instanceData+44, quad.y2);
         }
 
-        memPutInt(instanceData+48, edgeSigns | (draw.getDepth() << 16));
+        memPutInt(instanceData+48, edgeSigns | (draw.clipDepth() << 16));
         draw.mTransform.store(instanceData+52);
     }
 }

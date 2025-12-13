@@ -367,12 +367,12 @@ public final class ClipStack {
                              @NonNull BoundsManager boundsManager,
                              int depth) {
         if (draw.isClippedOut()) {
-            return DrawOrder.NO_INTERSECTION;
+            return Draw.NO_INTERSECTION;
         }
 
         assert mSaves.top().state() != STATE_EMPTY;
 
-        int maxClipOrder = DrawOrder.NO_INTERSECTION;
+        int maxClipOrder = Draw.NO_INTERSECTION;
         for (int i = 0; i < elementsForMask.size(); i++) {
             RawElement e = (RawElement) elementsForMask.get(i);
             int order = e.updateForDraw(boundsManager,
@@ -594,8 +594,8 @@ public final class ClipStack {
         // clip stack is applied to additional draws, the clip's Z and usage bounds grow to account
         // for it; its compressed painter's order is selected the first time a draw is affected.
         final Rect2i mUsageBounds = new Rect2i();
-        int mPaintersOrder = DrawOrder.NO_INTERSECTION;
-        int mMaxDepth = DrawOrder.CLEAR_DEPTH;
+        int mPaintersOrder = Draw.NO_INTERSECTION;
+        int mMaxDepth = Draw.CLEAR_DEPTH;
 
         // Elements are invalidated by SaveRecords as the record is updated with new elements that
         // override old geometry. An invalidated element stores the index of the first element of
@@ -651,8 +651,8 @@ public final class ClipStack {
             mOp = op;
             mEffectiveNonAA = !doAA;
             mUsageBounds.setInfiniteInverted();
-            mPaintersOrder = DrawOrder.NO_INTERSECTION;
-            mMaxDepth = DrawOrder.CLEAR_DEPTH;
+            mPaintersOrder = Draw.NO_INTERSECTION;
+            mMaxDepth = Draw.CLEAR_DEPTH;
             mInvalidatedByIndex = -1;
 
             if (!localToDevice.invert(mDeviceToLocal)) {
@@ -718,7 +718,7 @@ public final class ClipStack {
         }
 
         public boolean hasPendingDraw() {
-            return mPaintersOrder != DrawOrder.NO_INTERSECTION;
+            return mPaintersOrder != Draw.NO_INTERSECTION;
         }
 
         // As new elements are pushed on to the stack, they may make older elements redundant.
@@ -940,25 +940,24 @@ public final class ClipStack {
                 drawBounds.intersectNoCheck(mOuterBounds);
             }
             if (!drawBounds.isEmpty()) {
-                // Although we are recording this clip draw after all the draws it affects, 'fOrder' was
-                // determined at the first usage, so after sorting by DrawOrder the clip draw will be in the
-                // right place. Unlike regular draws that use their own "Z", by writing (1 + max Z this clip
-                // affects), it will cause those draws to fail either GREATER and GEQUAL depth tests where
-                // they need to be clipped.
-                long order = DrawOrder.makeFromDepthAndPaintersOrder(
-                        mMaxDepth + 1, mPaintersOrder
-                );
                 // An element's clip op is encoded in the shape's fill type. Inverse fills are intersect ops
                 // and regular fills are difference ops. This means fShape is already in the right state to
                 // draw directly.
                 boolean inverseFill = mOp == OP_INTERSECT;
                 assert mShape != null;
                 // Rect can be modified so make a copy to record draw
+                //TODO always use shape.clone() once supported
                 Draw draw = new Draw(mLocalToDevice, mShape instanceof Rect ? new Rect(mShapeBounds) : mShape, inverseFill);
                 draw.mDrawBounds = drawBounds;
                 draw.mTransformedShapeBounds = new Rect2f(mOuterBounds);
                 draw.mScissorRect = scissor;
-                draw.mDrawOrder = order;
+                // Although we are recording this clip draw after all the draws it affects, 'mPaintersOrder' was
+                // determined at the first usage, so after sorting by DrawOrder the clip draw will be in the
+                // right place. Unlike regular draws that use their own "Z", by writing (1 + max depth this clip
+                // affects), it will cause those draws to fail either GREATER and GEQUAL depth tests where
+                // they need to be clipped.
+                draw.mDepth = mMaxDepth + 1;
+                draw.mPaintOrder = mPaintersOrder;
                 device.drawClipShape(draw);
             }
 
@@ -969,8 +968,8 @@ public final class ClipStack {
             // accumulation process will begin again and automatically use the Device's post-flush Z values
             // and BoundsManager state.
             mUsageBounds.setInfiniteInverted();
-            mPaintersOrder = DrawOrder.NO_INTERSECTION;
-            mMaxDepth = DrawOrder.CLEAR_DEPTH;
+            mPaintersOrder = Draw.NO_INTERSECTION;
+            mMaxDepth = Draw.CLEAR_DEPTH;
         }
 
         public Rect2fc innerBounds() {

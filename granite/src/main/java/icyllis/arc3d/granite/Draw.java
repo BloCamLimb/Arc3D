@@ -34,7 +34,7 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * Draw contains multiple groups of data, each of which will be initialized step by step.
  */
-public final class Draw {
+public final class Draw implements Cloneable {
 
     /**
      * Pointer to the renderer instance, managed by {@link RendererProvider}.
@@ -47,6 +47,8 @@ public final class Draw {
     public Matrixc mTransform;
     public Bounded mGeometry;
     public boolean mInverseFill;
+
+
     /**
      * Clip params (immutable), set by {@link ClipStack}.
      * <p>
@@ -66,13 +68,78 @@ public final class Draw {
     public Rect2ic mScissorRect;
     /**
      * Precomputed local AA radius if {@link GeometryRenderer#outsetBoundsForAA()} is true,
-     * set by {@link ClipStack}.
+     * set by {@link ClipStack}, used for analytic AA draws.
      */
     public float mAARadius;
-    /**
-     * Packed draw order, see {@link DrawOrder}.
+
+
+    /*
+     * DrawOrder aggregates the three separate sequences that Granite uses to re-order draws and their
+     * substeps as much as possible while preserving the painter's order semantics of the Canvas API.
+     *
+     * To build the full DrawOrder for a draw, start with its assigned PaintersDepth (i.e. the original
+     * painter's order of the draw call). From there, the DrawOrder can be updated to reflect
+     * dependencies on previous draws, either from depth-only clip draws or because the draw is
+     * transparent and must blend with the previous color values. Lastly, once the
+     * CompressedPaintersOrder is finalized, the DrawOrder can be updated to reflect whether or not
+     * the draw will involve the stencil buffer--and if so, specify the disjoint stencil set it
+     * belongs to.
+     *
+     * The original and effective order that draws are executed in is defined by the PaintersDepth.
+     * However, the actual execution order is defined by first the CompressedPaintersOrder and then
+     * the DisjointStencilIndex. This means that draws with much higher depths can be executed earlier
+     * if painter's order compression allows for it.
      */
-    public long mDrawOrder;
+
+    /**
+     * Orders are 16-bit unsigned integers.
+     */
+    public static final int MIN_SEQUENCE_VALUE = 0;
+    public static final int MAX_SEQUENCE_VALUE = 0xFFFF;
+
+    // The first PaintersDepth is reserved for clearing the depth attachment; any draw using this
+    // depth will always fail the depth test.
+    public static final int CLEAR_DEPTH = MIN_SEQUENCE_VALUE;
+    // The first CompressedPaintersOrder is reserved to indicate there is no previous draw that
+    // must come before a draw.
+    public static final int NO_INTERSECTION = MIN_SEQUENCE_VALUE;
+    // The first DisjointStencilIndex is reserved to indicate an unassigned stencil set.
+    public static final int UNASSIGNED = MIN_SEQUENCE_VALUE;
+
+    /**
+     * CompressedPaintersOrder is an ordinal number that allows draw commands to be re-ordered so long
+     * as when they are executed, the read/writes to the color|depth attachments respect the original
+     * painter's order. Logical draws with the same CompressedPaintersOrder can be assumed to be
+     * executed in any order, however that may have been determined (e.g. BoundsManager or relying on
+     * a depth test during rasterization).
+     */
+    public int mPaintOrder = NO_INTERSECTION;
+    /**
+     * Each DisjointStencilIndex specifies an implicit set of non-overlapping draws. Assuming that two
+     * draws have the same CompressedPaintersOrder and the same DisjointStencilIndex, their substeps
+     * for multi-pass rendering (stencil-then-cover, etc.) can be intermingled with each other and
+     * produce the same results as if each draw's substeps were executed in order before moving on to
+     * the next draw's.
+     * <p>
+     * Ordering within a set can be entirely arbitrary (i.e. all stencil steps can go before all cover
+     * steps). Ordering between sets is also arbitrary since all draws share the same
+     * CompressedPaintersOrder, so long as one set is entirely drawn before the next.
+     * <p>
+     * Two draws that have different CompressedPaintersOrders but the same DisjointStencilIndex are
+     * unrelated, they may or may not overlap. The painters order scopes the disjoint sets.
+     */
+    public int mStencilIndex = UNASSIGNED;
+    /**
+     * Every draw has an associated depth value. The value is constant across the entire draw and is
+     * not related to any varying Z coordinate induced by a 4x4 transform. The painter's depth is stored
+     * in the depth attachment and the GREATER depth test is used to reject or accept pixels/samples
+     * relative to what has already been rendered into the depth attachment. This allows draws that do
+     * not depend on the previous color to be radically re-ordered relative to their original painter's
+     * order while producing correct results.
+     */
+    public int mDepth = CLEAR_DEPTH;
+
+
     /**
      * Stroke params.
      */
@@ -165,14 +232,43 @@ public final class Draw {
         return mHalfWidth * multiplier;
     }
 
-    /**
-     * Returns the painter's depth as unsigned integer.
-     */
-    public int getDepth() {
-        return DrawOrder.getDepth(mDrawOrder);
+    // the clip space depth value in z-buffer
+    public int clipDepth() {
+        return mDepth;
     }
 
-    public float getDepthAsFloat() {
-        return DrawOrder.getDepthAsFloat(mDrawOrder);
+    // the clip space depth value in z-buffer
+    public float clipDepthAsFloat() {
+        return (float) mDepth / (float) MAX_SEQUENCE_VALUE;
+    }
+
+    // Coopt the stencil index to encode the draw's actual painter's depth in decreasing order,
+    // for use enforcing front-to-back order (since the compressed painter's order handles back-to-front).
+    public void reverseDepthAsStencil() {
+        assert mStencilIndex == UNASSIGNED; // can't have a real stencil index
+        mStencilIndex = MAX_SEQUENCE_VALUE - mDepth;
+    }
+
+    public void dependsOnPaintersOrder(int prevDraw) {
+        // A draw must be ordered after all previous draws that it depends on
+        int next = prevDraw + 1;
+        if (mPaintOrder < next) {
+            mPaintOrder = next;
+        }
+    }
+
+    public void dependsOnStencil(int disjointSet) {
+        // Stencil usage should only be set once
+        assert mStencilIndex == UNASSIGNED;
+        mStencilIndex = disjointSet;
+    }
+
+    @Override
+    public Draw clone() {
+        try {
+            return (Draw) super.clone();
+        } catch (CloneNotSupportedException e) {
+            throw new AssertionError(e);
+        }
     }
 }

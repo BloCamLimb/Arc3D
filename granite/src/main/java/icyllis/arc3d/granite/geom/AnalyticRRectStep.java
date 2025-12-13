@@ -236,7 +236,7 @@ public class AnalyticRRectStep extends GeometryStep {
         super("AnalyticRRectStep", "",
                 VERTEX_ATTRIBS, INSTANCE_ATTRIBS,
                 FLAG_PERFORM_SHADING | FLAG_EMIT_COVERAGE | FLAG_OUTSET_BOUNDS_FOR_AA
-                        | FLAG_HANDLE_SOLID_COLOR,
+                        | FLAG_USE_NON_AA_INNER_FILL | FLAG_HANDLE_SOLID_COLOR,
                 PrimitiveType.kTriangleStrip,
                 CommonDepthStencilSettings.kDirectDepthGreaterPass);
 
@@ -587,7 +587,7 @@ public class AnalyticRRectStep extends GeometryStep {
         memPutFloat(instanceData+68, shape.centerY());
         memPutFloat(instanceData+72, centerWeight);
         memPutFloat(instanceData+76, aaRadius);
-        memPutFloat(instanceData+80, draw.getDepthAsFloat());
+        memPutFloat(instanceData+80, draw.clipDepthAsFloat());
         draw.mTransform.store(instanceData+84);
     }
 }

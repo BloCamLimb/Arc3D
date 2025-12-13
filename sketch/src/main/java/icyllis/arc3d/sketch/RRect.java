@@ -933,7 +933,8 @@ public class RRect implements Shape {
     // safe shift per edge (since the shifts already are the max radius for that edge).
     // - We actually scale by a value slightly increased to make it so that the shifted corners are
     //   safely inside the curves, otherwise numerical stability can cause it to fail contains().
-    private static final float kInsetScale = (1.0f - MathUtil.INV_SQRT2) + 1e-5f;
+    @ApiStatus.Internal
+    public static final float kInsetScale = (1.0f - MathUtil.INV_SQRT2) + 1e-5f;
 
     // Compute an approximate largest inscribed bounding box of the rounded rect. For empty,
     // rect, oval, and simple types this will be the largest inscribed rectangle. Otherwise it may
@@ -980,8 +981,8 @@ public class RRect implements Shape {
         } else if (innerArea > 0.f) {
             // Inset on all sides, scaled to touch
             dest.set(mLeft + kInsetScale * leftShift,
-                    mRight - kInsetScale * rightShift,
                     mTop + kInsetScale * topShift,
+                    mRight - kInsetScale * rightShift,
                     mBottom - kInsetScale * bottomShift);
         } else {
             // Inner region would collapse to empty

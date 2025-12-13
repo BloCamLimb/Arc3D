@@ -56,7 +56,7 @@ public final class GraniteDevice extends Device {
     private final ObjectArrayList<ClipStack.Element> mElementsForMask = new ObjectArrayList<>();
 
     // The max depth value sent to the DrawContext, incremented so each draw has a unique value.
-    private int mCurrentDepth = DrawOrder.CLEAR_DEPTH;
+    private int mCurrentDepth = Draw.CLEAR_DEPTH;
 
     // Tracks accumulated intersections for ordering dependent use of the color and depth attachment
     // (i.e. depth-based clipping, and transparent blending)
@@ -713,7 +713,11 @@ public final class GraniteDevice extends Device {
             // But then continue to render the flood fill with shading
         }
 
-        final int numNewRenderSteps = renderer.numSteps();
+        int numNewRenderSteps = renderer.numSteps();
+        if (draw.mHalfWidth < 0 && renderer.useNonAAInnerFill()) {
+            assert mRendererProvider.getNonAABoundsFill().numSteps() == 1;
+            numNewRenderSteps += 1; // make it a compile-time constant
+        }
 
         // Decide if we have any reason to flush pending work. We want to flush before updating the clip
         // state or making any permanent changes to a path atlas, since otherwise clip operations and/or
@@ -723,32 +727,87 @@ public final class GraniteDevice extends Device {
             flushPendingWork();
         }
 
+        // we need to persist the Draw, so clone matrix first
+        draw.mTransform = draw.mTransform.clone();
+
         // Update the clip stack after issuing a flush (if it was needed). A draw will be recorded after
         // this point.
-        int drawDepth = mCurrentDepth + 1;
+        draw.mDepth = mCurrentDepth + 1;
         int clipOrder = mClipStack.updateForDraw(
-                draw, mElementsForMask, mColorDepthBoundsManager, drawDepth);
+                draw, mElementsForMask, mColorDepthBoundsManager, draw.mDepth);
 
         // A draw's order always depends on the clips that must be drawn before it
-        int paintOrder = clipOrder + 1;
+        draw.dependsOnPaintersOrder(clipOrder);
         // If a draw is not opaque, it must be drawn after the most recent draw it intersects with in
         // order to blend correctly.
         if (renderer.emitsCoverage() || dstUsage != PaintParams.DST_USAGE_NONE) {
             int prevDraw = mColorDepthBoundsManager.getMostRecentDraw(draw.mDrawBounds);
-            paintOrder = Math.max(paintOrder, prevDraw + 1);
+            draw.dependsOnPaintersOrder(prevDraw);
         }
 
-        //TODO stencil set
+        if ((renderer.depthStencilFlags() & Engine.DepthStencilFlags.kStencil) != 0) {
+            //TODO stencil set
+        } else if (dstUsage == PaintParams.DST_USAGE_NONE && renderer == mRendererProvider.getNonAABoundsFill()) {
+            // Sort this draw front to back since it will not blend against what came before it.
+            // We could do this for all opaque/non-blending draws but that can hurt the performance of
+            // the sort in SurfaceDrawContext if it has to effectively reverse a large list. For now,
+            // limit it to flood fills (here and for the later non-AA inner fill).
+            draw.reverseDepthAsStencil();
+        }
 
-        draw.mDrawOrder = DrawOrder.makeFromDepthAndPaintersOrder(
-                drawDepth, paintOrder
-        );
+        if (draw.mHalfWidth < 0 && // fill
+                dstUsage == PaintParams.DST_USAGE_NONE && renderer.useNonAAInnerFill()) {
+            assert renderer.emitsCoverage();
+            skipInnerFill: {
+                Rect2f bounds;
+                if (draw.mGeometry instanceof Rect r) {
+                    bounds = new Rect2f();
+                    r.getBounds(bounds);
+                } else if (draw.mGeometry instanceof BoxShape b && b.mType == BoxShape.kBox_Type) {
+                    bounds = new Rect2f();
+                    b.getInnerBounds(bounds);
+                } else if (draw.mGeometry instanceof RRect rr) {
+                    bounds = new Rect2f();
+                    rr.getInnerBounds(bounds);
+                } else if (draw.mGeometry instanceof EdgeAAQuad q && q.isRect()) {
+                    bounds = new Rect2f();
+                    q.getBounds(bounds);
+                } else {
+                    break skipInnerFill;
+                }
+                // a renderer that uses non-AA inner fill doesn't handle inverse fills,
+                // only NonAABoundsFill and path renderer handles them
+                assert !draw.mInverseFill;
+
+                // If the aa inset is too large, rect becomes empty and the inner bounds draw is
+                // automatically skipped
+                // the AA radius comes from outer bounds, we just overestimate it
+                bounds.inset(draw.mAARadius, draw.mAARadius);
+                // Only add a second draw if it will have a reasonable number of covered pixels; otherwise
+                // we are just adding draws to sort and pipelines to switch around.
+                // Approximate the device-space area based on the minimum scale factor of the transform.
+                if (bounds.width() * bounds.height() >= (128*64) * draw.mAARadius) {
+                    Draw drawWithoutCoverage = draw.clone();
+                    drawWithoutCoverage.mGeometry = new Rect(bounds);
+                    drawWithoutCoverage.mPaintOrder = Draw.NO_INTERSECTION;
+                    drawWithoutCoverage.dependsOnPaintersOrder(clipOrder);
+                    // The regular draw has analytic coverage, so isn't being sorted front to back, but
+                    // we do want to sort the inner fill to maximize overdraw reduction
+                    drawWithoutCoverage.reverseDepthAsStencil();
+                    mDrawContext.recordDraw(mRendererProvider.getNonAABoundsFill(),
+                            drawWithoutCoverage, fragmentUniformIndex, paintParamsKey, mUniformDataGatherer);
+                    // Force the coverage draw to come after the non-AA draw in order to benefit from
+                    // early depth testing.
+                    draw.dependsOnPaintersOrder(drawWithoutCoverage.mPaintOrder);
+                }
+            }
+        }
 
         mDrawContext.recordDraw(renderer, draw, fragmentUniformIndex, paintParamsKey, mUniformDataGatherer);
 
         // Post-draw book keeping (bounds manager, depth tracking, etc.)
-        mColorDepthBoundsManager.recordDraw(draw.mDrawBounds, paintOrder);
-        mCurrentDepth = drawDepth;
+        mColorDepthBoundsManager.recordDraw(draw.mDrawBounds, draw.mPaintOrder);
+        mCurrentDepth = draw.mDepth;
 
         mElementsForMask.clear();
     }
@@ -767,9 +826,10 @@ public final class GraniteDevice extends Device {
 
         mDrawContext.recordDraw(renderer, draw, DrawPass.INVALID_INDEX, KeyBuilder.EMPTY, mUniformDataGatherer);
 
-        int depth = draw.getDepth();
-        if (depth > mCurrentDepth) {
-            mCurrentDepth = depth;
+        // This ensures that draws recorded after this clip shape has been popped off the stack will
+        // be unaffected by the Z value the clip shape wrote to the depth attachment.
+        if (draw.mDepth > mCurrentDepth) {
+            mCurrentDepth = draw.mDepth;
         }
     }
 
@@ -799,7 +859,7 @@ public final class GraniteDevice extends Device {
         mDrawContext.flush(mContext);
 
         mColorDepthBoundsManager.clear();
-        mCurrentDepth = DrawOrder.CLEAR_DEPTH;
+        mCurrentDepth = Draw.CLEAR_DEPTH;
 
         // Any cleanup in the AtlasProvider
         mContext.getAtlasProvider().compact();

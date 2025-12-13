@@ -60,7 +60,7 @@ public class RasterTextStep extends GeometryStep {
     public RasterTextStep(int maskFormat) {
         super("RasterTextStep",
                 switch (maskFormat) {
-                    case Engine.MASK_FORMAT_A8 -> "gray";
+                    case Engine.MASK_FORMAT_A8 -> "mask";
                     case Engine.MASK_FORMAT_A565 -> "lcd";
                     case Engine.MASK_FORMAT_ARGB -> "color";
                     default -> throw new AssertionError();
@@ -189,14 +189,14 @@ public class RasterTextStep extends GeometryStep {
                     subRunData.getGlyphCount(),
                     draw.mTransform.getTranslateX(),
                     draw.mTransform.getTranslateY(),
-                    draw.getDepthAsFloat()
+                    draw.clipDepthAsFloat()
             );
         } else {
             subRunData.getSubRun().fillInstanceData(
                     writer,
                     subRunData.getStartGlyphIndex(),
                     subRunData.getGlyphCount(),
-                    draw.getDepthAsFloat()
+                    draw.clipDepthAsFloat()
             );
         }
     }

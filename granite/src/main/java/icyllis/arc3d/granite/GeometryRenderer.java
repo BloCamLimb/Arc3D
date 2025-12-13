@@ -106,4 +106,8 @@ public final class GeometryRenderer {
     public boolean handlesSolidColor() {
         return (mStepFlags & GeometryStep.FLAG_HANDLE_SOLID_COLOR) != 0;
     }
+
+    public boolean useNonAAInnerFill() {
+        return (mStepFlags & GeometryStep.FLAG_USE_NON_AA_INNER_FILL) != 0;
+    }
 }

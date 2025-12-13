@@ -155,7 +155,7 @@ public class CoverBoundsStep extends GeometryStep {
             MemoryUtil.memPutFloat(instanceData + 24, bounds.right());
             MemoryUtil.memPutFloat(instanceData + 28, bounds.bottom());
         }
-        MemoryUtil.memPutFloat(instanceData + 32, draw.getDepthAsFloat());
+        MemoryUtil.memPutFloat(instanceData + 32, draw.clipDepthAsFloat());
         draw.mTransform.store(instanceData + 36);
     }
 }
