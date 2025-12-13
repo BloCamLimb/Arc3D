@@ -250,7 +250,8 @@ public final class Glyph {
                 mImage = new int[size >> 2];
             } else {
                 assert mMaskFormat == Mask.kBW_Format ||
-                        mMaskFormat == Mask.kA8_Format;
+                        mMaskFormat == Mask.kA8_Format ||
+                        mMaskFormat == Mask.kSDF_Format;
                 mImage = new byte[size];
             }
             scalerContext.getImage(this);
@@ -286,7 +287,7 @@ public final class Glyph {
         int width = getWidth();
         return switch (mMaskFormat) {
             case Mask.kBW_Format -> (width + 7) >> 3;
-            case Mask.kA8_Format -> width;
+            case Mask.kA8_Format, Mask.kSDF_Format -> width;
             case Mask.kARGB32_Format -> width << 2;
             default -> {
                 assert false;

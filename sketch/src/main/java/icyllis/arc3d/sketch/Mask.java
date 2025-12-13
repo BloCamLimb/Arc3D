@@ -29,5 +29,6 @@ public class Mask {
     public static final byte
             kBW_Format = 0, // 1bit per pixel mask (e.g. monochrome)
             kA8_Format = 1, // 8bits per pixel mask (e.g. antialiasing)
-            kARGB32_Format = 3; // premultiplied color
+            kSDF_Format = 2, // 8bits representing signed distance field
+            kARGB32_Format = 3; // 0xAARRGGBB, premultiplied color
 }
