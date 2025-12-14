@@ -84,12 +84,14 @@ public final class RRectShader implements Shader {
         float topRightRad = rrect.getRadius(RRect.kUpperRightX);
         float bottomRightRad = rrect.getRadius(RRect.kLowerRightX);
         float bottomLeftRad = rrect.getRadius(RRect.kLowerLeftX);
-        if (topLeftRad + bottomRightRad > rrect.width() ||
-                topRightRad + bottomLeftRad > rrect.width() ||
-                topLeftRad + bottomRightRad > rrect.height() ||
-                topRightRad + bottomLeftRad > rrect.height()) {
-            // not 4-slice mesh
-            return null;
+        if (rrect.getType() >= RRect.kNineSlice_Type) {
+            if (topLeftRad + bottomRightRad - 1.0e-5f > rrect.width() ||
+                    topRightRad + bottomLeftRad - 1.0e-5f > rrect.width() ||
+                    topLeftRad + bottomRightRad - 1.0e-5f > rrect.height() ||
+                    topRightRad + bottomLeftRad - 1.0e-5f > rrect.height()) {
+                // not 4-slice mesh
+                return null;
+            }
         }
 
         return new RRectShader(rrect,
