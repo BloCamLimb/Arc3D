@@ -409,11 +409,7 @@ public final class GraniteDevice extends Device {
         boolean complex = switch (rr.getType()) {
             case RRect.kOval_Type, RRect.kSimple_Type -> !rr.isSimpleCircular() && !rr.isCircle();
             case RRect.kNineSlice_Type, RRect.kComplex_Type -> true;
-            default -> {
-                // empty and rect are handled by Canvas
-                assert false;
-                yield false;
-            }
+            default -> false; // empty and rect
         };
         PaintParams p = mPaintParams.set(paint, null, false, false);
         if (complex) {
