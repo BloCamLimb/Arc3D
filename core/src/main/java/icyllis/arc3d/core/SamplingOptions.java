@@ -20,6 +20,8 @@
 package icyllis.arc3d.core;
 
 import org.intellij.lang.annotations.MagicConstant;
+import org.jetbrains.annotations.Contract;
+import org.jspecify.annotations.NonNull;
 
 import javax.annotation.concurrent.Immutable;
 import java.lang.annotation.Retention;
@@ -80,7 +82,7 @@ public final class SamplingOptions {
      * Use nearest-neighbour sampling for minification, magnification; no mipmapping.
      * Also known as point sampling.
      */
-    public static final SamplingOptions POINT = new SamplingOptions(FILTER_MODE_NEAREST);
+    public static final SamplingOptions NEAREST = new SamplingOptions(FILTER_MODE_NEAREST);
 
     /**
      * Use linear interpolation for minification, magnification; no mipmapping.
@@ -91,46 +93,23 @@ public final class SamplingOptions {
     /**
      * Use nearest-neighbour sampling for minification, magnification, and mip-level sampling.
      */
-    public static final SamplingOptions MIN_MAG_MIP_POINT = new SamplingOptions(
-            FILTER_MODE_NEAREST, MIPMAP_MODE_NEAREST);
+    public static final SamplingOptions NEAREST_MIPMAP_NEAREST = new SamplingOptions(
+            FILTER_MODE_NEAREST, MIPMAP_MODE_NEAREST
+    );
 
-    public static final SamplingOptions MIN_MAG_POINT_MIP_LINEAR = new SamplingOptions(
+    public static final SamplingOptions NEAREST_MIPMAP_LINEAR = new SamplingOptions(
             FILTER_MODE_NEAREST, MIPMAP_MODE_LINEAR
     );
 
-    public static final SamplingOptions MIN_MAG_LINEAR_MIP_POINT = new SamplingOptions(
+    public static final SamplingOptions LINEAR_MIPMAP_NEAREST = new SamplingOptions(
             FILTER_MODE_LINEAR, MIPMAP_MODE_NEAREST
     );
 
     /**
      * Use linear interpolation for minification, magnification, and mip-level sampling.
      */
-    public static final SamplingOptions MIN_MAG_MIP_LINEAR = new SamplingOptions(
+    public static final SamplingOptions LINEAR_MIPMAP_LINEAR = new SamplingOptions(
             FILTER_MODE_LINEAR, MIPMAP_MODE_LINEAR
-    );
-
-    public static final SamplingOptions MIN_POINT_MAG_LINEAR = new SamplingOptions(
-            FILTER_MODE_NEAREST, FILTER_MODE_LINEAR, MIPMAP_MODE_NONE
-    );
-
-    public static final SamplingOptions MIN_LINEAR_MAG_POINT = new SamplingOptions(
-            FILTER_MODE_LINEAR, FILTER_MODE_NEAREST, MIPMAP_MODE_NONE
-    );
-
-    public static final SamplingOptions MIN_POINT_MAG_LINEAR_MIP_POINT = new SamplingOptions(
-            FILTER_MODE_NEAREST, FILTER_MODE_LINEAR, MIPMAP_MODE_NEAREST
-    );
-
-    public static final SamplingOptions MIN_LINEAR_MAG_MIP_POINT = new SamplingOptions(
-            FILTER_MODE_LINEAR, FILTER_MODE_NEAREST, MIPMAP_MODE_NEAREST
-    );
-
-    public static final SamplingOptions MIN_POINT_MAG_MIP_LINEAR = new SamplingOptions(
-            FILTER_MODE_NEAREST, FILTER_MODE_LINEAR, MIPMAP_MODE_LINEAR
-    );
-
-    public static final SamplingOptions MIN_LINEAR_MAG_POINT_MIP_LINEAR = new SamplingOptions(
-            FILTER_MODE_LINEAR, FILTER_MODE_NEAREST, MIPMAP_MODE_LINEAR
     );
 
     // common cubic sampling options
@@ -163,26 +142,8 @@ public final class SamplingOptions {
             0f, 0.5f, 0
     );
 
-    // 0-1 bit: min
-    // 1-2 bit: mag
-    // 2-4 bit: mip
-    // 12 entries
-    static final SamplingOptions[] COMMON_SAMPLING_OPTIONS = {
-            POINT, MIN_LINEAR_MAG_POINT,
-            MIN_POINT_MAG_LINEAR, LINEAR,
-            MIN_MAG_MIP_POINT,
-            MIN_LINEAR_MAG_MIP_POINT,
-            MIN_POINT_MAG_LINEAR_MIP_POINT,
-            MIN_MAG_LINEAR_MIP_POINT,
-            MIN_MAG_POINT_MIP_LINEAR,
-            MIN_LINEAR_MAG_POINT_MIP_LINEAR,
-            MIN_POINT_MAG_MIP_LINEAR,
-            MIN_MAG_MIP_LINEAR
-    };
-
-    public final byte mMinFilter;
-    public final byte mMagFilter;
-    public final byte mMipmapMode;
+    public final byte mFilter;
+    public final byte mMipmap;
     public final boolean mUseCubic;
     public final float mCubicB;
     public final float mCubicC;
@@ -193,13 +154,8 @@ public final class SamplingOptions {
     }
 
     SamplingOptions(@FilterMode int filter, @MipmapMode int mipmap) {
-        this(filter, filter, mipmap);
-    }
-
-    SamplingOptions(@FilterMode int minFilter, @FilterMode int magFilter, @MipmapMode int mipmapMode) {
-        mMinFilter = (byte) minFilter;
-        mMagFilter = (byte) magFilter;
-        mMipmapMode = (byte) mipmapMode;
+        mFilter = (byte) filter;
+        mMipmap = (byte) mipmap;
         mUseCubic = false;
         mCubicB = mCubicC = 0f;
         mMaxAnisotropy = 0;
@@ -208,30 +164,36 @@ public final class SamplingOptions {
     SamplingOptions(float cubicB,
                     float cubicC,
                     int maxAnisotropy) {
-        mMinFilter = mMagFilter = FILTER_MODE_NEAREST;
-        mMipmapMode = MIPMAP_MODE_NONE;
+        mFilter = FILTER_MODE_NEAREST;
+        mMipmap = MIPMAP_MODE_NONE;
         mUseCubic = maxAnisotropy == 0;
         mCubicB = cubicB;
         mCubicC = cubicC;
         mMaxAnisotropy = maxAnisotropy;
     }
 
-    public static SamplingOptions make(@FilterMode int filter) {
-        return filter == FILTER_MODE_NEAREST ? POINT : LINEAR;
+    public static @NonNull SamplingOptions make(@FilterMode int filter) {
+        return filter == FILTER_MODE_NEAREST ? NEAREST : LINEAR;
     }
 
-    public static SamplingOptions make(@FilterMode int filter, @MipmapMode int mipmap) {
-        return make(filter, filter, mipmap);
+    public static @NonNull SamplingOptions make(@FilterMode int filter, @MipmapMode int mipmap) {
+        return switch (filter | (mipmap << 1)) {
+            case FILTER_MODE_NEAREST | (MIPMAP_MODE_NONE << 1) -> NEAREST;
+            case FILTER_MODE_LINEAR | (MIPMAP_MODE_NONE << 1) -> LINEAR;
+            case FILTER_MODE_NEAREST | (MIPMAP_MODE_NEAREST << 1) -> NEAREST_MIPMAP_NEAREST;
+            case FILTER_MODE_LINEAR | (MIPMAP_MODE_NEAREST << 1) -> LINEAR_MIPMAP_NEAREST;
+            case FILTER_MODE_NEAREST | (MIPMAP_MODE_LINEAR << 1) -> NEAREST_MIPMAP_LINEAR;
+            case FILTER_MODE_LINEAR | (MIPMAP_MODE_LINEAR << 1) -> LINEAR_MIPMAP_LINEAR;
+            default -> throw new IllegalArgumentException();
+        };
     }
 
-    public static SamplingOptions make(@FilterMode int minFilter,
-                                       @FilterMode int magFilter,
-                                       @MipmapMode int mipmapMode) {
-        int index = minFilter | (magFilter << 1) | (mipmapMode << 2);
-        return COMMON_SAMPLING_OPTIONS[index];
-    }
-
-    public static SamplingOptions makeCubic(float B, float C) {
+    /**
+     * Specify B and C (each between 0...1) to create a shader that applies the corresponding
+     * cubic reconstruction filter to the image.
+     */
+    @Contract("_, _ -> new")
+    public static @NonNull SamplingOptions makeCubic(float B, float C) {
         return new SamplingOptions(MathUtil.pin(B, 0f, 1f),
                 MathUtil.pin(C, 0f, 1f), 0);
     }
@@ -239,7 +201,8 @@ public final class SamplingOptions {
     /**
      * @param maxAnisotropy the max anisotropy filtering level
      */
-    public static SamplingOptions makeAnisotropy(int maxAnisotropy) {
+    @Contract("_ -> new")
+    public static @NonNull SamplingOptions makeAnisotropy(int maxAnisotropy) {
         return new SamplingOptions(0f, 0f, Math.max(maxAnisotropy, 1));
     }
 
@@ -249,9 +212,8 @@ public final class SamplingOptions {
 
     @Override
     public int hashCode() {
-        int result = mMinFilter;
-        result = 31 * result + (int) mMagFilter;
-        result = 31 * result + (int) mMipmapMode;
+        int result = mFilter;
+        result = 31 * result + (int) mMipmap;
         result = 31 * result + (mUseCubic ? 1 : 0);
         result = 31 * result + Float.floatToIntBits(mCubicB);
         result = 31 * result + Float.floatToIntBits(mCubicC);
@@ -263,9 +225,8 @@ public final class SamplingOptions {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o instanceof SamplingOptions that) {
-            return mMinFilter == that.mMinFilter &&
-                    mMagFilter == that.mMagFilter &&
-                    mMipmapMode == that.mMipmapMode &&
+            return mFilter == that.mFilter &&
+                    mMipmap == that.mMipmap &&
                     mUseCubic == that.mUseCubic &&
                     mCubicB == that.mCubicB &&
                     mCubicC == that.mCubicC &&

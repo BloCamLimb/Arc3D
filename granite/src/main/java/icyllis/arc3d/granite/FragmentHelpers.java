@@ -207,15 +207,14 @@ public class FragmentHelpers {
             keyContext.addBlock(FragmentStage.kHWImageShader_BuiltinStageID);
         } else {
             // strict subset
-            assert sampling.mMipmapMode == SamplingOptions.MIPMAP_MODE_NONE ||
+            assert sampling.mMipmap == SamplingOptions.MIPMAP_MODE_NONE ||
                     !keyContext.caps.clampToBorderSupport();
             keyContext.uniformDataGatherer.write4f(subset.left(), subset.top(),
                     subset.right(), subset.bottom());
             if (sampling.mUseCubic) {
                 // Cubic sampling is handled in a shader, with the actual texture sampled by with
                 // nearest-neighbor
-                assert sampling.mMinFilter == SamplingOptions.FILTER_MODE_NEAREST &&
-                        sampling.mMagFilter == SamplingOptions.FILTER_MODE_NEAREST;
+                assert sampling.mFilter == SamplingOptions.FILTER_MODE_NEAREST;
                 keyContext.uniformDataGatherer.writeMatrix4f(0,
                         ImageShader.makeCubicMatrix(sampling.mCubicB, sampling.mCubicC));
                 keyContext.uniformDataGatherer.write1i(srcAT == ColorInfo.AT_PREMUL
@@ -223,8 +222,8 @@ public class FragmentHelpers {
                         : kCubicClampUnpremul);
                 keyContext.addBlock(FragmentStage.kCubicImageShader_BuiltinStageID);
             } else {
-                // Use linear filter if either is linear
-                filterMode = sampling.mMinFilter | sampling.mMagFilter;
+                // Use linear filter if non-zero
+                filterMode = sampling.mFilter;
                 keyContext.uniformDataGatherer.write1i(filterMode);
                 keyContext.addBlock(FragmentStage.kImageShader_BuiltinStageID);
             }
@@ -234,15 +233,25 @@ public class FragmentHelpers {
 
         var samplerDesc = useHwTiling
                 ? SamplerDesc.make(
-                sampling.mMagFilter,
-                sampling.mMinFilter,
-                sampling.mMipmapMode,
-                tileModeX, // implicit cast TileMode to AddressMode
-                tileModeY, // implicit cast TileMode to AddressMode
+                sampling.mFilter, // implicit cast
+                sampling.mFilter, // implicit cast
+                sampling.mMipmap, // implicit cast
+                tileModeToAddressMode(tileModeX),
+                tileModeToAddressMode(tileModeY),
                 SamplerDesc.ADDRESS_MODE_CLAMP_TO_EDGE)
                 : SamplerDesc.make(filterMode);
 
         keyContext.textureDataGatherer.add(view, samplerDesc);
+    }
+
+    static int tileModeToAddressMode(int tileMode) {
+        return switch (tileMode) {
+            case Shader.TILE_MODE_CLAMP -> SamplerDesc.ADDRESS_MODE_CLAMP_TO_EDGE;
+            case Shader.TILE_MODE_REPEAT -> SamplerDesc.ADDRESS_MODE_REPEAT;
+            case Shader.TILE_MODE_MIRROR -> SamplerDesc.ADDRESS_MODE_MIRRORED_REPEAT;
+            case Shader.TILE_MODE_DECAL -> SamplerDesc.ADDRESS_MODE_CLAMP_TO_BORDER;
+            default -> throw new AssertionError(tileMode);
+        };
     }
 
     public static class GradientData {
