@@ -34,6 +34,7 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
 
+import java.nio.ByteOrder;
 import java.util.Formatter;
 
 public class VerticesStep extends GeometryStep {
@@ -98,17 +99,6 @@ public class VerticesStep extends GeometryStep {
     }
 
     @Override
-    public void appendToKey(@NonNull KeyBuilder b) {
-
-    }
-
-    @NonNull
-    @Override
-    public ProgramImpl makeProgramImpl(ShaderCaps caps) {
-        return null;
-    }
-
-    @Override
     public void emitVaryings(VaryingHandler varyingHandler,
                              boolean useStepSolidColor) {
         assert !useStepSolidColor;
@@ -134,6 +124,8 @@ public class VerticesStep extends GeometryStep {
                                    boolean useStepSolidColor) {
         assert !useStepSolidColor;
         if (mHasColor) {
+            assert ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN;
+            // input is BGRA non-premul, needs swizzle and premul
             vs.format("""
                     %1$s = vec4(%2$s.bgr * %2$s.a, %2$s.a);
                     """, "f_Color", COLOR.name());

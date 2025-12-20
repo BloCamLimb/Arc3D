@@ -19,6 +19,7 @@
 
 package icyllis.arc3d.granite.shading;
 
+import icyllis.arc3d.engine.ShaderCaps;
 import icyllis.arc3d.engine.ShaderVar;
 import org.intellij.lang.annotations.PrintFormat;
 import org.jspecify.annotations.NonNull;
@@ -46,7 +47,6 @@ public abstract class ShaderBuilderBase implements ShaderBuilder {
     // Reasonable upper bound on number of processor stages
     protected static final int PREALLOC = CODE + 6;
 
-    protected final GraphicsPipelineBuilder mPipelineBuilder;
     protected final StringBuilder[] mShaderStrings = new StringBuilder[PREALLOC];
 
     private final HashMap<String, String> mExtensions = new HashMap<>();
@@ -58,12 +58,11 @@ public abstract class ShaderBuilderBase implements ShaderBuilder {
 
     private boolean mFinished;
 
-    public ShaderBuilderBase(GraphicsPipelineBuilder pipelineBuilder) {
-        mPipelineBuilder = pipelineBuilder;
+    public ShaderBuilderBase(ShaderCaps shaderCaps) {
         for (int i = 0; i <= CODE; i++) {
             mShaderStrings[i] = new StringBuilder();
         }
-        definitions().append(pipelineBuilder.shaderCaps().mGLSLVersion.mVersionDecl);
+        definitions().append(shaderCaps.mGLSLVersion.mVersionDecl);
         mCodeIndex = CODE;
         codeAppend("void main() {\n");
     }
@@ -107,7 +106,7 @@ public abstract class ShaderBuilderBase implements ShaderBuilder {
 
     @Override
     public String getMangledName(String baseName) {
-        return mPipelineBuilder.nameVariable('\0', baseName);
+        return baseName;
     }
 
     protected final void nextStage() {

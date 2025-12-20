@@ -86,7 +86,6 @@ public final class GraphicsPipelineDesc_Old {
      */
     public GraphicsPipelineDesc_Old(ImageProxyView writeView,
                                     GeometryStep geomProc,
-                                    TransferProcessor xferProc,
                                     FragmentStage colorFragProc,
                                     FragmentStage coverageFragProc,
                                     UserStencilSettings userStencilSettings,

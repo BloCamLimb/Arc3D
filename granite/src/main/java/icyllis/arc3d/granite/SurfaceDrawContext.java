@@ -344,7 +344,7 @@ public final class SurfaceDrawContext implements AutoCloseable {
      * All the parameters are raw pointers and read-only.
      * <p>
      * The first uniform variable in geometry block must be a projection vector,
-     * see {@link PipelineBuilder}.
+     * see {@link icyllis.arc3d.granite.shading.GraphicsPipelineBuilder#build}.
      */
     @Nullable
     private DrawPass snapDrawPass(@NonNull RecordingContext recordingContext) {

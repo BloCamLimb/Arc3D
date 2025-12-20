@@ -33,6 +33,7 @@ import icyllis.arc3d.sketch.Matrix;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.nio.ByteOrder;
 import java.util.Formatter;
 
 /**
@@ -79,17 +80,6 @@ public class RasterTextStep extends GeometryStep {
         // there's no LCD support atm, changes are needed to support
         assert maskFormat != Engine.MASK_FORMAT_A565;
         assert instanceStride() == 20;
-    }
-
-    @Override
-    public void appendToKey(@NonNull KeyBuilder b) {
-
-    }
-
-    @NonNull
-    @Override
-    public ProgramImpl makeProgramImpl(ShaderCaps caps) {
-        return null;
     }
 
     @Override
@@ -153,6 +143,7 @@ public class RasterTextStep extends GeometryStep {
     @Override
     public void emitFragmentColorCode(Formatter fs, String outputColor) {
         assert mMaskFormat == Engine.MASK_FORMAT_ARGB;
+        assert ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN;
         // ARGB is always backed by RGBA texture, mask colors are premultiplied
         fs.format("%s = texture(%s, %s).bgra;\n", outputColor, "u_GlyphAtlas", "f_TexCoords");
     }

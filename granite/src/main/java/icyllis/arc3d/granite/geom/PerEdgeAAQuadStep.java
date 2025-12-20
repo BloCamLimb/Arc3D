@@ -55,8 +55,6 @@ package icyllis.arc3d.granite.geom;
 import icyllis.arc3d.core.MathUtil;
 import icyllis.arc3d.compiler.ShaderDataType;
 import icyllis.arc3d.engine.BufferViewInfo;
-import icyllis.arc3d.engine.KeyBuilder;
-import icyllis.arc3d.engine.ShaderCaps;
 import icyllis.arc3d.engine.VertexInputLayout;
 import icyllis.arc3d.granite.CommonDepthStencilSettings;
 import icyllis.arc3d.granite.Draw;
@@ -186,16 +184,6 @@ public class PerEdgeAAQuadStep extends GeometryStep {
     }
 
     @Override
-    public void appendToKey(@NonNull KeyBuilder b) {
-
-    }
-
-    @Override
-    public @NonNull ProgramImpl makeProgramImpl(ShaderCaps caps) {
-        return null;
-    }
-
-    @Override
     public void emitVaryings(VaryingHandler varyingHandler, boolean useStepSolidColor) {
         // Device-space distance to LTRB edges of quad.
         varyingHandler.addVarying("f_EdgeDistances", ShaderDataType.kFloat4);
@@ -204,10 +192,6 @@ public class PerEdgeAAQuadStep extends GeometryStep {
             varyingHandler.addVarying("f_Color", ShaderDataType.kFloat4,
                     VaryingHandler.kCanBeFlat_Interpolation);
         }
-    }
-
-    @Override
-    public void emitUniforms(UniformHandler uniformHandler, boolean mayRequireLocalCoords) {
     }
 
     @Override

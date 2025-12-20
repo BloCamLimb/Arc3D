@@ -24,8 +24,6 @@ import icyllis.arc3d.compiler.ShaderDataType;
 import icyllis.arc3d.engine.DepthStencilSettings;
 import icyllis.arc3d.engine.Engine.PrimitiveType;
 import icyllis.arc3d.engine.Engine.VertexAttribType;
-import icyllis.arc3d.engine.KeyBuilder;
-import icyllis.arc3d.engine.ShaderCaps;
 import icyllis.arc3d.engine.VertexInputLayout;
 import icyllis.arc3d.engine.VertexInputLayout.Attribute;
 import icyllis.arc3d.engine.VertexInputLayout.AttributeSet;
@@ -64,25 +62,12 @@ public class CoverBoundsStep extends GeometryStep {
     }
 
     @Override
-    public void appendToKey(@NonNull KeyBuilder b) {
-    }
-
-    @Override
-    public @NonNull ProgramImpl makeProgramImpl(ShaderCaps caps) {
-        return null;
-    }
-
-    @Override
     public void emitVaryings(VaryingHandler varyingHandler, boolean useStepSolidColor) {
         if (useStepSolidColor) {
             // solid color
             varyingHandler.addVarying("f_Color", ShaderDataType.kFloat4,
                     VaryingHandler.kCanBeFlat_Interpolation);
         }
-    }
-
-    @Override
-    public void emitUniforms(UniformHandler uniformHandler, boolean mayRequireLocalCoords) {
     }
 
     @Override

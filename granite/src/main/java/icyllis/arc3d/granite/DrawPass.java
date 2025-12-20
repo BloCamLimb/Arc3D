@@ -21,6 +21,7 @@ package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.*;
 import icyllis.arc3d.engine.*;
+import icyllis.arc3d.granite.shading.GraphicsPipelineBuilder;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 /**
@@ -28,7 +29,7 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
  * <p>
  * Created immutable.
  *
- * @see PipelineBuilder
+ * @see GraphicsPipelineBuilder
  */
 @SuppressWarnings("ForLoopReplaceableByForEach")
 public final class DrawPass implements AutoCloseable {

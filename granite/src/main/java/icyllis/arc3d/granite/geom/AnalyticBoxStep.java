@@ -110,16 +110,6 @@ public class AnalyticBoxStep extends GeometryStep {
     }
 
     @Override
-    public void appendToKey(@NonNull KeyBuilder b) {
-    }
-
-    @NonNull
-    @Override
-    public ProgramImpl makeProgramImpl(ShaderCaps caps) {
-        return null;
-    }
-
-    @Override
     public void emitVaryings(VaryingHandler varyingHandler, boolean useStepSolidColor) {
         // the local coords, center point is (0,0)
         varyingHandler.addVarying("f_RectEdge", ShaderDataType.kFloat2);
@@ -136,10 +126,6 @@ public class AnalyticBoxStep extends GeometryStep {
             varyingHandler.addVarying("f_Color", ShaderDataType.kFloat4,
                     VaryingHandler.kCanBeFlat_Interpolation);
         }
-    }
-
-    @Override
-    public void emitUniforms(UniformHandler uniformHandler, boolean mayRequireLocalCoords) {
     }
 
     @Override

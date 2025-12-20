@@ -20,9 +20,8 @@
 package icyllis.arc3d.granite;
 
 import icyllis.arc3d.engine.*;
+import icyllis.arc3d.granite.shading.GraphicsPipelineBuilder;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-
-import java.util.Objects;
 
 /**
  * Descriptor of a graphics pipeline in Granite Renderer.
@@ -141,7 +140,7 @@ public final class GraphicsPipelineDesc extends PipelineDesc {
 
     @Override
     public GraphicsPipelineInfo createGraphicsPipelineInfo(Device device) {
-        PipelineBuilder pipelineBuilder = new PipelineBuilder(device, this);
+        GraphicsPipelineBuilder pipelineBuilder = new GraphicsPipelineBuilder(device, this);
         return pipelineBuilder.build();
     }
 

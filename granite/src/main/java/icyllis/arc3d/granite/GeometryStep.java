@@ -24,19 +24,12 @@ import icyllis.arc3d.core.Rect2f;
 import icyllis.arc3d.core.Rect2i;
 import icyllis.arc3d.core.Rect2ic;
 import icyllis.arc3d.engine.DepthStencilSettings;
-import icyllis.arc3d.engine.Engine;
 import icyllis.arc3d.engine.KeyBuilder;
 import icyllis.arc3d.engine.SamplerDesc;
-import icyllis.arc3d.engine.ShaderCaps;
-import icyllis.arc3d.engine.ShaderVar;
 import icyllis.arc3d.engine.Swizzle;
-import icyllis.arc3d.engine.UniformDataManager;
 import icyllis.arc3d.engine.VertexInputLayout;
-import icyllis.arc3d.granite.shading.FPFragmentBuilder;
 import icyllis.arc3d.granite.shading.UniformHandler;
 import icyllis.arc3d.granite.shading.VaryingHandler;
-import icyllis.arc3d.granite.shading.VertexGeomBuilder;
-import icyllis.arc3d.sketch.Matrix;
 import icyllis.arc3d.sketch.Shape;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -48,7 +41,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static icyllis.arc3d.engine.Engine.*;
 import static icyllis.arc3d.engine.VertexInputLayout.*;
-import static icyllis.arc3d.granite.shading.UniformHandler.SamplerHandle;
 
 /**
  * The GeometryProcessor represents some kind of geometric primitive. This includes the shape
@@ -233,16 +225,14 @@ public abstract class GeometryStep {
     }
 
     /**
-     * @return unique ID that identifies this processor class.
+     * @return unique ID that identifies this class and variant.
      */
     public final int uniqueID() {
         return mUniqueID;
     }
 
     /**
-     * Returns a primitive topology for render passes. If the return values of
-     * different instances are different, they must be reflected in the key,
-     * see {@link #appendToKey(KeyBuilder)}.
+     * Returns the primitive topology for render passes.
      *
      * @see PrimitiveType
      */
@@ -468,35 +458,6 @@ public abstract class GeometryStep {
         return true;
     }
 
-    /**
-     * Appends a key on the KeyBuilder that reflects any variety in the code that the
-     * geometry processor subclass can emit.
-     *
-     * @see #makeProgramImpl(ShaderCaps)
-     */
-    public abstract void appendToKey(@NonNull KeyBuilder b);
-
-    public final void appendAttributesToKey(@NonNull KeyBuilder b) {
-        /*AttributeSet vertexAttributes = allVertexAttributes();
-        if (vertexAttributes != null) {
-            vertexAttributes.appendToKey(b, mVertexAttributesMask);
-        }
-        AttributeSet instanceAttributes = allInstanceAttributes();
-        if (instanceAttributes != null) {
-            instanceAttributes.appendToKey(b, mInstanceAttributesMask);
-        }*/
-    }
-
-    /**
-     * Returns a new instance of the appropriate implementation class for the given
-     * GeometryProcessor. This method is called only when the specified key does not
-     * exist in the program cache.
-     *
-     * @see #appendToKey(KeyBuilder)
-     */
-    @NonNull
-    public abstract ProgramImpl makeProgramImpl(ShaderCaps caps);
-
     public void emitVaryings(VaryingHandler varyingHandler,
                              boolean useStepSolidColor) {
     }
@@ -517,11 +478,10 @@ public abstract class GeometryStep {
      * and setup it. If <var>localPosVar</var> is not null, then it must
      * write geometry's local pos to it.
      */
-    public void emitVertexGeomCode(Formatter vs,
+    public abstract void emitVertexGeomCode(Formatter vs,
                                    @NonNull String worldPosVar,
                                    @Nullable String localPosVar,
-                                   boolean useStepSolidColor) {
-    }
+                                   boolean useStepSolidColor);
 
     public void emitFragmentDefinitions(Formatter fs) {
     }
@@ -545,163 +505,13 @@ public abstract class GeometryStep {
     public void emitFragmentCoverageCode(Formatter fs, String outputCoverage) {
     }
 
-    public void writeMesh(MeshDrawWriter writer, Draw draw,
+    public abstract void writeMesh(MeshDrawWriter writer, Draw draw,
                           float @Nullable [] solidColor,
-                          boolean mayRequireLocalCoords) {
-    }
+                          boolean mayRequireLocalCoords);
 
     public void writeUniformsAndTextures(Draw draw,
                                          UniformDataGatherer uniformDataGatherer,
                                          TextureDataGatherer textureDataGatherer,
                                          boolean mayRequireLocalCoords) {
-    }
-
-    /**
-     * Every {@link GeometryStep} must be capable of creating a subclass of ProgramImpl. The
-     * ProgramImpl emits the shader code that implements the GeometryProcessor, is attached to the
-     * generated backend API pipeline/program and used to extract uniform data from
-     * GeometryProcessor instances.
-     */
-    public static abstract class ProgramImpl {
-
-        /**
-         * A helper for setting the matrix on a uniform handle initialized through
-         * writeOutputPosition or writeLocalCoord. Automatically handles elided uniforms,
-         * scale+translate matrices, and state tracking (if provided state pointer is non-null).
-         *
-         * @param matrix the matrix to set, must be immutable
-         * @param state  the current state
-         * @return new state, eiter matrix or state
-         */
-        //TODO move to other places
-        protected static Matrix setTransform(@NonNull UniformDataManager pdm,
-                                             @UniformDataManager.UniformHandle int uniform,
-                                             @NonNull Matrix matrix,
-                                             @Nullable Matrix state) {
-            if (uniform == Engine.INVALID_RESOURCE_HANDLE ||
-                    (state != null && state.equals(matrix))) {
-                // No update needed
-                return state;
-            }
-            if (matrix.isScaleTranslate()) {
-                // ComputeMatrixKey and writeX() assume the uniform is a float4 (can't assert since nothing
-                // is exposed on a handle, but should be caught lower down).
-                pdm.set4f(uniform, matrix.getScaleX(), matrix.getTranslateX(),
-                        matrix.getScaleY(), matrix.getTranslateY());
-            } else {
-                //pdm.setMatrix3f(uniform, matrix);
-            }
-            return matrix;
-        }
-
-        protected static void writePassthroughWorldPosition(
-                VertexGeomBuilder vertBuilder,
-                ShaderVar inPos,
-                ShaderVar outPos) {
-            assert (inPos.getType() == ShaderDataType.kFloat2 || inPos.getType() == ShaderDataType.kFloat3);
-            vertBuilder.codeAppendf("vec%d _worldPos = %s;\n",
-                    ShaderDataType.rowCount(inPos.getType()),
-                    inPos.getName());
-            outPos.set("_worldPos", inPos.getType());
-        }
-
-        /**
-         * Helpers for adding code to write the transformed vertex position. The first simple version
-         * just writes a variable named by 'posName' into the position output variable with the
-         * assumption that the position is 2D. The second version transforms the input position by a
-         * view matrix and the output variable is 2D or 3D depending on whether the view matrix is
-         * perspective.
-         *
-         * @param inPos the local variable or the attribute, type must be either vec2 or vec3
-         */
-        protected static void writeWorldPosition(VertexGeomBuilder vertBuilder,
-                                                 ShaderVar inPos,
-                                                 String matrixName,
-                                                 ShaderVar outPos) {
-            assert (inPos.getType() == ShaderDataType.kFloat2 || inPos.getType() == ShaderDataType.kFloat3);
-
-            if (inPos.getType() == ShaderDataType.kFloat3) {
-                // A float3 stays a float3 whether the matrix adds perspective
-                vertBuilder.codeAppendf("vec3 _worldPos = %s * %s;\n",
-                        matrixName,
-                        inPos.getName());
-                outPos.set("_worldPos", ShaderDataType.kFloat3);
-            } else {
-                // A float2 is promoted to a float3 if we add perspective via the matrix
-                vertBuilder.codeAppendf("vec3 _worldPos = %s * vec3(%s, 1.0);\n",
-                        matrixName,
-                        inPos.getName());
-                outPos.set("_worldPos", ShaderDataType.kFloat3);
-            }
-        }
-
-        /**
-         * Emits the code from this geometry processor into the shaders. For any FP in the pipeline that
-         * has its input coords implemented by the GP as a varying, the varying will be accessible in
-         * the returned map and should be used when the FP code is emitted. The FS variable containing
-         * the GP's output local coords is also returned.
-         */
-        public final void emitCode(VertexGeomBuilder vertBuilder,
-                                   FPFragmentBuilder fragBuilder,
-                                   VaryingHandler varyingHandler,
-                                   UniformHandler uniformHandler,
-                                   ShaderCaps shaderCaps,
-                                   GeometryStep geomProc,
-                                   String outputColor,
-                                   String outputCoverage,
-                                   @SamplerHandle int[] texSamplers) {
-            final var localPos = new ShaderVar();
-            final var worldPos = new ShaderVar();
-            onEmitCode(vertBuilder,
-                    fragBuilder,
-                    varyingHandler,
-                    uniformHandler,
-                    shaderCaps,
-                    geomProc,
-                    outputColor,
-                    outputCoverage,
-                    texSamplers,
-                    localPos,
-                    worldPos);
-
-            // Emit the vertex position to the hardware in the normalized device coordinates it expects.
-            assert (worldPos.getType() == ShaderDataType.kFloat2 ||
-                    worldPos.getType() == ShaderDataType.kFloat3);
-            vertBuilder.emitNormalizedPosition(worldPos);
-            if (worldPos.getType() == ShaderDataType.kFloat2) {
-                varyingHandler.setNoPerspective();
-            }
-        }
-
-        /**
-         * A ProgramImpl instance can be reused with any GeometryProcessor that produces the same key.
-         * This function reads data from a GeometryProcessor and updates any uniform variables
-         * required by the shaders created in emitCode(). The GeometryProcessor parameter is
-         * guaranteed to be of the same type and to have an identical processor key as the
-         * GeometryProcessor that created this ProgramImpl.
-         */
-        public abstract void setData(UniformDataManager manager,
-                                     GeometryStep geomProc);
-
-        /**
-         * The local pos is used to specify the output variable storing draw's local position. It can
-         * be either a vec2 or a vec3, or void. It can only be void when no FP needs local coordinates.
-         * This variable can be an attribute or local variable, but should not itself be a varying.
-         * PipelineBuilder automatically determines if this must be passed to the FP.
-         * <p>
-         * The world pos is used to specify the output variable storing its world (device) position.
-         * It can either be a vec2 or a vec3 (in order to handle perspective).
-         */
-        protected abstract void onEmitCode(VertexGeomBuilder vertBuilder,
-                                           FPFragmentBuilder fragBuilder,
-                                           VaryingHandler varyingHandler,
-                                           UniformHandler uniformHandler,
-                                           ShaderCaps shaderCaps,
-                                           GeometryStep geomProc,
-                                           String outputColor,
-                                           String outputCoverage,
-                                           @SamplerHandle int[] texSamplers,
-                                           ShaderVar localPos,
-                                           ShaderVar worldPos);
     }
 }

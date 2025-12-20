@@ -21,6 +21,7 @@ package icyllis.arc3d.granite;
 
 import icyllis.arc3d.compiler.ShaderDataType;
 import icyllis.arc3d.core.*;
+import icyllis.arc3d.granite.shading.GraphicsPipelineBuilder;
 import icyllis.arc3d.sketch.BlendMode;
 import icyllis.arc3d.sketch.shaders.Shader;
 import icyllis.arc3d.engine.SamplerDesc;
@@ -2021,7 +2022,7 @@ public class ShaderCodeSource {
         // Special variables and/or "global" scope variables that have to propagate
         // through the node tree.
         if ((stage.mRequirementFlags & kPrimitiveColor_ReqFlag) != 0) {
-            args.add(PipelineBuilder.PRIMITIVE_COLOR_VAR_NAME);
+            args.add(GraphicsPipelineBuilder.PRIMITIVE_COLOR_VAR_NAME);
         }
 
         // Append uniform names.

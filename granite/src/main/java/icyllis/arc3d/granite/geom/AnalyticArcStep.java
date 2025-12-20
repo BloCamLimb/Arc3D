@@ -104,17 +104,6 @@ public class AnalyticArcStep extends GeometryStep {
     }
 
     @Override
-    public void appendToKey(@NonNull KeyBuilder b) {
-
-    }
-
-    @NonNull
-    @Override
-    public ProgramImpl makeProgramImpl(ShaderCaps caps) {
-        return null;
-    }
-
-    @Override
     public void emitVaryings(VaryingHandler varyingHandler, boolean useStepSolidColor) {
         // the local coords, center point is (0,0)
         varyingHandler.addVarying("f_ArcEdge", ShaderDataType.kFloat2);

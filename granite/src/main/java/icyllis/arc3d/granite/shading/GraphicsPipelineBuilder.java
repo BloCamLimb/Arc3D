@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2022-2024 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2024-2025 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -21,221 +21,440 @@ package icyllis.arc3d.granite.shading;
 
 import icyllis.arc3d.compiler.ShaderDataType;
 import icyllis.arc3d.engine.*;
-import icyllis.arc3d.granite.trash.GraphicsPipelineDesc_Old;
-import icyllis.arc3d.granite.trash.PipelineKey_old;
-import icyllis.arc3d.granite.GeometryStep;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
+import icyllis.arc3d.granite.BlendFormula;
+import icyllis.arc3d.granite.DrawPass;
+import icyllis.arc3d.granite.FragmentNode;
+import icyllis.arc3d.granite.FragmentStage;
+import icyllis.arc3d.granite.GraniteUtil;
+import icyllis.arc3d.granite.GraphicsPipelineDesc;
+import icyllis.arc3d.granite.ShaderCodeSource;
+import icyllis.arc3d.sketch.BlendMode;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
+import java.util.*;
 
-import static icyllis.arc3d.engine.Engine.*;
+/**
+ * Build shader for graphics pipeline.
+ */
+//TODO need cleanup
+public class GraphicsPipelineBuilder {
 
-public abstract class GraphicsPipelineBuilder {
+    // devicePos + painter's depth is our worldPos
+    public static final String WORLD_POS_VAR_NAME = "worldPos";
+    public static final String LOCAL_COORDS_VARYING_NAME = "f_LocalCoords";
 
-    /**
-     * Each root processor has an stage index. The GP is stage 0. The first root FP is stage 1,
-     * the second root FP is stage 2, etc. The XP's stage index is last and its value depends on
-     * how many root FPs there are. Names are mangled by appending _S<stage-index>.
-     */
-    private int mStageIndex = -1;
+    public static final String PRIMITIVE_COLOR_VAR_NAME = "primitiveColor";
 
-    /**
-     * When emitting FP stages we track the children FPs as "substages" and do additional name
-     * mangling based on where in the FP hierarchy we are. The first FP is stage index 1. It's first
-     * child would be substage 0 of stage 1. If that FP also has three children then its third child
-     * would be substage 2 of stubstage 0 of stage 1 and would be mangled as "_S1_c0_c2".
-     */
-    private final IntArrayList mSubstageIndices = new IntArrayList();
+    public static final int MAIN_DRAW_BUFFER_INDEX = 0;
 
-    public VertexShaderBuilder mVS;
-    public FragmentShaderBuilder mFS;
+    public static final int PRIMARY_COLOR_OUTPUT_INDEX = 0;
+    public static final int SECONDARY_COLOR_OUTPUT_INDEX = 1;
 
-    public final PipelineKey_old mDesc;
-    public final GraphicsPipelineDesc_Old mGraphicsPipelineDesc;
+    public static final String PRIMARY_COLOR_OUTPUT_NAME = "FragColor0";
+    public static final String SECONDARY_COLOR_OUTPUT_NAME = "FragColor1";
+
     private final Caps mCaps;
+    private final GraphicsPipelineDesc mDesc;
 
-    /**
-     * Built-in uniform handles.
-     */
-    @UniformDataManager.UniformHandle
-    public int mProjectionUniform = INVALID_RESOURCE_HANDLE;
+    private final FragmentNode[] mRootNodes;
 
-    public GeometryStep.ProgramImpl mGPImpl;
+    private final VaryingHandler mVaryings;
+    private final UniformHandler mGeometryUniforms;
+    private final UniformHandler mFragmentUniforms;
 
-    // This is used to check that we don't exceed the allowable number of resources in a shader.
-    private int mNumFragmentSamplers;
+    // depth only pass will disable blend, then default is DST
+    private BlendInfo mBlendInfo = BlendInfo.BLEND_DST;
 
-    public GraphicsPipelineBuilder(PipelineKey_old desc, GraphicsPipelineDesc_Old graphicsPipelineDesc, Caps caps) {
+    private String mVertCode;
+    private String mFragCode;
+    private final String mFragLabel;
+
+    private int mGeometryBlockVisibility;
+    private int mFragmentBlockVisibility;
+
+    private int mSnippetRequirementFlags;
+
+    public GraphicsPipelineBuilder(Device device, GraphicsPipelineDesc desc) {
+        mCaps = device.getCaps();
         mDesc = desc;
-        mGraphicsPipelineDesc = graphicsPipelineDesc;
-        mCaps = caps;
-        mVS = new VertexShaderBuilder(this);
-        mFS = new FragmentShaderBuilder(this);
-    }
 
-    public final Caps getCaps() {
-        return mCaps;
-    }
+        StringBuilder label = new StringBuilder();
+        mRootNodes = desc.getRootNodes(device.getSharedObject(GraniteUtil.SHADER_CODE_SOURCE), label);
+        mFragLabel = label.toString();
 
-    public final ShaderCaps shaderCaps() {
-        return getCaps().shaderCaps();
-    }
-
-    public final String nameVariable(char prefix, String name) {
-        return nameVariable(prefix, name, true);
-    }
-
-    /**
-     * Generates a name for a variable. The generated string will be name-prefixed by the prefix
-     * char (unless the prefix is '\0'). It also will mangle the name to be stage-specific unless
-     * explicitly asked not to. `nameVariable` can also be used to generate names for functions or
-     * other types of symbols where unique names are important.
-     */
-    public final String nameVariable(char prefix, String name, boolean mangle) {
-        String out;
-        if (prefix == '\0') {
-            out = name;
-        } else {
-            // Names containing "__" are reserved; add "x" if needed to avoid consecutive underscores.
-            if (name.startsWith("_")) {
-                out = prefix + "_x" + name;
-            } else {
-                out = prefix + "_" + name;
-            }
+        for (FragmentNode root : mRootNodes) {
+            mSnippetRequirementFlags |= root.requirementFlags();
         }
-        if (mangle) {
-            String suffix = getMangleSuffix();
-            // Names containing "__" are reserved; add "x" if needed to avoid consecutive underscores.
-            if (out.endsWith("_")) {
-                out += "x" + suffix;
-            } else {
-                out += suffix;
-            }
-        }
-        assert (!out.contains("__"));
-        return out;
+
+        mVaryings = new VaryingHandler(mCaps.shaderCaps());
+        mGeometryUniforms = new UniformHandler(mCaps.shaderCaps(), UniformHandler.Std140Layout);
+        mFragmentUniforms = new UniformHandler(mCaps.shaderCaps(), UniformHandler.Std140Layout);
     }
 
-    public abstract UniformHandler uniformHandler();
+    private boolean needsLocalCoords() {
+        return (mSnippetRequirementFlags & FragmentStage.kLocalCoords_ReqFlag) != 0;
+    }
 
-    public abstract VaryingHandler varyingHandler();
-
-    public final void addExtension(int shaderFlags,
-                                   @Nullable String extensionName) {
-        if (extensionName == null) return;
-        if ((shaderFlags & Engine.ShaderFlags.kVertex) != 0) {
-            mVS.addExtension(extensionName);
-        }
-        if ((shaderFlags & Engine.ShaderFlags.kFragment) != 0) {
-            mFS.addExtension(extensionName);
+    private void getNodeUniforms(FragmentNode node) {
+        node.stage().generateUniforms(
+                mFragmentUniforms,
+                node.stageIndex()
+        );
+        for (var child : node.children()) {
+            getNodeUniforms(child);
         }
     }
 
-    protected final boolean emitAndInstallProcs() {
-        // inputColor, inputCoverage
-        String[] input = new String[2];
-        if (!emitAndInstallGeomProc(input)) {
-            return false;
-        }
-        if (!emitAndInstallFragProcs(input)) {
-            return false;
-        }
-        //TODO currently hack here, XP impl
-        mFS.codeAppendf("""
-                %s = %s * %s;
-                """, FragmentShaderBuilder.PRIMARY_COLOR_OUTPUT_NAME, input[0], input[1]);
-        return true;
-    }
+    public PipelineDesc.GraphicsPipelineInfo build() {
 
-    // advanceStage is called by program creator between each processor's emit code.  It increments
-    // the stage index for variable name mangling, and also ensures verification variables in the
-    // fragment shader are cleared.
-    private void advanceStage() {
-        mStageIndex++;
-        mFS.nextStage();
-    }
-
-    @NonNull
-    private String getMangleSuffix() {
-        assert mStageIndex >= 0;
-        StringBuilder suffix = new StringBuilder("_S").append(mStageIndex);
-        for (int c : mSubstageIndices) {
-            suffix.append("_c").append(c);
+        mDesc.geomStep().emitVaryings(mVaryings, mDesc.useStepSolidColor());
+        if (needsLocalCoords()) {
+            mVaryings.addVarying(LOCAL_COORDS_VARYING_NAME, ShaderDataType.kFloat2);
         }
-        return suffix.toString();
-    }
+        mVaryings.finish();
 
-    private boolean emitAndInstallGeomProc(String[] output) {
-        final GeometryStep geomProc = mGraphicsPipelineDesc.geomProc();
-
-        // Program builders have a bit of state we need to clear with each effect
-        advanceStage();
-        if (output[0] == null) {
-            output[0] = nameVariable('\0', "outputColor");
-        }
-        if (output[1] == null) {
-            output[1] = nameVariable('\0', "outputCoverage");
-        }
-
-        assert (mProjectionUniform == INVALID_RESOURCE_HANDLE);
-        mProjectionUniform = uniformHandler().addUniform(
-                ShaderFlags.kVertex,
+        // first add the 2D orthographic projection
+        mGeometryUniforms.addUniform(
+                Engine.ShaderFlags.kVertex,
                 ShaderDataType.kFloat4,
                 UniformHandler.PROJECTION_NAME,
                 -1);
+        mDesc.geomStep().emitUniforms(mGeometryUniforms, mDesc.mayRequireLocalCoords());
 
-        mFS.codeAppendf("// Stage %d, %s\n", mStageIndex, geomProc.name());
-        mVS.codeAppendf("// Geometry Processor %s\n", geomProc.name());
+        for (var root : mRootNodes) {
+            getNodeUniforms(root);
+        }
 
-        assert (mGPImpl == null);
-        mGPImpl = geomProc.makeProgramImpl(shaderCaps());
+        mDesc.geomStep().emitSamplers(mFragmentUniforms);
 
-        @UniformHandler.SamplerHandle
-        int[] texSamplers = new int[geomProc.numTextureSamplers()];
-        for (int i = 0; i < texSamplers.length; i++) {
-            String name = "TextureSampler" + i;
-            texSamplers[i] = emitSampler(
-                    geomProc.textureSamplerState(i),
-                    geomProc.textureSamplerSwizzle(i),
-                    name);
-            if (texSamplers[i] == INVALID_RESOURCE_HANDLE) {
-                return false;
+        buildFragmentShader();
+        buildVertexShader();
+
+        var info = new PipelineDesc.GraphicsPipelineInfo();
+        info.mPrimitiveType = mDesc.geomStep().primitiveType();
+        info.mInputLayout = mDesc.geomStep().getInputLayout();
+        info.mInputLayoutLabel = mDesc.geomStep().name();
+
+        info.mVertSource = mVertCode;
+        info.mFragSource = mFragCode;
+        info.mVertLabel = mDesc.geomStep().name();
+        if (needsLocalCoords()) {
+            info.mVertLabel += " (w/ local coords)";
+        }
+        info.mFragLabel = mFragLabel;
+
+        info.mBlendInfo = mBlendInfo;
+        info.mDepthStencilSettings = mDesc.geomStep().depthStencilSettings();
+
+        // pipeline layout
+        info.mUniformBlockInfos = new PipelineDesc.UniformBlockInfo[2];
+        info.mUniformBlockInfos[0] = new PipelineDesc.UniformBlockInfo(mGeometryBlockVisibility,
+                DrawPass.GEOMETRY_UNIFORM_BLOCK_BINDING, DrawPass.GEOMETRY_UNIFORM_BLOCK_NAME);
+        info.mUniformBlockInfos[1] = new PipelineDesc.UniformBlockInfo(mFragmentBlockVisibility,
+                DrawPass.FRAGMENT_UNIFORM_BLOCK_BINDING, DrawPass.FRAGMENT_UNIFORM_BLOCK_NAME);
+        info.mSamplerInfos = new PipelineDesc.SamplerInfo[mFragmentUniforms.numSamplers()];
+        for (int i = 0; i < info.mSamplerInfos.length; i++) {
+            // handle == index == binding index == texture unit
+            info.mSamplerInfos[i] = new PipelineDesc.SamplerInfo(Engine.ShaderFlags.kFragment,
+                    i, mFragmentUniforms.samplerVariable(i));
+        }
+
+        info.mPipelineLabel = info.mVertLabel + " + ";
+        if (info.mFragLabel.isEmpty()) {
+            info.mPipelineLabel += "(empty)";
+        } else {
+            if (mDesc.useStepSolidColor()) {
+                info.mPipelineLabel += "(simple) + ";
+            }
+            info.mPipelineLabel += info.mFragLabel;
+        }
+
+        return info;
+    }
+
+    /**
+     * Emits per-vertex and per-instance attributes to vertex shader inputs.
+     */
+    private void emitAttributes(StringBuilder out) {
+        var inputLayout = mDesc.geomStep().getInputLayout();
+        // assign sequential locations, this setup *MUST* be consistent with
+        // creating VertexArrayObject or PipelineVertexInputState later
+        int locationIndex = 0;
+        for (int i = 0; i < inputLayout.getBindingCount(); i++) {
+            var attrs = inputLayout.getAttributes(i);
+            while (attrs.hasNext()) {
+                var attr = attrs.next();
+                ShaderVar var = attr.asShaderVar();
+                assert (var.getTypeModifier() == ShaderVar.kIn_TypeModifier);
+
+                var.addLayoutQualifier("location", locationIndex);
+
+                // matrix type can consume multiple locations
+                int locations = ShaderDataType.locationCount(var.getType());
+                assert (locations > 0);
+                // we have no arrays
+                assert (!var.isArray());
+                locationIndex += locations;
+
+                var.appendDecl(out);
+                out.append(";\n");
+            }
+        }
+    }
+
+    public void buildVertexShader() {
+        StringBuilder out = new StringBuilder();
+        out.append(mCaps.shaderCaps().mGLSLVersion.mVersionDecl);
+        /*if (mCaps.shaderCaps().mUsePrecisionModifiers) {
+            out.append("precision highp float;\n");
+            out.append("precision highp sampler2D;\n");
+        }*/
+        out.append("layout(position) out float4 SV_Position;\n");
+        out.append("layout(vertex_id) in int SV_VertexID;\n");
+        Formatter vs = new Formatter(out, Locale.ROOT);
+
+        //// Uniforms
+        if (mGeometryUniforms.appendUniformDecls(Engine.ShaderFlags.kVertex,
+                DrawPass.GEOMETRY_UNIFORM_BLOCK_BINDING, DrawPass.GEOMETRY_UNIFORM_BLOCK_NAME, out)) {
+            mGeometryBlockVisibility |= Engine.ShaderFlags.kVertex;
+        } else {
+            // there's always 2D orthographic projection
+            assert false;
+        }
+
+        //// Attributes
+        emitAttributes(out);
+
+        //// Varyings
+        mVaryings.getVertDecls(out);
+
+        mDesc.geomStep().emitVertexDefinitions(vs);
+
+        //// Entry Point
+        out.append("void main() {\n");
+
+        // shader will define the world pos local variable
+        mDesc.geomStep().emitVertexGeomCode(vs,
+                WORLD_POS_VAR_NAME,
+                needsLocalCoords() ? LOCAL_COORDS_VARYING_NAME : null,
+                mDesc.useStepSolidColor());
+
+        // map into clip space
+        // remember to preserve the painter's depth in depth buffer, it must be first multiplied by w,
+        // as it will be divided by w to viewport
+        if (mCaps.depthClipNegativeOneToOne()) {
+            // [0,1] -> [-1,1]
+            vs.format("""
+                    SV_Position = vec4(%1$s.xy * %2$s.xz + %1$s.ww * %2$s.yw, (%1$s.z * 2.0 - 1.0) * %1$s.w, %1$s.w);
+                    """, WORLD_POS_VAR_NAME, UniformHandler.PROJECTION_NAME);
+        } else {
+            // zero to one, default behavior
+            vs.format("""
+                    SV_Position = vec4(%1$s.xy * %2$s.xz + %1$s.ww * %2$s.yw, %1$s.z * %1$s.w, %1$s.w);
+                    """, WORLD_POS_VAR_NAME, UniformHandler.PROJECTION_NAME);
+        }
+
+        out.append("}");
+        mVertCode = out.toString();
+    }
+
+    public void buildFragmentShader() {
+        if (mDesc.isDepthOnlyPass()) {
+            // Depth-only draw so no fragment shader to compile
+            mFragCode = "";
+            return;
+        }
+        StringBuilder out = new StringBuilder();
+
+        boolean useStepSolidColor = mDesc.useStepSolidColor();
+        if (useStepSolidColor) {
+            assert mRootNodes.length == 1;
+        } else {
+            assert mRootNodes.length == 2;
+        }
+
+        FragmentNode sourceColorRoot = useStepSolidColor ? null : mRootNodes[0];
+        FragmentNode finalBlendRoot =  mRootNodes[useStepSolidColor ? 0 : 1];
+        int finalBlendStageID = finalBlendRoot.stageID();
+
+        assert finalBlendStageID >= FragmentStage.kFirstFixedBlend_BuiltinStageID &&
+                finalBlendStageID <= FragmentStage.kLastFixedBlend_BuiltinStageID;
+        BlendMode blendMode = BlendMode.modeAt(finalBlendStageID - FragmentStage.kFirstFixedBlend_BuiltinStageID);
+
+        BlendFormula coverageBlendFormula = null;
+        if (mDesc.geomStep().emitsCoverage()) {
+            //TODO: Determine whether draw is opaque and pass that to getBlendFormula.
+            // we can avoid dual source blending if src is opaque
+            coverageBlendFormula = BlendFormula.getBlendFormula(
+                    /*isOpaque=*/false, /*hasCoverage=*/true, blendMode
+            );
+            if (coverageBlendFormula == null) {
+                coverageBlendFormula = BlendFormula.getBlendFormula(
+                        /*isOpaque=*/false, /*hasCoverage=*/true, BlendMode.SRC_OVER
+                );
+                assert coverageBlendFormula != null;
             }
         }
 
-        mGPImpl.emitCode(
-                mVS,
-                mFS,
-                varyingHandler(),
-                uniformHandler(),
-                shaderCaps(),
-                geomProc,
-                output[0],
-                output[1],
-                texSamplers
-        );
+        out.append(mCaps.shaderCaps().mGLSLVersion.mVersionDecl);
+        /*if (mCaps.shaderCaps().mUsePrecisionModifiers) {
+            out.append("precision highp float;\n");
+            out.append("precision highp sampler2D;\n");
+        }*/
+        out.append("layout(frag_coord) in float4 SV_FragCoord;\n");
+        Formatter fs = new Formatter(out, Locale.ROOT);
+        // If we're doing analytic coverage, we must also be doing shading.
+        assert !mDesc.geomStep().emitsCoverage() || mDesc.geomStep().performsShading();
 
-        return true;
-    }
-
-    private boolean emitAndInstallFragProcs(String[] input) {
-        //TODO currently no frag procs
-        return true;
-    }
-
-    @UniformHandler.SamplerHandle
-    private int emitSampler(int samplerState, short swizzle, String name) {
-        ++mNumFragmentSamplers;
-        //return uniformHandler().addSampler(samplerState, swizzle, name);
-        return INVALID_RESOURCE_HANDLE;
-    }
-
-    void appendDecls(ArrayList<ShaderVar> vars, StringBuilder out) {
-        for (var var : vars) {
-            var.appendDecl(out);
-            out.append(";\n");
+        //// Uniforms
+        if (mGeometryUniforms.appendUniformDecls(Engine.ShaderFlags.kFragment,
+                DrawPass.GEOMETRY_UNIFORM_BLOCK_BINDING, DrawPass.GEOMETRY_UNIFORM_BLOCK_NAME, out)) {
+            mGeometryBlockVisibility |= Engine.ShaderFlags.kFragment;
         }
+        if (mFragmentUniforms.appendUniformDecls(Engine.ShaderFlags.kFragment,
+                DrawPass.FRAGMENT_UNIFORM_BLOCK_BINDING, DrawPass.FRAGMENT_UNIFORM_BLOCK_NAME, out)) {
+            mFragmentBlockVisibility |= Engine.ShaderFlags.kFragment;
+        }
+        //// Samplers
+        mFragmentUniforms.appendSamplerDecls(Engine.ShaderFlags.kFragment, out);
+
+        //// Varyings
+        mVaryings.getFragDecls(out);
+
+        //// Outputs
+        {
+            String layoutQualifier = "location=" + MAIN_DRAW_BUFFER_INDEX;
+            ShaderVar primaryOutput = new ShaderVar(PRIMARY_COLOR_OUTPUT_NAME, ShaderDataType.kFloat4,
+                    ShaderVar.kOut_TypeModifier,
+                    ShaderVar.kNonArray, layoutQualifier, "");
+            ShaderVar secondaryOutput = null;
+            if (coverageBlendFormula != null && coverageBlendFormula.hasSecondaryOutput()) {
+                secondaryOutput = new ShaderVar(SECONDARY_COLOR_OUTPUT_NAME, ShaderDataType.kFloat4,
+                        ShaderVar.kOut_TypeModifier,
+                        ShaderVar.kNonArray, layoutQualifier, "");
+                primaryOutput.addLayoutQualifier("index", PRIMARY_COLOR_OUTPUT_INDEX);
+                secondaryOutput.addLayoutQualifier("index", SECONDARY_COLOR_OUTPUT_INDEX);
+            }
+            primaryOutput.appendDecl(out);
+            out.append(";\n");
+            if (secondaryOutput != null) {
+                secondaryOutput.appendDecl(out);
+                out.append(";\n");
+            }
+        }
+
+        mDesc.geomStep().emitFragmentDefinitions(fs);
+
+        ShaderCodeSource.emitDefinitions(mRootNodes, new IdentityHashMap<>(), fs);
+
+        //// Entry Point
+        out.append("void main() {\n");
+
+        String outputColor;
+        if (useStepSolidColor) {
+            out.append("vec4 initialColor;\n");
+            mDesc.geomStep().emitFragmentColorCode(fs, "initialColor");
+            outputColor = "initialColor";
+        } else {
+            if (mDesc.geomStep().emitsPrimitiveColor()) {
+                fs.format("vec4 %s;\n", PRIMITIVE_COLOR_VAR_NAME);
+                mDesc.geomStep().emitFragmentColorCode(fs, PRIMITIVE_COLOR_VAR_NAME);
+            }
+            outputColor = "vec4(0)";
+        }
+        String localCoords = needsLocalCoords() ? LOCAL_COORDS_VARYING_NAME : "vec2(0)";
+        if (sourceColorRoot != null) {
+            outputColor = ShaderCodeSource.invoke_node(sourceColorRoot,
+                    localCoords, outputColor, "vec4(1)", fs);
+        }
+
+        if (mDesc.geomStep().emitsCoverage()) {
+            out.append("vec4 outputCoverage;\n");
+            mDesc.geomStep().emitFragmentCoverageCode(fs, "outputCoverage");
+            assert coverageBlendFormula != null;
+            mBlendInfo = new BlendInfo(
+                    coverageBlendFormula.mEquation,
+                    coverageBlendFormula.mSrcFactor,
+                    coverageBlendFormula.mDstFactor,
+                    coverageBlendFormula.modifiesDst() // color write mask
+            );
+            appendColorOutput(fs,
+                    coverageBlendFormula.mPrimaryOutput,
+                    PRIMARY_COLOR_OUTPUT_NAME,
+                    outputColor, "outputCoverage");
+            if (coverageBlendFormula.hasSecondaryOutput()) {
+                appendColorOutput(fs,
+                        coverageBlendFormula.mSecondaryOutput,
+                        SECONDARY_COLOR_OUTPUT_NAME,
+                        outputColor, "outputCoverage");
+            }
+        } else {
+            mDesc.geomStep().emitFragmentCoverageCode(fs, null);
+            fs.format("%s = %s;\n", PRIMARY_COLOR_OUTPUT_NAME, outputColor);
+            mBlendInfo = getSimpleBlendInfo(blendMode);
+            if (mBlendInfo == null) {
+                mBlendInfo = getSimpleBlendInfo(BlendMode.SRC_OVER);
+                assert mBlendInfo != null;
+            }
+        }
+
+        out.append("}");
+        mFragCode = out.toString();
+    }
+
+    private static void appendColorOutput(Formatter fs,
+                                          byte outputType,
+                                          String output,
+                                          String inColor,
+                                          String inCoverage) {
+        switch (outputType) {
+            case BlendFormula.OUTPUT_TYPE_ZERO:
+                fs.format("%s = vec4(0.0);\n", output);
+                break;
+            case BlendFormula.OUTPUT_TYPE_COVERAGE:
+                fs.format("%s = %s;\n", output, inCoverage);
+                break;
+            case BlendFormula.OUTPUT_TYPE_MODULATE:
+                fs.format("%s = %s * %s;\n", output, inColor, inCoverage);
+                break;
+            case BlendFormula.OUTPUT_TYPE_SRC_ALPHA_MODULATE:
+                fs.format("%s = %s.a * %s;\n", output, inColor, inCoverage);
+                break;
+            case BlendFormula.OUTPUT_TYPE_ONE_MINUS_SRC_ALPHA_MODULATE:
+                fs.format("%s = (1.0 - %s.a) * %s;\n", output, inColor, inCoverage);
+                break;
+            case BlendFormula.OUTPUT_TYPE_ONE_MINUS_SRC_COLOR_MODULATE:
+                fs.format("%s = (1.0 - %s) * %s;\n", output, inColor, inCoverage);
+                break;
+            default:
+                throw new AssertionError("Unsupported output type.");
+        }
+    }
+
+    /**
+     * Returns the standard HW blend info for the given Porter Duff blend mode.
+     */
+    @Nullable
+    public static BlendInfo getSimpleBlendInfo(@NonNull BlendMode mode) {
+        return switch (mode) {
+            case CLEAR -> BlendInfo.BLEND_CLEAR;
+            case SRC -> BlendInfo.BLEND_SRC;
+            case DST -> BlendInfo.BLEND_DST;
+            case SRC_OVER -> BlendInfo.BLEND_SRC_OVER;
+            case DST_OVER -> BlendInfo.BLEND_DST_OVER;
+            case SRC_IN -> BlendInfo.BLEND_SRC_IN;
+            case DST_IN -> BlendInfo.BLEND_DST_IN;
+            case SRC_OUT -> BlendInfo.BLEND_SRC_OUT;
+            case DST_OUT -> BlendInfo.BLEND_DST_OUT;
+            case SRC_ATOP -> BlendInfo.BLEND_SRC_ATOP;
+            case DST_ATOP -> BlendInfo.BLEND_DST_ATOP;
+            case XOR -> BlendInfo.BLEND_XOR;
+            case PLUS, PLUS_CLAMPED -> BlendInfo.BLEND_PLUS;
+            case MINUS, MINUS_CLAMPED -> BlendInfo.BLEND_MINUS;
+            case MODULATE -> BlendInfo.BLEND_MODULATE;
+            case SCREEN -> BlendInfo.BLEND_SCREEN;
+            default -> null;
+        };
     }
 }
