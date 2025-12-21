@@ -26,12 +26,15 @@ import icyllis.arc3d.engine.ImmediateContext;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.APIUtil;
 import org.lwjgl.system.NativeType;
+import org.lwjgl.vulkan.EXTMeshShader;
 
 import static org.lwjgl.vulkan.EXTDebugReport.VK_ERROR_VALIDATION_FAILED_EXT;
 import static org.lwjgl.vulkan.KHRDisplaySwapchain.VK_ERROR_INCOMPATIBLE_DISPLAY_KHR;
 import static org.lwjgl.vulkan.KHRSurface.*;
 import static org.lwjgl.vulkan.KHRSwapchain.*;
 import static org.lwjgl.vulkan.VK11.*;
+
+import static icyllis.arc3d.engine.Engine.*;
 
 /**
  * Provides user-defined Vulkan utilities.
@@ -365,5 +368,29 @@ public final class VKUtil {
             case 64 -> VK_SAMPLE_COUNT_64_BIT;
             default -> 0;
         };
+    }
+
+    public static int toVkPipelineStageFlags(int shaderFlags) {
+        int result = 0;
+        if ((shaderFlags & ShaderFlags.kVertex) != 0) {
+            result |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
+        }
+        if ((shaderFlags & ShaderFlags.kGeometry) != 0) {
+            result |= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
+        }
+        if ((shaderFlags & ShaderFlags.kFragment) != 0) {
+            result |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        }
+        if ((shaderFlags & ShaderFlags.kCompute) != 0) {
+            result |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+        }
+        if ((shaderFlags & ShaderFlags.kTask) != 0) {
+            result |= EXTMeshShader.VK_SHADER_STAGE_TASK_BIT_EXT;
+        }
+        if ((shaderFlags & ShaderFlags.kMesh) != 0) {
+            result |= EXTMeshShader.VK_SHADER_STAGE_MESH_BIT_EXT;
+        }
+
+        return result;
     }
 }
