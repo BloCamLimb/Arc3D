@@ -269,24 +269,22 @@ public final class VertexInputLayout {
 
         final void appendToKey(@NonNull KeyBuilder b, int mask) {
             final int rawCount = mAttributes.length;
-            // max attribs is no less than 16
-            b.addBits(6, rawCount, "attribute count");
+            b.add(rawCount);
             int offset = 0;
             for (int i = 0, bit = 1; i < rawCount; i++, bit <<= 1) {
                 final Attribute attr = mAttributes[i];
                 if ((mask & bit) != 0) {
-                    b.addBits(8, attr.srcType() & 0xFF, "attrType");
-                    b.addBits(8, attr.dstType() & 0xFF, "attrGpuType");
                     if (attr.offset() != Attribute.IMPLICIT_OFFSET) {
                         offset = attr.offset();
                     }
                     assert (offset >= 0 && offset < 32768);
-                    b.addBits(16, offset, "attrOffset");
+                    int key = ( attr.srcType() & 0xFF)       |
+                              ((attr.dstType() & 0xFF) << 8) |
+                              ( offset                << 16);
+                    b.add(key);
                     offset += Attribute.alignOffset(attr.stride());
                 } else {
-                    b.addBits(8, 0xFF, "attrType");
-                    b.addBits(8, 0xFF, "attrGpuType");
-                    b.addBits(16, 0xFFFF, "attrOffset");
+                    b.add(~0);
                 }
             }
             final int stride;
@@ -301,7 +299,7 @@ public final class VertexInputLayout {
             // max stride is no less than 2048
             assert (stride > 0 && stride <= 32768);
             assert (Attribute.alignOffset(stride) == stride);
-            b.addBits(16, stride, "stride");
+            b.add(stride);
         }
 
         @NonNull

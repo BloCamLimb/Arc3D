@@ -20,6 +20,7 @@
 package icyllis.arc3d.engine;
 
 import it.unimi.dsi.fastutil.ints.IntArrays;
+import org.jspecify.annotations.NonNull;
 
 import java.util.Arrays;
 
@@ -32,41 +33,46 @@ public sealed class Key permits KeyBuilder {
 
     public static final Key EMPTY = new Key(IntArrays.EMPTY_ARRAY, 1);
 
-    transient int[] mData;
-    transient int mHash;
+    transient int[] data;
+    transient int hash;
 
     // Used by subclass
     Key() {
-        mData = IntArrays.DEFAULT_EMPTY_ARRAY;
-        mHash = 1;
+        data = IntArrays.DEFAULT_EMPTY_ARRAY;
+        hash = 1;
     }
 
     Key(int[] storage, int hash) {
-        mData = storage;
-        mHash = hash;
+        data = storage;
+        this.hash = hash;
     }
 
     public int size() {
-        return mData.length;
+        return data.length;
     }
 
     public boolean isEmpty() {
-        assert (mData.length == 0) == (this == EMPTY);
-        return mData.length == 0;
+        assert (data.length == 0) == (this == EMPTY);
+        return data.length == 0;
     }
 
     public final int get(int i) {
         assert i < size();
-        return mData[i];
+        return data[i];
+    }
+
+    public final void get(int i, int@NonNull [] out, int off, int len) {
+        assert i + len <= size();
+        System.arraycopy(data, i, out, off, len);
     }
 
     @Override
     public final int hashCode() {
-        return mHash;
+        return hash;
     }
 
     @Override
     public boolean equals(Object o) {
-        return o instanceof Key key && Arrays.equals(mData, key.mData);
+        return o instanceof Key key && Arrays.equals(data, key.data);
     }
 }

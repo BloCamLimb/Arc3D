@@ -80,6 +80,6 @@ public final class KeyContext {
     }
 
     public void addBlock(int stageID) {
-        paintParamsKeyBuilder.addInt(stageID);
+        paintParamsKeyBuilder.add(stageID);
     }
 }

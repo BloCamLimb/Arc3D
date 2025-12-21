@@ -26,138 +26,91 @@ import java.util.Arrays;
 
 /**
  * Used to build a packed array as the storage or lookup key of a hash map.
- * <p>
- * Note: A {@link #flush()} is expected at the end of key building.
  */
 public non-sealed class KeyBuilder extends Key {
 
-    private int mSize;
-    private transient int mCurValue = 0;
-    private transient int mBitsUsed = 0;  // ... in current value
+    private int size;
 
     public KeyBuilder() {
     }
 
+    public KeyBuilder(int capacity) {
+        if (capacity == 0) data = IntArrays.EMPTY_ARRAY;
+        else data = new int[capacity];
+        assert hash == 1;
+    }
+
     @SuppressWarnings("IncompleteCopyConstructor")
     public KeyBuilder(@NonNull KeyBuilder other) {
-        assert (other.mCurValue == 0 && other.mBitsUsed == 0);
-        int size = other.mSize;
-        mData = size == 0 ? IntArrays.EMPTY_ARRAY : Arrays.copyOf(other.mData, size);
-        mSize = size;
-        mHash = other.mHash;
+        int size = other.size;
+        data = size == 0 ? IntArrays.EMPTY_ARRAY : Arrays.copyOf(other.data, size);
+        this.size = size;
+        hash = other.hash;
     }
 
     /**
      * Resets this key builder to initial state.
      */
     public final void clear() {
-        assert (mCurValue == 0 && mBitsUsed == 0);
-        mSize = 0;
-        mHash = 1;
+        size = 0;
+        hash = 1;
     }
 
     /**
      * @return the number of ints
      */
     public final int size() {
-        assert (mCurValue == 0 && mBitsUsed == 0);
-        return mSize;
+        return size;
     }
 
     /**
      * @return true if this key builder contains no bits
      */
     public final boolean isEmpty() {
-        assert (mCurValue == 0 && mBitsUsed == 0);
-        return mSize == 0;
+        return size == 0;
     }
 
     private void grow(int capacity) {
-        if (capacity > mData.length) {
-            if (mData != IntArrays.DEFAULT_EMPTY_ARRAY) {
-                capacity = (int)Math.max(Math.min((long) mData.length + (long)(mData.length >> 1), Integer.MAX_VALUE - 8), capacity);
+        if (capacity > data.length) {
+            if (data != IntArrays.DEFAULT_EMPTY_ARRAY) {
+                capacity = (int)Math.max(Math.min((long) data.length + (long)(data.length >> 1), Integer.MAX_VALUE - 8), capacity);
             } else if (capacity < 10) {
                 capacity = 10;
             }
 
-            mData = IntArrays.forceCapacity(mData, capacity, mSize);
+            data = IntArrays.forceCapacity(data, capacity, size);
 
         }
     }
 
-    private void add(int k) {
-        grow(mSize + 1);
-        mData[mSize++] = k;
-        mHash = mHash * 31 + k;
-    }
-
-    public void addBits(int numBits, int value, String label) {
-        assert (numBits > 0 && numBits <= Integer.SIZE);
-        assert (numBits == Integer.SIZE || (Integer.SIZE - numBits <= Integer.numberOfLeadingZeros(value)));
-
-        mCurValue |= (value << mBitsUsed);
-        mBitsUsed += numBits;
-
-        if (mBitsUsed >= Integer.SIZE) {
-            // Overflow, start a new working value
-            add(mCurValue);
-            int excess = mBitsUsed - Integer.SIZE;
-            mCurValue = excess != 0 ? (value >>> (numBits - excess)) : 0;
-            mBitsUsed = excess;
-        }
-
-        assert (Integer.SIZE - mBitsUsed <= Integer.numberOfLeadingZeros(mCurValue));
-    }
-
-    public final void addBool(boolean b, String label) {
-        addBits(1, b ? 1 : 0, label);
-    }
-
-    public final void addInt32(int v, String label) {
-        addBits(Integer.SIZE, v, label);
+    /**
+     * Appends a full word.
+     */
+    public final void add(int v) {
+        grow(size + 1);
+        data[size++] = v;
+        hash = hash * 31 + v;
     }
 
     /**
-     * Makes a word-boundary and adds a full word.
+     * Appends an array of words.
      */
-    public final void addInt(int v) {
-        flush();
-        add(v);
-    }
-
-    /**
-     * Makes a word-boundary and adds an array of words.
-     */
-    public final void addInts(int[] v, int off, int len) {
-        flush();
-        grow(mSize + len);
-        System.arraycopy(v, off, mData, mSize, len);
-        mSize += len;
+    public final void add(int[] v, int off, int len) {
+        grow(size + len);
+        System.arraycopy(v, off, data, size, len);
+        size += len;
         for (int i = off; i < off + len; i++)
-            mHash = 31 * mHash + v[i];
-    }
-
-    /**
-     * Introduces a word-boundary in the key. Must be called before using the key with any cache,
-     * but can also be called to create a break between generic data and backend-specific data.
-     */
-    public final void flush() {
-        if (mBitsUsed != 0) {
-            add(mCurValue);
-            mCurValue = 0;
-            mBitsUsed = 0;
-        }
+            hash = 31 * hash + v[i];
     }
 
     /**
      * Trims the backing store so that the capacity is equal to the size.
      */
     public final void trim() {
-        assert (mCurValue == 0 && mBitsUsed == 0);
-        if (0 < mData.length && mSize != mData.length) {
-            int[] t = new int[mSize];
-            System.arraycopy(mData, 0, t, 0, mSize);
-            mData = t;
+        if (0 < data.length && size != data.length) {
+            int[] t = new int[size];
+            System.arraycopy(data, 0, t, 0, size);
+            data = t;
         }
     }
 
@@ -165,13 +118,12 @@ public non-sealed class KeyBuilder extends Key {
      * @return a copy of packed int array as storage key
      */
     public final Key toStorageKey() {
-        assert (mCurValue == 0 && mBitsUsed == 0);
-        if (mSize == 0) {
+        if (size == 0) {
             return Key.EMPTY;
         } else {
-            int[] t = new int[mSize];
-            System.arraycopy(mData, 0, t, 0, mSize);
-            return new Key(t, mHash);
+            int[] t = new int[size];
+            System.arraycopy(data, 0, t, 0, size);
+            return new Key(t, hash);
         }
     }
 
@@ -180,8 +132,7 @@ public non-sealed class KeyBuilder extends Key {
      */
     @Override
     public final boolean equals(Object o) {
-        assert (mCurValue == 0 && mBitsUsed == 0); // ensure flushed
         return o instanceof Key key && // check for null
-                Arrays.equals(mData, 0, mSize, key.mData, 0, key.mData.length);
+                Arrays.equals(data, 0, size, key.data, 0, key.size());
     }
 }
