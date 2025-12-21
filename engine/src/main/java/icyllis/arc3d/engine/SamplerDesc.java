@@ -22,6 +22,7 @@ package icyllis.arc3d.engine;
 import icyllis.arc3d.core.MathUtil;
 import icyllis.arc3d.core.SamplingOptions;
 import org.jetbrains.annotations.Contract;
+import org.jspecify.annotations.NonNull;
 
 import javax.annotation.concurrent.Immutable;
 
@@ -206,6 +207,14 @@ public final class SamplerDesc implements IResourceKey {
                 (MathUtil.clamp(maxAnisotropy, 1, 64) << 24));
     }
 
+    /**
+     * @see #appendToKey(KeyBuilder)
+     */
+    @Contract("_, _ -> new")
+    public static @NonNull SamplerDesc makeFromKey(@NonNull Key key, int @NonNull [] currentIndex) {
+        return new SamplerDesc(key.get(currentIndex[0]++));
+    }
+
     //////// Unpack Methods \\\\\\\\
 
     @Contract(pure = true)
@@ -290,6 +299,13 @@ public final class SamplerDesc implements IResourceKey {
     @Override
     public SamplerDesc copy() {
         return this;
+    }
+
+    /**
+     * Adds this desc to a variable-length key.
+     */
+    public void appendToKey(@NonNull KeyBuilder b) {
+        b.add(mState);
     }
 
     @Override

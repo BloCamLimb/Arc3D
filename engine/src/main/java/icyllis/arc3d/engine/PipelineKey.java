@@ -19,6 +19,10 @@
 
 package icyllis.arc3d.engine;
 
+/**
+ * Pipeline key combines {@link PipelineDesc} and render-pass information (Vulkan),
+ * to find or create an actual pipline state object.
+ */
 public abstract class PipelineKey implements IUniqueKey {
 
     public PipelineDesc mPipelineDesc;

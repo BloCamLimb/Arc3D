@@ -240,6 +240,9 @@ public abstract class GeometryStep {
         return mPrimitiveType;
     }
 
+    //TODO delete this method and add immutable sampler support for Vulkan
+    // typically, SDF shader only use bilinear sampler
+
     /**
      * Currently, GP is limited to one texture sampler at most.
      */

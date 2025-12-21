@@ -268,6 +268,11 @@ public interface Engine {
         int kGeometry = 1 << 1;
         int kFragment = 1 << 2;
         int kCompute = 1 << 3;
+        int kTask = 1 << 4;
+        int kMesh = 1 << 5;
+
+        int kCount = 6;
+        int kAll = (1 << kCount) - 1;
     }
 
     /**
