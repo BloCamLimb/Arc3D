@@ -1522,12 +1522,12 @@ public class Canvas implements AutoCloseable {
             cleanedPaint.setPathEffect(null);
         }
         if (constraint == SRC_RECT_CONSTRAINT_STRICT) {
-            if (sampling.mMipmapMode != SamplingOptions.MIPMAP_MODE_NONE) {
-                // Use linear filter if either is linear
-                int filter = sampling.mMinFilter | sampling.mMagFilter;
+            if (sampling.mMipmap != SamplingOptions.MIPMAP_MODE_NONE) {
+                // Use linear filter if is linear and remove mipmap mode
+                int filter = sampling.mFilter;
                 sampling = filter == SamplingOptions.FILTER_MODE_LINEAR
                         ? SamplingOptions.LINEAR
-                        : SamplingOptions.POINT;
+                        : SamplingOptions.NEAREST;
             } else if (sampling.isAnisotropy()) {
                 sampling = SamplingOptions.LINEAR;
             }
