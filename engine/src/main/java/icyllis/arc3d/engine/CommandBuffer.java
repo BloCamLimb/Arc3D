@@ -29,8 +29,7 @@ import java.util.ArrayDeque;
  */
 public abstract class CommandBuffer {
 
-    private final ObjectArrayList<@SharedPtr Resource> mTrackingUsageResources = new ObjectArrayList<>();
-    private final ObjectArrayList<@SharedPtr ManagedResource> mTrackingManagedResources = new ObjectArrayList<>();
+    private final ObjectArrayList<@SharedPtr RefCounted> mTrackingUsageResources = new ObjectArrayList<>();
     private final ObjectArrayList<@SharedPtr Resource> mTrackingCommandBufferResources = new ObjectArrayList<>();
 
     private final ArrayDeque<FlushInfo.FinishedCallback> mFinishedCallbacks = new ArrayDeque<>();
@@ -247,7 +246,8 @@ public abstract class CommandBuffer {
      * Takes a Usage ref on the Resource that will be released when the command buffer
      * has finished execution.
      * <p>
-     * This is mostly commonly used for host-visible Buffers and shared Resources.
+     * This is used for resources that can be updated by host after submission,
+     * and resources that can be shared between recording contexts and submissions.
      *
      * @param resource the resource to move
      */
@@ -268,7 +268,20 @@ public abstract class CommandBuffer {
         if (resource == null) {
             return;
         }
-        mTrackingManagedResources.add(resource);
+        mTrackingUsageResources.add(resource);
+    }
+
+    /**
+     * Takes a ref on the RecycledResource that will be recycled when the command buffer
+     * has finished execution.
+     *
+     * @param resource the resource to move
+     */
+    public final void trackResource(@SharedPtr RecycledResource resource) {
+        if (resource == null) {
+            return;
+        }
+        mTrackingUsageResources.add(resource);
     }
 
     /**
@@ -315,10 +328,8 @@ public abstract class CommandBuffer {
 
     // called by subclass
     protected final void releaseResources() {
-        mTrackingUsageResources.forEach(Resource::unref);
+        mTrackingUsageResources.forEach(RefCounted::unref);
         mTrackingUsageResources.clear();
-        mTrackingManagedResources.forEach(RefCnt::unref);
-        mTrackingManagedResources.clear();
         mTrackingCommandBufferResources.forEach(Resource::unrefCommandBuffer);
         mTrackingCommandBufferResources.clear();
     }
