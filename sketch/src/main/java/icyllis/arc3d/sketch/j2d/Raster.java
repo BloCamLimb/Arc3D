@@ -37,6 +37,8 @@ import java.lang.annotation.RetentionPolicy;
  * wraps Java2D's {@link java.awt.image.Raster}. Pixels are allocated on the Java heap,
  * and can be used with Java2D's software renderer.
  */
+@Deprecated
+//TODO delete this There will be no software or 2D backend for Canvas, as it must and correctly support 3D perspective
 public class Raster implements AutoCloseable {
 
     /**

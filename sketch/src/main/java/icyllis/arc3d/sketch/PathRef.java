@@ -40,6 +40,9 @@ import java.util.Arrays;
  *
  * @see #unique()
  */
+//TODO introduce immutable pathdata that is similar to String/StringBuilder pattern
+// to improve thread safety and help race condition, this mutable container will be reworked
+@Deprecated
 final class PathRef implements RefCounted {
 
     private static final VarHandle USAGE_CNT;
