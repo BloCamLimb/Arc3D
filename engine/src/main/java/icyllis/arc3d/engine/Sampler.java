@@ -24,7 +24,7 @@ package icyllis.arc3d.engine;
  */
 public abstract class Sampler extends Resource {
 
-    protected Sampler(Context context) {
-        super(context, false, 0);
+    protected Sampler(Device device) {
+        super(device, false, 0);
     }
 }

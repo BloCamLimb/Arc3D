@@ -36,11 +36,11 @@ import org.jspecify.annotations.NonNull;
 @Deprecated
 public abstract class GpuSurface extends Resource {
 
-    protected GpuSurface(Context context,
+    protected GpuSurface(Device device,
                          boolean budgeted,
                          boolean wrapped,
                          long memorySize) {
-        super(context, wrapped, memorySize);
+        super(device, wrapped, memorySize);
     }
 
     /**

@@ -53,11 +53,11 @@ public abstract class GpuRenderTarget extends GpuSurface {
     // determined by subclass constructors
     protected int mSurfaceFlags = ISurface.FLAG_RENDERABLE;
 
-    protected GpuRenderTarget(Context context,
+    protected GpuRenderTarget(Device device,
                               int width, int height,
                               int sampleCount,
                               int numColorTargets) {
-        super(context, true, false, 0);
+        super(device, true, false, 0);
         mWidth = width;
         mHeight = height;
         mSampleCount = sampleCount;

@@ -49,10 +49,10 @@ public abstract class Buffer extends Resource {
     private long mMapOffset;
     private long mMapSize;
 
-    protected Buffer(Context context,
+    protected Buffer(Device device,
                      long size,
                      int usage) {
-        super(context, /*wrapped*/false, size);
+        super(device, /*wrapped*/false, size);
         assert (size > 0);
         mSize = size;
         mUsage = usage;

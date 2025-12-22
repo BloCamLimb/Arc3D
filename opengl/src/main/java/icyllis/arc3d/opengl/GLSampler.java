@@ -39,17 +39,16 @@ public final class GLSampler extends Sampler {
     private final SamplerDesc mDesc;
     private int mSampler;
 
-    private GLSampler(Context context, SamplerDesc desc) {
-        super(context);
+    private GLSampler(GLDevice device, SamplerDesc desc) {
+        super(device);
         mDesc = desc;
     }
 
     @Nullable
     @SharedPtr
-    public static GLSampler create(Context context,
+    public static GLSampler create(GLDevice device,
                                    SamplerDesc desc) {
-        GLDevice device = (GLDevice) context.getDevice();
-        GLSampler sampler = new GLSampler(context, desc);
+        GLSampler sampler = new GLSampler(device, desc);
         if (device.isOnExecutingThread()) {
             if (!sampler.initialize()) {
                 sampler.unref();

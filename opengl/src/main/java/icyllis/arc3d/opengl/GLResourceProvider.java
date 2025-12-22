@@ -53,9 +53,9 @@ public final class GLResourceProvider extends ResourceProvider {
             return null;
         }
         if (glImageDesc.mTarget == GL_RENDERBUFFER) {
-            return GLRenderbuffer.make(mContext, glImageDesc);
+            return GLRenderbuffer.make(mDevice, glImageDesc);
         } else {
-            return GLTexture.make(mContext, glImageDesc);
+            return GLTexture.make(mDevice, glImageDesc);
         }
     }
 
@@ -70,6 +70,6 @@ public final class GLResourceProvider extends ResourceProvider {
     @SharedPtr
     @Override
     protected Sampler createSampler(SamplerDesc desc) {
-        return GLSampler.create(mContext, desc);
+        return GLSampler.create(mDevice, desc);
     }
 }

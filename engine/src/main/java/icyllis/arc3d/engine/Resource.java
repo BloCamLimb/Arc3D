@@ -53,12 +53,12 @@ import java.util.concurrent.*;
  * {@link #unref()} is required to determine if they need to be recycled or not.
  * When used as smart pointers, they need to be annotated as {@link SharedPtr},
  * otherwise they tend to be used as raw pointers (no ref/unref calls should be
- * made). A paired {@link UniqueID} object can be used as unique identifiers.
+ * made). A paired {@link WeakIdentityKey} object can be used as unique identifiers.
  * <p>
  * Each {@link Resource} should be created with immutable GPU memory allocation.
- * {@link Resource} can be only created/operated on the creating thread of
- * {@link #getContext()}, but may be recycled from other threads. Use
- * {@link ResourceProvider} to obtain {@link Resource} objects.
+ * Thread safety of {@link Resource} fully depends on the usage, this class is
+ * designed to be thread-safe for certain ops/usages, and it may be recycled from
+ * any threads. Use {@link ResourceProvider} to obtain {@link Resource} objects.
  */
 @NotThreadSafe
 public abstract class Resource implements RefCounted {
@@ -119,7 +119,7 @@ public abstract class Resource implements RefCounted {
     };
 
     // set once in constructor, clear to null after being destroyed
-    volatile Context mContext;
+    volatile Device mDevice;
 
     // null meaning invalid, lazy initialized
     volatile IResourceKey mKey;
@@ -159,11 +159,11 @@ public abstract class Resource implements RefCounted {
     private final WeakIdentityKey<@RawPtr Resource> mUniqueID;
 
     @SuppressWarnings("AssertWithSideEffects")
-    protected Resource(Context context,
+    protected Resource(Device device,
                        boolean wrapped,
                        long memorySize) {
-        assert (context != null);
-        mContext = context;
+        assert (device != null);
+        mDevice = device;
         mWrapped = wrapped;
         mMemorySize = memorySize;
         mUniqueID = new WeakIdentityKey<>(this);
@@ -300,27 +300,21 @@ public abstract class Resource implements RefCounted {
     }
 
     /**
-     * Checks whether an object has been released or discarded. All objects will
-     * be in this state after their creating Context is destroyed or has
-     * contextLost called. It's up to the client to test isDestroyed() before
-     * attempting to use an object if it holds refs on objects across
-     * Context.close(), freeResources with the force flag, or contextLost.
+     * For testing/assertion purposes about associated resource cache.
      *
      * @return true if the object has been released or discarded, false otherwise.
      */
     public final boolean isDestroyed() {
-        return mContext == null;
+        return mDevice == null;
     }
 
     /**
-     * Retrieves the context that owns the object. Note that it is possible for
-     * this to return null. When objects have been release()ed or discard()ed
-     * they no longer have an owning context. Destroying a {@link Context}
-     * automatically releases all its resources.
+     * For testing/assertion purposes about associated resource cache.
      */
     @Nullable
-    public final Context getContext() {
-        return mContext;
+    public final Context getReturnContext() {
+        var returnCache = mReturnCache;
+        return returnCache != null ? returnCache.mContext : null;
     }
 
     /**
@@ -463,7 +457,7 @@ public abstract class Resource implements RefCounted {
      * @return the device or null if destroyed
      */
     protected Device getDevice() {
-        return mContext.getDevice();
+        return mDevice;
     }
 
     /**
@@ -486,9 +480,9 @@ public abstract class Resource implements RefCounted {
      */
     @SuppressWarnings("AssertWithSideEffects")
     private void release() {
-        assert mContext != null;
+        assert mDevice != null;
         onRelease();
-        mContext = null;
+        mDevice = null;
         assert TRACKER.remove(this) == Boolean.TRUE;
     }
 

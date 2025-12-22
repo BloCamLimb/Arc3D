@@ -19,7 +19,17 @@
 
 package icyllis.arc3d.vulkan;
 
-import icyllis.arc3d.engine.*;
+import icyllis.arc3d.core.RawPtr;
+import icyllis.arc3d.core.RefCnt;
+import icyllis.arc3d.core.SharedPtr;
+import icyllis.arc3d.engine.Buffer;
+import icyllis.arc3d.engine.Context;
+import icyllis.arc3d.engine.Image;
+import icyllis.arc3d.engine.ImageDesc;
+import icyllis.arc3d.engine.ResourceProvider;
+import icyllis.arc3d.engine.Sampler;
+import icyllis.arc3d.engine.SamplerDesc;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 public class VulkanResourceProvider extends ResourceProvider {
@@ -38,7 +48,7 @@ public class VulkanResourceProvider extends ResourceProvider {
         if (!(desc instanceof VulkanImageDesc vulkanImageDesc)) {
             return null;
         }
-        return VulkanImage.make(mContext, vulkanImageDesc);
+        return VulkanImage.make(mDevice, vulkanImageDesc);
     }
 
     @Nullable

@@ -19,7 +19,9 @@
 
 package icyllis.arc3d.opengl;
 
-import icyllis.arc3d.engine.*;
+import icyllis.arc3d.engine.IResourceKey;
+import icyllis.arc3d.engine.Image;
+import icyllis.arc3d.engine.ImageMutableState;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -28,11 +30,11 @@ import org.jspecify.annotations.NonNull;
 public abstract sealed class GLImage extends Image
         permits GLTexture, GLRenderbuffer {
 
-    protected GLImage(Context context,
+    protected GLImage(GLDevice device,
                       boolean wrapped,
                       GLImageDesc desc,
                       ImageMutableState mutableState) {
-        super(context, wrapped, desc, mutableState);
+        super(device, wrapped, desc, mutableState);
     }
 
     @NonNull

@@ -56,11 +56,11 @@ public abstract class Image extends Resource {
     @SharedPtr
     private ReleaseCallback mReleaseCallback;
 
-    protected Image(Context context,
+    protected Image(Device device,
                     boolean wrapped,
                     ImageDesc desc,
                     ImageMutableState mutableState) {
-        super(context, wrapped, DataUtils.computeSize(desc));
+        super(device, wrapped, DataUtils.computeSize(desc));
         mDesc = desc;
         mMutableState = mutableState;
     }

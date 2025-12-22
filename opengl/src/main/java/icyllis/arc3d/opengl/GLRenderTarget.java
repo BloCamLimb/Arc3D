@@ -58,7 +58,7 @@ public final class GLRenderTarget extends GpuRenderTarget {
     private BackendRenderTarget mBackendRenderTarget;
 
     // Constructor for instances created by our engine. (has texture access)
-    GLRenderTarget(Context context,
+    GLRenderTarget(GLDevice device,
                    int width, int height,
                    int sampleCount,
                    int renderFramebuffer,
@@ -68,7 +68,7 @@ public final class GLRenderTarget extends GpuRenderTarget {
                    GLTexture[] resolveAttachments,
                    GLTexture depthStencilAttachment,
                    int surfaceFlags) {
-        super(context, width, height, sampleCount, numColorTargets);
+        super(device, width, height, sampleCount, numColorTargets);
         assert (sampleCount > 0);
         mRenderFramebuffer = renderFramebuffer;
         mResolveFramebuffer = resolveFramebuffer;
@@ -87,14 +87,14 @@ public final class GLRenderTarget extends GpuRenderTarget {
     }
 
     // Constructor for instances wrapping backend objects. (no texture access)
-    private GLRenderTarget(Context context,
+    private GLRenderTarget(GLDevice device,
                            int width, int height,
                            BackendFormat format,
                            int sampleCount,
                            int framebuffer,
                            boolean ownership,
                            @SharedPtr GLTexture depthStencilAttachment) {
-        super(context, width, height, sampleCount, 1);
+        super(device, width, height, sampleCount, 1);
         assert (sampleCount > 0);
         assert (framebuffer != 0 || !ownership);
         mRenderFramebuffer = framebuffer;
@@ -117,7 +117,7 @@ public final class GLRenderTarget extends GpuRenderTarget {
      */
     @NonNull
     @SharedPtr
-    public static GLRenderTarget makeWrapped(Context context,
+    public static GLRenderTarget makeWrapped(GLDevice device,
                                              int width, int height,
                                              BackendFormat format,
                                              int sampleCount,
@@ -159,7 +159,7 @@ public final class GLRenderTarget extends GpuRenderTarget {
                     depthStencilFormat,
                     0);*/
         }
-        return new GLRenderTarget(context,
+        return new GLRenderTarget(device,
                 width, height,
                 format,
                 sampleCount,

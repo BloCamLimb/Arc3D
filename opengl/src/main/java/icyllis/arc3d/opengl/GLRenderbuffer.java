@@ -19,8 +19,7 @@
 
 package icyllis.arc3d.opengl;
 
-import icyllis.arc3d.core.SharedPtr;
-import icyllis.arc3d.engine.*;
+import icyllis.arc3d.engine.BackendFormat;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryStack;
@@ -45,8 +44,8 @@ public final class GLRenderbuffer extends GLImage {
 
     private BackendFormat mBackendFormat;
 
-    private GLRenderbuffer(Context context, GLImageDesc desc, int renderbuffer) {
-        super(context, false, desc, null);
+    private GLRenderbuffer(GLDevice device, GLImageDesc desc, int renderbuffer) {
+        super(device, false, desc, null);
         mRenderbuffer = renderbuffer;
 
         if (mRenderbuffer == 0) {
@@ -158,9 +157,8 @@ public final class GLRenderbuffer extends GLImage {
                 renderbuffer); //TODO should be cacheable
     }*/
 
-    public static GLRenderbuffer make(Context context,
+    public static GLRenderbuffer make(GLDevice device,
                                       GLImageDesc desc) {
-        final GLDevice device = (GLDevice) context.getDevice();
         final int handle;
         if (device.isOnExecutingThread()) {
             handle = internalCreateRenderbuffer(device, desc);
@@ -170,7 +168,7 @@ public final class GLRenderbuffer extends GLImage {
         } else {
             handle = 0;
         }
-        return new GLRenderbuffer(context, desc,
+        return new GLRenderbuffer(device, desc,
                 handle);
     }
 

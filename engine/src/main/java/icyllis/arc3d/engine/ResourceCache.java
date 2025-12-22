@@ -57,7 +57,7 @@ public final class ResourceCache {
     private ImageProxyCache mImageProxyCache = null;
     private ThreadSafeCache mThreadSafeCache = null;
 
-    private final Context mContext;
+    final Context mContext;
 
     // Whenever a resource is added to the cache or the result of a cache lookup, mTimestamp is
     // assigned as the resource's timestamp and then incremented. mPurgeableQueue orders the

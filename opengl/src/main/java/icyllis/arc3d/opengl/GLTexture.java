@@ -20,7 +20,6 @@
 package icyllis.arc3d.opengl;
 
 import icyllis.arc3d.core.SharedPtr;
-import icyllis.arc3d.engine.Context;
 import icyllis.arc3d.engine.ISurface;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryStack;
@@ -40,11 +39,11 @@ public final class GLTexture extends GLImage {
     private final boolean mOwnership;
 
     // Constructor for instances created by ourselves.
-    GLTexture(Context context,
+    GLTexture(GLDevice device,
               GLImageDesc desc,
               GLTextureMutableState mutableState,
               int handle) {
-        super(context, false, desc, mutableState);
+        super(device, false, desc, mutableState);
         assert GLUtil.glFormatIsSupported(desc.mFormat);
         mOwnership = true;
 
@@ -95,9 +94,8 @@ public final class GLTexture extends GLImage {
 
     @Nullable
     @SharedPtr
-    public static GLTexture make(Context context,
+    public static GLTexture make(GLDevice device,
                                  GLImageDesc desc) {
-        final GLDevice device = (GLDevice) context.getDevice();
         final int handle;
         if (device.isOnExecutingThread()) {
             handle = internalCreateTexture(device, desc);
@@ -107,7 +105,7 @@ public final class GLTexture extends GLImage {
         } else {
             handle = 0;
         }
-        return new GLTexture(context, desc,
+        return new GLTexture(device, desc,
                 new GLTextureMutableState(),
                 handle);
     }

@@ -22,7 +22,6 @@ package icyllis.arc3d.opengl;
 import icyllis.arc3d.core.MathUtil;
 import icyllis.arc3d.core.SharedPtr;
 import icyllis.arc3d.engine.Buffer;
-import icyllis.arc3d.engine.Context;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
@@ -49,22 +48,20 @@ public final class GLBuffer extends Buffer {
     // then we just use client array as staging buffer.
     private final boolean mClientUploadBuffer;
 
-    private GLBuffer(Context context,
+    private GLBuffer(GLDevice device,
                      long size,
                      int usage,
                      boolean clientUploadBuffer) {
-        super(context, size, usage);
+        super(device, size, usage);
         mClientUploadBuffer = clientUploadBuffer;
     }
 
     @Nullable
     @SharedPtr
-    public static GLBuffer make(Context context,
+    public static GLBuffer make(GLDevice device,
                                 long size,
                                 int usage) {
         assert (size > 0);
-
-        GLDevice device = (GLDevice) context.getDevice();
 
         boolean clientUploadBuffer;
         boolean bufferStorage = device.getCaps().hasBufferStorageSupport();
@@ -87,12 +84,12 @@ public final class GLBuffer extends Buffer {
             // je_malloc is 16-byte aligned on 64-bit system,
             // it's safe to use Unsafe to transfer primitive data
             assert MathUtil.isAlign8(clientBuffer);
-            GLBuffer buffer = new GLBuffer(context, size, usage, true);
+            GLBuffer buffer = new GLBuffer(device, size, usage, true);
             buffer.mCachedBuffer = clientBuffer;
             buffer.mCachedBufferSize = size;
             return buffer;
         } else {
-            GLBuffer buffer = new GLBuffer(context, size, usage, false);
+            GLBuffer buffer = new GLBuffer(device, size, usage, false);
             if (device.isOnExecutingThread()) {
                 if (!buffer.initialize()) {
                     buffer.unref();
