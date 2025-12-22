@@ -30,25 +30,25 @@ import static org.lwjgl.vulkan.VK10.*;
 
 public final class VulkanDescriptorSetLayout extends ManagedResource {
 
-    private final DescriptorSetLayout mDesc;
-    private final long mDescSetLayout;
+    private final DescriptorSetLayout mInfo;
+    private final long mSetLayout;
 
     private VulkanDescriptorSetLayout(VulkanDevice device,
-                                     DescriptorSetLayout desc,
-                                     long descSetLayout) {
+                                     DescriptorSetLayout info,
+                                     long setLayout) {
         super(device);
-        mDesc = desc;
-        mDescSetLayout = descSetLayout;
+        mInfo = info;
+        mSetLayout = setLayout;
 
-        assert descSetLayout != VK_NULL_HANDLE;
+        assert setLayout != VK_NULL_HANDLE;
     }
 
     @Nullable
     @SharedPtr
     public static VulkanDescriptorSetLayout make(@NonNull VulkanDevice device,
-                                                 @NonNull DescriptorSetLayout desc) {
+                                                 @NonNull DescriptorSetLayout info) {
         try (var stack = MemoryStack.stackPush()) {
-            var pBindings = desc.toVkBindings(stack);
+            var pBindings = info.toVkBindings(stack);
             var pCreateInfo = VkDescriptorSetLayoutCreateInfo.calloc(stack)
                     .sType$Default()
                     .pBindings(pBindings);
@@ -63,24 +63,24 @@ public final class VulkanDescriptorSetLayout extends ManagedResource {
                 return null;
             }
 
-            return new VulkanDescriptorSetLayout(device, desc,pSetLayout.get(0));
+            return new VulkanDescriptorSetLayout(device, info,pSetLayout.get(0));
         }
     }
 
     @NonNull
-    public DescriptorSetLayout getDesc() {
-        return mDesc;
+    public DescriptorSetLayout getInfo() {
+        return mInfo;
     }
 
     public long vkSetLayout() {
-        return mDescSetLayout;
+        return mSetLayout;
     }
 
     @Override
     protected void deallocate() {
         VulkanDevice device = (VulkanDevice) getDevice();
         vkDestroyDescriptorSetLayout(device.vkDevice(),
-                mDescSetLayout, null);
+                mSetLayout, null);
 
     }
 }
