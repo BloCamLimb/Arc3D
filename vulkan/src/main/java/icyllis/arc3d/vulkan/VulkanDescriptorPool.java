@@ -21,6 +21,7 @@ package icyllis.arc3d.vulkan;
 
 import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.SharedPtr;
+import icyllis.arc3d.engine.IResourceKey;
 import icyllis.arc3d.engine.Resource;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -157,5 +158,46 @@ public final class VulkanDescriptorPool extends Resource {
         VulkanDevice device = (VulkanDevice) getDevice();
         vkDestroyDescriptorPool(device.vkDevice(),
                 mDescPool, null);
+    }
+
+    public static class ResourceKey implements IResourceKey {
+
+        public DescriptorSetLayout layout;
+        public int maxSets;
+
+        public ResourceKey() {
+        }
+
+        public ResourceKey(ResourceKey other) {
+            this.layout = other.layout;
+            this.maxSets = other.maxSets;
+        }
+
+        public ResourceKey set(@RawPtr VulkanDescriptorSetLayout setLayout, int maxSets) {
+            this.layout = setLayout.getInfo();
+            this.maxSets  = maxSets;
+            return this;
+        }
+
+        @Override
+        public final boolean equals(Object o) {
+            if (this == o) return true;
+            if (o instanceof ResourceKey key)
+                return maxSets == key.maxSets &&
+                        layout.equals(key.layout);
+            return false;
+        }
+
+        @Override
+        public ResourceKey copy() {
+            return new ResourceKey(this);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = layout.hashCode();
+            result = 31 * result + maxSets;
+            return result;
+        }
     }
 }

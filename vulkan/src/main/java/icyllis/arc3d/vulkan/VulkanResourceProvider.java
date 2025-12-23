@@ -36,6 +36,8 @@ public class VulkanResourceProvider extends ResourceProvider {
 
     private final VulkanDevice mDevice;
 
+    private final VulkanDescriptorPool.ResourceKey mDescriptorPoolKey = new VulkanDescriptorPool.ResourceKey();
+
     protected VulkanResourceProvider(VulkanDevice device, Context context,
                                      long maxResourceBudget) {
         super(device, context, maxResourceBudget);
@@ -61,5 +63,29 @@ public class VulkanResourceProvider extends ResourceProvider {
     @Override
     protected Buffer onCreateNewBuffer(long size, int usage) {
         return null;
+    }
+
+    @Nullable
+    @SharedPtr
+    public VulkanDescriptorPool findOrCreateDescriptorPool(@RawPtr VulkanDescriptorSetLayout setLayout,
+                                                           int maxSets) {
+        if (mDevice.isDeviceLost()) {
+            return null;
+        }
+
+        @SharedPtr
+        VulkanDescriptorPool pool = (VulkanDescriptorPool) mResourceCache.findAndRefResource(
+                mDescriptorPoolKey.set(setLayout, maxSets),
+                /*budgeted*/true, /*shareable*/false
+        );
+        if (pool != null) {
+            return pool;
+        }
+        pool = VulkanDescriptorPool.make(mDevice, RefCnt.create(setLayout), maxSets);
+        if (pool == null) {
+            return null;
+        }
+        mResourceCache.insertResource(pool, mDescriptorPoolKey.copy(), /*budgeted*/true, /*shareable*/false);
+        return pool;
     }
 }
