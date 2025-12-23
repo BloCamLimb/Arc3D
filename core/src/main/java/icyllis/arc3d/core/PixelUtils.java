@@ -193,27 +193,21 @@ public class PixelUtils {
         }
     }
 
-    /*public static void setPixel8(Object base, long addr,
-                                 byte value, int count) {
-        long wideValue = (long) value << 8 | value;
-        wideValue |= wideValue << 16;
-        wideValue |= wideValue << 32;
-        while (count >= 8) {
-            UNSAFE.putLong(base, addr, wideValue);
-            addr += 8;
-            count -= 8;
-        }
-        while (count-- != 0) {
-            UNSAFE.putByte(base, addr, value);
-            addr += 1;
-        }
-    }*/
-
     public static void setPixel16(Object base, long addr,
                                   short value, int count) {
-        //TODO unaligned
+        assert count > 0;
         long wideValue = (long) value << 16 | value;
         wideValue |= wideValue << 32;
+        assert MathUtil.isAlign2(addr);
+        long pad = (-addr) & 7;
+        while (pad > 0 && count != 0) {
+            UNSAFE.putShort(base, addr, value);
+            addr += 2;
+            count--;
+            pad -= 2;
+        }
+        assert count == 0 || pad == 0;
+        assert count == 0 || MathUtil.isAlign8(addr);
         while (count >= 4) {
             UNSAFE.putLong(base, addr, wideValue);
             addr += 8;
@@ -227,8 +221,15 @@ public class PixelUtils {
 
     public static void setPixel32(Object base, long addr,
                                   int value, int count) {
-        //TODO unaligned
+        assert count > 0;
         long wideValue = (long) value << 32 | value;
+        assert MathUtil.isAlign4(addr);
+        if (!MathUtil.isAlign8(addr)) {
+            UNSAFE.putInt(base, addr, value);
+            addr += 4;
+            count--;
+        }
+        assert MathUtil.isAlign8(addr);
         while (count >= 2) {
             UNSAFE.putLong(base, addr, wideValue);
             addr += 8;
@@ -242,6 +243,7 @@ public class PixelUtils {
 
     public static void setPixel64(Object base, long addr,
                                   long value, int count) {
+        assert MathUtil.isAlign8(addr);
         for (int i = 0; i < count; i++) {
             UNSAFE.putLong(base, addr, value);
             addr += 8;
