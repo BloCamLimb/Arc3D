@@ -495,14 +495,6 @@ public class TestManagedResource {
         pw.println("Point: " + x + ", " + y + ", " + z);
     }
 
-    public static void testKeyBuilder(PrintWriter pw) {
-        KeyBuilder keyBuilder = new KeyBuilder();
-        keyBuilder.addBits(6, 0x2F, "A");
-        keyBuilder.addBits(32, 0xF111_1111, "B");
-        keyBuilder.flush();
-        pw.println(keyBuilder);
-    }
-
     public static void testSimilarity(PrintWriter pw) {
         Matrix4 transform = new Matrix4();
         transform.m34 = 1 / 4096f;

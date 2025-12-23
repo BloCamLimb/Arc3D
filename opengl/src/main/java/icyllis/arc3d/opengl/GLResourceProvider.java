@@ -63,7 +63,7 @@ public final class GLResourceProvider extends ResourceProvider {
     @SharedPtr
     @Override
     protected GLBuffer onCreateNewBuffer(long size, int usage) {
-        return GLBuffer.make(mContext, size, usage);
+        return GLBuffer.make(mDevice, size, usage);
     }
 
     @Nullable
