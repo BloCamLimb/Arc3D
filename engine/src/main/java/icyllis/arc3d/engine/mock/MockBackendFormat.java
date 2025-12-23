@@ -65,7 +65,7 @@ public final class MockBackendFormat extends BackendFormat {
 
     @Override
     public boolean isSRGB() {
-        return mCompressionType == ColorInfo.COMPRESSION_NONE && mColorType == ColorInfo.CT_RGBA_8888_SRGB;
+        return false;
     }
 
     @Override

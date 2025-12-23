@@ -221,7 +221,7 @@ public final class PaintParams {
             return false;
         }
 
-        if (dstCT == ColorInfo.CT_BGR_565) {
+        if (dstCT == ColorInfo.CT_BGR_565 || dstCT == ColorInfo.CT_BGRA_5551) {
             // always dither bits per channel < 8
             return true;
         }
@@ -233,7 +233,8 @@ public final class PaintParams {
     private static float getDitherRange(int dstCT) {
         // We use 1 / (2^bitdepth-1) as the range since each channel can hold 2^bitdepth values
         return switch (dstCT) {
-            case ColorInfo.CT_BGR_565 -> 1 / 31.f; // 5-bit
+            case ColorInfo.CT_BGR_565,
+                 ColorInfo.CT_BGRA_5551 -> 1 / 31.f; // 5-bit
             case ColorInfo.CT_ALPHA_8,
                  ColorInfo.CT_GRAY_8,
                  ColorInfo.CT_GRAY_ALPHA_88,
@@ -242,22 +243,24 @@ public final class PaintParams {
                  ColorInfo.CT_RGB_888,
                  ColorInfo.CT_RGBX_8888,
                  ColorInfo.CT_RGBA_8888,
-                 ColorInfo.CT_ABGR_8888,
-                 ColorInfo.CT_RGBA_8888_SRGB,
-                 ColorInfo.CT_BGRA_8888,
-                 ColorInfo.CT_ARGB_8888 -> 1 / 255.f; // 8-bit
+                 ColorInfo.CT_BGRA_8888 -> 1 / 255.f; // 8-bit
             case ColorInfo.CT_RGBA_1010102,
                  ColorInfo.CT_BGRA_1010102 -> 1 / 1023.f; // 10-bit
             case ColorInfo.CT_ALPHA_16,
+                 ColorInfo.CT_GRAY_16,
+                 ColorInfo.CT_GRAY_ALPHA_1616,
                  ColorInfo.CT_R_16,
                  ColorInfo.CT_RG_1616,
+                 ColorInfo.CT_RGB_161616,
                  ColorInfo.CT_RGBA_16161616 -> 1 / 32767.f; // 16-bit
             case ColorInfo.CT_UNKNOWN,
+                 ColorInfo.CT_RGBE_9995,
                  ColorInfo.CT_ALPHA_F16,
                  ColorInfo.CT_R_F16,
                  ColorInfo.CT_RG_F16,
                  ColorInfo.CT_RGBA_F16,
-                 ColorInfo.CT_RGBA_F16_CLAMPED,
+                 ColorInfo.CT_R_F32,
+                 ColorInfo.CT_RG_F32,
                  ColorInfo.CT_RGBA_F32 -> 0.f; // no dithering
             default -> throw new AssertionError(dstCT);
         };

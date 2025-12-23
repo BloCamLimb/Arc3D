@@ -41,11 +41,12 @@ public class TestLowpPixelLoad {
                 info.minRowBytes()
         );
         int[] colorTypes = {ColorInfo.CT_R_8, ColorInfo.CT_RG_88, ColorInfo.CT_RGB_888, ColorInfo.CT_RGBX_8888,
-                ColorInfo.CT_RGBA_8888, ColorInfo.CT_BGRA_8888, ColorInfo.CT_ABGR_8888, ColorInfo.CT_ARGB_8888,
+                ColorInfo.CT_RGBA_8888, ColorInfo.CT_BGRA_8888, ColorInfo.CT_GRAY_16, ColorInfo.CT_GRAY_ALPHA_1616,
                 ColorInfo.CT_GRAY_8, ColorInfo.CT_GRAY_ALPHA_88, ColorInfo.CT_ALPHA_8,
                 ColorInfo.CT_R_16, ColorInfo.CT_RG_1616, ColorInfo.CT_RGBA_16161616, ColorInfo.CT_ALPHA_16,
                 ColorInfo.CT_R_F16, ColorInfo.CT_RG_F16, ColorInfo.CT_RGBA_F16, ColorInfo.CT_ALPHA_F16,
-                ColorInfo.CT_RGBA_F32, ColorInfo.CT_BGR_565, ColorInfo.CT_RGBA_1010102, ColorInfo.CT_BGRA_1010102};
+                ColorInfo.CT_RGBA_F32, ColorInfo.CT_BGR_565, ColorInfo.CT_RGBA_1010102, ColorInfo.CT_BGRA_1010102,
+                ColorInfo.CT_BGRA_5551, ColorInfo.CT_R_F32, ColorInfo.CT_RG_F32, ColorInfo.CT_RGB_161616};
         for (int ct : colorTypes) {
             testForColorType(ct, originalPixmap);
         }

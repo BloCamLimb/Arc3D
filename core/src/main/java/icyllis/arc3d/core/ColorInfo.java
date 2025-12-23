@@ -24,6 +24,7 @@ import org.jetbrains.annotations.ApiStatus;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.nio.ByteOrder;
 
 /**
  * Describes pixel dimensions and encoding.
@@ -115,37 +116,48 @@ public final class ColorInfo {
             AT_PREMUL   = 2, // pixel components are premultiplied by alpha
             AT_UNPREMUL = 3; // pixel components are unassociated with alpha
 
+    static {
+        // the following color types assume little-endian machines,
+        // and LWJGL does not support big-endian machines as well
+        if ((ByteOrder.nativeOrder() != ByteOrder.LITTLE_ENDIAN)) {
+            throw new RuntimeException("Color encoding requires little-endian");
+        }
+    }
+
     /**
      * Describes how pixel bits encode color.
      */
     @ApiStatus.Internal
     @MagicConstant(intValues = {
             CT_UNKNOWN,
-            CT_BGR_565,
             CT_R_8,
             CT_RG_88,
-            CT_RGB_888,
-            CT_RGBX_8888,
             CT_RGBA_8888,
-            CT_BGRA_8888,
-            CT_RGBA_8888_SRGB,
-            CT_RGBA_1010102,
-            CT_BGRA_1010102,
             CT_R_16,
-            CT_R_F16,
             CT_RG_1616,
-            CT_RG_F16,
             CT_RGBA_16161616,
+            CT_R_F16,
+            CT_RG_F16,
             CT_RGBA_F16,
-            CT_RGBA_F16_CLAMPED,
+            CT_R_F32,
+            CT_RG_F32,
             CT_RGBA_F32,
             CT_ALPHA_8,
             CT_ALPHA_16,
             CT_ALPHA_F16,
             CT_GRAY_8,
+            CT_GRAY_16,
             CT_GRAY_ALPHA_88,
-            CT_ABGR_8888,
-            CT_ARGB_8888,
+            CT_GRAY_ALPHA_1616,
+            CT_BGRA_8888,
+            CT_BGR_565,
+            CT_BGRA_5551,
+            CT_RGBA_1010102,
+            CT_BGRA_1010102,
+            CT_RGBE_9995,
+            CT_RGB_888,
+            CT_RGB_161616,
+            CT_RGBX_8888,
             CT_R5G6B5_UNORM,
             CT_R8G8_UNORM,
             CT_A16_UNORM,
@@ -178,68 +190,163 @@ public final class ColorInfo {
      * to be aligned to bytes-per-pixel, otherwise it should be aligned to the size of data type as normal.
      */
     public static final int
-            CT_UNKNOWN          = 0, // uninitialized
-            CT_BGR_565          = 1, // pixel with 5 bits blue, 6 bits green, 5 bits red; in 16-bit word
-            CT_R_8              = 2, // pixel with 8 bits for red
-            CT_RG_88            = 3; // pixel with 8 bits for red, green; in 16-bit word
+            CT_UNKNOWN          = 0; // uninitialized
+
+    // Single channel data (8 bits) interpreted as red.
+    // G and B are forced to 0, alpha is forced to opaque.
+    public static final int
+            CT_R_8              = 1;
+    // Two channel RG data (8 bits per channel).
+    // Blue is forced to 0, alpha is forced to opaque.
+    // This can be interpreted as two R,G uint8_t or a LE 16-bit word.
+    //  Bits: [G:15..8 R:7..0]
+    public static final int
+            CT_RG_88            = 2;
+    // Four channel RGBA data (8 bits per channel).
+    // This can be interpreted as four R,G,B,A uint8_t or a LE 32-bit word.
+    //  Bits: [A:31..24 B:23..16 G:15..8 R:7..0]
+    public static final int
+            CT_RGBA_8888        = 3;
+
+    // Single channel data (16 bits) interpreted as red.
+    // G and B are forced to 0, alpha is forced to opaque.
+    public static final int
+            CT_R_16             = 4;
+    // Two channel RG data (16 bits per channel).
+    // Blue is forced to 0, alpha is forced to opaque.
+    // This can be interpreted as two R,G uint16_t or a LE 32-bit word.
+    //  Bits: [G:31..16 R:15..0]
+    public static final int
+            CT_RG_1616          = 5;
+    // Four channel RGBA data (16 bits per channel).
+    // This can be interpreted as four R,G,B,A uint16_t or a LE 64-bit word.
+    //  Bits: [A:63..48 B:47..32 G:31..16 R:15..0]
+    public static final int
+            CT_RGBA_16161616    = 6;
+
+    // Single channel data (16-bit half-float) interpreted as red.
+    // G and B are forced to 0, alpha is forced to opaque.
+    public static final int
+            CT_R_F16            = 7;
+    // Two channel RG data (16-bit half-float per channel).
+    // Blue is forced to 0, alpha is forced to opaque.
+    // This can be interpreted as two R,G float16_t or a LE 32-bit word.
+    //  Bits: [G:31..16 R:15..0]
+    public static final int
+            CT_RG_F16           = 8;
+    // Four channel RGBA data (16-bit half-float per channel).
+    // This can be interpreted as four R,G,B,A float16_t or a LE 64-bit word.
+    //  Bits: [A:63..48 B:47..32 G:31..16 R:15..0]
+    public static final int
+            CT_RGBA_F16         = 9;
+
+    // Single channel data (32-bit float) interpreted as red.
+    // G and B are forced to 0, alpha is forced to opaque.
+    public static final int
+            CT_R_F32            = 10;
+    // Two channel RG data (32-bit float per channel).
+    // Blue is forced to 0, alpha is forced to opaque.
+    // This can be interpreted as two R,G float32_t or a LE 64-bit word.
+    //  Bits: [G:63..32 R:31..0]
+    public static final int
+            CT_RG_F32           = 11;
+    // Four channel RGBA data (32-bit float per channel).
+    // This can be interpreted as four R,G,B,A float32_t or a LE 128-bit word.
+    //  Bits: [A:127..96 B:95..64 G:63..32 R:31..0]
+    public static final int
+            CT_RGBA_F32         = 12;
+
+    // Single channel data (8 bits) interpreted as an alpha value. RGB are 0.
+    public static final int
+            CT_ALPHA_8          = 13;
+    // Single channel data (16 bits) interpreted as an alpha value. RGB are 0.
+    public static final int
+            CT_ALPHA_16         = 14;
+    // Single channel data (16-bit half-float) interpreted as an alpha value. RGB are 0.
+    public static final int
+            CT_ALPHA_F16        = 15;
+
+    // Single channel data (8 bits) interpreted as a grayscale value (e.g. replicated to RGB).
+    public static final int
+            CT_GRAY_8           = 16;
+    // Single channel data (16 bits) interpreted as a grayscale value (e.g. replicated to RGB).
+    public static final int
+            CT_GRAY_16          = 17;
     @ApiStatus.Internal
     public static final int
-            CT_RGB_888          = 4; // pixel with 8 bits for red, green, blue
-    public static final int
-            CT_RGBX_8888        = 5, // pixel with 8 bits for red, green, blue; in 32-bit word
-            CT_RGBA_8888        = 6, // pixel with 8 bits for red, green, blue, alpha; in 32-bit word
-            CT_BGRA_8888        = 7; // pixel with 8 bits for blue, green, red, alpha; in 32-bit word
+            CT_GRAY_ALPHA_88    = 18;
     @ApiStatus.Internal
     public static final int
-            CT_RGBA_8888_SRGB   = 8;
+            CT_GRAY_ALPHA_1616  = 19;
+
+    // Four channel BGRA data (8 bits per channel).
+    // This can be interpreted as four B,G,R,A uint8_t or a LE 32-bit word.
+    //   Bits: [A:31..24 R:23..16 G:15..8 B:7..0]
     public static final int
-            CT_RGBA_1010102     = 9,  // 10 bits for red, green, blue; 2 bits for alpha; in 32-bit word
-            CT_BGRA_1010102     = 10; // 10 bits for blue, green, red; 2 bits for alpha; in 32-bit word
+            CT_BGRA_8888        = 20;
+
+    // Three channel BGR data (5 bits red, 6 bits green, 5 bits blue)
+    // This must be interpreted as a LE 16-bit word.
+    //  Bits: [R:15..11 G:10..5 B:4..0]
+    public static final int
+            CT_BGR_565          = 21;
+    // Three channel BGRA data (5 bits per color, 1 bit for alpha)
+    // This must be interpreted as a LE 16-bit word.
+    //  Bits: [A:15 R:14..10 G:9..5 B:4..0]
+    public static final int
+            CT_BGRA_5551        = 22;
+    // Four channel RGBA data (10 bits per color, 2 bits for alpha).
+    // This must be interpreted as a LE 32-bit word.
+    //  Bits: [A:31..30 B:29..20 G:19..10 R:9..0]
+    public static final int
+            CT_RGBA_1010102     = 23;
+    // Four channel BGRA data (10 bits per color, 2 bits for alpha).
+    // This must be interpreted as a LE 32-bit word.
+    //  Bits: [A:31..30 R:29..20 G:19..10 B:9..0]
+    public static final int
+            CT_BGRA_1010102     = 24;
+    // Three channel RGB data (9 bits per color, 5 bits for shared exponent)
+    // This must be interpreted as a LE 32-bit word.
+    //  Bits: [E:31..27 B:26..18 G:17..9 R:8..0]
+    public static final int
+            CT_RGBE_9995        = 25; // TODO not supported on CPU yet
+
+    // Three channel RGB data (8 bits per channel).
+    // This must be interpreted as three R,G,B uint8_t, no alignment requirement.
     @ApiStatus.Internal
     public static final int
-            CT_R_16             = 11, // pixel with uint16_t for red
-            CT_R_F16            = 12, // pixel with float16_t for red
-            CT_RG_1616          = 13, // pixel with uint16_t for red and green
-            CT_RG_F16           = 14; // pixel with float16_t for red and green
-    public static final int
-            CT_RGBA_16161616    = 15, // pixel with uint16_t for red, green, blue, alpha; in 64-bit word
-            CT_RGBA_F16         = 16, // pixel with float16_t for red, green, blue, alpha; in 64-bit word
-            CT_RGBA_F16_CLAMPED = 17, // pixel with float16_t for red, green, blue, alpha; in 64-bit word (manual)
-            CT_RGBA_F32         = 18, // pixel with float32_t for red, green, blue, alpha; in 128-bit word
-            CT_ALPHA_8          = 19, // pixel with uint8_t for alpha (000r)
-            CT_ALPHA_16         = 20, // pixel with uint16_t for alpha (000r)
-            CT_ALPHA_F16        = 21, // pixel with float16_t for alpha (000r)
-            CT_GRAY_8           = 22; // pixel with uint8_t for grayscale level (rrr1)
+            CT_RGB_888          = 26;
+    // Three channel RGB data (16 bits per channel).
+    // This must be interpreted as three R,G,B uint16_t, no alignment requirement.
     @ApiStatus.Internal
     public static final int
-            CT_GRAY_ALPHA_88    = 23; // pixel with uint8_t for grayscale level and alpha (rrrg)
+            CT_RGB_161616       = 27;
+
+    // Three channel RGB data (8 bits per channel).
+    // The remaining 8 bits are ignored and alpha is forced to opaque when read.
+    // This can be interpreted as four R,G,B,X uint8_t or a LE 32-bit word.
+    //  Bits: [X:31..24 B:23..16 G:15..8 R:7..0]
+    public static final int
+            CT_RGBX_8888        = 28;
+
     /**
-     * Special format for big-endian CPU; GPU does not support this.
-     */
-    @ApiStatus.Internal
-    public static final int
-            CT_ABGR_8888        = 24, // pixel with 8 bits for alpha, blue, green, red; in 32-bit word
-            CT_ARGB_8888        = 25; // pixel with 8 bits for alpha, red, green, blue; in 32-bit word
-    /**
-     * A runtime alias based on host endianness, packed as
+     * An alias based on host endianness, packed as
      * {@code (r << 0) | (g << 8) | (b << 16) | (a << 24)} an uint32 value.
      * <p>
      * This is not a standalone packed format, it just depends on CPU:
-     * on big-endian machine this is {@link #CT_ABGR_8888};
      * on little-endian machine this is {@link #CT_RGBA_8888}.
      */
     public static final int
-            CT_RGBA_8888_NATIVE = PixelUtils.NATIVE_BIG_ENDIAN ? CT_ABGR_8888 : CT_RGBA_8888;
+            CT_RGBA_8888_NATIVE = CT_RGBA_8888;
     /**
-     * A runtime alias based on host endianness, packed as
+     * An alias based on host endianness, packed as
      * {@code (b << 0) | (g << 8) | (r << 16) | (a << 24)} an uint32 value.
      * <p>
      * This is not a standalone packed format, it just depends on CPU:
-     * on big-endian machine this is {@link #CT_ARGB_8888};
      * on little-endian machine this is {@link #CT_BGRA_8888}.
      */
     public static final int
-            CT_BGRA_8888_NATIVE = PixelUtils.NATIVE_BIG_ENDIAN ? CT_ARGB_8888 : CT_BGRA_8888;
+            CT_BGRA_8888_NATIVE = CT_BGRA_8888;
     /**
      * Aliases.
      */
@@ -253,7 +360,7 @@ public final class ColorInfo {
             CT_R16G16B16A16_UNORM = CT_RGBA_16161616;
     @ApiStatus.Internal
     public static final int
-            CT_COUNT        = 26;
+            CT_COUNT        = 29;
     //@formatter:on
 
     /**
@@ -275,26 +382,29 @@ public final class ColorInfo {
                  CT_ALPHA_8,
                  CT_GRAY_8 -> 1;
             case CT_BGR_565,
+                 CT_BGRA_5551,
                  CT_RG_88,
+                 CT_GRAY_ALPHA_88,
                  CT_R_16,
                  CT_R_F16,
                  CT_ALPHA_16,
                  CT_ALPHA_F16,
-                 CT_GRAY_ALPHA_88 -> 2;
+                 CT_GRAY_16 -> 2;
             case CT_RGB_888 -> 3;
-            case CT_RGBX_8888,
-                 CT_RGBA_8888,
+            case CT_RGBA_8888,
                  CT_BGRA_8888,
-                 CT_ABGR_8888,
-                 CT_ARGB_8888,
+                 CT_RGBX_8888,
                  CT_BGRA_1010102,
                  CT_RGBA_1010102,
+                 CT_RGBE_9995,
                  CT_RG_1616,
                  CT_RG_F16,
-                 CT_RGBA_8888_SRGB -> 4;
+                 CT_GRAY_ALPHA_1616,
+                 CT_R_F32 -> 4;
+            case CT_RGB_161616 -> 6;
             case CT_RGBA_16161616,
                  CT_RGBA_F16,
-                 CT_RGBA_F16_CLAMPED -> 8;
+                 CT_RG_F32 -> 8;
             case CT_RGBA_F32 -> 16;
             default -> throw new AssertionError(ct);
         };
@@ -303,6 +413,7 @@ public final class ColorInfo {
     public static int maxBitsPerChannel(@ColorType int ct) {
         return switch (ct) {
             case CT_UNKNOWN -> 0;
+            case CT_BGRA_5551 -> 5;
             case CT_BGR_565 -> 6;
             case CT_R_8,
                  CT_ALPHA_8,
@@ -310,24 +421,26 @@ public final class ColorInfo {
                  CT_RG_88,
                  CT_GRAY_ALPHA_88,
                  CT_RGB_888,
-                 CT_RGBX_8888,
                  CT_RGBA_8888,
                  CT_BGRA_8888,
-                 CT_ABGR_8888,
-                 CT_ARGB_8888,
-                 CT_RGBA_8888_SRGB -> 8;
-            case CT_BGRA_1010102,
-                 CT_RGBA_1010102 -> 10;
+                 CT_RGBX_8888 -> 8;
+            case CT_RGBE_9995 -> 9;
+            case CT_RGBA_1010102,
+                 CT_BGRA_1010102 -> 10;
             case CT_R_16,
                  CT_R_F16,
                  CT_ALPHA_16,
                  CT_ALPHA_F16,
+                 CT_GRAY_16,
                  CT_RG_1616,
                  CT_RG_F16,
+                 CT_GRAY_ALPHA_1616,
+                 CT_RGB_161616,
                  CT_RGBA_16161616,
-                 CT_RGBA_F16,
-                 CT_RGBA_F16_CLAMPED -> 16;
-            case CT_RGBA_F32 -> 32;
+                 CT_RGBA_F16 -> 16;
+            case CT_R_F32,
+                 CT_RG_F32,
+                 CT_RGBA_F32 -> 32;
             default -> throw new AssertionError(ct);
         };
     }
@@ -354,15 +467,13 @@ public final class ColorInfo {
                 }
                 // fallthrough
             case CT_GRAY_ALPHA_88:
+            case CT_GRAY_ALPHA_1616:
+            case CT_BGRA_5551:
             case CT_RGBA_8888:
             case CT_BGRA_8888:
-            case CT_ABGR_8888:
-            case CT_ARGB_8888:
-            case CT_RGBA_8888_SRGB:
             case CT_RGBA_1010102:
             case CT_BGRA_1010102:
             case CT_RGBA_F16:
-            case CT_RGBA_F16_CLAMPED:
             case CT_RGBA_F32:
             case CT_RGBA_16161616:
                 if (at != AT_OPAQUE && at != AT_PREMUL && at != AT_UNPREMUL) {
@@ -370,6 +481,7 @@ public final class ColorInfo {
                 }
                 break;
             case CT_GRAY_8:
+            case CT_GRAY_16:
             case CT_R_8:
             case CT_RG_88:
             case CT_BGR_565:
@@ -379,6 +491,10 @@ public final class ColorInfo {
             case CT_R_F16:
             case CT_RG_1616:
             case CT_RG_F16:
+            case CT_RGB_161616:
+            case CT_RGBE_9995:
+            case CT_R_F32:
+            case CT_RG_F32:
                 at = AT_OPAQUE;
                 break;
             default:
@@ -396,26 +512,29 @@ public final class ColorInfo {
                  CT_ALPHA_F16 -> Color.COLOR_CHANNEL_FLAG_ALPHA;
             case CT_BGR_565,
                  CT_RGB_888,
-                 CT_RGBX_8888 -> Color.COLOR_CHANNEL_FLAGS_RGB;
-            case CT_RGBA_16161616,
+                 CT_RGB_161616,
+                 CT_RGBX_8888,
+                 CT_RGBE_9995 -> Color.COLOR_CHANNEL_FLAGS_RGB;
+            case CT_BGRA_5551,
+                 CT_RGBA_16161616,
                  CT_RGBA_F32,
-                 CT_RGBA_F16_CLAMPED,
                  CT_RGBA_F16,
                  CT_BGRA_1010102,
                  CT_RGBA_1010102,
                  CT_RGBA_8888,
-                 CT_BGRA_8888,
-                 CT_ABGR_8888,
-                 CT_ARGB_8888,
-                 CT_RGBA_8888_SRGB -> Color.COLOR_CHANNEL_FLAGS_RGBA;
+                 CT_BGRA_8888 -> Color.COLOR_CHANNEL_FLAGS_RGBA;
             case CT_RG_88,
                  CT_RG_1616,
-                 CT_RG_F16 -> Color.COLOR_CHANNEL_FLAGS_RG;
-            case CT_GRAY_8 -> Color.COLOR_CHANNEL_FLAG_GRAY;
+                 CT_RG_F16,
+                 CT_RG_F32 -> Color.COLOR_CHANNEL_FLAGS_RG;
+            case CT_GRAY_8,
+                 CT_GRAY_16 -> Color.COLOR_CHANNEL_FLAG_GRAY;
             case CT_R_8,
                  CT_R_16,
-                 CT_R_F16 -> Color.COLOR_CHANNEL_FLAG_RED;
-            case CT_GRAY_ALPHA_88 -> Color.COLOR_CHANNEL_FLAG_GRAY | Color.COLOR_CHANNEL_FLAG_ALPHA;
+                 CT_R_F16,
+                 CT_R_F32 -> Color.COLOR_CHANNEL_FLAG_RED;
+            case CT_GRAY_ALPHA_88,
+                 CT_GRAY_ALPHA_1616 -> Color.COLOR_CHANNEL_FLAG_GRAY | Color.COLOR_CHANNEL_FLAG_ALPHA;
             default -> throw new AssertionError(ct);
         };
     }
@@ -431,27 +550,30 @@ public final class ColorInfo {
             case CT_R_8                 -> "R_8";
             case CT_ALPHA_8             -> "ALPHA_8";
             case CT_GRAY_8              -> "GRAY_8";
+            case CT_GRAY_16             -> "GRAY_16";
             case CT_BGR_565             -> "BGR_565";
+            case CT_BGRA_5551           -> "BGRA_5551";
             case CT_RG_88               -> "RG_88";
             case CT_R_16                -> "R_16";
             case CT_R_F16               -> "R_F16";
+            case CT_R_F32               -> "R_F32";
             case CT_ALPHA_16            -> "ALPHA_16";
             case CT_ALPHA_F16           -> "ALPHA_F16";
             case CT_GRAY_ALPHA_88       -> "GRAY_ALPHA_88";
+            case CT_GRAY_ALPHA_1616     -> "GRAY_ALPHA_1616";
+            case CT_RGBE_9995           -> "RGBE_9995";
             case CT_RGB_888             -> "RGB_888";
             case CT_RGBX_8888           -> "RGBX_8888";
             case CT_RGBA_8888           -> "RGBA_8888";
             case CT_BGRA_8888           -> "BGRA_8888";
-            case CT_ABGR_8888           -> "ABGR_8888";
-            case CT_ARGB_8888           -> "ARGB_8888";
             case CT_BGRA_1010102        -> "BGRA_1010102";
             case CT_RGBA_1010102        -> "RGBA_1010102";
+            case CT_RGB_161616          -> "RGB_161616";
             case CT_RG_1616             -> "RG_1616";
             case CT_RG_F16              -> "RG_F16";
-            case CT_RGBA_8888_SRGB      -> "RGBA_8888_SRGB";
+            case CT_RG_F32              -> "RG_F32";
             case CT_RGBA_16161616       -> "RGBA_16161616";
             case CT_RGBA_F16            -> "RGBA_F16";
-            case CT_RGBA_F16_CLAMPED    -> "RGBA_F16_CLAMPED";
             case CT_RGBA_F32            -> "RGBA_F32";
             default -> throw new AssertionError(ct);
         };

@@ -211,6 +211,7 @@ public class PixelUtils {
 
     public static void setPixel16(Object base, long addr,
                                   short value, int count) {
+        //TODO unaligned
         long wideValue = (long) value << 16 | value;
         wideValue |= wideValue << 32;
         while (count >= 4) {
@@ -226,6 +227,7 @@ public class PixelUtils {
 
     public static void setPixel32(Object base, long addr,
                                   int value, int count) {
+        //TODO unaligned
         long wideValue = (long) value << 32 | value;
         while (count >= 2) {
             UNSAFE.putLong(base, addr, wideValue);
@@ -278,6 +280,14 @@ public class PixelUtils {
         int g = lut6[(val >>>  5) & 63];
         int r = lut5[(val >>> 11) & 31];
         return b | g << 8 | r << 16 | 0xff000000;
+    }
+    public static int load_BGRA_5551(Object base, long addr) {
+        int val = UNSAFE.getShort(base, addr);
+        int b = lut5[(val       ) & 31];
+        int g = lut5[(val >>>  5) & 31];
+        int r = lut5[(val >>> 10) & 31];
+        int a = (val & (1 << 15)) != 0 ? 255 : 0;
+        return b | g << 8 | r << 16 | a << 24;
     }
     public static int load_RGBA_1010102(Object base, long addr) {
         int val = UNSAFE.getInt(base, addr);
@@ -388,6 +398,13 @@ public class PixelUtils {
         }
         return g << 8 | r << 16 | 0xff000000;
     }
+    @SuppressWarnings("PointlessArithmeticExpression")
+    public static int load_RGB_161616(Object base, long addr) {
+        int r = (int) ((UNSAFE.getShort(base, addr+0) & 0xffff) * (255/65535.0f) + .5f);
+        int g = (int) ((UNSAFE.getShort(base, addr+2) & 0xffff) * (255/65535.0f) + .5f);
+        int b = (int) ((UNSAFE.getShort(base, addr+4) & 0xffff) * (255/65535.0f) + .5f);
+        return b | g << 8 | r << 16 | 0xff000000;
+    }
     public static int load_RGBA_16161616(Object base, long addr) {
         long val = UNSAFE.getLong(base, addr);
         int r, g, b, a;
@@ -403,6 +420,16 @@ public class PixelUtils {
             a = (int) (((val >>> 48)         ) * (255/65535.0f) + .5f);
         }
         return b | g << 8 | r << 16 | a << 24;
+    }
+    public static int load_GRAY_16(Object base, long addr) {
+        int lum = (int) ((UNSAFE.getShort(base, addr) & 0xffff) * (255/65535.0f) + .5f);
+        return lum | lum << 8 | lum << 16 | 0xff000000;
+    }
+    public static int load_GRAY_ALPHA_1616(Object base, long addr) {
+        int val = UNSAFE.getInt(base, addr);
+        int lum =   (int) (((val       ) & 0xffff) * (255/65535.0f) + .5f);
+        int alpha = (int) (((val >>> 16) & 0xffff) * (255/65535.0f) + .5f);
+        return (alpha << 24) | (lum << 16) | (lum << 8) | lum;
     }
     public static int load_ALPHA_16(Object base, long addr) {
         int val = (int) ((UNSAFE.getShort(base, addr) & 0xffff) * (255/65535.0f) + .5f);
@@ -430,6 +457,16 @@ public class PixelUtils {
         int val = (int) (MathUtil.halfToFloat(UNSAFE.getShort(base, addr)) * 255 + .5f);
         return val << 24;
     }
+    public static int load_R_F32(Object base, long addr) {
+        int val = (int) (UNSAFE.getFloat(base, addr) * 255 + .5f);
+        return val << 16 | 0xff000000;
+    }
+    @SuppressWarnings("PointlessArithmeticExpression")
+    public static int load_RG_F32(Object base, long addr) {
+        int r = (int) (UNSAFE.getFloat(base, addr +  0) * 255 + .5f);
+        int g = (int) (UNSAFE.getFloat(base, addr +  4) * 255 + .5f);
+        return g << 8 | r << 16 | 0xff000000;
+    }
     @SuppressWarnings("PointlessArithmeticExpression")
     public static int load_RGBA_F32(Object base, long addr) {
         int r = (int) (UNSAFE.getFloat(base, addr +  0) * 255 + .5f);
@@ -446,29 +483,33 @@ public class PixelUtils {
     @Contract(pure = true)
     public static PixelLoad load(@ColorInfo.ColorType int ct) {
         return switch (ct) {
-            case ColorInfo.CT_BGR_565       -> PixelUtils::load_BGR_565;
-            case ColorInfo.CT_RGBA_1010102  -> PixelUtils::load_RGBA_1010102;
-            case ColorInfo.CT_BGRA_1010102  -> PixelUtils::load_BGRA_1010102;
-            case ColorInfo.CT_R_8           -> PixelUtils::load_R_8;
-            case ColorInfo.CT_RG_88         -> PixelUtils::load_RG_88;
-            case ColorInfo.CT_RGB_888       -> PixelUtils::load_RGB_888;
-            case ColorInfo.CT_RGBX_8888     -> PixelUtils::load_RGBX_8888;
-            case ColorInfo.CT_RGBA_8888     -> PixelUtils::load_RGBA_8888;
-            case ColorInfo.CT_BGRA_8888     -> PixelUtils::load_BGRA_8888;
-            case ColorInfo.CT_ABGR_8888     -> PixelUtils::load_ABGR_8888;
-            case ColorInfo.CT_ARGB_8888     -> PixelUtils::load_ARGB_8888;
-            case ColorInfo.CT_GRAY_8        -> PixelUtils::load_GRAY_8;
-            case ColorInfo.CT_GRAY_ALPHA_88 -> PixelUtils::load_GRAY_ALPHA_88;
-            case ColorInfo.CT_ALPHA_8       -> PixelUtils::load_ALPHA_8;
-            case ColorInfo.CT_R_16          -> PixelUtils::load_R_16;
-            case ColorInfo.CT_RG_1616       -> PixelUtils::load_RG_1616;
-            case ColorInfo.CT_RGBA_16161616 -> PixelUtils::load_RGBA_16161616;
-            case ColorInfo.CT_ALPHA_16      -> PixelUtils::load_ALPHA_16;
-            case ColorInfo.CT_R_F16         -> PixelUtils::load_R_F16;
-            case ColorInfo.CT_RG_F16        -> PixelUtils::load_RG_F16;
-            case ColorInfo.CT_RGBA_F16      -> PixelUtils::load_RGBA_F16;
-            case ColorInfo.CT_ALPHA_F16     -> PixelUtils::load_ALPHA_F16;
-            case ColorInfo.CT_RGBA_F32      -> PixelUtils::load_RGBA_F32;
+            case ColorInfo.CT_BGR_565         -> PixelUtils::load_BGR_565;
+            case ColorInfo.CT_BGRA_5551       -> PixelUtils::load_BGRA_5551;
+            case ColorInfo.CT_RGBA_1010102    -> PixelUtils::load_RGBA_1010102;
+            case ColorInfo.CT_BGRA_1010102    -> PixelUtils::load_BGRA_1010102;
+            case ColorInfo.CT_R_8             -> PixelUtils::load_R_8;
+            case ColorInfo.CT_RG_88           -> PixelUtils::load_RG_88;
+            case ColorInfo.CT_RGB_888         -> PixelUtils::load_RGB_888;
+            case ColorInfo.CT_RGBX_8888       -> PixelUtils::load_RGBX_8888;
+            case ColorInfo.CT_RGBA_8888       -> PixelUtils::load_RGBA_8888;
+            case ColorInfo.CT_BGRA_8888       -> PixelUtils::load_BGRA_8888;
+            case ColorInfo.CT_GRAY_8          -> PixelUtils::load_GRAY_8;
+            case ColorInfo.CT_GRAY_ALPHA_88   -> PixelUtils::load_GRAY_ALPHA_88;
+            case ColorInfo.CT_ALPHA_8         -> PixelUtils::load_ALPHA_8;
+            case ColorInfo.CT_R_16            -> PixelUtils::load_R_16;
+            case ColorInfo.CT_RG_1616         -> PixelUtils::load_RG_1616;
+            case ColorInfo.CT_RGB_161616      -> PixelUtils::load_RGB_161616;
+            case ColorInfo.CT_RGBA_16161616   -> PixelUtils::load_RGBA_16161616;
+            case ColorInfo.CT_GRAY_16         -> PixelUtils::load_GRAY_16;
+            case ColorInfo.CT_GRAY_ALPHA_1616 -> PixelUtils::load_GRAY_ALPHA_1616;
+            case ColorInfo.CT_ALPHA_16        -> PixelUtils::load_ALPHA_16;
+            case ColorInfo.CT_R_F16           -> PixelUtils::load_R_F16;
+            case ColorInfo.CT_RG_F16          -> PixelUtils::load_RG_F16;
+            case ColorInfo.CT_RGBA_F16        -> PixelUtils::load_RGBA_F16;
+            case ColorInfo.CT_ALPHA_F16       -> PixelUtils::load_ALPHA_F16;
+            case ColorInfo.CT_R_F32           -> PixelUtils::load_R_F32;
+            case ColorInfo.CT_RG_F32          -> PixelUtils::load_RG_F32;
+            case ColorInfo.CT_RGBA_F32        -> PixelUtils::load_RGBA_F32;
             default -> throw new AssertionError(ct);
         };
     }
@@ -494,6 +535,15 @@ public class PixelUtils {
         g = (g * 21 + 42) / 85; // 21/85 = 63/255 exactly.
         b = (b *  9 + 36) / 74;
         UNSAFE.putShort(base, addr, (short) (b | g << 5 | r << 11));
+    }
+    public static void store_BGRA_5551(Object base, long addr, int src) {
+        int r = (src >>> 16) & 0xff;
+        int g = (src >>>  8) & 0xff;
+        int b = (src       ) & 0xff;
+        r = (r * 9 + 36) / 74;
+        g = (g * 9 + 36) / 74;
+        b = (b * 9 + 36) / 74;
+        UNSAFE.putShort(base, addr, (short) (b | g << 5 | r << 10 | ((src >>> 16) & (1 << 15))));
     }
     public static void store_R_8(Object base, long addr, int src) {
         UNSAFE.putByte(base, addr, (byte) (src >>> 16));
@@ -582,14 +632,13 @@ public class PixelUtils {
     public static PixelStore store(@ColorInfo.ColorType int ct) {
         return switch (ct) {
             case ColorInfo.CT_BGR_565       -> PixelUtils::store_BGR_565;
+            case ColorInfo.CT_BGRA_5551     -> PixelUtils::store_BGRA_5551;
             case ColorInfo.CT_R_8           -> PixelUtils::store_R_8;
             case ColorInfo.CT_RG_88         -> PixelUtils::store_RG_88;
             case ColorInfo.CT_RGB_888       -> PixelUtils::store_RGB_888;
             case ColorInfo.CT_RGBX_8888     -> PixelUtils::store_RGBX_8888;
             case ColorInfo.CT_RGBA_8888     -> PixelUtils::store_RGBA_8888;
             case ColorInfo.CT_BGRA_8888     -> PixelUtils::store_BGRA_8888;
-            case ColorInfo.CT_ABGR_8888     -> PixelUtils::store_ABGR_8888;
-            case ColorInfo.CT_ARGB_8888     -> PixelUtils::store_ARGB_8888;
             case ColorInfo.CT_GRAY_8        -> PixelUtils::store_GRAY_8;
             case ColorInfo.CT_GRAY_ALPHA_88 -> PixelUtils::store_GRAY_ALPHA_88;
             case ColorInfo.CT_ALPHA_8       -> PixelUtils::store_ALPHA_8;
@@ -613,6 +662,14 @@ public class PixelUtils {
         dst[1] = (val & (63<< 5)) * (1.0f / (63<< 5));
         dst[2] = (val & (31    )) * (1.0f / (31    ));
         dst[3] = 1.0f;
+    }
+
+    public static void load_BGRA_5551(Object base, long addr, float[] dst) {
+        int val = UNSAFE.getShort(base, addr);
+        dst[0] = (val & (31<<10)) * (1.0f / (31<<10));
+        dst[1] = (val & (31<< 5)) * (1.0f / (31<< 5));
+        dst[2] = (val & (31    )) * (1.0f / (31    ));
+        dst[3] = (val & (1 <<15)) != 0 ? 1.0f : 0.0f;
     }
 
     public static void load_RGBA_1010102(Object base, long addr, float[] dst) {
@@ -774,6 +831,13 @@ public class PixelUtils {
         dst[3] = 1.0f;
     }
 
+    public static void load_RGB_161616(Object base, long addr, float[] dst) {
+        for (int i = 0; i < 3; i++) {
+            dst[i] = (UNSAFE.getShort(base, addr+(i<<1)) & 0xffff) * (1/65535.0f);
+        }
+        dst[3] = 1.0f;
+    }
+
     public static void load_RGBA_16161616(Object base, long addr, float[] dst) {
         long val = UNSAFE.getLong(base, addr);
         if (NATIVE_BIG_ENDIAN) {
@@ -787,6 +851,19 @@ public class PixelUtils {
             dst[2] = ((val >>> 32) & 0xffff) * (1/65535.0f);
             dst[3] = ((val >>> 48)         ) * (1/65535.0f);
         }
+    }
+
+    public static void load_GRAY_16(Object base, long addr, float[] dst) {
+        float y = (UNSAFE.getShort(base, addr) & 0xffff) * (1/65535.0f);
+        dst[0] = dst[1] = dst[2] = y;
+        dst[3] = 1.0f;
+    }
+
+    @SuppressWarnings("PointlessArithmeticExpression")
+    public static void load_GRAY_ALPHA_1616(Object base, long addr, float[] dst) {
+        float y = (UNSAFE.getShort(base, addr+0) & 0xffff) * (1/65535.0f);
+        dst[0] = dst[1] = dst[2] = y;
+        dst[3] = (UNSAFE.getShort(base, addr+2) & 0xffff) * (1/65535.0f);
     }
 
     public static void load_ALPHA_16(Object base, long addr, float[] dst) {
@@ -819,6 +896,20 @@ public class PixelUtils {
         dst[3] = MathUtil.halfToFloat(UNSAFE.getShort(base, addr));
     }
 
+    public static void load_R_F32(Object base, long addr, float[] dst) {
+        dst[0] = UNSAFE.getFloat(base, addr);
+        dst[1] = dst[2] = 0.0f;
+        dst[3] = 1.0f;
+    }
+
+    @SuppressWarnings("PointlessArithmeticExpression")
+    public static void load_RG_F32(Object base, long addr, float[] dst) {
+        dst[0] = UNSAFE.getFloat(base, addr + 0);
+        dst[1] = UNSAFE.getFloat(base, addr + 4);
+        dst[2] = 0.0f;
+        dst[3] = 1.0f;
+    }
+
     @SuppressWarnings("PointlessArithmeticExpression")
     public static void load_RGBA_F32(Object base, long addr, float[] dst) {
         dst[0] = UNSAFE.getFloat(base, addr +  0);
@@ -834,29 +925,33 @@ public class PixelUtils {
     @Contract(pure = true)
     public static PixelOp loadOp(@ColorInfo.ColorType int ct) {
         return switch (ct) {
-            case ColorInfo.CT_BGR_565       -> PixelUtils::load_BGR_565;
-            case ColorInfo.CT_RGBA_1010102  -> PixelUtils::load_RGBA_1010102;
-            case ColorInfo.CT_BGRA_1010102  -> PixelUtils::load_BGRA_1010102;
-            case ColorInfo.CT_R_8           -> PixelUtils::load_R_8;
-            case ColorInfo.CT_RG_88         -> PixelUtils::load_RG_88;
-            case ColorInfo.CT_RGB_888       -> PixelUtils::load_RGB_888;
-            case ColorInfo.CT_RGBX_8888     -> PixelUtils::load_RGBX_8888;
-            case ColorInfo.CT_RGBA_8888     -> PixelUtils::load_RGBA_8888;
-            case ColorInfo.CT_BGRA_8888     -> PixelUtils::load_BGRA_8888;
-            case ColorInfo.CT_ABGR_8888     -> PixelUtils::load_ABGR_8888;
-            case ColorInfo.CT_ARGB_8888     -> PixelUtils::load_ARGB_8888;
-            case ColorInfo.CT_GRAY_8        -> PixelUtils::load_GRAY_8;
-            case ColorInfo.CT_GRAY_ALPHA_88 -> PixelUtils::load_GRAY_ALPHA_88;
-            case ColorInfo.CT_ALPHA_8       -> PixelUtils::load_ALPHA_8;
-            case ColorInfo.CT_R_16          -> PixelUtils::load_R_16;
-            case ColorInfo.CT_RG_1616       -> PixelUtils::load_RG_1616;
-            case ColorInfo.CT_RGBA_16161616 -> PixelUtils::load_RGBA_16161616;
-            case ColorInfo.CT_ALPHA_16      -> PixelUtils::load_ALPHA_16;
-            case ColorInfo.CT_R_F16         -> PixelUtils::load_R_F16;
-            case ColorInfo.CT_RG_F16        -> PixelUtils::load_RG_F16;
-            case ColorInfo.CT_RGBA_F16      -> PixelUtils::load_RGBA_F16;
-            case ColorInfo.CT_ALPHA_F16     -> PixelUtils::load_ALPHA_F16;
-            case ColorInfo.CT_RGBA_F32      -> PixelUtils::load_RGBA_F32;
+            case ColorInfo.CT_BGR_565         -> PixelUtils::load_BGR_565;
+            case ColorInfo.CT_BGRA_5551       -> PixelUtils::load_BGRA_5551;
+            case ColorInfo.CT_RGBA_1010102    -> PixelUtils::load_RGBA_1010102;
+            case ColorInfo.CT_BGRA_1010102    -> PixelUtils::load_BGRA_1010102;
+            case ColorInfo.CT_R_8             -> PixelUtils::load_R_8;
+            case ColorInfo.CT_RG_88           -> PixelUtils::load_RG_88;
+            case ColorInfo.CT_RGB_888         -> PixelUtils::load_RGB_888;
+            case ColorInfo.CT_RGBX_8888       -> PixelUtils::load_RGBX_8888;
+            case ColorInfo.CT_RGBA_8888       -> PixelUtils::load_RGBA_8888;
+            case ColorInfo.CT_BGRA_8888       -> PixelUtils::load_BGRA_8888;
+            case ColorInfo.CT_GRAY_8          -> PixelUtils::load_GRAY_8;
+            case ColorInfo.CT_GRAY_ALPHA_88   -> PixelUtils::load_GRAY_ALPHA_88;
+            case ColorInfo.CT_ALPHA_8         -> PixelUtils::load_ALPHA_8;
+            case ColorInfo.CT_R_16            -> PixelUtils::load_R_16;
+            case ColorInfo.CT_RG_1616         -> PixelUtils::load_RG_1616;
+            case ColorInfo.CT_RGB_161616      -> PixelUtils::load_RGB_161616;
+            case ColorInfo.CT_RGBA_16161616   -> PixelUtils::load_RGBA_16161616;
+            case ColorInfo.CT_GRAY_16         -> PixelUtils::load_GRAY_16;
+            case ColorInfo.CT_GRAY_ALPHA_1616 -> PixelUtils::load_GRAY_ALPHA_1616;
+            case ColorInfo.CT_ALPHA_16        -> PixelUtils::load_ALPHA_16;
+            case ColorInfo.CT_R_F16           -> PixelUtils::load_R_F16;
+            case ColorInfo.CT_RG_F16          -> PixelUtils::load_RG_F16;
+            case ColorInfo.CT_RGBA_F16        -> PixelUtils::load_RGBA_F16;
+            case ColorInfo.CT_ALPHA_F16       -> PixelUtils::load_ALPHA_F16;
+            case ColorInfo.CT_R_F32           -> PixelUtils::load_R_F32;
+            case ColorInfo.CT_RG_F32          -> PixelUtils::load_RG_F32;
+            case ColorInfo.CT_RGBA_F32        -> PixelUtils::load_RGBA_F32;
             default -> throw new AssertionError(ct);
         };
     }
@@ -864,9 +959,17 @@ public class PixelUtils {
 
     //@formatter:off
     public static void store_BGR_565(Object base, long addr, float[] src) {
-        int val = (int) (MathUtil.clamp(src[2], 0.0f, 1.0f) * 31 + .5f)      |
-                  (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 63 + .5f) << 5 |
+        int val = (int) (MathUtil.clamp(src[2], 0.0f, 1.0f) * 31 + .5f)       |
+                  (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 63 + .5f) << 5  |
                   (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 31 + .5f) << 11;
+        UNSAFE.putShort(base, addr, (short) val);
+    }
+
+    public static void store_BGRA_5551(Object base, long addr, float[] src) {
+        int val = (int) (MathUtil.clamp(src[2], 0.0f, 1.0f) * 31 + .5f)       |
+                  (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 31 + .5f) << 5  |
+                  (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 31 + .5f) << 10 |
+                  (src[3] >= 0.5f ? (1 << 15) : 0); // NaN to 0
         UNSAFE.putShort(base, addr, (short) val);
     }
 
@@ -1033,6 +1136,12 @@ public class PixelUtils {
         UNSAFE.putInt(base, addr, val);
     }
 
+    public static void store_RGB_161616(Object base, long addr, float[] src) {
+        for (int i = 0; i < 3; i++) {
+            UNSAFE.putShort(base, addr+(i<<1), (short) (MathUtil.clamp(src[i], 0.0f, 1.0f) * 65535 + .5f));
+        }
+    }
+
     public static void store_RGBA_16161616(Object base, long addr, float[] src) {
         long val;
         if (NATIVE_BIG_ENDIAN) {
@@ -1047,6 +1156,22 @@ public class PixelUtils {
                   (long) (MathUtil.clamp(src[3], 0.0f, 1.0f) * 65535 + .5f) << 48 ;
         }
         UNSAFE.putLong(base, addr, val);
+    }
+
+    public static void store_GRAY_16(Object base, long addr, float[] src) {
+        float y = MathUtil.clamp(src[0], 0.0f, 1.0f) * 0.2126f +
+                  MathUtil.clamp(src[1], 0.0f, 1.0f) * 0.7152f +
+                  MathUtil.clamp(src[2], 0.0f, 1.0f) * 0.0722f;
+        UNSAFE.putShort(base, addr, (short) (y * 65535 + .5f));
+    }
+
+    public static void store_GRAY_ALPHA_1616(Object base, long addr, float[] src) {
+        float y = MathUtil.clamp(src[0], 0.0f, 1.0f) * 0.2126f +
+                  MathUtil.clamp(src[1], 0.0f, 1.0f) * 0.7152f +
+                  MathUtil.clamp(src[2], 0.0f, 1.0f) * 0.0722f;
+        int val = (int) (y * 65535 + .5f)    |
+                  (int) (MathUtil.clamp(src[3], 0.0f, 1.0f) * 65535 + .5f) << 16;
+        UNSAFE.putInt(base, addr, val);
     }
 
     public static void store_ALPHA_16(Object base, long addr, float[] src) {
@@ -1074,6 +1199,16 @@ public class PixelUtils {
         UNSAFE.putShort(base, addr, MathUtil.floatToHalf(src[3]));
     }
 
+    public static void store_R_F32(Object base, long addr, float[] src) {
+        UNSAFE.putFloat(base, addr, src[0]);
+    }
+
+    @SuppressWarnings("PointlessArithmeticExpression")
+    public static void store_RG_F32(Object base, long addr, float[] src) {
+        UNSAFE.putFloat(base, addr +  0, src[0]);
+        UNSAFE.putFloat(base, addr +  4, src[1]);
+    }
+
     @SuppressWarnings("PointlessArithmeticExpression")
     public static void store_RGBA_F32(Object base, long addr, float[] src) {
         UNSAFE.putFloat(base, addr +  0, src[0]);
@@ -1089,29 +1224,33 @@ public class PixelUtils {
     @Contract(pure = true)
     public static PixelOp storeOp(@ColorInfo.ColorType int ct) {
         return switch (ct) {
-            case ColorInfo.CT_BGR_565       -> PixelUtils::store_BGR_565;
-            case ColorInfo.CT_RGBA_1010102  -> PixelUtils::store_RGBA_1010102;
-            case ColorInfo.CT_BGRA_1010102  -> PixelUtils::store_BGRA_1010102;
-            case ColorInfo.CT_R_8           -> PixelUtils::store_R_8;
-            case ColorInfo.CT_RG_88         -> PixelUtils::store_RG_88;
-            case ColorInfo.CT_RGB_888       -> PixelUtils::store_RGB_888;
-            case ColorInfo.CT_RGBX_8888     -> PixelUtils::store_RGBX_8888;
-            case ColorInfo.CT_RGBA_8888     -> PixelUtils::store_RGBA_8888;
-            case ColorInfo.CT_BGRA_8888     -> PixelUtils::store_BGRA_8888;
-            case ColorInfo.CT_ABGR_8888     -> PixelUtils::store_ABGR_8888;
-            case ColorInfo.CT_ARGB_8888     -> PixelUtils::store_ARGB_8888;
-            case ColorInfo.CT_GRAY_8        -> PixelUtils::store_GRAY_8;
-            case ColorInfo.CT_GRAY_ALPHA_88 -> PixelUtils::store_GRAY_ALPHA_88;
-            case ColorInfo.CT_ALPHA_8       -> PixelUtils::store_ALPHA_8;
-            case ColorInfo.CT_R_16          -> PixelUtils::store_R_16;
-            case ColorInfo.CT_RG_1616       -> PixelUtils::store_RG_1616;
-            case ColorInfo.CT_RGBA_16161616 -> PixelUtils::store_RGBA_16161616;
-            case ColorInfo.CT_ALPHA_16      -> PixelUtils::store_ALPHA_16;
-            case ColorInfo.CT_R_F16         -> PixelUtils::store_R_F16;
-            case ColorInfo.CT_RG_F16        -> PixelUtils::store_RG_F16;
-            case ColorInfo.CT_RGBA_F16      -> PixelUtils::store_RGBA_F16;
-            case ColorInfo.CT_ALPHA_F16     -> PixelUtils::store_ALPHA_F16;
-            case ColorInfo.CT_RGBA_F32      -> PixelUtils::store_RGBA_F32;
+            case ColorInfo.CT_BGR_565         -> PixelUtils::store_BGR_565;
+            case ColorInfo.CT_BGRA_5551       -> PixelUtils::store_BGRA_5551;
+            case ColorInfo.CT_RGBA_1010102    -> PixelUtils::store_RGBA_1010102;
+            case ColorInfo.CT_BGRA_1010102    -> PixelUtils::store_BGRA_1010102;
+            case ColorInfo.CT_R_8             -> PixelUtils::store_R_8;
+            case ColorInfo.CT_RG_88           -> PixelUtils::store_RG_88;
+            case ColorInfo.CT_RGB_888         -> PixelUtils::store_RGB_888;
+            case ColorInfo.CT_RGBX_8888       -> PixelUtils::store_RGBX_8888;
+            case ColorInfo.CT_RGBA_8888       -> PixelUtils::store_RGBA_8888;
+            case ColorInfo.CT_BGRA_8888       -> PixelUtils::store_BGRA_8888;
+            case ColorInfo.CT_GRAY_8          -> PixelUtils::store_GRAY_8;
+            case ColorInfo.CT_GRAY_ALPHA_88   -> PixelUtils::store_GRAY_ALPHA_88;
+            case ColorInfo.CT_ALPHA_8         -> PixelUtils::store_ALPHA_8;
+            case ColorInfo.CT_R_16            -> PixelUtils::store_R_16;
+            case ColorInfo.CT_RG_1616         -> PixelUtils::store_RG_1616;
+            case ColorInfo.CT_RGB_161616      -> PixelUtils::store_RGB_161616;
+            case ColorInfo.CT_RGBA_16161616   -> PixelUtils::store_RGBA_16161616;
+            case ColorInfo.CT_GRAY_16         -> PixelUtils::store_GRAY_16;
+            case ColorInfo.CT_GRAY_ALPHA_1616 -> PixelUtils::store_GRAY_ALPHA_1616;
+            case ColorInfo.CT_ALPHA_16        -> PixelUtils::store_ALPHA_16;
+            case ColorInfo.CT_R_F16           -> PixelUtils::store_R_F16;
+            case ColorInfo.CT_RG_F16          -> PixelUtils::store_RG_F16;
+            case ColorInfo.CT_RGBA_F16        -> PixelUtils::store_RGBA_F16;
+            case ColorInfo.CT_ALPHA_F16       -> PixelUtils::store_ALPHA_F16;
+            case ColorInfo.CT_R_F32           -> PixelUtils::store_R_F32;
+            case ColorInfo.CT_RG_F32          -> PixelUtils::store_RG_F32;
+            case ColorInfo.CT_RGBA_F32        -> PixelUtils::store_RGBA_F32;
             default -> throw new AssertionError(ct);
         };
     }

@@ -487,20 +487,6 @@ public class Pixmap {
                                 getAddress(clip.x(), y), v0 & 0xff, rowBytes);
                     }
                 }
-            } else if (ct == ColorInfo.CT_RGB_888) {
-                // RGB_888 is the only type where bpp is not a power of 2
-                assert bpp == 3;
-                byte v1 = UNSAFE.getByte(dst + 1);
-                byte v2 = UNSAFE.getByte(dst + 2);
-                for (int y = clip.mTop; y < clip.mBottom; ++y) {
-                    long addr = getAddress(clip.x(), y);
-                    for (int i = 0, e = clip.width(); i < e; ++i) {
-                        UNSAFE.putByte(base, addr, v0);
-                        UNSAFE.putByte(base, addr + 1, v1);
-                        UNSAFE.putByte(base, addr + 2, v2);
-                        addr += 3;
-                    }
-                }
             } else if (bpp == 2) {
                 short value = UNSAFE.getShort(dst);
                 for (int y = clip.mTop; y < clip.mBottom; ++y) {
@@ -518,6 +504,35 @@ public class Pixmap {
                 for (int y = clip.mTop; y < clip.mBottom; ++y) {
                     long addr = getAddress(clip.x(), y);
                     PixelUtils.setPixel64(base, addr, value, clip.width());
+                }
+            } else if (ct == ColorInfo.CT_RGB_888) {
+                // RGB_888 is a type where bpp is not a power of 2
+                assert bpp == 3;
+                byte v1 = UNSAFE.getByte(dst + 1);
+                byte v2 = UNSAFE.getByte(dst + 2);
+                for (int y = clip.mTop; y < clip.mBottom; ++y) {
+                    long addr = getAddress(clip.x(), y);
+                    for (int i = 0, e = clip.width(); i < e; ++i) {
+                        UNSAFE.putByte(base, addr, v0);
+                        UNSAFE.putByte(base, addr + 1, v1);
+                        UNSAFE.putByte(base, addr + 2, v2);
+                        addr += 3;
+                    }
+                }
+            } else if (ct == ColorInfo.CT_RGB_161616) {
+                // RGB_161616 is a type where bpp is not a power of 2
+                assert bpp == 6;
+                short vv = UNSAFE.getShort(dst);
+                short v1 = UNSAFE.getShort(dst + 2);
+                short v2 = UNSAFE.getShort(dst + 4);
+                for (int y = clip.mTop; y < clip.mBottom; ++y) {
+                    long addr = getAddress(clip.x(), y);
+                    for (int i = 0, e = clip.width(); i < e; ++i) {
+                        UNSAFE.putShort(base, addr, vv);
+                        UNSAFE.putShort(base, addr + 2, v1);
+                        UNSAFE.putShort(base, addr + 4, v2);
+                        addr += 6;
+                    }
                 }
             } else {
                 assert false;

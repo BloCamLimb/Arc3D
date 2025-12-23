@@ -334,7 +334,7 @@ public abstract class GLCaps extends Caps {
             }
             info.mInternalFormatForTexture = GL_RGBA16F;
 
-            info.mColorTypeInfos = new ColorTypeInfo[2];
+            info.mColorTypeInfos = new ColorTypeInfo[1];
             // Format: RGBA16F, Surface: kRGBA_F16
             {
                 ColorTypeInfo ctInfo = info.mColorTypeInfos[0] = new ColorTypeInfo();
@@ -354,34 +354,6 @@ public abstract class GLCaps extends Caps {
                 }
 
                 // Format: RGBA16F, Surface: kRGBA_F16, Data: kRGBA_F32
-                {
-                    ExternalIOFormat ioFormat = ctInfo.mExternalIOFormats[1] = new ExternalIOFormat();
-                    ioFormat.mColorType = ColorInfo.CT_RGBA_F32;
-                    ioFormat.mExternalType = GL_FLOAT;
-                    ioFormat.mExternalTexImageFormat = 0;
-                    ioFormat.mExternalReadFormat = GL_RGBA;
-                }
-            }
-
-            // Format: RGBA16F, Surface: kRGBA_F16_Clamped
-            {
-                ColorTypeInfo ctInfo = info.mColorTypeInfos[1] = new ColorTypeInfo();
-                ctInfo.mColorType = ColorInfo.CT_RGBA_F16_CLAMPED;
-                ctInfo.mFlags = ColorTypeInfo.kUploadData_Flag | ColorTypeInfo.kRenderable_Flag;
-                setColorTypeFormat(ColorInfo.CT_RGBA_F16_CLAMPED, GL_RGBA16F);
-
-                // External IO ColorTypes:
-                ctInfo.mExternalIOFormats = new ExternalIOFormat[2];
-                // Format: RGBA16F, Surface: kRGBA_F16_Clamped, Data: kRGBA_F16_Clamped
-                {
-                    ExternalIOFormat ioFormat = ctInfo.mExternalIOFormats[0] = new ExternalIOFormat();
-                    ioFormat.mColorType = ColorInfo.CT_RGBA_F16_CLAMPED;
-                    ioFormat.mExternalType = GL_HALF_FLOAT;
-                    ioFormat.mExternalTexImageFormat = GL_RGBA;
-                    ioFormat.mExternalReadFormat = GL_RGBA;
-                }
-
-                // Format: RGBA16F, Surface: kRGBA_F16_Clamped, Data: kRGBA_F32
                 {
                     ExternalIOFormat ioFormat = ctInfo.mExternalIOFormats[1] = new ExternalIOFormat();
                     ioFormat.mColorType = ColorInfo.CT_RGBA_F32;
@@ -620,35 +592,12 @@ public abstract class GLCaps extends Caps {
             info.mInternalFormatForRenderbuffer = GL_SRGB8_ALPHA8;
             info.mDefaultExternalFormat = GL_RGBA;
             info.mDefaultExternalType = GL_UNSIGNED_BYTE;
-            info.mDefaultColorType = ColorInfo.CT_RGBA_8888_SRGB;
             info.mFlags = FormatInfo.TEXTURABLE_FLAG | FormatInfo.TRANSFERS_FLAG;
             info.mFlags |= msaaRenderFlags;
             if (texStorageSupported) {
                 info.mFlags |= FormatInfo.TEXTURE_STORAGE_FLAG;
             }
             info.mInternalFormatForTexture = GL_SRGB8_ALPHA8;
-
-            info.mColorTypeInfos = new ColorTypeInfo[1];
-            // Format: SRGB8_ALPHA8, Surface: kRGBA_8888_SRGB
-            {
-                ColorTypeInfo ctInfo = info.mColorTypeInfos[0] = new ColorTypeInfo();
-                ctInfo.mColorType = ColorInfo.CT_RGBA_8888_SRGB;
-                ctInfo.mFlags = ColorTypeInfo.kUploadData_Flag | ColorTypeInfo.kRenderable_Flag;
-                setColorTypeFormat(ColorInfo.CT_RGBA_8888_SRGB, GL_SRGB8_ALPHA8);
-
-                // External IO ColorTypes:
-                ctInfo.mExternalIOFormats = new ExternalIOFormat[1];
-                // Format: SRGB8_ALPHA8, Surface: kRGBA_8888_SRGB, Data: kRGBA_8888_SRGB
-                {
-                    // GL does not do srgb<->rgb conversions when transferring between cpu and gpu.
-                    // Thus, the external format is GL_RGBA.
-                    ExternalIOFormat ioFormat = ctInfo.mExternalIOFormats[0] = new ExternalIOFormat();
-                    ioFormat.mColorType = ColorInfo.CT_RGBA_8888_SRGB;
-                    ioFormat.mExternalType = GL_UNSIGNED_BYTE;
-                    ioFormat.mExternalTexImageFormat = GL_RGBA;
-                    ioFormat.mExternalReadFormat = GL_RGBA;
-                }
-            }
         }
 
         // Format: COMPRESSED_RGB8_ETC2
