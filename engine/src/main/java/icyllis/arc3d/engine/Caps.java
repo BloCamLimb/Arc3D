@@ -94,6 +94,10 @@ public abstract class Caps {
     protected int mMaxColorAttachments = 4;
     protected int mMinUniformBufferOffsetAlignment = 256;
     protected int mMinStorageBufferOffsetAlignment = 256;
+    // 4 is our default for OpenGL and minimum for Vulkan,
+    // since driver may not report 'optimal' alignment requirement
+    protected int mOptimalBufferCopyOffsetAlignment = 4;
+    protected int mOptimalBufferCopyRowBytesAlignment = 4;
 
     protected final DriverBugWorkarounds mDriverBugWorkarounds = new DriverBugWorkarounds();
 
@@ -308,6 +312,14 @@ public abstract class Caps {
      */
     public final int minStorageBufferOffsetAlignment() {
         return mMinStorageBufferOffsetAlignment;
+    }
+
+    public final int optimalBufferCopyOffsetAlignment() {
+        return mOptimalBufferCopyOffsetAlignment;
+    }
+
+    public final int optimalBufferCopyRowBytesAlignment() {
+        return mOptimalBufferCopyRowBytesAlignment;
     }
 
     /**

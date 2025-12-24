@@ -116,7 +116,7 @@ public class StaticBufferManager {
     public StaticBufferManager(ResourceProvider resourceProvider,
                                Caps caps) {
         mResourceProvider = resourceProvider;
-        mUploadManager = new UploadBufferManager(resourceProvider);
+        mUploadManager = new UploadBufferManager(caps, resourceProvider);
         mVertexBuffer = new BlockBuffer(caps, Engine.BufferUsageFlags.kVertex | Engine.BufferUsageFlags.kDeviceLocal);
         mIndexBuffer = new BlockBuffer(caps, Engine.BufferUsageFlags.kIndex | Engine.BufferUsageFlags.kDeviceLocal);
     }

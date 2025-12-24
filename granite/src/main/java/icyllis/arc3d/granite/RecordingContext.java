@@ -274,7 +274,7 @@ public final class RecordingContext extends Context {
             return false;
         }
         mDrawBufferManager = new DrawBufferManager(getCaps(), getResourceProvider());
-        mUploadBufferManager = new UploadBufferManager(getResourceProvider());
+        mUploadBufferManager = new UploadBufferManager(getCaps(), getResourceProvider());
         return true;
     }
 

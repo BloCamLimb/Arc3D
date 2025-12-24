@@ -21,6 +21,8 @@ package icyllis.arc3d.engine;
 
 import icyllis.arc3d.core.ColorInfo;
 import icyllis.arc3d.core.MathUtil;
+import icyllis.arc3d.core.RawPtr;
+import org.jspecify.annotations.NonNull;
 
 //TODO rename to ImageUtils?
 public final class DataUtils {
@@ -94,17 +96,23 @@ public final class DataUtils {
      * The last pair of 'mipOffsetsAndRowBytes' holds combined buffer size and required alignment.
      */
     public static long computeCombinedBufferSize(
+            @RawPtr @NonNull Caps caps,
             int mipLevelCount,
             int bytesPerBlock,
             int width, int height,
-            int compressionType,
-            long[] mipOffsetsAndRowBytes
+            @ColorInfo.CompressionType int compressionType,
+            long @NonNull [] mipOffsetsAndRowBytes
     ) {
         assert mipLevelCount >= 1;
         assert mipOffsetsAndRowBytes.length >= (mipLevelCount + 1) * 2;
 
-        // transfer buffer requires 4-byte aligned
-        long minTransferBufferAlignment = Math.max(bytesPerBlock, 4);
+        long minTransferBufferAlignment;
+        // 1) if there's alignment requirement for the whole pixel / compressed block, use that;
+        // 2) otherwise (should only for RGB8 and RGB16) it means GPU can read any data if it's optimal,
+        // but we still align to at least 2 as it's required by PixelUtils for RGB16 conversion
+        minTransferBufferAlignment = Math.max(
+                MathUtil.isPow2(bytesPerBlock) ? bytesPerBlock : 2,
+                caps.optimalBufferCopyOffsetAlignment());
 
         long combinedBufferSize = 0;
 
@@ -115,14 +123,17 @@ public final class DataUtils {
             int compressedBlockHeight = numBlocks(compressionType,
                     height);
 
-            long rowBytes = (long) compressedBlockWidth * bytesPerBlock;
+            long alignedRowBytes = MathUtil.alignTo(
+                    (long) compressedBlockWidth * bytesPerBlock,
+                    caps.optimalBufferCopyRowBytesAlignment()
+            );
             long alignedSize = MathUtil.alignTo(
-                    rowBytes * compressedBlockHeight,
+                    alignedRowBytes * compressedBlockHeight,
                     minTransferBufferAlignment
             );
 
             mipOffsetsAndRowBytes[mipLevel * 2] = combinedBufferSize;
-            mipOffsetsAndRowBytes[mipLevel * 2 + 1] = rowBytes;
+            mipOffsetsAndRowBytes[mipLevel * 2 + 1] = alignedRowBytes;
             combinedBufferSize += alignedSize;
 
             width = Math.max(1, width >> 1);

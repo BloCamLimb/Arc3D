@@ -1297,6 +1297,28 @@ public class PixelUtils {
                 dstInfo, dstBase, dstAddr, dstRowBytes, false);
     }
 
+    private static int checkAlignment(long addr, long rowBytes, int ct) {
+        int bpp = ColorInfo.bytesPerPixel(ct);
+        assert bpp != 0;
+        if (MathUtil.isPow2(bpp)) {
+            // align to bytes-per-pixel if is power of two
+            if (rowBytes % bpp != 0 ||
+                    addr % bpp != 0) {
+                return 0;
+            }
+        } else {
+            // otherwise align to bytes-per-channel
+            int bits = ColorInfo.maxBitsPerChannel(ct);
+            assert MathUtil.isAlign8(bits);
+            assert MathUtil.isPow2(bits / 8);
+            if (rowBytes % (bits / 8) != 0 ||
+                    addr % (bits / 8) != 0) {
+                return 0;
+            }
+        }
+        return bpp;
+    }
+
     /**
      * Performs color type, alpha type, color space, and origin conversion.
      * Addresses (offsets) must be aligned to bytes-per-pixel (except for non-power-of-two),
@@ -1322,10 +1344,9 @@ public class PixelUtils {
                 dstRowBytes < dstInfo.minRowBytes()) {
             return false;
         }
-        int srcBpp = srcInfo.bytesPerPixel();
-        int dstBpp = dstInfo.bytesPerPixel();
-        if (srcRowBytes % srcBpp != 0 ||
-                dstRowBytes % dstBpp != 0) {
+        int srcBpp = checkAlignment(srcAddr, srcRowBytes, srcInfo.colorType());
+        int dstBpp = checkAlignment(dstAddr, dstRowBytes, dstInfo.colorType());
+        if (srcBpp == 0 || dstBpp == 0) {
             return false;
         }
 

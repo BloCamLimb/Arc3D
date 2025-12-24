@@ -21,6 +21,7 @@ package icyllis.arc3d.engine;
 
 import icyllis.arc3d.core.*;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import org.jspecify.annotations.NonNull;
 
 import java.util.List;
 
@@ -70,10 +71,8 @@ public class UploadBufferManager {
 
     private final ObjectArrayList<@SharedPtr Buffer> mUsedBuffers = new ObjectArrayList<>();
 
-    public UploadBufferManager(ResourceProvider resourceProvider) {
+    public UploadBufferManager(@NonNull Caps caps, @NonNull ResourceProvider resourceProvider) {
         mResourceProvider = resourceProvider;
-        //TODO take account of Vulkan's optimalBufferCopyOffsetAlignment and
-        // optimalBufferCopyRowPitchAlignment
     }
 
     /**
@@ -90,8 +89,6 @@ public class UploadBufferManager {
             return NULL;
         }
 
-        // transfer buffer requires 4-byte aligned
-        requiredAlignment = Math.max(requiredAlignment, 4);
         requiredBytes = MathUtil.alignTo(requiredBytes, requiredAlignment);
 
         if (requiredBytes >= SMALL_BUFFER_SIZE) {

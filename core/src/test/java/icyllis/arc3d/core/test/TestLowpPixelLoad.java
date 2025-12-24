@@ -53,7 +53,7 @@ public class TestLowpPixelLoad {
         for (int ct : colorTypes) {
             Pixmap pixmap = new Pixmap(info.makeColorType(ct), originalPixmap);
             pixmap.clear(new float[]{0, 0, 0, 0}, null);
-            pixmap.clear(new float[]{1, 1, 1, 1}, new Rect2i(4, 6, 50, 30));
+            pixmap.clear(new float[]{1, 1, 1, 0.49f}, new Rect2i(1, 6, 50, 30));
             pixmap.clear(new float[]{0.2f, 0.4f, 0.6f, 0.7f}, null);
         }
         MemoryUtil.nmemFree(pixels);

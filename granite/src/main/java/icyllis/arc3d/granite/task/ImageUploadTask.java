@@ -168,17 +168,20 @@ public class ImageUploadTask extends Task {
         int bpp = ColorInfo.bytesPerPixel(actualColorType);
 
         long[] mipOffsetsAndRowBytes = new long[mipLevelCount * 2 + 2];
-        long combinedBufferSize = DataUtils.computeCombinedBufferSize(mipLevelCount,
+        long combinedBufferSize = DataUtils.computeCombinedBufferSize(
+                context.getCaps(),
+                mipLevelCount,
                 bpp,
                 dstRect.width(),
                 dstRect.height(),
                 ColorInfo.COMPRESSION_NONE,
                 mipOffsetsAndRowBytes);
+        long minTransferBufferAlignment = mipOffsetsAndRowBytes[mipLevelCount * 2 + 1];
 
         BufferViewInfo bufferInfo = new BufferViewInfo();
         long writer = context.getUploadBufferManager().getUploadPointer(
                 combinedBufferSize,
-                /*alignment*/ mipOffsetsAndRowBytes[mipLevelCount * 2 + 1],
+                minTransferBufferAlignment,
                 bufferInfo
         );
         if (writer == MemoryUtil.NULL) {
