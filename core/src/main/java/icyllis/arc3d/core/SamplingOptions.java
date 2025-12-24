@@ -150,7 +150,7 @@ public final class SamplingOptions {
     public final int mMaxAnisotropy;
 
     SamplingOptions(@FilterMode int filter) {
-        this(filter, filter, MIPMAP_MODE_NONE);
+        this(filter, MIPMAP_MODE_NONE);
     }
 
     SamplingOptions(@FilterMode int filter, @MipmapMode int mipmap) {
