@@ -19,38 +19,57 @@
 
 package icyllis.arc3d.engine;
 
-import org.jspecify.annotations.Nullable;
+import icyllis.arc3d.engine.Engine.ImageFormat;
+import icyllis.arc3d.engine.Engine.LoadOp;
+import icyllis.arc3d.engine.Engine.StoreOp;
+import org.jspecify.annotations.NonNull;
 
 /**
- * Descriptor to create a render pass.
+ * Information about a render pass. This structure is designed to be mutable.
  */
-//TODO experimental, to be reviewed
 public final class RenderPassDesc {
 
+    //// Color Targets
+
     public static class ColorAttachmentDesc {
-        @Nullable
-        public ImageDesc mDesc;
-        @Nullable
-        public ImageDesc mResolveDesc;
-        public byte mLoadOp;
-        //TODO MSAA resolve?
-        public byte mStoreOp;
+        public int mFormat = ImageFormat.kUnsupported;
+        public byte mLoadOp = LoadOp.kDiscard;
+        public byte mStoreOp = StoreOp.kDiscard;
     }
 
-    public int mNumColorAttachments;
-    public final ColorAttachmentDesc[] mColorAttachments =
-            new ColorAttachmentDesc[Caps.MAX_COLOR_TARGETS];
+    public static final @NonNull ColorAttachmentDesc @NonNull [] NO_COLOR_ATTACHMENTS = new ColorAttachmentDesc[0];
+    public @NonNull ColorAttachmentDesc @NonNull [] mColorAttachments = NO_COLOR_ATTACHMENTS;
 
-    public static class DepthStencilAttachmentDesc {
-        @Nullable
-        public ImageDesc mDesc;
-        public byte mLoadOp;
-        public byte mStoreOp;
-    }
 
-    public final DepthStencilAttachmentDesc mDepthStencilAttachment =
-            new DepthStencilAttachmentDesc();
+    //// Color Resolve Target (single RT case)
+
+    // if this is true, MSAA will be auto resolved (fullscreen, cannot be disabled),
+    // and resolve image format always matches MSAA image format
+    public boolean mHasColorResolveAttachment = false;
+    // if mHasResolveAttachment is true,
+    // 1) if mLoadOp is Load/Clear, then mResolveLoadOp must be Discard
+    // 2) if mResolveLoadOp is not Discard, it must be Load, and mLoadOp must be Discard;
+    //    in this special case, MSAA will load from resolve attachment
+    public byte mColorResolveLoadOp = LoadOp.kDiscard;
+    public byte mColorResolveStoreOp = StoreOp.kDiscard;
+
+
+    //// Depth-Stencil Target (no resolve)
+
+    public int mDepthStencilFormat = ImageFormat.kUnsupported;
+    public byte mDepthStencilLoadOp = LoadOp.kDiscard;
+    public byte mDepthStencilStoreOp = StoreOp.kDiscard;
+
+
+    //// Overall Settings
 
     //TODO TBD reserved for future use
-    public int mSampleCount;
+    public int mSampleCount = 1;
+
+
+    //// Subpass Settings
+
+    // vulkan only feature
+    public boolean mSetupDstAsInput = false;
+    //TODO maybe provide a way to specify input attachments and subpasses explicitly
 }

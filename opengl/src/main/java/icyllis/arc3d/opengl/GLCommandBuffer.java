@@ -19,9 +19,20 @@
 
 package icyllis.arc3d.opengl;
 
-import icyllis.arc3d.core.*;
-import icyllis.arc3d.engine.Image;
+import icyllis.arc3d.core.ColorInfo;
+import icyllis.arc3d.core.RawPtr;
+import icyllis.arc3d.core.Rect2i;
+import icyllis.arc3d.core.Rect2ic;
+import icyllis.arc3d.core.RefCnt;
+import icyllis.arc3d.core.SharedPtr;
+import icyllis.arc3d.core.WeakIdentityKey;
 import icyllis.arc3d.engine.*;
+import icyllis.arc3d.engine.Engine.BufferUsageFlags;
+import icyllis.arc3d.engine.Engine.ImageFormat;
+import icyllis.arc3d.engine.Engine.ImageType;
+import icyllis.arc3d.engine.Engine.IndexType;
+import icyllis.arc3d.engine.Engine.LoadOp;
+import icyllis.arc3d.engine.Engine.StoreOp;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
 
@@ -122,7 +133,7 @@ public final class GLCommandBuffer extends CommandBuffer {
         mResourceProvider = resourceProvider;
 
         int maxTextureUnits = device.getCaps().shaderCaps().mMaxFragmentSamplers;
-        mHWTextureStates = new WeakIdentityKey<?>[maxTextureUnits][Engine.ImageType.kCount];
+        mHWTextureStates = new WeakIdentityKey<?>[maxTextureUnits][ImageType.kCount];
         mHWSamplerStates = new WeakIdentityKey<?>[maxTextureUnits];
 
         resetStates();
@@ -196,9 +207,9 @@ public final class GLCommandBuffer extends CommandBuffer {
 
         try (MemoryStack stack = mStack.push()) {
             var floatValues = stack.mallocFloat(4);
-            for (int i = 0; i < renderPassDesc.mNumColorAttachments; i++) {
+            for (int i = 0; i < renderPassDesc.mColorAttachments.length; i++) {
                 var attachmentDesc = renderPassDesc.mColorAttachments[i];
-                boolean colorLoadClear = attachmentDesc.mLoadOp == Engine.LoadOp.kClear;
+                boolean colorLoadClear = attachmentDesc.mLoadOp == LoadOp.kClear;
                 if (colorLoadClear) {
                     flushColorWrite(true);
                     floatValues.put(0, clearColors, i << 2, 4);
@@ -207,11 +218,11 @@ public final class GLCommandBuffer extends CommandBuffer {
                             memAddress(floatValues));
                 }
             }
-            boolean depthStencilLoadClear = renderPassDesc.mDepthStencilAttachment.mDesc != null &&
-                    renderPassDesc.mDepthStencilAttachment.mLoadOp == Engine.LoadOp.kClear;
+            boolean depthStencilLoadClear = renderPassDesc.mDepthStencilFormat != ImageFormat.kUnsupported &&
+                    renderPassDesc.mDepthStencilLoadOp == LoadOp.kClear;
             if (depthStencilLoadClear) {
-                boolean hasDepth = renderPassDesc.mDepthStencilAttachment.mDesc.getDepthBits() > 0;
-                boolean hasStencil = renderPassDesc.mDepthStencilAttachment.mDesc.getStencilBits() > 0;
+                boolean hasDepth = ImageFormat.depthBits(renderPassDesc.mDepthStencilFormat) > 0;
+                boolean hasStencil = ImageFormat.stencilBits(renderPassDesc.mDepthStencilFormat) > 0;
                 if (hasDepth) {
                     flushDepthWrite(true);
                 }
@@ -267,21 +278,22 @@ public final class GLCommandBuffer extends CommandBuffer {
         if (mDevice.getCaps().hasInvalidateFramebufferSupport()) {
             RenderPassDesc renderPassDesc = mRenderPassDesc;
             try (MemoryStack stack = mStack.push()) {
-                var attachmentsToDiscard = stack.mallocInt(renderPassDesc.mNumColorAttachments + 1);
-                for (int i = 0; i < renderPassDesc.mNumColorAttachments; i++) {
+                // +1 for DepthStencil
+                var attachmentsToDiscard = stack.mallocInt(renderPassDesc.mColorAttachments.length + 1);
+                for (int i = 0; i < renderPassDesc.mColorAttachments.length; i++) {
                     var attachmentDesc = renderPassDesc.mColorAttachments[i];
-                    boolean colorLoadClear = attachmentDesc.mStoreOp == Engine.StoreOp.kDiscard;
+                    boolean colorLoadClear = attachmentDesc.mStoreOp == StoreOp.kDiscard;
                     if (colorLoadClear) {
                         attachmentsToDiscard.put(framebuffer == null
                                 ? GL_COLOR
                                 : GL_COLOR_ATTACHMENT0 + i);
                     }
                 }
-                boolean depthStencilStoreDiscard = renderPassDesc.mDepthStencilAttachment.mDesc != null &&
-                        renderPassDesc.mDepthStencilAttachment.mStoreOp == Engine.StoreOp.kDiscard;
+                boolean depthStencilStoreDiscard = renderPassDesc.mDepthStencilFormat != ImageFormat.kUnsupported &&
+                        renderPassDesc.mDepthStencilStoreOp == StoreOp.kDiscard;
                 if (depthStencilStoreDiscard) {
-                    boolean hasDepth = renderPassDesc.mDepthStencilAttachment.mDesc.getDepthBits() > 0;
-                    boolean hasStencil = renderPassDesc.mDepthStencilAttachment.mDesc.getStencilBits() > 0;
+                    boolean hasDepth = ImageFormat.depthBits(renderPassDesc.mDepthStencilFormat) > 0;
+                    boolean hasStencil = ImageFormat.stencilBits(renderPassDesc.mDepthStencilFormat) > 0;
                     if (hasDepth && hasStencil) {
                         attachmentsToDiscard.put(framebuffer == null
                                 ? GL_DEPTH_STENCIL
@@ -445,7 +457,7 @@ public final class GLCommandBuffer extends CommandBuffer {
         gl.glPixelStorei(GL_UNPACK_ALIGNMENT, 4); // see Caps default
 
         int bpp = ColorInfo.bytesPerPixel(srcColorType);
-        assert (glBuffer.getUsage() & Engine.BufferUsageFlags.kUpload) != 0;
+        assert (glBuffer.getUsage() & BufferUsageFlags.kUpload) != 0;
         gl.glBindBuffer(GL_PIXEL_UNPACK_BUFFER, glBuffer.getHandle());
 
         for (var data : copyData) {
@@ -708,8 +720,8 @@ public final class GLCommandBuffer extends CommandBuffer {
     public void bindIndexBuffer(int indexType, @RawPtr Buffer buffer, long offset) {
         assert (mGraphicsPipeline != null);
         mIndexType = switch (indexType) {
-            case Engine.IndexType.kUShort -> GL_UNSIGNED_SHORT;
-            case Engine.IndexType.kUInt -> GL_UNSIGNED_INT;
+            case IndexType.kUShort -> GL_UNSIGNED_SHORT;
+            case IndexType.kUInt -> GL_UNSIGNED_INT;
             default -> throw new AssertionError();
         };
         mGraphicsPipeline.bindIndexBuffer((GLBuffer) buffer);
@@ -782,6 +794,7 @@ public final class GLCommandBuffer extends CommandBuffer {
             }
             mutableState.mMaxMipmapLevel = maxLevel;
         }
+        //@formatter:off
         if (mutableState.mSwizzle != swizzle) {
             // OpenGL ES does not support GL_TEXTURE_SWIZZLE_RGBA
             for (int i = 0; i < 4; ++i) {
@@ -804,6 +817,7 @@ public final class GLCommandBuffer extends CommandBuffer {
             }
             mutableState.mSwizzle = swizzle;
         }
+        //@formatter:on
     }
 
     /**

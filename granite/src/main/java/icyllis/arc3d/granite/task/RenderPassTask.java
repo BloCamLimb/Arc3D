@@ -24,29 +24,36 @@ import icyllis.arc3d.core.SharedPtr;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.DrawPass;
 import icyllis.arc3d.granite.RecordingContext;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.Objects;
 
 public final class RenderPassTask extends Task {
 
-    DrawPass mDrawPass;
-    RenderPassDesc mRenderPassDesc;
+    private DrawPass mDrawPass;
+    private final RenderPassDesc mRenderPassDesc;
+
     @SharedPtr
-    ImageProxy mColorTarget;
+    private ImageProxy mColorTarget;
     @SharedPtr
-    ImageProxy mResolveTarget;
-    float[] mClearColor;
+    private ImageProxy mResolveTarget;
+    @Nullable
+    private final ImageDesc mDepthStencilImageDesc;
+
+    private final float[] mClearColor;
 
     private RenderPassTask(DrawPass drawPass,
                            RenderPassDesc renderPassDesc,
                            @SharedPtr ImageProxy colorTarget,
                            @SharedPtr ImageProxy resolveTarget,
+                           @Nullable ImageDesc depthStencilImageDesc,
                            float[] clearColor) {
         mDrawPass = drawPass;
         mRenderPassDesc = renderPassDesc;
         mColorTarget = colorTarget;
         mResolveTarget = resolveTarget;
+        mDepthStencilImageDesc = depthStencilImageDesc;
         mClearColor = clearColor;
     }
 
@@ -65,36 +72,43 @@ public final class RenderPassTask extends Task {
         Objects.requireNonNull(colorTarget);
         assert clearColor.length >= 4;
         var renderPassDesc = new RenderPassDesc();
-        renderPassDesc.mNumColorAttachments = 1;
-        var colorDesc = renderPassDesc.mColorAttachments[0] = new RenderPassDesc.ColorAttachmentDesc();
-        colorDesc.mDesc = colorTarget.getDesc();
+
+        var colorDesc = new RenderPassDesc.ColorAttachmentDesc();
+        colorDesc.mFormat = colorTarget.getDesc().getViewFormat();
         colorDesc.mLoadOp = loadOp;
         colorDesc.mStoreOp = storeOp;
+        renderPassDesc.mColorAttachments = new RenderPassDesc.ColorAttachmentDesc[]{colorDesc};
+
         int depthStencilFlags = drawPass.getDepthStencilFlags();
+        ImageDesc depthStencilImageDesc = null;
         if (depthStencilFlags != Engine.DepthStencilFlags.kNone) {
             int depthBits = (depthStencilFlags & Engine.DepthStencilFlags.kDepth) != 0
                     ? 16 : 0;
             int stencilBits = (depthStencilFlags & Engine.DepthStencilFlags.kStencil) != 0
                     ? 8 : 0;
-            var depthStencilAttachment = renderPassDesc.mDepthStencilAttachment;
-            depthStencilAttachment.mDesc =
+            depthStencilImageDesc =
                     context.getCaps().getDefaultDepthStencilImageDesc(
                             depthBits, stencilBits,
                             colorTarget.getWidth(), colorTarget.getHeight(),
                             colorTarget.getSampleCount(),
                             ISurface.FLAG_RENDERABLE | ISurface.FLAG_MEMORYLESS
                     );
-            assert depthStencilAttachment.mDesc != null;
+            assert depthStencilImageDesc != null;
+            renderPassDesc.mDepthStencilFormat = depthStencilImageDesc.getViewFormat();
             // Always clear the depth and stencil to 0 at the start of a DrawPass, but discard at the
             // end since their contents do not affect the next frame.
-            depthStencilAttachment.mLoadOp = Engine.LoadOp.kClear;
-            depthStencilAttachment.mStoreOp = Engine.StoreOp.kDiscard;
+            renderPassDesc.mDepthStencilLoadOp = Engine.LoadOp.kClear;
+            renderPassDesc.mDepthStencilStoreOp = Engine.StoreOp.kDiscard;
         }
+
         //TODO MSAA attachment
+        renderPassDesc.mSampleCount = colorTarget.getSampleCount();
+
         return new RenderPassTask(drawPass,
                 renderPassDesc,
                 colorTarget,
                 resolveTarget,
+                depthStencilImageDesc,
                 Arrays.copyOf(clearColor, 4));
     }
 
@@ -132,9 +146,9 @@ public final class RenderPassTask extends Task {
 
         @SharedPtr
         Image depthStencilAttachment = null;
-        if (mRenderPassDesc.mDepthStencilAttachment.mDesc != null) {
+        if (mDepthStencilImageDesc != null) {
             depthStencilAttachment = context.getResourceProvider().findOrCreateImage(
-                    mRenderPassDesc.mDepthStencilAttachment.mDesc,
+                    mDepthStencilImageDesc,
                     true,
                     "SharedDSAttachment"
             );
@@ -149,7 +163,7 @@ public final class RenderPassTask extends Task {
         Image resolveAttachment = mResolveTarget != null ? mResolveTarget.refImage() : null;
 
         var framebufferDesc = new FramebufferDesc(
-                colorAttachment.getWidth(), colorAttachment.getHeight(), colorAttachment.getSampleCount(),
+                colorAttachment.getWidth(), colorAttachment.getHeight(),
                 new FramebufferDesc.ColorAttachmentDesc(
                         colorAttachment, resolveAttachment, 0, 0
                 ),

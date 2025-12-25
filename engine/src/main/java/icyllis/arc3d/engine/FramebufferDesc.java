@@ -126,6 +126,8 @@ public final class FramebufferDesc {
 
     public static final @NonNull ColorAttachmentDesc @NonNull [] NO_COLOR_ATTACHMENTS = new ColorAttachmentDesc[0];
 
+    // resolve should also have miplevel and arrayslice
+
     @Immutable
     public static final class DepthStencilAttachmentDesc {
         @Nullable
@@ -173,25 +175,22 @@ public final class FramebufferDesc {
      * all attachment bounds.
      */
     public final int mWidth, mHeight;
-    //TODO TBD reserved for future use
-    public final int mSampleCount;
     //TODO WIP
     public int mFramebufferFlags;
 
-    public FramebufferDesc(int width, int height, int sampleCount,
+    public FramebufferDesc(int width, int height,
                            @Nullable ColorAttachmentDesc colorAttachment,
                            @Nullable DepthStencilAttachmentDesc depthStencilAttachment) {
-        this(width, height, sampleCount,
+        this(width, height,
                 colorAttachment != null ? new ColorAttachmentDesc[]{colorAttachment} : null,
                 depthStencilAttachment);
     }
 
-    public FramebufferDesc(int width, int height, int sampleCount,
+    public FramebufferDesc(int width, int height,
                            @NonNull @Size(max = Caps.MAX_COLOR_TARGETS) ColorAttachmentDesc @Nullable [] colorAttachments,
                            @Nullable DepthStencilAttachmentDesc depthStencilAttachment) {
         mWidth = width;
         mHeight = height;
-        mSampleCount = sampleCount;
         mColorAttachments = colorAttachments != null
                 ? colorAttachments
                 : NO_COLOR_ATTACHMENTS;
@@ -221,7 +220,6 @@ public final class FramebufferDesc {
     public int hashCode() {
         int result = mWidth;
         result = 31 * result + mHeight;
-        result = 31 * result + mSampleCount;
         for (var colorAttachment : mColorAttachments) {
             result = 31 * result + colorAttachment.hashCode();
         }
@@ -235,7 +233,6 @@ public final class FramebufferDesc {
         if (o instanceof FramebufferDesc that) {
             if (mWidth == that.mWidth &&
                     mHeight == that.mHeight &&
-                    mSampleCount == that.mSampleCount &&
                     mColorAttachments.length == that.mColorAttachments.length &&
                     mDepthStencilAttachment.equals(that.mDepthStencilAttachment)) {
                 for (int i = 0; i < mColorAttachments.length; i++) {
