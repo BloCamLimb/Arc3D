@@ -1156,17 +1156,16 @@ public abstract class GLCaps extends Caps {
             assert stencilBits == 0;
             switch (depthBits) {
                 case 8, 16 -> depthStencilFormat = GL_DEPTH_COMPONENT16;
-                case 24 -> depthStencilFormat = GL_DEPTH_COMPONENT24;
-                case 32 -> depthStencilFormat = GL_DEPTH_COMPONENT32F;
+                case 24, 32 -> depthStencilFormat = GL_DEPTH_COMPONENT32F;
             }
         }
         if (depthStencilFormat == 0) {
             assert depthBits == 0;
             return null;
         }
-        // these 6 formats are "Req. format" is OpenGL spec
+        // the above 5 formats are "Req. format" is OpenGL spec
 
-        //TODO 2D texture version, 2D array texture version
+        //TODO 2D texture version, 2D array texture version?
         return new GLImageDesc(GL_RENDERBUFFER,
                 depthStencilFormat, width, height, 1, 1, 1, sampleCount, imageFlags);
     }
