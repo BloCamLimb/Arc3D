@@ -176,6 +176,7 @@ public final class GLDevice extends Device {
     // executing thread only
     private final FramebufferCache mFramebufferCache =
             new FramebufferCache();
+    private boolean mNeedsPurgeFramebuffers = false;
     // executing thread only
     // VertexInputLayout is not hashable currently, then use an IdentityHashMap
     private final IdentityHashMap<VertexInputLayout, @SharedPtr GLVertexArray> mVertexArrayCache =
@@ -251,6 +252,10 @@ public final class GLDevice extends Device {
         final var queue = mRenderCalls;
         Consumer<GLDevice> r;
         while ((r = queue.poll()) != null) r.accept(this);
+    }
+
+    public void needsPurgeFramebuffers() {
+        mNeedsPurgeFramebuffers = true;
     }
 
     @Override
@@ -384,8 +389,11 @@ public final class GLDevice extends Device {
         purgeStaleVertexArrays();
     }
 
-    public void purgeStaleResources() {
-        mFramebufferCache.purgeStaleFramebuffers();
+    public void purgeStaleResourcesIfNeeded() {
+        if (mNeedsPurgeFramebuffers) {
+            mFramebufferCache.purgeStaleFramebuffers();
+            mNeedsPurgeFramebuffers = false;
+        }
     }
 
     private void purgeStaleVertexArrays() {

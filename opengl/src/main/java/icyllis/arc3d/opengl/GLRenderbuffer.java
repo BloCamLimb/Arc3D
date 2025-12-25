@@ -249,6 +249,7 @@ public final class GLRenderbuffer extends GLImage {
                     var p = stack.ints(mRenderbuffer);
                     dev.getGL().glDeleteRenderbuffers(1, memAddress(p));
                 }
+                dev.needsPurgeFramebuffers();
             }
             mRenderbuffer = 0;
         });

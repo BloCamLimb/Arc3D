@@ -252,6 +252,9 @@ public final class GLTexture extends GLImage {
                         IntBuffer pTexture = stack.ints(mHandle);
                         dev.getGL().glDeleteTextures(1, memAddress(pTexture));
                     }
+                    if (getDesc().isRenderable()) {
+                        dev.needsPurgeFramebuffers();
+                    }
                 }
                 mHandle = 0;
             });

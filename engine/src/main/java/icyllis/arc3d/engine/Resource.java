@@ -300,7 +300,8 @@ public abstract class Resource implements RefCounted {
     }
 
     /**
-     * For testing/assertion purposes about associated resource cache.
+     * For testing/assertion purposes about associated resource cache;
+     * or used together with WeakReference, see {@link #getUniqueID()}.
      *
      * @return true if the object has been released or discarded, false otherwise.
      */

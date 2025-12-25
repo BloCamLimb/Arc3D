@@ -925,8 +925,8 @@ public final class GLCommandBuffer extends CommandBuffer {
 
     @Override
     protected void begin() {
-        mDevice.purgeStaleResources();
         mDevice.flushRenderCalls();
+        mDevice.purgeStaleResourcesIfNeeded();
 
         var gl = mDevice.getGL();
         // common raster state
@@ -954,7 +954,7 @@ public final class GLCommandBuffer extends CommandBuffer {
 
     @Override
     protected boolean submit(QueueManager queueManager) {
-        mDevice.purgeStaleResources();
+        mDevice.purgeStaleResourcesIfNeeded();
         resetStates();
         mSubmitFence = mDevice.getGL().glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
         // glFlush is required after fence creation
