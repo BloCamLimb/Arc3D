@@ -23,6 +23,7 @@ import icyllis.arc3d.compiler.*;
 import icyllis.arc3d.compiler.ShaderCaps;
 import icyllis.arc3d.core.ColorInfo;
 import icyllis.arc3d.engine.*;
+import icyllis.arc3d.engine.Engine.ImageFormat;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntArrays;
 import org.jspecify.annotations.NonNull;
@@ -39,11 +40,9 @@ public class VulkanCaps extends Caps {
 
     /**
      * Vulkan image format table.
-     *
-     * @see VKUtil#vkFormatToIndex(int)
      */
     final FormatInfo[] mFormatTable =
-            new FormatInfo[VKUtil.LAST_COLOR_FORMAT_INDEX + 1];
+            new FormatInfo[ImageFormat.kLastColor + 1];
 
     // may contain VK_FORMAT_UNDEFINED(0) values that representing unsupported
     private final int[] mColorTypeToBackendFormat =
@@ -128,7 +127,7 @@ public class VulkanCaps extends Caps {
     }
 
     FormatInfo getFormatInfo(@NativeType("VkFormat") int format) {
-        return mFormatTable[VKUtil.vkFormatToIndex(format)];
+        return mFormatTable[VKUtil.vkFormatToImageFormat(format)];
     }
 
     // Map ColorType to VkFormat with fallback list

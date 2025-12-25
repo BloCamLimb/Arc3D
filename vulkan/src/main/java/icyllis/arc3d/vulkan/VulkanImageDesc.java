@@ -67,6 +67,11 @@ public final class VulkanImageDesc extends ImageDesc {
     }
 
     @Override
+    public int getViewFormat() {
+        return VKUtil.vkFormatToImageFormat(mFormat);
+    }
+
+    @Override
     public int getVkFormat() {
         return mFormat;
     }

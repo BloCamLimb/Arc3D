@@ -19,7 +19,10 @@
 
 package icyllis.arc3d.engine;
 
+import icyllis.arc3d.core.Color;
 import icyllis.arc3d.core.ColorInfo;
+import org.jetbrains.annotations.Contract;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Shared constants, enums and utilities for Arc3D Engine.
@@ -126,6 +129,240 @@ public interface Engine {
          */
         int kView = 1 << 7;
         int kMisc = 1 << 8;
+    }
+
+    /**
+     * Known image view formats between backends.
+     */
+    interface ImageFormat {
+        int kUnsupported = 0;
+
+        int
+                kR8 = 1,
+                kR16 = 2,
+                kR16F = 3,
+                kR32F = 4,
+                kRG8 = 5,
+                kRG16 = 6,
+                kRG16F = 7,
+                kRG32F = 8,
+                kRGB8 = 9,
+                kRGB16 = 10,
+                kB5_G6_R5 = 11,
+                kRGBA8 = 12,
+                kRGBA16 = 13,
+                kRGBA16F = 14,
+                kRGBA32F = 15,
+                kRGB10_A2 = 16,
+                kBGR5_A1 = 17,
+                kBGRA8 = 18,
+                kBGR10_A2 = 19,
+                kRGB9_E5 = 20,
+                kRGB8_ETC2 = 21,
+                kRGB8_BC1 = 22,
+                kRGBA8_BC1 = 23,
+                kYUV8_P2_420 = 24,
+                kYUV8_P3_420 = 25;
+
+        int kLastColor = kYUV8_P3_420;
+
+        int
+                kS8 = kLastColor + 1,
+                kD16 = kLastColor + 2,
+                kD32F = kLastColor + 3,
+                kD24_S8 = kLastColor + 4,
+                kD32F_S8 = kLastColor + 5;
+
+        int kLast = kD32F_S8;
+        int kCount = kLast + 1;
+
+        /**
+         * @see Color#COLOR_CHANNEL_FLAGS_RGBA
+         */
+        static int channelFlags(int format) {
+            switch (format) {
+
+                case kR8:
+                case kR16:
+                case kR16F:
+                case kR32F:           return Color.COLOR_CHANNEL_FLAG_RED;
+
+                case kRG8:
+                case kRG16:
+                case kRG16F:
+                case kRG32F:          return Color.COLOR_CHANNEL_FLAGS_RG;
+
+                case kRGB8:
+                case kB5_G6_R5:
+                case kRGB16:
+                case kRGB9_E5:
+                case kRGB8_ETC2:
+                case kRGB8_BC1:
+                case kYUV8_P2_420:
+                case kYUV8_P3_420:    return Color.COLOR_CHANNEL_FLAGS_RGB;
+
+                case kRGBA8:
+                case kRGBA16:
+                case kRGBA16F:
+                case kRGBA32F:
+                case kRGB10_A2:
+                case kBGR5_A1:
+                case kBGRA8:
+                case kBGR10_A2:
+                case kRGBA8_BC1:       return Color.COLOR_CHANNEL_FLAGS_RGBA;
+
+                case kS8:
+                case kD16:
+                case kD32F:
+                case kD24_S8:
+                case kD32F_S8:
+                case kUnsupported:    return 0;
+
+                default: throw new AssertionError(format);
+            }
+        }
+
+        /**
+         * @see ColorInfo#COMPRESSION_NONE
+         */
+        @ColorInfo.CompressionType
+        static int compressionType(int format) {
+            return switch (format) {
+                case kRGB8_ETC2 -> ColorInfo.COMPRESSION_ETC2_RGB8_UNORM;
+                case kRGB8_BC1 -> ColorInfo.COMPRESSION_BC1_RGB8_UNORM;
+                case kRGBA8_BC1 -> ColorInfo.COMPRESSION_BC1_RGBA8_UNORM;
+                default -> ColorInfo.COMPRESSION_NONE;
+            };
+        }
+
+        /**
+         * Currently we are just over estimating this value to be used in gpu size calculations even
+         * though the actually size is probably less. We should instead treat planar formats similar
+         * to compressed textures that go through their own special query for calculating size.
+         */
+        static int bytesPerBlock(int format) {
+            switch (format) {
+                case kUnsupported: return 0;
+                case kR8:          return 1;
+                case kR16:         return 2;
+                case kR16F:        return 2;
+                case kR32F:        return 4;
+                case kRG8:         return 2;
+                case kRG16:        return 4;
+                case kRG16F:       return 4;
+                case kRG32F:       return 8;
+                case kRGB8:        return 3;
+                case kRGB16:       return 6;
+                case kB5_G6_R5:    return 2;
+                case kRGBA8:       return 4;
+                case kRGBA16:      return 8;
+                case kRGBA16F:     return 8;
+                case kRGBA32F:     return 16;
+                case kRGB10_A2:    return 4;
+                case kBGR5_A1:     return 2;
+                case kBGRA8:       return 4;
+                case kBGR10_A2:    return 4;
+                case kRGB9_E5:     return 4;
+                case kS8:          return 1;
+                case kD16:         return 2;
+                case kD32F:        return 4;
+                case kD24_S8:      return 4;
+                case kD32F_S8:     return 8; // We assume the GPU stores this format 8 byte aligned
+                // NOTE: For compressed formats, the block size refers to an actual compressed block of
+                // multiple texels, whereas with other formats the block size represents a single pixel.
+                case kRGB8_ETC2:
+                case kRGB8_BC1:
+                case kRGBA8_BC1:
+                    return 8;
+                //TODO We are just over estimating this value to be used in gpu size
+                // calculations even though the actually size is probably less. We should instead treat
+                // planar formats similar to compressed textures that go through their own special query for
+                // calculating size.
+                case kYUV8_P2_420:
+                case kYUV8_P3_420:
+                    return 3;
+                default:
+                    throw new AssertionError(format);
+            }
+        }
+
+        static int depthBits(int format) {
+            return switch (format) {
+                case kD16 -> 16;
+                case kD24_S8 -> 24;
+                case kD32F,
+                     kD32F_S8 -> 32;
+                default -> 0;
+            };
+        }
+
+        static int stencilBits(int format) {
+            return switch (format) {
+                case kS8,
+                     kD24_S8,
+                     kD32F_S8 -> 8;
+                default -> 0;
+            };
+        }
+
+        static boolean isPackedDepthStencil(int format) {
+            return format == kD24_S8 || format == kD32F_S8;
+        }
+
+        static boolean isDepthOrStencil(int format) {
+            return switch (format) {
+                case kS8,
+                kD16,
+                kD32F,
+                kD24_S8,
+                kD32F_S8 ->
+                     true;
+                default ->
+                     false;
+            };
+        }
+
+        static boolean isMultiplanar(int format) {
+            return format == kYUV8_P2_420 || format == kYUV8_P3_420;
+        }
+
+        @Contract(pure = true)
+        static @NonNull String toString(int format) {
+            return switch (format) {
+                case kUnsupported -> "Unsupported";
+                case kR8 -> "R8";
+                case kR16 -> "R16";
+                case kR16F -> "R16F";
+                case kR32F -> "R32F";
+                case kRG8 -> "RG8";
+                case kRG16 -> "RG16";
+                case kRG16F -> "RG16F";
+                case kRG32F -> "RG32F";
+                case kRGB8 -> "RGB8";
+                case kRGB16 -> "RGB16";
+                case kB5_G6_R5 -> "B5_G6_R5";
+                case kRGBA8 -> "RGBA8";
+                case kRGBA16 -> "RBGA16";
+                case kRGBA16F -> "RGBA16F";
+                case kRGBA32F -> "RGBA32F";
+                case kRGB10_A2 -> "RGB10_A2";
+                case kBGR5_A1 -> "BGR5_A1";
+                case kBGRA8 -> "BGRA8";
+                case kBGR10_A2 -> "BGR10_A2";
+                case kRGB9_E5 -> "RGB9_E5";
+                case kRGB8_ETC2 -> "RGB8_ETC2";
+                case kRGB8_BC1 -> "RGB8_BC1";
+                case kRGBA8_BC1 -> "RGBA8_BC1";
+                case kYUV8_P2_420 -> "YUV8_P2_420";
+                case kYUV8_P3_420 -> "YUV8_P3_420";
+                case kS8 -> "S8";
+                case kD16 -> "D16";
+                case kD32F -> "D32F";
+                case kD24_S8 -> "D24_S8";
+                case kD32F_S8 -> "D32F_S8";
+                default -> throw new AssertionError(format);
+            };
+        }
     }
 
     /**

@@ -68,6 +68,11 @@ public final class GLImageDesc extends ImageDesc {
     }
 
     @Override
+    public int getViewFormat() {
+        return GLUtil.glFormatToImageFormat(mFormat);
+    }
+
+    @Override
     public int getGLFormat() {
         return mFormat;
     }

@@ -22,6 +22,7 @@ package icyllis.arc3d.opengl;
 import icyllis.arc3d.core.Color;
 import icyllis.arc3d.core.ColorInfo;
 import icyllis.arc3d.engine.*;
+import icyllis.arc3d.engine.Engine.ImageFormat;
 import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -200,86 +201,85 @@ public final class GLUtil {
         return GLDriver.OTHER;
     }
 
-    /**
-     * @see #glFormatToIndex(int)
-     */
     //@formatter:off
-    public static final int
-            LAST_COLOR_FORMAT_INDEX = 16,
-            LAST_FORMAT_INDEX       = 23;
 
     /**
      * Lists all supported OpenGL texture formats and converts to table index.
      * 0 is reserved for unsupported formats.
      *
-     * @see #glIndexToFormat(int)
+     * @see #toGLFormat(int)
      */
-    public static int glFormatToIndex(@NativeType("GLenum") int format) {
-        return switch (format) {
-            case GL_RGBA8                         -> 1;
-            case GL_R8                            -> 2;
-            case GL_RGB565                        -> 3;
-            case GL_RGBA16F                       -> 4;
-            case GL_R16F                          -> 5;
-            case GL_RGB8                          -> 6;
-            case GL_RG8                           -> 7;
-            case GL_RGB10_A2                      -> 8;
-            case GL_SRGB8_ALPHA8                  -> 9;
-            case GL_COMPRESSED_RGB8_ETC2          -> 10;
-            case GL_COMPRESSED_RGB_S3TC_DXT1_EXT  -> 11;
-            case GL_COMPRESSED_RGBA_S3TC_DXT1_EXT -> 12;
-            case GL_R16                           -> 13;
-            case GL_RG16                          -> 14;
-            case GL_RGBA16                        -> 15;
-            case GL_RG16F                         -> 16; // LAST_COLOR_FORMAT_INDEX
-            case GL_STENCIL_INDEX8                -> 17;
-            case GL_STENCIL_INDEX16               -> 18;
-            case GL_DEPTH_COMPONENT16             -> 19;
-            case GL_DEPTH_COMPONENT24             -> 20;
-            case GL_DEPTH_COMPONENT32F            -> 21;
-            case GL_DEPTH24_STENCIL8              -> 22;
-            case GL_DEPTH32F_STENCIL8             -> 23; // LAST_FORMAT_INDEX
-            default -> 0;
+    public static int glFormatToImageFormat(@NativeType("GLenum") int glFormat) {
+        return switch (glFormat) {
+            case GL_R8                            -> ImageFormat.kR8;
+            case GL_RG8                           -> ImageFormat.kRG8;
+            case GL_RGB8                          -> ImageFormat.kRGB8;
+            case GL_RGBA8                         -> ImageFormat.kRGBA8;
+            case GL_RGB565                        -> ImageFormat.kB5_G6_R5;
+            case GL_RGB5_A1                       -> ImageFormat.kBGR5_A1;
+            case GL_RGB10_A2                      -> ImageFormat.kRGB10_A2;
+            case GL_RGB9_E5                       -> ImageFormat.kRGB9_E5;
+            case GL_COMPRESSED_RGB8_ETC2          -> ImageFormat.kRGB8_ETC2;
+            case GL_COMPRESSED_RGB_S3TC_DXT1_EXT  -> ImageFormat.kRGB8_BC1;
+            case GL_COMPRESSED_RGBA_S3TC_DXT1_EXT -> ImageFormat.kRGBA8_BC1;
+            case GL_R16                           -> ImageFormat.kR16;
+            case GL_RG16                          -> ImageFormat.kRG16;
+            case GL_RGB16                         -> ImageFormat.kRGB16;
+            case GL_RGBA16                        -> ImageFormat.kRGBA16;
+            case GL_R16F                          -> ImageFormat.kR16F;
+            case GL_RG16F                         -> ImageFormat.kRG16F;
+            case GL_RGBA16F                       -> ImageFormat.kRGBA16F;
+            case GL_R32F                          -> ImageFormat.kR32F;
+            case GL_RG32F                         -> ImageFormat.kRG32F;
+            case GL_RGBA32F                       -> ImageFormat.kRGBA32F;
+            case GL_STENCIL_INDEX8                -> ImageFormat.kS8;
+            case GL_DEPTH_COMPONENT16             -> ImageFormat.kD16;
+            case GL_DEPTH_COMPONENT32F            -> ImageFormat.kD32F;
+            case GL_DEPTH24_STENCIL8              -> ImageFormat.kD24_S8;
+            case GL_DEPTH32F_STENCIL8             -> ImageFormat.kD32F_S8;
+            default -> ImageFormat.kUnsupported;
         };
     }
-    //@formatter:on
 
     /**
-     * Reverse of {@link #glFormatToIndex(int)}.
+     * Reverse of {@link #glFormatToImageFormat(int)}.
      */
     @NativeType("GLenum")
-    public static int glIndexToFormat(int index) {
-        return switch (index) {
-            case 0 -> GL_NONE;
-            case 1 -> GL_RGBA8;
-            case 2 -> GL_R8;
-            case 3 -> GL_RGB565;
-            case 4 -> GL_RGBA16F;
-            case 5 -> GL_R16F;
-            case 6 -> GL_RGB8;
-            case 7 -> GL_RG8;
-            case 8 -> GL_RGB10_A2;
-            case 9 -> GL_SRGB8_ALPHA8;
-            case 10 -> GL_COMPRESSED_RGB8_ETC2;
-            case 11 -> GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
-            case 12 -> GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
-            case 13 -> GL_R16;
-            case 14 -> GL_RG16;
-            case 15 -> GL_RGBA16;
-            case 16 -> GL_RG16F;
-            case 17 -> GL_STENCIL_INDEX8;
-            case 18 -> GL_STENCIL_INDEX16;
-            case 19 -> GL_DEPTH_COMPONENT16;
-            case 20 -> GL_DEPTH_COMPONENT24;
-            case 21 -> GL_DEPTH_COMPONENT32F;
-            case 22 -> GL_DEPTH24_STENCIL8;
-            case 23 -> GL_DEPTH32F_STENCIL8;
+    public static int toGLFormat(int imageFormat) {
+        return switch (imageFormat) {
+            case ImageFormat.kR8        -> GL_R8;
+            case ImageFormat.kRG8       -> GL_RG8;
+            case ImageFormat.kRGB8      -> GL_RGB8;
+            case ImageFormat.kRGBA8     -> GL_RGBA8;
+            case ImageFormat.kB5_G6_R5  -> GL_RGB565;
+            case ImageFormat.kBGR5_A1   -> GL_RGB5_A1;
+            case ImageFormat.kRGB10_A2  -> GL_RGB10_A2;
+            case ImageFormat.kRGB9_E5   -> GL_RGB9_E5;
+            case ImageFormat.kRGB8_ETC2 -> GL_COMPRESSED_RGB8_ETC2;
+            case ImageFormat.kRGB8_BC1  -> GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
+            case ImageFormat.kRGBA8_BC1 -> GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
+            case ImageFormat.kR16       -> GL_R16;
+            case ImageFormat.kRG16      -> GL_RG16;
+            case ImageFormat.kRGB16     -> GL_RGB16;
+            case ImageFormat.kRGBA16    -> GL_RGBA16;
+            case ImageFormat.kR16F      -> GL_R16F;
+            case ImageFormat.kRG16F     -> GL_RG16F;
+            case ImageFormat.kRGBA16F   -> GL_RGBA16F;
+            case ImageFormat.kR32F      -> GL_R32F;
+            case ImageFormat.kRG32F     -> GL_RG32F;
+            case ImageFormat.kRGBA32F   -> GL_RGBA32F;
+            case ImageFormat.kS8        -> GL_STENCIL_INDEX8;
+            case ImageFormat.kD16       -> GL_DEPTH_COMPONENT16;
+            case ImageFormat.kD32F      -> GL_DEPTH_COMPONENT32F;
             default -> {
-                assert false : index;
+                // guaranteed by GLCaps
+                assert false : imageFormat;
                 yield GL_NONE;
             }
         };
     }
+
+    //@formatter:on
 
     /**
      * @see Color#COLOR_CHANNEL_FLAGS_RGBA
@@ -309,6 +309,7 @@ public final class GLUtil {
     /**
      * Consistent with {@link #glFormatToIndex(int)}
      */
+    @Deprecated
     public static boolean glFormatIsSupported(@NativeType("GLenum") int format) {
         return switch (format) {
             case GL_RGBA8,

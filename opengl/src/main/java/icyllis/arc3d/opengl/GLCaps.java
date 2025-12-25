@@ -25,6 +25,7 @@ import icyllis.arc3d.engine.*;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.NativeType;
+import icyllis.arc3d.engine.Engine.ImageFormat;
 
 import java.util.*;
 
@@ -76,11 +77,10 @@ public abstract class GLCaps extends Caps {
 
     /**
      * OpenGL texture format table.
-     *
-     * @see GLUtil#glFormatToIndex(int)
      */
+    //TODO finally move this to base class
     final FormatInfo[] mFormatTable =
-            new FormatInfo[GLUtil.LAST_COLOR_FORMAT_INDEX + 1];
+            new FormatInfo[ImageFormat.kLastColor + 1];
 
     // may contain GL_NONE(0) values that representing unsupported
     private final int[] mColorTypeToBackendFormat =
@@ -103,13 +103,18 @@ public abstract class GLCaps extends Caps {
         final int msaaRenderFlags = nonMSAARenderFlags | FormatInfo.COLOR_ATTACHMENT_WITH_MSAA_FLAG;
 
         // Reserved for undefined
-        mFormatTable[0] = new FormatInfo();
+        mFormatTable[ImageFormat.kUnsupported] = new FormatInfo();
+
+        //TODO
+        for (int i = 1; i < mFormatTable.length; i++) {
+            mFormatTable[i] = new FormatInfo();
+            mFormatTable[i].mFormatType = FormatInfo.FORMAT_TYPE_NORMALIZED_FIXED_POINT;
+        }
 
         // Format: RGBA8
         {
             final int format = GL_RGBA8;
-            FormatInfo info = mFormatTable[1] = new FormatInfo();
-            assert (getFormatInfo(format) == info && GLUtil.glIndexToFormat(1) == format);
+            FormatInfo info = mFormatTable[ImageFormat.kRGBA8] = new FormatInfo();
             info.mFormatType = FormatInfo.FORMAT_TYPE_NORMALIZED_FIXED_POINT;
             info.mInternalFormatForRenderbuffer = format;
             info.mDefaultExternalFormat = GL_RGBA;
@@ -201,7 +206,7 @@ public abstract class GLCaps extends Caps {
 
         // Format: R8
         {
-            FormatInfo info = mFormatTable[2] = new FormatInfo();
+            FormatInfo info = mFormatTable[ImageFormat.kR8] = new FormatInfo();
             info.mFormatType = FormatInfo.FORMAT_TYPE_NORMALIZED_FIXED_POINT;
             info.mInternalFormatForRenderbuffer = GL_R8;
             info.mDefaultExternalFormat = GL_RED;
@@ -278,7 +283,7 @@ public abstract class GLCaps extends Caps {
 
         // Format: RGB565
         {
-            FormatInfo info = mFormatTable[3] = new FormatInfo();
+            FormatInfo info = mFormatTable[ImageFormat.kB5_G6_R5] = new FormatInfo();
             info.mFormatType = FormatInfo.FORMAT_TYPE_NORMALIZED_FIXED_POINT;
             info.mInternalFormatForRenderbuffer = GL_RGB565;
             info.mDefaultExternalFormat = GL_RGB;
@@ -321,7 +326,7 @@ public abstract class GLCaps extends Caps {
 
         // Format: RGBA16F
         {
-            FormatInfo info = mFormatTable[4] = new FormatInfo();
+            FormatInfo info = mFormatTable[ImageFormat.kRGBA16F] = new FormatInfo();
             info.mFormatType = FormatInfo.FORMAT_TYPE_FLOAT;
             info.mInternalFormatForRenderbuffer = GL_RGBA16F;
             info.mDefaultExternalFormat = GL_RGBA;
@@ -366,7 +371,7 @@ public abstract class GLCaps extends Caps {
 
         // Format: R16F
         {
-            FormatInfo info = mFormatTable[5] = new FormatInfo();
+            FormatInfo info = mFormatTable[ImageFormat.kR16F] = new FormatInfo();
             info.mFormatType = FormatInfo.FORMAT_TYPE_FLOAT;
             info.mInternalFormatForRenderbuffer = GL_R16F;
             info.mDefaultExternalFormat = GL_RED;
@@ -404,7 +409,7 @@ public abstract class GLCaps extends Caps {
 
         // Format: RGB8
         {
-            FormatInfo info = mFormatTable[6] = new FormatInfo();
+            FormatInfo info = mFormatTable[ImageFormat.kRGB8] = new FormatInfo();
             info.mFormatType = FormatInfo.FORMAT_TYPE_NORMALIZED_FIXED_POINT;
             info.mInternalFormatForRenderbuffer = GL_RGB8;
             info.mDefaultExternalFormat = GL_RGB;
@@ -448,7 +453,7 @@ public abstract class GLCaps extends Caps {
 
         // Format: RG8
         {
-            FormatInfo info = mFormatTable[7] = new FormatInfo();
+            FormatInfo info = mFormatTable[ImageFormat.kRG8] = new FormatInfo();
             info.mFormatType = FormatInfo.FORMAT_TYPE_NORMALIZED_FIXED_POINT;
             info.mInternalFormatForRenderbuffer = GL_RG8;
             info.mDefaultExternalFormat = GL_RG;
@@ -514,7 +519,7 @@ public abstract class GLCaps extends Caps {
 
         // Format: RGB10_A2
         {
-            FormatInfo info = mFormatTable[8] = new FormatInfo();
+            FormatInfo info = mFormatTable[ImageFormat.kRGB10_A2] = new FormatInfo();
             info.mFormatType = FormatInfo.FORMAT_TYPE_NORMALIZED_FIXED_POINT;
             info.mInternalFormatForRenderbuffer = GL_RGB10_A2;
             info.mDefaultExternalFormat = GL_RGBA;
@@ -585,24 +590,9 @@ public abstract class GLCaps extends Caps {
             }
         }
 
-        // Format: SRGB8_ALPHA8
-        {
-            FormatInfo info = mFormatTable[9] = new FormatInfo();
-            info.mFormatType = FormatInfo.FORMAT_TYPE_NORMALIZED_FIXED_POINT;
-            info.mInternalFormatForRenderbuffer = GL_SRGB8_ALPHA8;
-            info.mDefaultExternalFormat = GL_RGBA;
-            info.mDefaultExternalType = GL_UNSIGNED_BYTE;
-            info.mFlags = FormatInfo.TEXTURABLE_FLAG | FormatInfo.TRANSFERS_FLAG;
-            info.mFlags |= msaaRenderFlags;
-            if (texStorageSupported) {
-                info.mFlags |= FormatInfo.TEXTURE_STORAGE_FLAG;
-            }
-            info.mInternalFormatForTexture = GL_SRGB8_ALPHA8;
-        }
-
         // Format: COMPRESSED_RGB8_ETC2
         {
-            FormatInfo info = mFormatTable[10] = new FormatInfo();
+            FormatInfo info = mFormatTable[ImageFormat.kRGB8_ETC2] = new FormatInfo();
             info.mFormatType = FormatInfo.FORMAT_TYPE_NORMALIZED_FIXED_POINT;
             info.mInternalFormatForTexture = GL_COMPRESSED_RGB8_ETC2;
 
@@ -614,7 +604,7 @@ public abstract class GLCaps extends Caps {
 
         // Format: COMPRESSED_RGB8_BC1
         {
-            FormatInfo info = mFormatTable[11] = new FormatInfo();
+            FormatInfo info = mFormatTable[ImageFormat.kRGB8_BC1] = new FormatInfo();
             info.mFormatType = FormatInfo.FORMAT_TYPE_NORMALIZED_FIXED_POINT;
             info.mInternalFormatForTexture = GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
             if (EXT_texture_compression_s3tc) {
@@ -629,7 +619,7 @@ public abstract class GLCaps extends Caps {
 
         // Format: COMPRESSED_RGBA8_BC1
         {
-            FormatInfo info = mFormatTable[12] = new FormatInfo();
+            FormatInfo info = mFormatTable[ImageFormat.kRGBA8_BC1] = new FormatInfo();
             info.mFormatType = FormatInfo.FORMAT_TYPE_NORMALIZED_FIXED_POINT;
             info.mInternalFormatForTexture = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
             if (EXT_texture_compression_s3tc) {
@@ -644,7 +634,7 @@ public abstract class GLCaps extends Caps {
 
         // Format: R16
         {
-            FormatInfo info = mFormatTable[13] = new FormatInfo();
+            FormatInfo info = mFormatTable[ImageFormat.kR16] = new FormatInfo();
             info.mFormatType = FormatInfo.FORMAT_TYPE_NORMALIZED_FIXED_POINT;
             info.mInternalFormatForRenderbuffer = GL_R16;
             info.mDefaultExternalFormat = GL_RED;
@@ -682,7 +672,7 @@ public abstract class GLCaps extends Caps {
 
         // Format: RG16
         {
-            FormatInfo info = mFormatTable[14] = new FormatInfo();
+            FormatInfo info = mFormatTable[ImageFormat.kRG16] = new FormatInfo();
             info.mFormatType = FormatInfo.FORMAT_TYPE_NORMALIZED_FIXED_POINT;
             info.mInternalFormatForRenderbuffer = GL_RG16;
             info.mDefaultExternalFormat = GL_RG;
@@ -727,7 +717,7 @@ public abstract class GLCaps extends Caps {
 
         // Format: RGBA16
         {
-            FormatInfo info = mFormatTable[15] = new FormatInfo();
+            FormatInfo info = mFormatTable[ImageFormat.kRGBA16] = new FormatInfo();
             info.mFormatType = FormatInfo.FORMAT_TYPE_NORMALIZED_FIXED_POINT;
             info.mInternalFormatForRenderbuffer = GL_RGBA16;
             info.mDefaultExternalFormat = GL_RGBA;
@@ -772,7 +762,7 @@ public abstract class GLCaps extends Caps {
 
         // Format:RG16F
         {
-            FormatInfo info = mFormatTable[16] = new FormatInfo();
+            FormatInfo info = mFormatTable[ImageFormat.kRG16F] = new FormatInfo();
             info.mFormatType = FormatInfo.FORMAT_TYPE_FLOAT;
             info.mInternalFormatForRenderbuffer = GL_RG16F;
             info.mDefaultExternalFormat = GL_RG;
@@ -873,11 +863,10 @@ public abstract class GLCaps extends Caps {
     }
 
     FormatInfo getFormatInfo(@NativeType("GLenum") int format) {
-        return mFormatTable[GLUtil.glFormatToIndex(format)];
+        return mFormatTable[GLUtil.glFormatToImageFormat(format)];
     }
 
     private void setColorTypeFormat(int colorType, int format) {
-        assert GLUtil.glFormatIsSupported(format);
         mColorTypeToBackendFormat[colorType] = format;
     }
 
@@ -1546,7 +1535,7 @@ public abstract class GLCaps extends Caps {
         if (includeFormatTable) {
             out.append("FormatTable:\n");
             for (int i = 1; i < mFormatTable.length; i++) {
-                out.append('\t').append(GLUtil.glFormatName(GLUtil.glIndexToFormat(i)))
+                out.append('\t').append(ImageFormat.toString(i))
                         .append("=>\n");
                 mFormatTable[i].dump("\t\t", out);
             }

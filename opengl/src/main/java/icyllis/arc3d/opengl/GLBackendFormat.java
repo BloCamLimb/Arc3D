@@ -29,11 +29,12 @@ import javax.annotation.concurrent.Immutable;
 
 import static icyllis.arc3d.engine.Engine.BackendApi;
 
+@Deprecated
 @Immutable
 public final class GLBackendFormat extends BackendFormat {
 
     private static final Int2ObjectOpenHashMap<GLBackendFormat> FORMATS =
-            new Int2ObjectOpenHashMap<>(GLUtil.LAST_FORMAT_INDEX + 1, Hash.FAST_LOAD_FACTOR);
+            new Int2ObjectOpenHashMap<>(16, Hash.FAST_LOAD_FACTOR);
 
     private final int mFormat;
 

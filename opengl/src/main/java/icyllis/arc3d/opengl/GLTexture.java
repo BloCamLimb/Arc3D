@@ -20,6 +20,7 @@
 package icyllis.arc3d.opengl;
 
 import icyllis.arc3d.core.SharedPtr;
+import icyllis.arc3d.engine.Engine;
 import icyllis.arc3d.engine.ISurface;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryStack;
@@ -44,7 +45,7 @@ public final class GLTexture extends GLImage {
               GLTextureMutableState mutableState,
               int handle) {
         super(device, false, desc, mutableState);
-        assert GLUtil.glFormatIsSupported(desc.mFormat);
+        assert (GLUtil.glFormatToImageFormat(desc.mFormat) != Engine.ImageFormat.kUnsupported);
         mOwnership = true;
 
         mHandle = handle;
@@ -129,7 +130,7 @@ public final class GLTexture extends GLImage {
     static int internalCreateTexture2D(GLDevice device,
                                        int width, int height,
                                        int format, int levels) {
-        assert (GLUtil.glFormatIsSupported(format));
+        assert (GLUtil.glFormatToImageFormat(format) != Engine.ImageFormat.kUnsupported);
         assert (!GLUtil.glFormatIsCompressed(format));
         GLCaps caps = device.getCaps();
 

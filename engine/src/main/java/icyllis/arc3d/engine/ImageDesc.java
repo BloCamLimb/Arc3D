@@ -152,6 +152,11 @@ public abstract class ImageDesc {
     }
 
     /**
+     * @see Engine.ImageFormat
+     */
+    public abstract int getViewFormat();
+
+    /**
      * If the backend API is OpenGL this gets the format as a GLenum.
      */
     @NativeType("GLenum")
@@ -173,7 +178,7 @@ public abstract class ImageDesc {
      * @see Color#COLOR_CHANNEL_FLAGS_RGBA
      */
     public int getChannelFlags() {
-        throw new UnsupportedOperationException();
+        return Engine.ImageFormat.channelFlags(getViewFormat());
     }
 
     public boolean isSRGB() {
@@ -185,7 +190,7 @@ public abstract class ImageDesc {
      */
     @ColorInfo.CompressionType
     public int getCompressionType() {
-        throw new UnsupportedOperationException();
+        return Engine.ImageFormat.compressionType(getViewFormat());
     }
 
     public final boolean isCompressed() {
@@ -196,15 +201,15 @@ public abstract class ImageDesc {
      * @return if compressed, bytes per block, otherwise bytes per pixel
      */
     public int getBytesPerBlock() {
-        return 0;
+        return Engine.ImageFormat.bytesPerBlock(getViewFormat());
     }
 
     public int getDepthBits() {
-        return 0;
+        return Engine.ImageFormat.depthBits(getViewFormat());
     }
 
     public int getStencilBits() {
-        return 0;
+        return Engine.ImageFormat.stencilBits(getViewFormat());
     }
 
     // No hashCode() and equals() implementation here

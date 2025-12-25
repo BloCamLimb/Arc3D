@@ -23,6 +23,7 @@ import icyllis.arc3d.core.Color;
 import icyllis.arc3d.core.ColorInfo;
 import icyllis.arc3d.engine.ContextOptions;
 import icyllis.arc3d.engine.ImmediateContext;
+import icyllis.arc3d.engine.Engine.ImageFormat;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.APIUtil;
 import org.lwjgl.system.NativeType;
@@ -188,25 +189,92 @@ public final class VKUtil {
         };
     }
 
-    /**
-     * @see #vkFormatToIndex(int)
-     */
     //@formatter:off
-    public static final int
-            LAST_COLOR_FORMAT_INDEX = 3;
 
     /**
      * Lists all supported Vulkan image formats and converts to table index.
      * 0 is reserved for unsupported formats.
      */
-    public static int vkFormatToIndex(@NativeType("VkFormat") int vkFormat) {
+    public static int vkFormatToImageFormat(@NativeType("VkFormat") int vkFormat) {
         return switch (vkFormat) {
-            case VK_FORMAT_R8G8B8A8_UNORM                       -> 1;
-            case VK_FORMAT_R8_UNORM                             -> 2;
-            case VK_FORMAT_R5G6B5_UNORM_PACK16                  -> 3;
-            default -> 0;
+            case VK_FORMAT_R8_UNORM                  -> ImageFormat.kR8;
+            case VK_FORMAT_R16_UNORM                 -> ImageFormat.kR16;
+            case VK_FORMAT_R16_SFLOAT                -> ImageFormat.kR16F;
+            case VK_FORMAT_R32_SFLOAT                -> ImageFormat.kR32F;
+            case VK_FORMAT_R8G8_UNORM                -> ImageFormat.kRG8;
+            case VK_FORMAT_R16G16_UNORM              -> ImageFormat.kRG16;
+            case VK_FORMAT_R16G16_SFLOAT             -> ImageFormat.kRG16F;
+            case VK_FORMAT_R32G32_SFLOAT             -> ImageFormat.kRG32F;
+            case VK_FORMAT_R8G8B8_UNORM              -> ImageFormat.kRGB8;
+            case VK_FORMAT_R16G16B16_UNORM           -> ImageFormat.kRGB16;
+            case VK_FORMAT_R5G6B5_UNORM_PACK16       -> ImageFormat.kB5_G6_R5;
+            case VK_FORMAT_R8G8B8A8_UNORM            -> ImageFormat.kRGBA8;
+            case VK_FORMAT_R16G16B16A16_UNORM        -> ImageFormat.kRGBA16;
+            case VK_FORMAT_R16G16B16A16_SFLOAT       -> ImageFormat.kRGBA16F;
+            case VK_FORMAT_R32G32B32A32_SFLOAT       -> ImageFormat.kRGBA32F;
+            case VK_FORMAT_A2B10G10R10_UNORM_PACK32  -> ImageFormat.kRGB10_A2;
+            case VK_FORMAT_A1R5G5B5_UNORM_PACK16     -> ImageFormat.kBGR5_A1;
+            case VK_FORMAT_B8G8R8A8_UNORM            -> ImageFormat.kBGRA8;
+            case VK_FORMAT_A2R10G10B10_UNORM_PACK32  -> ImageFormat.kBGR10_A2;
+            case VK_FORMAT_E5B9G9R9_UFLOAT_PACK32    -> ImageFormat.kRGB9_E5;
+            case VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK   -> ImageFormat.kRGB8_ETC2;
+            case VK_FORMAT_BC1_RGB_UNORM_BLOCK       -> ImageFormat.kRGB8_BC1;
+            case VK_FORMAT_BC1_RGBA_UNORM_BLOCK      -> ImageFormat.kRGBA8_BC1;
+            case VK_FORMAT_G8_B8R8_2PLANE_420_UNORM  -> ImageFormat.kYUV8_P2_420;
+            case VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM -> ImageFormat.kYUV8_P3_420;
+            case VK_FORMAT_S8_UINT                   -> ImageFormat.kS8;
+            case VK_FORMAT_D16_UNORM                 -> ImageFormat.kD16;
+            case VK_FORMAT_D32_SFLOAT                -> ImageFormat.kD32F;
+            case VK_FORMAT_D24_UNORM_S8_UINT         -> ImageFormat.kD24_S8;
+            case VK_FORMAT_D32_SFLOAT_S8_UINT        -> ImageFormat.kD32F_S8;
+            default -> ImageFormat.kUnsupported;
         };
     }
+
+    /**
+     * Reverse of {@link #vkFormatToImageFormat(int)}.
+     */
+    @NativeType("VkFormat")
+    public static int toVkFormat(int imageFormat) {
+        return switch (imageFormat) {
+            case ImageFormat.kR8             -> VK_FORMAT_R8_UNORM;
+            case ImageFormat.kR16            -> VK_FORMAT_R16_UNORM;
+            case ImageFormat.kR16F           -> VK_FORMAT_R16_SFLOAT;
+            case ImageFormat.kR32F           -> VK_FORMAT_R32_SFLOAT;
+            case ImageFormat.kRG8            -> VK_FORMAT_R8G8_UNORM;
+            case ImageFormat.kRG16           -> VK_FORMAT_R16G16_UNORM;
+            case ImageFormat.kRG16F          -> VK_FORMAT_R16G16_SFLOAT;
+            case ImageFormat.kRG32F          -> VK_FORMAT_R32G32_SFLOAT;
+            case ImageFormat.kRGB8           -> VK_FORMAT_R8G8B8_UNORM;
+            case ImageFormat.kRGB16          -> VK_FORMAT_R16G16B16_UNORM;
+            case ImageFormat.kB5_G6_R5       -> VK_FORMAT_R5G6B5_UNORM_PACK16;
+            case ImageFormat.kRGBA8          -> VK_FORMAT_R8G8B8A8_UNORM;
+            case ImageFormat.kRGBA16         -> VK_FORMAT_R16G16B16A16_UNORM;
+            case ImageFormat.kRGBA16F        -> VK_FORMAT_R16G16B16A16_SFLOAT;
+            case ImageFormat.kRGBA32F        -> VK_FORMAT_R32G32B32A32_SFLOAT;
+            case ImageFormat.kRGB10_A2       -> VK_FORMAT_A2B10G10R10_UNORM_PACK32;
+            case ImageFormat.kBGR5_A1        -> VK_FORMAT_A1R5G5B5_UNORM_PACK16;
+            case ImageFormat.kBGRA8          -> VK_FORMAT_B8G8R8A8_UNORM;
+            case ImageFormat.kBGR10_A2       -> VK_FORMAT_A2R10G10B10_UNORM_PACK32;
+            case ImageFormat.kRGB9_E5        -> VK_FORMAT_E5B9G9R9_UFLOAT_PACK32;
+            case ImageFormat.kRGB8_ETC2      -> VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK;
+            case ImageFormat.kRGB8_BC1       -> VK_FORMAT_BC1_RGB_UNORM_BLOCK;
+            case ImageFormat.kRGBA8_BC1      -> VK_FORMAT_BC1_RGBA_UNORM_BLOCK;
+            case ImageFormat.kYUV8_P2_420    -> VK_FORMAT_G8_B8R8_2PLANE_420_UNORM;
+            case ImageFormat.kYUV8_P3_420    -> VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM;
+            case ImageFormat.kS8             -> VK_FORMAT_S8_UINT;
+            case ImageFormat.kD16            -> VK_FORMAT_D16_UNORM;
+            case ImageFormat.kD32F           -> VK_FORMAT_D32_SFLOAT;
+            case ImageFormat.kD24_S8         -> VK_FORMAT_D24_UNORM_S8_UINT;
+            case ImageFormat.kD32F_S8        -> VK_FORMAT_D32_SFLOAT_S8_UINT;
+            default -> {
+                // guaranteed by VulkanCaps
+                assert false : imageFormat;
+                yield VK_FORMAT_UNDEFINED;
+            }
+        };
+    }
+
     //@formatter:on
 
     /**
@@ -261,18 +329,7 @@ public final class VKUtil {
         };
     }
 
-    /**
-     * Currently we are just over estimating this value to be used in gpu size calculations even
-     * though the actually size is probably less. We should instead treat planar formats similar
-     * to compressed textures that go through their own special query for calculating size.
-     * <pre>{@code
-     * case VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM: return 3;
-     * case VK_FORMAT_G8_B8R8_2PLANE_420_UNORM:  return 3;
-     * case VK_FORMAT_S8_UINT:                   return 1;
-     * case VK_FORMAT_D24_UNORM_S8_UINT:         return 4;
-     * case VK_FORMAT_D32_SFLOAT_S8_UINT:        return 8;
-     * }</pre>
-     */
+
     public static int vkFormatBytesPerBlock(@NativeType("VkFormat") int vkFormat) {
         return switch (vkFormat) {
             case VK_FORMAT_R8G8B8A8_UNORM,
