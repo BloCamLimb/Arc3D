@@ -19,6 +19,8 @@
 
 package icyllis.arc3d.engine;
 
+import org.jspecify.annotations.NonNull;
+
 /**
  * Pipeline key combines {@link PipelineDesc} and render-pass information (Vulkan),
  * to find or create an actual pipline state object.
@@ -26,6 +28,14 @@ package icyllis.arc3d.engine;
 public abstract class PipelineKey implements IUniqueKey {
 
     public PipelineDesc mPipelineDesc;
+
+    public PipelineKey() {
+    }
+
+    @SuppressWarnings("IncompleteCopyConstructor")
+    public PipelineKey(@NonNull PipelineKey other) {
+        this.mPipelineDesc = other.mPipelineDesc.copy();
+    }
 
     // deep copy
     public abstract PipelineKey copy();

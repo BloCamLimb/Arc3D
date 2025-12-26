@@ -92,13 +92,17 @@ public final class GLGraphicsPipeline extends GraphicsPipeline {
 
     @Override
     protected void deallocate() {
-        if (mAsyncWork != null) {
-            mAsyncWork.cancel(true);
-            mAsyncWork = null;
-        }
-        mProgram = RefCnt.move(mProgram);
-        mVertexArray = RefCnt.move(mVertexArray);
-        mDataManager = RefCnt.move(mDataManager);
+        getDevice().executeRenderCall(dev -> {
+            // AsyncWork is checked on ExecutingThread
+            if (mAsyncWork != null) {
+                mAsyncWork.cancel(true);
+                mAsyncWork = null;
+            }
+            // these objects are created on ExecutingThread
+            mProgram = RefCnt.move(mProgram);
+            mVertexArray = RefCnt.move(mVertexArray);
+            mDataManager = RefCnt.move(mDataManager);
+        });
     }
 
     private void checkAsyncWork() {

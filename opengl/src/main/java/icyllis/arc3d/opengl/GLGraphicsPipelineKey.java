@@ -26,11 +26,13 @@ public class GLGraphicsPipelineKey extends PipelineKey {
     public GLGraphicsPipelineKey() {
     }
 
+    public GLGraphicsPipelineKey(GLGraphicsPipelineKey other) {
+        super(other);
+    }
+
     @Override
     public GLGraphicsPipelineKey copy() {
-        var key = new GLGraphicsPipelineKey();
-        key.mPipelineDesc = mPipelineDesc.copy();
-        return key;
+        return new GLGraphicsPipelineKey(this);
     }
 
     @Override
