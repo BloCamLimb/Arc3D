@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2024-2024 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2024-2025 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,6 +19,7 @@
 
 package icyllis.arc3d.engine;
 
+import icyllis.arc3d.core.Size;
 import icyllis.arc3d.engine.Engine.ImageFormat;
 import icyllis.arc3d.engine.Engine.LoadOp;
 import icyllis.arc3d.engine.Engine.StoreOp;
@@ -38,18 +39,19 @@ public final class RenderPassDesc {
     }
 
     public static final @NonNull ColorAttachmentDesc @NonNull [] NO_COLOR_ATTACHMENTS = new ColorAttachmentDesc[0];
-    public @NonNull ColorAttachmentDesc @NonNull [] mColorAttachments = NO_COLOR_ATTACHMENTS;
+    public @NonNull @Size(max = Caps.MAX_COLOR_TARGETS) ColorAttachmentDesc @NonNull [] mColorAttachments = NO_COLOR_ATTACHMENTS;
 
 
     //// Color Resolve Target (single RT case)
 
-    // if this is true, MSAA will be auto resolved (fullscreen, cannot be disabled),
-    // and resolve image format always matches MSAA image format
+    /*
+     * When true, MSAA will be auto resolved, and resolve image format always matches
+     * MSAA image format, and mColorResolveStoreOp should be Store.
+     */
     public boolean mHasColorResolveAttachment = false;
-    // if mHasResolveAttachment is true,
-    // 1) if mLoadOp is Load/Clear, then mResolveLoadOp must be Discard
-    // 2) if mResolveLoadOp is not Discard, it must be Load, and mLoadOp must be Discard;
-    //    in this special case, MSAA will load from resolve attachment
+    /*
+     * If mLoadOp is Load/Clear, then mColorResolveLoadOp should be Discard.
+     */
     public byte mColorResolveLoadOp = LoadOp.kDiscard;
     public byte mColorResolveStoreOp = StoreOp.kDiscard;
 
@@ -69,7 +71,23 @@ public final class RenderPassDesc {
 
     //// Subpass Settings
 
-    // vulkan only feature
-    public boolean mSetupDstAsInput = false;
-    //TODO maybe provide a way to specify input attachments and subpasses explicitly
+    /*
+     * True to make all pipelines in the mainpass to be compatible to use dst texture as
+     * input attachment, and auto bind the input attachment on begin.
+     */
+    public static final int kUseDstAsInput_Flag = 0x1;
+    /*
+     * True to make all pipelines in the mainpass to be compatible to add pipeline barrier
+     * for non-coherent advanced blends.
+     */
+    public static final int kUseNonCoherentAdvBlend_Flag = 0x2;
+    /*
+     * True to add a subpass & inline draw, and MSAA will load from resolve attachment.
+     * In this case, if mColorResolveLoadOp must be Load, and mLoadOp must be Discard.
+     */
+    public static final int kLoadFromResolve_Flag = 0x4;
+
+    public static final int kFlagsBits = 3; // 3 bits to store all flags
+
+    public int mRenderPassFlags = 0;
 }
