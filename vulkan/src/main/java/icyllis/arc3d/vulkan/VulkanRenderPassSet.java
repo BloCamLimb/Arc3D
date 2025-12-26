@@ -33,6 +33,8 @@ import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.util.concurrent.ThreadLocalRandom;
+
 /**
  * Defines a compatibility domain and provides a set of VkRenderPass that are
  * compatible with each other.
@@ -185,9 +187,44 @@ public final class VulkanRenderPassSet extends RefCnt {
     // framebuffer is definitely managed by RP Set
     private final FramebufferCache mFramebufferCache = new FramebufferCache();
 
-    public VulkanRenderPassSet(@NonNull @SharedPtr VulkanRenderPass standardRenderPass) {
+    private VulkanRenderPassSet(@NonNull @SharedPtr VulkanRenderPass standardRenderPass) {
         mRenderPasses.add(standardRenderPass); // move
         mLastReturnedIndex = 0;
+    }
+
+    @Nullable
+    @SharedPtr
+    public static VulkanRenderPassSet make(@NonNull VulkanDevice device,
+                                           @NonNull RenderPassDesc desc) {
+        // create a standard render pass that is likely to be reused later
+        desc = new RenderPassDesc(desc);
+
+        if ((desc.mRenderPassFlags & RenderPassDesc.kLoadFromResolve_Flag) != 0) {
+            assert desc.mColorAttachments.length == 1;
+            for (var colorAttachment : desc.mColorAttachments) {
+                colorAttachment.mLoadOp = Engine.LoadOp.kDiscard;
+                colorAttachment.mStoreOp = Engine.StoreOp.kDiscard;
+            }
+            assert desc.mHasColorResolveAttachment;
+            desc.mColorResolveLoadOp = Engine.LoadOp.kLoad;
+            desc.mColorResolveStoreOp = Engine.StoreOp.kStore;
+        } else {
+            for (var colorAttachment : desc.mColorAttachments) {
+                colorAttachment.mLoadOp = Engine.LoadOp.kLoad;
+                colorAttachment.mStoreOp = Engine.StoreOp.kStore;
+            }
+            desc.mColorResolveLoadOp = Engine.LoadOp.kDiscard;
+            desc.mColorResolveStoreOp = Engine.StoreOp.kStore;
+        }
+        desc.mDepthStencilLoadOp = Engine.LoadOp.kClear;
+        desc.mDepthStencilStoreOp = Engine.StoreOp.kDiscard;
+
+        @SharedPtr
+        VulkanRenderPass standardRenderPass = VulkanRenderPass.make(device, desc);
+        if (standardRenderPass == null) {
+            return null;
+        }
+        return new VulkanRenderPassSet(standardRenderPass); // move
     }
 
     @NonNull
@@ -200,7 +237,32 @@ public final class VulkanRenderPassSet extends RefCnt {
     @SharedPtr
     public VulkanRenderPass findOrCreateRenderPass(@NonNull VulkanDevice device,
                                                    @NonNull RenderPassDesc desc) {
-        return null;
+        int denseLoadStoreOps = VulkanRenderPass.extractLoadStoreOps(desc);
+        for (int i = 0; i < mRenderPasses.size(); i++) {
+            int idx = (i + mLastReturnedIndex) % mRenderPasses.size();
+            VulkanRenderPass renderPass = mRenderPasses.get(idx);
+            if (renderPass.getDenseLoadStoreOps() == denseLoadStoreOps) {
+                mLastReturnedIndex = idx;
+                renderPass.ref();
+                return renderPass;
+            }
+        }
+        @SharedPtr
+        VulkanRenderPass renderPass = VulkanRenderPass.make(device, desc);
+        if (renderPass == null) {
+            return null;
+        }
+        if (mRenderPasses.size() < kMaxCachedRenderPasses) {
+            mRenderPasses.add(renderPass); // move
+            mLastReturnedIndex = mRenderPasses.size() - 1;
+        } else {
+            // randomly delete a render pass, 0 cannot be deleted, start from 1
+            mLastReturnedIndex = ThreadLocalRandom.current().nextInt(1, kMaxCachedRenderPasses);
+            mRenderPasses.set(mLastReturnedIndex, renderPass) // swap
+                    .unref();
+        }
+        renderPass.ref();
+        return renderPass;
     }
 
     @Nullable

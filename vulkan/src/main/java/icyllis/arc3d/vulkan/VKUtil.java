@@ -24,6 +24,7 @@ import icyllis.arc3d.core.ColorInfo;
 import icyllis.arc3d.engine.ContextOptions;
 import icyllis.arc3d.engine.ImmediateContext;
 import icyllis.arc3d.engine.Engine.ImageFormat;
+import icyllis.arc3d.engine.Swizzle;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.APIUtil;
 import org.lwjgl.system.NativeType;
@@ -449,5 +450,64 @@ public final class VKUtil {
         }
 
         return result;
+    }
+
+    public static int toVkLoadOp(byte loadOp) {
+        return switch (loadOp) {
+            case LoadOp.kLoad -> VK_ATTACHMENT_LOAD_OP_LOAD;
+            case LoadOp.kClear -> VK_ATTACHMENT_LOAD_OP_CLEAR;
+            case LoadOp.kDiscard -> VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            default -> throw new AssertionError(loadOp);
+        };
+    }
+
+    public static int toVkStoreOp(byte storeOp) {
+        return switch (storeOp) {
+            case StoreOp.kStore -> VK_ATTACHMENT_STORE_OP_STORE;
+            case StoreOp.kDiscard -> VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            default -> throw new AssertionError(storeOp);
+        };
+    }
+
+    public static int toVkImageViewType(int imageType) {
+        return switch (imageType) {
+            case ImageType.k2D -> VK_IMAGE_VIEW_TYPE_2D;
+            case ImageType.k2DArray -> VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+            case ImageType.kCube -> VK_IMAGE_VIEW_TYPE_CUBE;
+            case ImageType.kCubeArray -> VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
+            case ImageType.k3D -> VK_IMAGE_VIEW_TYPE_3D;
+            default -> {
+                assert false : imageType;
+                yield VK_IMAGE_VIEW_TYPE_1D;
+            }
+        };
+    }
+
+    public static int toVkComponentSwizzle(int index) {
+        return switch (index) {
+            case Swizzle.COMPONENT_R    -> VK_COMPONENT_SWIZZLE_R;
+            case Swizzle.COMPONENT_G    -> VK_COMPONENT_SWIZZLE_G;
+            case Swizzle.COMPONENT_B    -> VK_COMPONENT_SWIZZLE_B;
+            case Swizzle.COMPONENT_A    -> VK_COMPONENT_SWIZZLE_A;
+            case Swizzle.COMPONENT_ZERO -> VK_COMPONENT_SWIZZLE_ZERO;
+            case Swizzle.COMPONENT_ONE  -> VK_COMPONENT_SWIZZLE_ONE;
+            default -> {
+                assert false : index;
+                yield VK_COMPONENT_SWIZZLE_IDENTITY;
+            }
+        };
+    }
+
+    public static int getAspectMask(int vkFormat) {
+        return switch (vkFormat) {
+            case VK_FORMAT_S8_UINT -> VK_IMAGE_ASPECT_STENCIL_BIT;
+            case VK_FORMAT_D16_UNORM,
+                 VK_FORMAT_X8_D24_UNORM_PACK32,
+                 VK_FORMAT_D32_SFLOAT -> VK_IMAGE_ASPECT_DEPTH_BIT;
+            case VK_FORMAT_D16_UNORM_S8_UINT,
+                 VK_FORMAT_D24_UNORM_S8_UINT,
+                 VK_FORMAT_D32_SFLOAT_S8_UINT -> VK_IMAGE_ASPECT_STENCIL_BIT | VK_IMAGE_ASPECT_DEPTH_BIT;
+            default -> VK_IMAGE_ASPECT_COLOR_BIT;
+        };
     }
 }

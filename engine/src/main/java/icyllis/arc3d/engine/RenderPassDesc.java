@@ -32,10 +32,25 @@ public final class RenderPassDesc {
 
     //// Color Targets
 
-    public static class ColorAttachmentDesc {
+    public static final class ColorAttachmentDesc {
         public int mFormat = ImageFormat.kUnsupported;
         public byte mLoadOp = LoadOp.kDiscard;
         public byte mStoreOp = StoreOp.kDiscard;
+
+        public ColorAttachmentDesc() {
+        }
+
+        public ColorAttachmentDesc(int format, byte loadOp, byte storeOp) {
+            mFormat = format;
+            mLoadOp = loadOp;
+            mStoreOp = storeOp;
+        }
+
+        public ColorAttachmentDesc(@NonNull ColorAttachmentDesc other) {
+            mFormat = other.mFormat;
+            mLoadOp = other.mLoadOp;
+            mStoreOp = other.mStoreOp;
+        }
     }
 
     public static final @NonNull ColorAttachmentDesc @NonNull [] NO_COLOR_ATTACHMENTS = new ColorAttachmentDesc[0];
@@ -90,4 +105,25 @@ public final class RenderPassDesc {
     public static final int kFlagsBits = 3; // 3 bits to store all flags
 
     public int mRenderPassFlags = 0;
+
+    public RenderPassDesc() {
+    }
+
+    @SuppressWarnings("IncompleteCopyConstructor")
+    public RenderPassDesc(@NonNull RenderPassDesc other) {
+        if (other.mColorAttachments.length > 0) {
+            mColorAttachments = new ColorAttachmentDesc[other.mColorAttachments.length];
+            for (int i = 0; i < mColorAttachments.length; i++) {
+                mColorAttachments[i] = new ColorAttachmentDesc(other.mColorAttachments[i]);
+            }
+        }
+        mHasColorResolveAttachment = other.mHasColorResolveAttachment;
+        mColorResolveLoadOp = other.mColorResolveLoadOp;
+        mColorResolveStoreOp = other.mColorResolveStoreOp;
+        mDepthStencilFormat = other.mDepthStencilFormat;
+        mDepthStencilLoadOp = other.mDepthStencilLoadOp;
+        mDepthStencilStoreOp = other.mDepthStencilStoreOp;
+        mSampleCount = other.mSampleCount;
+        mRenderPassFlags = other.mRenderPassFlags;
+    }
 }
