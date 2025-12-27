@@ -117,9 +117,9 @@ public final class VulkanRenderPassSet extends RefCnt {
 
             int bits1 = desc.mRenderPassFlags << kRenderPassFlagsShift;
             bits1 |= (MathUtil.floorLog2(desc.mSampleCount)) << kSampleCountShift;
-            bits1 |= desc.mHasColorResolveAttachment ? (1 << kHasResolveAttachmentShift) : 0;
+            bits1 |= desc.mColorResolveAttachment.isUsed() ? (1 << kHasResolveAttachmentShift) : 0;
             // kUnsupported (0) means no depth/stencil
-            bits1 |= desc.mDepthStencilFormat << kDepthStencilFormatShift;
+            bits1 |= desc.mDepthStencilAttachment.mFormat << kDepthStencilFormatShift;
             // 0 is allowed
             bits1 |= desc.mColorAttachments.length << kColorCountShift;
 
@@ -205,19 +205,19 @@ public final class VulkanRenderPassSet extends RefCnt {
                 colorAttachment.mLoadOp = Engine.LoadOp.kDiscard;
                 colorAttachment.mStoreOp = Engine.StoreOp.kDiscard;
             }
-            assert desc.mHasColorResolveAttachment;
-            desc.mColorResolveLoadOp = Engine.LoadOp.kLoad;
-            desc.mColorResolveStoreOp = Engine.StoreOp.kStore;
+            assert desc.mColorResolveAttachment.isUsed();
+            desc.mColorResolveAttachment.mLoadOp = Engine.LoadOp.kLoad;
+            desc.mColorResolveAttachment.mStoreOp = Engine.StoreOp.kStore;
         } else {
             for (var colorAttachment : desc.mColorAttachments) {
                 colorAttachment.mLoadOp = Engine.LoadOp.kLoad;
                 colorAttachment.mStoreOp = Engine.StoreOp.kStore;
             }
-            desc.mColorResolveLoadOp = Engine.LoadOp.kDiscard;
-            desc.mColorResolveStoreOp = Engine.StoreOp.kStore;
+            desc.mColorResolveAttachment.mLoadOp = Engine.LoadOp.kDiscard;
+            desc.mColorResolveAttachment.mStoreOp = Engine.StoreOp.kStore;
         }
-        desc.mDepthStencilLoadOp = Engine.LoadOp.kClear;
-        desc.mDepthStencilStoreOp = Engine.StoreOp.kDiscard;
+        desc.mDepthStencilAttachment.mLoadOp = Engine.LoadOp.kClear;
+        desc.mDepthStencilAttachment.mStoreOp = Engine.StoreOp.kDiscard;
 
         @SharedPtr
         VulkanRenderPass standardRenderPass = VulkanRenderPass.make(device, desc);
@@ -227,12 +227,14 @@ public final class VulkanRenderPassSet extends RefCnt {
         return new VulkanRenderPassSet(standardRenderPass); // move
     }
 
+    // this returns raw ptr because it's always managed by this
     @NonNull
     @RawPtr
     public VulkanRenderPass getCompatibleRenderPass() {
         return mRenderPasses.get(0);
     }
 
+    // this returns shared ptr because it can be evicted by this, needs to be tracked separately
     @Nullable
     @SharedPtr
     public VulkanRenderPass findOrCreateRenderPass(@NonNull VulkanDevice device,

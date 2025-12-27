@@ -288,8 +288,8 @@ public final class GLCommandBuffer extends CommandBuffer {
                 for (int i = 0; i < renderPassDesc.mColorAttachments.length; i++) {
                     var attachmentDesc = renderPassDesc.mColorAttachments[i];
                     if (attachmentDesc.isUsed()) {
-                        boolean colorLoadClear = attachmentDesc.mStoreOp == StoreOp.kDiscard;
-                        if (colorLoadClear) {
+                        boolean colorStoreDiscard = attachmentDesc.mStoreOp == StoreOp.kDiscard;
+                        if (colorStoreDiscard) {
                             attachmentsToDiscard.put(framebuffer == null
                                     ? GL_COLOR
                                     : GL_COLOR_ATTACHMENT0 + currentAttachment);
