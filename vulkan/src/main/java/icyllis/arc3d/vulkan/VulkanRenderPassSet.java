@@ -41,6 +41,8 @@ import java.util.concurrent.ThreadLocalRandom;
  * <p>
  * This object is tracked and managed by {@link VulkanGraphicsPipeline}. And this object
  * manages {@link VulkanRenderPass} and also {@link VulkanRenderPassFramebuffer}.
+ * <p>
+ * This class and held objects can ONLY be used on ExecutingThread only.
  */
 public final class VulkanRenderPassSet extends RefCnt {
 
@@ -284,22 +286,23 @@ public final class VulkanRenderPassSet extends RefCnt {
         return framebuffer;
     }
 
+    public void purgeAllFramebuffers() {
+        mFramebufferCache.purgeAllFramebuffers();
+    }
+
     public void purgeStaleFramebuffers() {
         mFramebufferCache.purgeStaleFramebuffers();
     }
 
+    public void purgeFramebuffersNotUsedSince(long timeMillis) {
+        mFramebufferCache.purgeFramebuffersNotUsedSince(timeMillis);
+    }
+
     @Override
     protected void deallocate() {
-        // this can be called from any thread
-        //TODO post to executing thread
-        synchronized (this) {
-            //noinspection ForLoopReplaceableByForEach
-            for (int i = 0; i < mRenderPasses.size(); i++) {
-                RefCnt.move(mRenderPasses.get(i));
-            }
-            mRenderPasses.clear();
+        mRenderPasses.forEach(RefCnt::unref);
+        mRenderPasses.clear();
 
-            mFramebufferCache.close();
-        }
+        mFramebufferCache.close();
     }
 }

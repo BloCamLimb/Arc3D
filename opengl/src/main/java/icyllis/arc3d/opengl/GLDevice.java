@@ -233,7 +233,7 @@ public final class GLDevice extends Device {
     }
 
     /**
-     * OpenGL only method. Execute the GL command as soon as possible.
+     * Execute the GL command as soon as possible.
      */
     public void executeRenderCall(Consumer<GLDevice> renderCall) {
         if (isOnExecutingThread()) {

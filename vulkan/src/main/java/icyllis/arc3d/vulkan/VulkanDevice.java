@@ -20,23 +20,39 @@
 package icyllis.arc3d.vulkan;
 
 import icyllis.arc3d.core.Rect2i;
+import icyllis.arc3d.core.RefCnt;
+import icyllis.arc3d.core.SharedPtr;
 import icyllis.arc3d.engine.*;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.vulkan.*;
 
+import java.util.HashMap;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 import static org.lwjgl.vulkan.VK11.*;
 
-public class VulkanDevice extends Device {
+public final class VulkanDevice extends Device {
 
-    private VkPhysicalDevice mPhysicalDevice;
-    private VkDevice mDevice;
-    private VulkanMemoryAllocator mMemoryAllocator;
+    private final VkPhysicalDevice mPhysicalDevice;
+    private final VkDevice mDevice;
+    private final VulkanMemoryAllocator mMemoryAllocator;
     private boolean mProtectedContext;
-    private int mQueueIndex;
+    private final int mQueueIndex;
+
+    private final ConcurrentLinkedQueue<Consumer<VulkanDevice>> mRenderCalls =
+            new ConcurrentLinkedQueue<>();
+
+    // executing thread only
+    private final HashMap<VulkanRenderPassSet.CompatibleKey, @SharedPtr VulkanRenderPassSet> mRenderPassCompatibilityCache
+            = new HashMap<>();
+    private final VulkanRenderPassSet.CompatibleKey mLookupCompatibleRenderPassKey
+            = new VulkanRenderPassSet.CompatibleKey();
+    private final AtomicBoolean mNeedsPurgeRenderPasses = new AtomicBoolean(false);
 
     public VulkanDevice(ContextOptions options, VulkanCaps caps,
                         VulkanBackendContext backendContext,
@@ -112,6 +128,125 @@ public class VulkanDevice extends Device {
 
     public boolean isProtectedContext() {
         return mProtectedContext;
+    }
+
+    /**
+     * Execute the Vulkan command on ExecutingThread as soon as possible.
+     */
+    public void executeRenderCall(Consumer<VulkanDevice> renderCall) {
+        if (isOnExecutingThread()) {
+            renderCall.accept(this);
+        } else {
+            recordRenderCall(renderCall);
+        }
+    }
+
+    public void recordRenderCall(Consumer<VulkanDevice> renderCall) {
+        mRenderCalls.add(renderCall);
+    }
+
+    public void flushRenderCalls() {
+        //noinspection UnnecessaryLocalVariable
+        final var queue = mRenderCalls;
+        Consumer<VulkanDevice> r;
+        while ((r = queue.poll()) != null) r.accept(this);
+    }
+
+    @Override
+    public void disconnect(boolean cleanup) {
+        super.disconnect(cleanup);
+
+        flushRenderCalls();
+
+        for (VulkanRenderPassSet compatibleSet : mRenderPassCompatibilityCache.values()) {
+            compatibleSet.unref();
+        }
+        mRenderPassCompatibilityCache.clear();
+    }
+
+    public void needsPurgeRenderPasses() {
+        // memory_order_release
+        mNeedsPurgeRenderPasses.setRelease(true);
+    }
+
+    @Override
+    protected void freeGpuResources() {
+        super.freeGpuResources();
+        // memory_order_relaxed
+        mNeedsPurgeRenderPasses.setOpaque(false);
+        for (var it = mRenderPassCompatibilityCache.values().iterator(); it.hasNext(); ) {
+            var compatibleSet = it.next();
+            if (compatibleSet.unique()) {
+                compatibleSet.unref();
+                it.remove();
+            } else {
+                compatibleSet.purgeAllFramebuffers();
+            }
+        }
+    }
+
+    @Override
+    protected void purgeResourcesNotUsedSince(long timeMillis) {
+        super.purgeResourcesNotUsedSince(timeMillis);
+        // memory_order_relaxed
+        mNeedsPurgeRenderPasses.setOpaque(false);
+        for (var it = mRenderPassCompatibilityCache.values().iterator(); it.hasNext(); ) {
+            var compatibleSet = it.next();
+            if (compatibleSet.unique()) {
+                compatibleSet.unref();
+                it.remove();
+            } else {
+                compatibleSet.purgeFramebuffersNotUsedSince(timeMillis);
+            }
+        }
+    }
+
+    public void purgeStaleResourcesIfNeeded() {
+        // compare_exchange_strong(acquire, relaxed)
+        if (mNeedsPurgeRenderPasses.compareAndExchangeAcquire(true, false)) {
+            for (var it = mRenderPassCompatibilityCache.values().iterator(); it.hasNext(); ) {
+                var compatibleSet = it.next();
+                if (compatibleSet.unique()) {
+                    compatibleSet.unref();
+                    it.remove();
+                } else {
+                    compatibleSet.purgeStaleFramebuffers();
+                }
+            }
+        }
+    }
+
+    @Nullable
+    @SharedPtr
+    public VulkanRenderPassSet findOrCreateCompatibleRenderPassSet(@NonNull RenderPassDesc desc) {
+        var key = mLookupCompatibleRenderPassKey.update(desc);
+        VulkanRenderPassSet renderPassSet = mRenderPassCompatibilityCache.get(key);
+        if (renderPassSet != null) {
+            renderPassSet.ref();
+            return renderPassSet;
+        }
+
+        renderPassSet = VulkanRenderPassSet.make(this, desc);
+        if (renderPassSet == null) {
+            return null;
+        }
+        mRenderPassCompatibilityCache.put(key.copy(), renderPassSet); // move
+        renderPassSet.ref();
+        return renderPassSet;
+    }
+
+    @Nullable
+    @SharedPtr
+    public VulkanRenderPass findOrCreateRenderPass(@NonNull RenderPassDesc desc) {
+        @SharedPtr
+        VulkanRenderPassSet renderPassSet = findOrCreateCompatibleRenderPassSet(desc);
+        if (renderPassSet == null) {
+            return null;
+        }
+        @SharedPtr
+        VulkanRenderPass renderPass = renderPassSet.findOrCreateRenderPass(this, desc);
+        renderPassSet.unref();
+        return renderPass; // move
     }
 
     @Override
