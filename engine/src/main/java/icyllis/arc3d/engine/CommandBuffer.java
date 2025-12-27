@@ -36,11 +36,16 @@ public abstract class CommandBuffer {
 
     /**
      * Begin render pass. If successful, {@link #endRenderPass()} must be called.
+     * <p>
+     * Placeholder attachment is not indexing in <var>clearColors</var>. For example, if you have
+     * 6 color attachments and 1 resolve attachment, but 3 of the color attachments are placeholders
+     * (i.e., {@link RenderPassDesc.AttachmentDesc#isUsed} returns false), then you only need to
+     * provide <code>(6-3+1)*4</code> continuous floats. If loadOp is not clear, then ignore the slot.
      *
      * @param renderPassDesc   descriptor to create a render pass
      * @param framebufferDesc  descriptor to create a framebuffer
      * @param renderPassBounds content bounds of this render pass
-     * @param clearColors      clear color for each color attachment
+     * @param clearColors      clear color for each color attachment, and then resolve attachment
      * @param clearDepth       clear depth
      * @param clearStencil     clear stencil (unsigned)
      * @return success or not

@@ -41,7 +41,7 @@ public final class GLFramebuffer extends Framebuffer {
         mResolveFramebuffer = resolveFramebuffer;
     }
 
-    private static void attachColorAttachment(GLInterface gl, int index, GLImage image, int mipLevel) {
+    private static void attachColorAttachment(GLInterface gl, int index, GLImage image) {
         if (image instanceof GLRenderbuffer renderbuffer) {
             gl.glFramebufferRenderbuffer(GL_FRAMEBUFFER,
                     GL_COLOR_ATTACHMENT0 + index,
@@ -55,7 +55,7 @@ public final class GLFramebuffer extends Framebuffer {
                             GL_COLOR_ATTACHMENT0 + index,
                             texture.getTarget(),
                             texture.getHandle(),
-                            mipLevel);
+                            0);
                 }
                 default -> throw new UnsupportedOperationException();
             }
@@ -73,12 +73,11 @@ public final class GLFramebuffer extends Framebuffer {
 
         final int numColorAttachments;
         boolean hasColorAttachments = false;
-        boolean hasColorResolveAttachments = false;
+        boolean hasColorResolveAttachments = desc.mColorResolveAttachment.mAttachment != null;
         numColorAttachments = desc.mColorAttachments.length;
         for (int i = 0; i < numColorAttachments; i++) {
             var attachmentDesc = desc.mColorAttachments[i];
             hasColorAttachments |= attachmentDesc.mAttachment != null;
-            hasColorResolveAttachments |= attachmentDesc.mResolveAttachment != null;
         }
 
         // There's an NVIDIA driver bug that creating framebuffer via DSA with attachments of
@@ -108,7 +107,10 @@ public final class GLFramebuffer extends Framebuffer {
 
         gl.glBindFramebuffer(GL_FRAMEBUFFER, renderFramebuffer);
         if (hasColorAttachments) {
+            //TODO bind other that 2D, and apply arraySlice
             int[] drawBuffers = new int[numColorAttachments];
+            // attachment is physically indexed, but draw buffer is a logical index, i.e., layout(location = N)
+            int currentAttachment = 0;
             for (int index = 0; index < numColorAttachments; index++) {
                 var attachmentDesc = desc.mColorAttachments[index];
                 if (attachmentDesc.mAttachment == null) {
@@ -116,33 +118,33 @@ public final class GLFramebuffer extends Framebuffer {
                     drawBuffers[index] = GL_NONE;
                     continue;
                 }
-                GLImage attachment = (GLImage) attachmentDesc.mAttachment.get();
-                assert attachment != null;
+                GLImage attachmentImage = (GLImage) attachmentDesc.mAttachment.get();
+                assert attachmentImage != null;
                 attachColorAttachment(gl,
-                        index,
-                        attachment,
-                        attachmentDesc.mMipLevel);
-                drawBuffers[index] = GL_COLOR_ATTACHMENT0 + index;
+                        currentAttachment,
+                        attachmentImage);
+                drawBuffers[index] = GL_COLOR_ATTACHMENT0 + currentAttachment;
+                currentAttachment++;
             }
             gl.glDrawBuffers(numColorAttachments, drawBuffers);
         }
         if (desc.mDepthStencilAttachment.mAttachment != null) {
-            GLRenderbuffer attachment = (GLRenderbuffer) desc.mDepthStencilAttachment.mAttachment.get();
-            assert attachment != null;
+            GLRenderbuffer attachmentImage = (GLRenderbuffer) desc.mDepthStencilAttachment.mAttachment.get();
+            assert attachmentImage != null;
             //TODO attach depth texture besides renderbuffer
             int attachmentPoint;
-            if (GLUtil.glFormatIsPackedDepthStencil(attachment.getFormat())) {
+            if (GLUtil.glFormatIsPackedDepthStencil(attachmentImage.getFormat())) {
                 attachmentPoint = GL_DEPTH_STENCIL_ATTACHMENT;
-            } else if (GLUtil.glFormatDepthBits(attachment.getFormat()) > 0) {
+            } else if (GLUtil.glFormatDepthBits(attachmentImage.getFormat()) > 0) {
                 attachmentPoint = GL_DEPTH_ATTACHMENT;
             } else {
-                assert GLUtil.glFormatStencilBits(attachment.getFormat()) > 0;
+                assert GLUtil.glFormatStencilBits(attachmentImage.getFormat()) > 0;
                 attachmentPoint = GL_STENCIL_ATTACHMENT;
             }
             gl.glFramebufferRenderbuffer(GL_FRAMEBUFFER,
                     attachmentPoint,
                     GL_RENDERBUFFER,
-                    attachment.getHandle());
+                    attachmentImage.getHandle());
         }
         if (!device.getCaps().skipErrorChecks()) {
             int status = gl.glCheckFramebufferStatus(GL_FRAMEBUFFER);
@@ -153,23 +155,15 @@ public final class GLFramebuffer extends Framebuffer {
         }
 
         if (hasColorResolveAttachments) {
+            assert numColorAttachments == 1;
             gl.glBindFramebuffer(GL_FRAMEBUFFER, resolveFramebuffer);
             int[] drawBuffers = new int[numColorAttachments];
-            for (int index = 0; index < numColorAttachments; index++) {
-                var attachmentDesc = desc.mColorAttachments[index];
-                if (attachmentDesc.mResolveAttachment == null) {
-                    // unused slot
-                    drawBuffers[index] = GL_NONE;
-                    continue;
-                }
-                GLImage resolveAttachment = (GLImage) attachmentDesc.mResolveAttachment.get();
-                assert resolveAttachment != null;
-                attachColorAttachment(gl,
-                        index,
-                        resolveAttachment,
-                        attachmentDesc.mMipLevel);
-                drawBuffers[index] = GL_COLOR_ATTACHMENT0 + index;
-            }
+            GLImage resolveAttachment = (GLImage) desc.mColorResolveAttachment.mAttachment.get();
+            assert resolveAttachment != null;
+            attachColorAttachment(gl,
+                    0,
+                    resolveAttachment);
+            drawBuffers[0] = GL_COLOR_ATTACHMENT0;
             gl.glDrawBuffers(numColorAttachments, drawBuffers);
             if (!device.getCaps().skipErrorChecks()) {
                 int status = gl.glCheckFramebufferStatus(GL_FRAMEBUFFER);

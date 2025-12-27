@@ -35,8 +35,6 @@ import org.lwjgl.vulkan.VkRenderPassCreateInfo;
 import org.lwjgl.vulkan.VkSubpassDependency;
 import org.lwjgl.vulkan.VkSubpassDescription;
 
-import java.nio.LongBuffer;
-
 import static org.lwjgl.vulkan.VK10.*;
 
 /**
@@ -69,12 +67,12 @@ public final class VulkanRenderPass extends ManagedResource {
             bits |= ((attachment.mLoadOp) | (attachment.mStoreOp << kLoadOpBits))
                     << (kLoadStoreOpsBits * i);
         }
-        if (desc.mHasColorResolveAttachment) {
-            bits |= ((desc.mColorResolveLoadOp) | (desc.mColorResolveStoreOp << kLoadOpBits))
-                    << (kLoadStoreOpsBits * Caps.MAX_COLOR_TARGETS);
+        if (desc.mColorResolveAttachment.isUsed()) {
+            bits |= ((desc.mColorResolveAttachment.mLoadOp) | (desc.mColorResolveAttachment.mStoreOp << kLoadOpBits))
+                    << (kLoadStoreOpsBits * (Caps.MAX_COLOR_TARGETS));
         }
-        if (desc.mDepthStencilFormat != Engine.ImageFormat.kUnsupported) {
-            bits |= ((desc.mDepthStencilLoadOp) | (desc.mDepthStencilStoreOp << kLoadOpBits))
+        if (desc.mDepthStencilAttachment.isUsed()) {
+            bits |= ((desc.mDepthStencilAttachment.mLoadOp) | (desc.mDepthStencilAttachment.mStoreOp << kLoadOpBits))
                     << (kLoadStoreOpsBits * (Caps.MAX_COLOR_TARGETS + 1));
         }
         return bits;
@@ -98,6 +96,7 @@ public final class VulkanRenderPass extends ManagedResource {
         assert renderPass != VK_NULL_HANDLE;
     }
 
+    @SuppressWarnings("resource")
     @Nullable
     @SharedPtr
     public static VulkanRenderPass make(@NonNull VulkanDevice device,
@@ -111,8 +110,8 @@ public final class VulkanRenderPass extends ManagedResource {
         try (var stack = MemoryStack.stackPush()) {
 
             int numAttachments = desc.mColorAttachments.length +
-                    (desc.mHasColorResolveAttachment ? 1 : 0) +
-                    (desc.mDepthStencilFormat != Engine.ImageFormat.kUnsupported ? 1 : 0);
+                    (desc.mColorResolveAttachment.isUsed() ? 1 : 0) +
+                    (desc.mDepthStencilAttachment.isUsed() ? 1 : 0);
             int vkSamples = VKUtil.toVkSampleCount(desc.mSampleCount);
             boolean loadFromResolve = (desc.mRenderPassFlags & RenderPassDesc.kLoadFromResolve_Flag) != 0;
 
@@ -161,7 +160,7 @@ public final class VulkanRenderPass extends ManagedResource {
                     var colorDesc = desc.mColorAttachments[i];
                     var colorRef = pColorRefs.get();
 
-                    if (colorDesc.mFormat == Engine.ImageFormat.kUnsupported) {
+                    if (!colorDesc.isUsed()) {
                         colorRef
                                 .attachment(VK_ATTACHMENT_UNUSED)
                                 .layout(VK_IMAGE_LAYOUT_UNDEFINED);
@@ -224,13 +223,15 @@ public final class VulkanRenderPass extends ManagedResource {
                 assert desc.mRenderPassFlags == 0;
             }
 
-            if (desc.mHasColorResolveAttachment) {
+            if (desc.mColorResolveAttachment.isUsed()) {
                 assert desc.mColorAttachments.length == 1;
 
                 // if first subpass is LoadFromResolve
                 int startImageLayout = loadFromResolve
                         ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
                         : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+                var colorResolveDesc = desc.mColorResolveAttachment;
 
                 var colorResolveRef = pColorResolveRefs.get();
                 colorResolveRef
@@ -239,10 +240,10 @@ public final class VulkanRenderPass extends ManagedResource {
 
                 pAttachments.get()
                         .flags(0)
-                        .format(VKUtil.toVkFormat(desc.mColorAttachments[0].mFormat))
+                        .format(VKUtil.toVkFormat(colorResolveDesc.mFormat))
                         .samples(vkSamples)
-                        .loadOp(VKUtil.toVkLoadOp(desc.mColorResolveLoadOp))
-                        .storeOp(VKUtil.toVkStoreOp(desc.mColorResolveStoreOp))
+                        .loadOp(VKUtil.toVkLoadOp(colorResolveDesc.mLoadOp))
+                        .storeOp(VKUtil.toVkStoreOp(colorResolveDesc.mStoreOp))
                         .stencilLoadOp(VK_ATTACHMENT_LOAD_OP_DONT_CARE)
                         .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
                         .initialLayout(startImageLayout)
@@ -286,10 +287,11 @@ public final class VulkanRenderPass extends ManagedResource {
                 assert !loadFromResolve;
             }
 
-            if (desc.mDepthStencilFormat != Engine.ImageFormat.kUnsupported) {
+            if (desc.mDepthStencilAttachment.isUsed()) {
+                var depthStencilDesc = desc.mColorResolveAttachment;
 
-                int vkLoadOp = VKUtil.toVkLoadOp(desc.mDepthStencilLoadOp);
-                int vkStoreOp = VKUtil.toVkStoreOp(desc.mDepthStencilStoreOp);
+                int vkLoadOp = VKUtil.toVkLoadOp(depthStencilDesc.mLoadOp);
+                int vkStoreOp = VKUtil.toVkStoreOp(depthStencilDesc.mStoreOp);
 
                 pDepthStencilRef
                         .attachment(pAttachments.position())
@@ -297,7 +299,7 @@ public final class VulkanRenderPass extends ManagedResource {
 
                 pAttachments.get()
                         .flags(0)
-                        .format(VKUtil.toVkFormat(desc.mDepthStencilFormat))
+                        .format(VKUtil.toVkFormat(depthStencilDesc.mFormat))
                         .samples(vkSamples)
                         .loadOp(vkLoadOp)
                         .storeOp(vkStoreOp)
@@ -311,8 +313,10 @@ public final class VulkanRenderPass extends ManagedResource {
                         .layout(VK_IMAGE_LAYOUT_UNDEFINED);
             }
 
+            mainSubpassDesc.pDepthStencilAttachment(pDepthStencilRef);
+
+            assert !pSubpasses.hasRemaining();
             pAttachments.flip();
-            assert pAttachments.remaining() == numAttachments;
             pSubpasses.flip();
             pDependencies.flip();
 

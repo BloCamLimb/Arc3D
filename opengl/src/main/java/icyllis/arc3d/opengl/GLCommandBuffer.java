@@ -207,22 +207,26 @@ public final class GLCommandBuffer extends CommandBuffer {
 
         try (MemoryStack stack = mStack.push()) {
             var floatValues = stack.mallocFloat(4);
+            int currentAttachment = 0;
             for (int i = 0; i < renderPassDesc.mColorAttachments.length; i++) {
                 var attachmentDesc = renderPassDesc.mColorAttachments[i];
-                boolean colorLoadClear = attachmentDesc.mLoadOp == LoadOp.kClear;
-                if (colorLoadClear) {
-                    flushColorWrite(true);
-                    floatValues.put(0, clearColors, i << 2, 4);
-                    mDevice.getGL().glClearBufferfv(GL_COLOR,
-                            i,  // draw buffer
-                            memAddress(floatValues));
+                if (attachmentDesc.isUsed()) {
+                    boolean colorLoadClear = attachmentDesc.mLoadOp == LoadOp.kClear;
+                    if (colorLoadClear) {
+                        flushColorWrite(true);
+                        floatValues.put(0, clearColors, currentAttachment << 2, 4);
+                        mDevice.getGL().glClearBufferfv(GL_COLOR,
+                                i,  // draw buffer
+                                memAddress(floatValues));
+                    }
+                    currentAttachment++;
                 }
             }
-            boolean depthStencilLoadClear = renderPassDesc.mDepthStencilFormat != ImageFormat.kUnsupported &&
-                    renderPassDesc.mDepthStencilLoadOp == LoadOp.kClear;
+            boolean depthStencilLoadClear = renderPassDesc.mDepthStencilAttachment.isUsed() &&
+                    renderPassDesc.mDepthStencilAttachment.mLoadOp == LoadOp.kClear;
             if (depthStencilLoadClear) {
-                boolean hasDepth = ImageFormat.depthBits(renderPassDesc.mDepthStencilFormat) > 0;
-                boolean hasStencil = ImageFormat.stencilBits(renderPassDesc.mDepthStencilFormat) > 0;
+                boolean hasDepth = ImageFormat.depthBits(renderPassDesc.mDepthStencilAttachment.mFormat) > 0;
+                boolean hasStencil = ImageFormat.stencilBits(renderPassDesc.mDepthStencilAttachment.mFormat) > 0;
                 if (hasDepth) {
                     flushDepthWrite(true);
                 }
@@ -280,20 +284,24 @@ public final class GLCommandBuffer extends CommandBuffer {
             try (MemoryStack stack = mStack.push()) {
                 // +1 for DepthStencil
                 var attachmentsToDiscard = stack.mallocInt(renderPassDesc.mColorAttachments.length + 1);
+                int currentAttachment = 0;
                 for (int i = 0; i < renderPassDesc.mColorAttachments.length; i++) {
                     var attachmentDesc = renderPassDesc.mColorAttachments[i];
-                    boolean colorLoadClear = attachmentDesc.mStoreOp == StoreOp.kDiscard;
-                    if (colorLoadClear) {
-                        attachmentsToDiscard.put(framebuffer == null
-                                ? GL_COLOR
-                                : GL_COLOR_ATTACHMENT0 + i);
+                    if (attachmentDesc.isUsed()) {
+                        boolean colorLoadClear = attachmentDesc.mStoreOp == StoreOp.kDiscard;
+                        if (colorLoadClear) {
+                            attachmentsToDiscard.put(framebuffer == null
+                                    ? GL_COLOR
+                                    : GL_COLOR_ATTACHMENT0 + currentAttachment);
+                        }
+                        currentAttachment++;
                     }
                 }
-                boolean depthStencilStoreDiscard = renderPassDesc.mDepthStencilFormat != ImageFormat.kUnsupported &&
-                        renderPassDesc.mDepthStencilStoreOp == StoreOp.kDiscard;
+                boolean depthStencilStoreDiscard = renderPassDesc.mDepthStencilAttachment.isUsed() &&
+                        renderPassDesc.mDepthStencilAttachment.mStoreOp == StoreOp.kDiscard;
                 if (depthStencilStoreDiscard) {
-                    boolean hasDepth = ImageFormat.depthBits(renderPassDesc.mDepthStencilFormat) > 0;
-                    boolean hasStencil = ImageFormat.stencilBits(renderPassDesc.mDepthStencilFormat) > 0;
+                    boolean hasDepth = ImageFormat.depthBits(renderPassDesc.mDepthStencilAttachment.mFormat) > 0;
+                    boolean hasStencil = ImageFormat.stencilBits(renderPassDesc.mDepthStencilAttachment.mFormat) > 0;
                     if (hasDepth && hasStencil) {
                         attachmentsToDiscard.put(framebuffer == null
                                 ? GL_DEPTH_STENCIL

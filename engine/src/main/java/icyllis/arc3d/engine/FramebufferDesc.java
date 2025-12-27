@@ -61,50 +61,51 @@ public final class FramebufferDesc {
     int FLAG_VK_WRAP_SECONDARY_CB = ISurface.FLAG_PROTECTED << 6;
 
     @Immutable
-    public static final class ColorAttachmentDesc {
+    public static final class AttachmentDesc {
+        /**
+         * Null means this entry is unused.
+         */
         @Nullable
         public final WeakIdentityKey<@RawPtr Resource> mAttachment;
-        @Nullable
-        public final WeakIdentityKey<@RawPtr Resource> mResolveAttachment;
-        public final int mMipLevel;
+        /**
+         * If < 0, all the layers will be bound, and framebuffer will be layered if
+         * it contains multiple layers (2D array, cubemap, cubemap array).
+         * <p>
+         * Otherwise, it specifies array index + face to use.
+         */
         public final int mArraySlice;
 
-        public ColorAttachmentDesc() {
+        /**
+         * Use {@link #UNUSED_ATTACHMENT}
+         */
+        AttachmentDesc() {
             mAttachment = null;
-            mResolveAttachment = null;
-            mMipLevel = 0;
-            mArraySlice = 0;
+            mArraySlice = -1;
         }
 
-        public ColorAttachmentDesc(@Nullable @RawPtr Image attachment,
-                                   @Nullable @RawPtr Image resolveAttachment,
-                                   int mipLevel, int arraySlice) {
+        public AttachmentDesc(@Nullable @RawPtr Image attachment) {
+            this(attachment, -1);
+        }
+
+        public AttachmentDesc(@Nullable @RawPtr Image attachment,
+                              int arraySlice) {
             if (attachment != null) {
                 mAttachment = attachment.getUniqueID();
+                mArraySlice = arraySlice;
             } else {
                 mAttachment = null;
+                mArraySlice = -1;
             }
-            if (resolveAttachment != null) {
-                mResolveAttachment = resolveAttachment.getUniqueID();
-            } else {
-                mResolveAttachment = null;
-            }
-            assert mipLevel >= 0 && arraySlice >= 0;
-            mMipLevel = mipLevel;
-            mArraySlice = arraySlice;
         }
 
         public boolean isStale() {
             @RawPtr Resource e;
-            return (mAttachment != null && ((e = mAttachment.get()) == null || e.isDestroyed())) ||
-                    (mResolveAttachment != null && ((e = mResolveAttachment.get()) == null || e.isDestroyed()));
+            return mAttachment != null && ((e = mAttachment.get()) == null || e.isDestroyed());
         }
 
         @Override
         public int hashCode() {
             int result = Objects.hashCode(mAttachment);
-            result = 31 * result + Objects.hashCode(mResolveAttachment);
-            result = 31 * result + mMipLevel;
             result = 31 * result + mArraySlice;
             return result;
         }
@@ -112,91 +113,75 @@ public final class FramebufferDesc {
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
-            if (o instanceof ColorAttachmentDesc that) {
-                return mMipLevel == that.mMipLevel &&
-                        mArraySlice == that.mArraySlice &&
-                        mAttachment == that.mAttachment &&
-                        mResolveAttachment == that.mResolveAttachment;
+            if (o instanceof AttachmentDesc that) {
+                return mAttachment == that.mAttachment &&
+                        mArraySlice == that.mArraySlice;
             }
             return false;
         }
     }
 
-    public final @NonNull ColorAttachmentDesc @NonNull [] mColorAttachments;
+    public static final @NonNull AttachmentDesc UNUSED_ATTACHMENT = new AttachmentDesc();
 
-    public static final @NonNull ColorAttachmentDesc @NonNull [] NO_COLOR_ATTACHMENTS = new ColorAttachmentDesc[0];
 
-    // resolve should also have miplevel and arrayslice
+    //// Color Targets
 
-    @Immutable
-    public static final class DepthStencilAttachmentDesc {
-        @Nullable
-        public final WeakIdentityKey<@RawPtr Resource> mAttachment;
+    public static final @NonNull AttachmentDesc @NonNull [] NO_COLOR_ATTACHMENTS = new AttachmentDesc[0];
+    /**
+     * This matches {@link RenderPassDesc}, if a slot's format is kUnsupported, use {@link #UNUSED_ATTACHMENT}
+     * to represent a placeholder, but elements cannot be null.
+     */
+    public final @NonNull @Size(max = Caps.MAX_COLOR_TARGETS) AttachmentDesc @NonNull [] mColorAttachments;
 
-        public DepthStencilAttachmentDesc() {
-            mAttachment = null;
-        }
 
-        public DepthStencilAttachmentDesc(@Nullable @RawPtr Image attachment) {
-            if (attachment != null) {
-                mAttachment = attachment.getUniqueID();
-            } else {
-                mAttachment = null;
-            }
-        }
+    //// Color Resolve Target (single RT case)
 
-        public boolean isStale() {
-            @RawPtr Resource e;
-            return (mAttachment != null && ((e = mAttachment.get()) == null || e.isDestroyed()));
-        }
+    public final @NonNull AttachmentDesc mColorResolveAttachment;
 
-        @Override
-        public int hashCode() {
-            return Objects.hashCode(mAttachment);
-        }
 
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o instanceof DepthStencilAttachmentDesc that) {
-                return mAttachment == that.mAttachment;
-            }
-            return false;
-        }
-    }
+    //// Depth-Stencil Target (no resolve)
 
-    @NonNull
-    public final DepthStencilAttachmentDesc mDepthStencilAttachment;
+    public final @NonNull AttachmentDesc mDepthStencilAttachment;
 
-    public static final DepthStencilAttachmentDesc NO_DEPTH_STENCIL_ATTACHMENT = new DepthStencilAttachmentDesc();
+
+    //// Overall Settings
 
     /**
-     * If there are any attachments, then framebuffer bounds must be the intersection of
-     * all attachment bounds.
+     * If there are any attachments, then framebuffer bounds/layers must be <em>exactly</em>
+     * the intersection (minimum) of all attachment bounds/layers.
+     * <p>
+     * If there's no attachments, this can be any value > 0.
      */
-    public final int mWidth, mHeight;
+    public final int mWidth, mHeight, mLayers;
     //TODO WIP
     public int mFramebufferFlags;
 
-    public FramebufferDesc(int width, int height,
-                           @Nullable ColorAttachmentDesc colorAttachment,
-                           @Nullable DepthStencilAttachmentDesc depthStencilAttachment) {
-        this(width, height,
-                colorAttachment != null ? new ColorAttachmentDesc[]{colorAttachment} : null,
+    public FramebufferDesc(int width, int height, int layers,
+                           @Nullable AttachmentDesc colorAttachment,
+                           @Nullable AttachmentDesc colorResolveAttachment,
+                           @Nullable AttachmentDesc depthStencilAttachment) {
+        this(width, height, layers,
+                colorAttachment != null ? new AttachmentDesc[]{colorAttachment} : null,
+                colorResolveAttachment,
                 depthStencilAttachment);
     }
 
-    public FramebufferDesc(int width, int height,
-                           @NonNull @Size(max = Caps.MAX_COLOR_TARGETS) ColorAttachmentDesc @Nullable [] colorAttachments,
-                           @Nullable DepthStencilAttachmentDesc depthStencilAttachment) {
+    public FramebufferDesc(int width, int height, int layers,
+                           @NonNull @Size(max = Caps.MAX_COLOR_TARGETS) AttachmentDesc @Nullable [] colorAttachments,
+                           @Nullable AttachmentDesc colorResolveAttachment,
+                           @Nullable AttachmentDesc depthStencilAttachment) {
         mWidth = width;
         mHeight = height;
+        mLayers = layers;
         mColorAttachments = colorAttachments != null
                 ? colorAttachments
                 : NO_COLOR_ATTACHMENTS;
+        mColorResolveAttachment = colorResolveAttachment != null
+                ? colorResolveAttachment
+                : UNUSED_ATTACHMENT;
         mDepthStencilAttachment = depthStencilAttachment != null
                 ? depthStencilAttachment
-                : NO_DEPTH_STENCIL_ATTACHMENT;
+                : UNUSED_ATTACHMENT;
         assert mColorAttachments.length <= Caps.MAX_COLOR_TARGETS;
         for (var colorAttachment : mColorAttachments) {
             assert colorAttachment != null;
@@ -210,9 +195,14 @@ public final class FramebufferDesc {
      * @return true to delete, false to keep
      */
     public boolean isStale() {
-        for (var colorAttachment : mColorAttachments)
-            if (colorAttachment.isStale())
+        for (var colorAttachment : mColorAttachments) {
+            if (colorAttachment.isStale()) {
                 return true;
+            }
+        }
+        if (mColorResolveAttachment.isStale()) {
+            return true;
+        }
         return mDepthStencilAttachment.isStale();
     }
 
@@ -220,9 +210,11 @@ public final class FramebufferDesc {
     public int hashCode() {
         int result = mWidth;
         result = 31 * result + mHeight;
+        result = 31 * result + mLayers;
         for (var colorAttachment : mColorAttachments) {
             result = 31 * result + colorAttachment.hashCode();
         }
+        result = 31 * result + mColorResolveAttachment.hashCode();
         result = 31 * result + mDepthStencilAttachment.hashCode();
         return result;
     }
@@ -233,11 +225,14 @@ public final class FramebufferDesc {
         if (o instanceof FramebufferDesc that) {
             if (mWidth == that.mWidth &&
                     mHeight == that.mHeight &&
+                    mLayers == that.mLayers &&
                     mColorAttachments.length == that.mColorAttachments.length &&
-                    mDepthStencilAttachment.equals(that.mDepthStencilAttachment)) {
+                    mDepthStencilAttachment.equals(that.mDepthStencilAttachment) &&
+                    mColorResolveAttachment.equals(that.mColorResolveAttachment)) {
                 for (int i = 0; i < mColorAttachments.length; i++) {
-                    if (!mColorAttachments[i].equals(that.mColorAttachments[i]))
+                    if (!mColorAttachments[i].equals(that.mColorAttachments[i])) {
                         return false;
+                    }
                 }
                 return true;
             }

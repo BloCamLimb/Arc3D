@@ -30,52 +30,57 @@ import org.jspecify.annotations.NonNull;
  */
 public final class RenderPassDesc {
 
-    //// Color Targets
-
-    public static final class ColorAttachmentDesc {
+    public static final class AttachmentDesc {
         public int mFormat = ImageFormat.kUnsupported;
         public byte mLoadOp = LoadOp.kDiscard;
         public byte mStoreOp = StoreOp.kDiscard;
 
-        public ColorAttachmentDesc() {
+        public AttachmentDesc() {
         }
 
-        public ColorAttachmentDesc(int format, byte loadOp, byte storeOp) {
-            mFormat = format;
-            mLoadOp = loadOp;
-            mStoreOp = storeOp;
-        }
-
-        public ColorAttachmentDesc(@NonNull ColorAttachmentDesc other) {
+        public AttachmentDesc(RenderPassDesc.@NonNull AttachmentDesc other) {
             mFormat = other.mFormat;
             mLoadOp = other.mLoadOp;
             mStoreOp = other.mStoreOp;
         }
+
+        /**
+         * False if this attachment is unused, a placeholder to maintain ABI, layout(location = N).
+         */
+        public boolean isUsed() {
+            return mFormat != ImageFormat.kUnsupported;
+        }
     }
 
-    public static final @NonNull ColorAttachmentDesc @NonNull [] NO_COLOR_ATTACHMENTS = new ColorAttachmentDesc[0];
-    public @NonNull @Size(max = Caps.MAX_COLOR_TARGETS) ColorAttachmentDesc @NonNull [] mColorAttachments = NO_COLOR_ATTACHMENTS;
+    //// Color Targets
+
+    public static final @NonNull AttachmentDesc @NonNull [] NO_COLOR_ATTACHMENTS = new AttachmentDesc[0];
+    /**
+     * If {@link AttachmentDesc#isUsed()} return false, it
+     * means it's a mock/placeholder attachment. This array can be empty.
+     */
+    public @NonNull @Size(max = Caps.MAX_COLOR_TARGETS) AttachmentDesc @NonNull [] mColorAttachments = NO_COLOR_ATTACHMENTS;
 
 
     //// Color Resolve Target (single RT case)
 
-    /*
-     * When true, MSAA will be auto resolved, and resolve image format always matches
-     * MSAA image format, and mColorResolveStoreOp should be Store.
+    /**
+     * If {@link AttachmentDesc#isUsed()} return true, it
+     * means there's color resolve attachment, and MSAA will be auto resolved,
+     * and resolve image format must match MSAA image format, and resolve StoreOp should be Store.
+     * <p>
+     * If MSAA LoadOp is Load/Clear, then resolve LoadOp should be Discard.
      */
-    public boolean mHasColorResolveAttachment = false;
-    /*
-     * If mLoadOp is Load/Clear, then mColorResolveLoadOp should be Discard.
-     */
-    public byte mColorResolveLoadOp = LoadOp.kDiscard;
-    public byte mColorResolveStoreOp = StoreOp.kDiscard;
+    public final @NonNull AttachmentDesc mColorResolveAttachment;
 
 
     //// Depth-Stencil Target (no resolve)
 
-    public int mDepthStencilFormat = ImageFormat.kUnsupported;
-    public byte mDepthStencilLoadOp = LoadOp.kDiscard;
-    public byte mDepthStencilStoreOp = StoreOp.kDiscard;
+    /**
+     * If {@link AttachmentDesc#isUsed()} return true, it
+     * means there's depth stencil attachment.
+     */
+    public final @NonNull AttachmentDesc mDepthStencilAttachment;
 
 
     //// Overall Settings
@@ -84,21 +89,21 @@ public final class RenderPassDesc {
     public int mSampleCount = 1;
 
 
-    //// Subpass Settings
+    //// Subpass & Dependency Settings
 
-    /*
+    /**
      * True to make all pipelines in the mainpass to be compatible to use dst texture as
      * input attachment, and auto bind the input attachment on begin.
      */
     public static final int kUseDstAsInput_Flag = 0x1;
-    /*
+    /**
      * True to make all pipelines in the mainpass to be compatible to add pipeline barrier
      * for non-coherent advanced blends.
      */
     public static final int kUseNonCoherentAdvBlend_Flag = 0x2;
-    /*
-     * True to add a subpass & inline draw, and MSAA will load from resolve attachment.
-     * In this case, if mColorResolveLoadOp must be Load, and mLoadOp must be Discard.
+    /**
+     * True to add a load subpass & inline draw, and MSAA will load from resolve attachment.
+     * In this case, if resolve LoadOp must be Load, and MSAA LoadOp must be Discard.
      */
     public static final int kLoadFromResolve_Flag = 0x4;
 
@@ -107,22 +112,20 @@ public final class RenderPassDesc {
     public int mRenderPassFlags = 0;
 
     public RenderPassDesc() {
+        mColorResolveAttachment = new AttachmentDesc();
+        mDepthStencilAttachment = new AttachmentDesc();
     }
 
     @SuppressWarnings("IncompleteCopyConstructor")
     public RenderPassDesc(@NonNull RenderPassDesc other) {
         if (other.mColorAttachments.length > 0) {
-            mColorAttachments = new ColorAttachmentDesc[other.mColorAttachments.length];
+            mColorAttachments = new AttachmentDesc[other.mColorAttachments.length];
             for (int i = 0; i < mColorAttachments.length; i++) {
-                mColorAttachments[i] = new ColorAttachmentDesc(other.mColorAttachments[i]);
+                mColorAttachments[i] = new AttachmentDesc(other.mColorAttachments[i]);
             }
         }
-        mHasColorResolveAttachment = other.mHasColorResolveAttachment;
-        mColorResolveLoadOp = other.mColorResolveLoadOp;
-        mColorResolveStoreOp = other.mColorResolveStoreOp;
-        mDepthStencilFormat = other.mDepthStencilFormat;
-        mDepthStencilLoadOp = other.mDepthStencilLoadOp;
-        mDepthStencilStoreOp = other.mDepthStencilStoreOp;
+        mColorResolveAttachment = new AttachmentDesc(other.mColorResolveAttachment);
+        mDepthStencilAttachment = new AttachmentDesc(other.mDepthStencilAttachment);
         mSampleCount = other.mSampleCount;
         mRenderPassFlags = other.mRenderPassFlags;
     }

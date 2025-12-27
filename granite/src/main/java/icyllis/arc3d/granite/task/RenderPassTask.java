@@ -73,11 +73,11 @@ public final class RenderPassTask extends Task {
         assert clearColor.length >= 4;
         var renderPassDesc = new RenderPassDesc();
 
-        var colorDesc = new RenderPassDesc.ColorAttachmentDesc();
+        var colorDesc = new RenderPassDesc.AttachmentDesc();
         colorDesc.mFormat = colorTarget.getDesc().getViewFormat();
         colorDesc.mLoadOp = loadOp;
         colorDesc.mStoreOp = storeOp;
-        renderPassDesc.mColorAttachments = new RenderPassDesc.ColorAttachmentDesc[]{colorDesc};
+        renderPassDesc.mColorAttachments = new RenderPassDesc.AttachmentDesc[]{colorDesc};
 
         int depthStencilFlags = drawPass.getDepthStencilFlags();
         ImageDesc depthStencilImageDesc = null;
@@ -94,11 +94,12 @@ public final class RenderPassTask extends Task {
                             ISurface.FLAG_RENDERABLE | ISurface.FLAG_MEMORYLESS
                     );
             assert depthStencilImageDesc != null;
-            renderPassDesc.mDepthStencilFormat = depthStencilImageDesc.getViewFormat();
+            var depthStencilDesc = renderPassDesc.mDepthStencilAttachment;
+            depthStencilDesc.mFormat = depthStencilImageDesc.getViewFormat();
             // Always clear the depth and stencil to 0 at the start of a DrawPass, but discard at the
             // end since their contents do not affect the next frame.
-            renderPassDesc.mDepthStencilLoadOp = Engine.LoadOp.kClear;
-            renderPassDesc.mDepthStencilStoreOp = Engine.StoreOp.kDiscard;
+            depthStencilDesc.mLoadOp = Engine.LoadOp.kClear;
+            depthStencilDesc.mStoreOp = Engine.StoreOp.kDiscard;
         }
 
         //TODO MSAA attachment
@@ -163,11 +164,14 @@ public final class RenderPassTask extends Task {
         Image resolveAttachment = mResolveTarget != null ? mResolveTarget.refImage() : null;
 
         var framebufferDesc = new FramebufferDesc(
-                colorAttachment.getWidth(), colorAttachment.getHeight(),
-                new FramebufferDesc.ColorAttachmentDesc(
-                        colorAttachment, resolveAttachment, 0, 0
+                colorAttachment.getWidth(), colorAttachment.getHeight(), 1,
+                new FramebufferDesc.AttachmentDesc(
+                        colorAttachment
                 ),
-                new FramebufferDesc.DepthStencilAttachmentDesc(
+                new FramebufferDesc.AttachmentDesc(
+                        resolveAttachment
+                ),
+                new FramebufferDesc.AttachmentDesc(
                         depthStencilAttachment
                 )
         );
