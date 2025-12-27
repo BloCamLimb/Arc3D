@@ -498,7 +498,7 @@ public final class VKUtil {
         };
     }
 
-    public static int getAspectMask(int vkFormat) {
+    public static int getFullAspectMask(int vkFormat) {
         return switch (vkFormat) {
             case VK_FORMAT_S8_UINT -> VK_IMAGE_ASPECT_STENCIL_BIT;
             case VK_FORMAT_D16_UNORM,

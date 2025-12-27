@@ -19,13 +19,20 @@
 
 package icyllis.arc3d.vulkan;
 
+import icyllis.arc3d.core.RawPtr;
+import icyllis.arc3d.core.RefCnt;
 import icyllis.arc3d.core.SharedPtr;
-import icyllis.arc3d.engine.*;
+import icyllis.arc3d.engine.DataUtils;
+import icyllis.arc3d.engine.IResourceKey;
+import icyllis.arc3d.engine.Image;
+import icyllis.arc3d.engine.Swizzle;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
-import org.lwjgl.system.*;
+import org.lwjgl.system.MemoryStack;
+import org.lwjgl.system.MemoryUtil;
+import org.lwjgl.system.NativeType;
 import org.lwjgl.vulkan.VkImageCreateInfo;
-import icyllis.arc3d.engine.Engine.ImageType;
 
 import static org.lwjgl.vulkan.VK10.*;
 
@@ -36,6 +43,15 @@ public final class VulkanImage extends Image {
 
     private final long mImage;
     private final VulkanAllocation mMemoryAlloc;
+
+    // A VulkanImage is usually paired with a fixed swizzle, this is the fast path;
+    // texture view always uses full mip range and full layer range
+    @Nullable
+    @SharedPtr
+    private VulkanImageView mTextureView;
+    // Usually there are only 1 to 3 views, using an array is reasonable
+    // You can't delete these views while VulkanImage is alive, since it may be used by framebuffers
+    private final ObjectArrayList<@SharedPtr VulkanImageView> mImageViews = new ObjectArrayList<>();
 
     public VulkanImage(VulkanDevice device,
                        VulkanImageDesc desc,
@@ -83,12 +99,10 @@ public final class VulkanImage extends Image {
                     .imageType(desc.mVkImageType)
                     .format(desc.mFormat);
             pCreateInfo.extent().set(desc.getWidth(), desc.getHeight(), desc.getDepth());
-            int layers = (desc.getImageType() == ImageType.kCube || desc.getImageType() == ImageType.kCubeArray)
-                    ? 6
-                    : 1;
+
             pCreateInfo
                     .mipLevels(desc.getMipLevelCount())
-                    .arrayLayers(desc.getArraySize() * layers)
+                    .arrayLayers(desc.getLayerCount())
                     .samples(vkSamples)
                     .tiling(desc.mImageTiling)
                     .usage(desc.mImageUsageFlags)
@@ -119,7 +133,7 @@ public final class VulkanImage extends Image {
             int allocFlags = 0;
             long size = DataUtils.computeSize(desc);
             if (!useLazyAllocation &&
-                    (desc.isRenderable() || size >= 12*1024*1024)) {
+                    (desc.isRenderable() || size >= 12 * 1024 * 1024)) {
                 // prefer dedicated allocation for render target or >= 12MB
                 allocFlags |= VulkanMemoryAllocator.kDedicatedAllocation_AllocFlag;
             }
@@ -128,7 +142,7 @@ public final class VulkanImage extends Image {
             }
 
             if (!allocator.allocateImageMemory(
-                device, pImage.get(0), allocFlags, allocInfo
+                    device, pImage.get(0), allocFlags, allocInfo
             )) {
                 vkDestroyImage(device.vkDevice(), pImage.get(0), null);
                 device.getLogger().error("Failed to create VulkanImage: cannot allocate {} bytes from device",
@@ -188,8 +202,105 @@ public final class VulkanImage extends Image {
         return mImage;
     }
 
+    @NonNull
+    public VulkanImageDesc getVulkanDesc() {
+        return (VulkanImageDesc) getDesc();
+    }
+
+    @Nullable
+    @RawPtr
+    public VulkanImageView findOrCreateTextureView(short swizzle) {
+        // texture view always uses full mip range and full layer range
+
+        // fast path
+        VulkanImageView textureView = mTextureView;
+        if (textureView != null && textureView.getSwizzle() == swizzle) {
+            return textureView;
+        }
+
+        VulkanImageDesc desc = getVulkanDesc();
+        int mipLevelCount = desc.getMipLevelCount();
+        int layerCount = desc.getLayerCount();
+
+        if (textureView == null) {
+            VulkanDevice device = (VulkanDevice) getDevice();
+            textureView = VulkanImageView.make(
+                    device,
+                    mImage,
+                    desc.getImageType(),
+                    desc.getVkFormat(),
+                    swizzle,
+                    mipLevelCount,
+                    0,
+                    layerCount);
+            if (textureView == null) {
+                return null;
+            }
+
+            mTextureView = textureView; // move
+            return textureView;
+        }
+
+        // fallback path, uncommon
+        return findOrCreateView(swizzle, mipLevelCount, 0, layerCount);
+    }
+
+    @Nullable
+    @RawPtr
+    public VulkanImageView findOrCreateRenderTargetView(int baseArrayLayer,
+                                                        int layerCount) {
+        // each element of pAttachments must only specify a single mip level
+        // each element of pAttachments must have been created with the identity swizzle
+        return findOrCreateView(Swizzle.RGBA, 1, baseArrayLayer, layerCount);
+    }
+
+    @Nullable
+    @RawPtr
+    private VulkanImageView findOrCreateView(short swizzle,
+                                             int mipLevelCount,
+                                             int baseArrayLayer,
+                                             int layerCount) {
+        for (int i = 0; i < mImageViews.size(); i++) {
+            VulkanImageView view = mImageViews.get(i);
+            if (view.getSwizzle() == swizzle &&
+                    view.getMipLevelCount() == mipLevelCount &&
+                    view.getBaseArrayLayer() == baseArrayLayer &&
+                    view.getLayerCount() == layerCount) {
+                return view;
+            }
+        }
+
+        VulkanDevice device = (VulkanDevice) getDevice();
+        VulkanImageDesc desc = getVulkanDesc();
+        @SharedPtr
+        VulkanImageView view = VulkanImageView.make(
+                device,
+                mImage,
+                desc.getImageType(),
+                desc.getVkFormat(),
+                swizzle,
+                mipLevelCount,
+                baseArrayLayer,
+                layerCount);
+        if (view == null) {
+            return null;
+        }
+        // if we choose a layer, it's used only for framebuffer and is unlikely to be
+        // reused frequently, so put to back;
+        // otherwise put to front
+        if (baseArrayLayer > 0) {
+            mImageViews.add(view); // move
+        } else {
+            mImageViews.add(0, view); // move
+        }
+        return view;
+    }
+
     @Override
     protected void onRelease() {
+        mTextureView = RefCnt.move(mTextureView);
+        mImageViews.forEach(RefCnt::unref);
+        mImageViews.clear();
         if (!isWrapped()) {
             VulkanDevice device = (VulkanDevice) getDevice();
             device.getMemoryAllocator().freeMemory(mMemoryAlloc);

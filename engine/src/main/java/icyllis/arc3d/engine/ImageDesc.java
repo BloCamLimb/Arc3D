@@ -104,6 +104,13 @@ public abstract class ImageDesc {
         return mArraySize;
     }
 
+    public final int getLayerCount() {
+        int layers = (mImageType == Engine.ImageType.kCube || mImageType == Engine.ImageType.kCubeArray)
+                ? 6
+                : 1;
+        return mArraySize * layers;
+    }
+
     public final boolean isMipmapped() {
         return mMipLevelCount > 1;
     }
