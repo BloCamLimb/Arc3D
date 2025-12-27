@@ -271,7 +271,17 @@ public final class VulkanRenderPassSet extends RefCnt {
     @SharedPtr
     public VulkanRenderPassFramebuffer findOrCreateFramebuffer(@NonNull VulkanDevice device,
                                                                @NonNull FramebufferDesc desc) {
-        return null;
+        @SharedPtr
+        VulkanRenderPassFramebuffer framebuffer = (VulkanRenderPassFramebuffer) mFramebufferCache.findFramebuffer(desc);
+        if (framebuffer != null) {
+            return framebuffer;
+        }
+        framebuffer = VulkanRenderPassFramebuffer.make(device, getCompatibleRenderPass(), desc);
+        if (framebuffer == null) {
+            return null;
+        }
+        mFramebufferCache.insertFramebuffer(desc, framebuffer); // <- raw ptr
+        return framebuffer;
     }
 
     public void purgeStaleFramebuffers() {
