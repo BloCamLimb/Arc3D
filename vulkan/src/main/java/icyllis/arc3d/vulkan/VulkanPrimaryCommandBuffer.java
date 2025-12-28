@@ -19,37 +19,191 @@
 
 package icyllis.arc3d.vulkan;
 
+import icyllis.arc3d.core.Rect2ic;
+import icyllis.arc3d.engine.FramebufferDesc;
+import icyllis.arc3d.engine.QueueManager;
+import icyllis.arc3d.engine.RenderPassDesc;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryStack;
-import org.lwjgl.vulkan.VkCommandBufferAllocateInfo;
-import org.lwjgl.vulkan.VkDevice;
+import org.lwjgl.vulkan.VkCommandPoolCreateInfo;
+import org.lwjgl.vulkan.VkFenceCreateInfo;
 
 import static org.lwjgl.vulkan.VK11.*;
 
+/**
+ * This class is created with a command pool, a single primary command buffer, and
+ * (optional) a set of secondary command buffers. After submission, this enters
+ * the in flight state, and we will continuously check whether the GPU has finished
+ * the work to reset/recycle the command pool (and its command buffers).
+ */
 public final class VulkanPrimaryCommandBuffer extends VulkanCommandBuffer {
 
-    private VulkanPrimaryCommandBuffer(VkDevice device, long handle) {
-        super(device, handle);
+    // command buffers submitted to the same queue will finish in submission order
+
+    private final long mCommandPool;
+
+    private long mSubmitFence = VK_NULL_HANDLE;
+
+    private VulkanPrimaryCommandBuffer(VulkanDevice device, long commandBuffer,
+                                       long commandPool) {
+        super(device, commandBuffer);
+        mCommandPool = commandPool;
+        assert commandPool != VK_NULL_HANDLE;
     }
 
-    public static VulkanPrimaryCommandBuffer create(VulkanDevice device,
-                                                    long commandPool) {
+    @Nullable
+    public static VulkanPrimaryCommandBuffer create(@NonNull VulkanDevice device) {
+        int cmdPoolCreateFlags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+        if (device.isProtectedContext()) {
+            cmdPoolCreateFlags |= VK_COMMAND_POOL_CREATE_PROTECTED_BIT;
+        }
+        long commandPool;
         try (var stack = MemoryStack.stackPush()) {
-            var pCommandBuffer = stack.mallocPointer(1);
-            var result = vkAllocateCommandBuffers(
+            var pCreateInfo = VkCommandPoolCreateInfo
+                    .calloc(stack)
+                    .sType$Default()
+                    .flags(cmdPoolCreateFlags)
+                    .queueFamilyIndex(device.getQueueIndex());
+            var pCommandPool = stack.mallocLong(1);
+            var result = vkCreateCommandPool(
                     device.vkDevice(),
-                    VkCommandBufferAllocateInfo
-                            .malloc(stack)
-                            .sType$Default()
-                            .pNext(0)
-                            .commandPool(commandPool)
-                            .level(VK_COMMAND_BUFFER_LEVEL_PRIMARY)
-                            .commandBufferCount(1),
-                    pCommandBuffer
+                    pCreateInfo,
+                    null,
+                    pCommandPool
             );
+            device.checkResult(result);
             if (result != VK_SUCCESS) {
+                device.getLogger().error("Failed to VulkanCommandPool: {}",
+                        VKUtil.getResultMessage(result));
                 return null;
             }
-            return new VulkanPrimaryCommandBuffer(device.vkDevice(), pCommandBuffer.get(0));
+            commandPool = pCommandPool.get(0);
         }
+
+        long primaryCommandBuffer =
+                VulkanCommandBuffer.allocate(device, commandPool, /*forSecondary*/ false);
+        if (primaryCommandBuffer == VK_NULL_HANDLE) {
+            vkDestroyCommandPool(
+                    device.vkDevice(),
+                    commandPool,
+                    null
+            );
+            return null;
+        }
+        return new VulkanPrimaryCommandBuffer(device, primaryCommandBuffer,
+                commandPool);
+    }
+
+    @Override
+    public boolean beginRenderPass(RenderPassDesc renderPassDesc,
+                                   FramebufferDesc framebufferDesc,
+                                   Rect2ic renderPassBounds,
+                                   float[] clearColors,
+                                   float clearDepth,
+                                   int clearStencil) {
+        return false;
+    }
+
+    @Override
+    public void endRenderPass() {
+
+    }
+
+    @Override
+    protected boolean submit(QueueManager queueManager) {
+        if (mIsRecording) {
+            end();
+        }
+
+        if (mSubmitFence == VK_NULL_HANDLE) {
+            try (var stack = MemoryStack.stackPush()) {
+                var pCreateInfo = VkFenceCreateInfo
+                        .calloc(stack)
+                        .sType$Default()
+                        .flags(0);
+                var pFence = stack.mallocLong(1);
+                var result = vkCreateFence(
+                        mDevice.vkDevice(),
+                        pCreateInfo,
+                        null,
+                        pFence
+                );
+                mDevice.checkResult(result);
+                if (result != VK_SUCCESS) {
+                    mSubmitFence = VK_NULL_HANDLE;
+                    return false;
+                }
+                mSubmitFence = pFence.get(0);
+            }
+            assert mSubmitFence != VK_NULL_HANDLE;
+        } else {
+            var result = vkResetFences(
+                    mDevice.vkDevice(),
+                    mSubmitFence
+            );
+            mDevice.checkResult(result);
+        }
+
+        //TODO submit here
+
+        return true;
+    }
+
+    @Override
+    protected boolean checkFinishedAndReset() {
+        if (mSubmitFence == VK_NULL_HANDLE) {
+            return true;
+        }
+
+        var result = vkGetFenceStatus(mDevice.vkDevice(), mSubmitFence);
+
+        //TODO OOM should be handled carefully
+
+        switch (result) {
+            case VK_SUCCESS:
+            case VK_ERROR_DEVICE_LOST:
+
+                vkResetCommandPool(
+                        mDevice.vkDevice(),
+                        mCommandPool,
+                        0
+                );
+
+                callFinishedCallbacks(result == VK_SUCCESS);
+                releaseResources();
+
+                return true;
+
+            case VK_NOT_READY:
+            case VK_ERROR_OUT_OF_DEVICE_MEMORY:
+            case VK_ERROR_OUT_OF_HOST_MEMORY:
+            default:
+                return false;
+        }
+    }
+
+    @Override
+    protected void waitUntilFinished() {
+        if (mSubmitFence == VK_NULL_HANDLE) {
+            return;
+        }
+
+        var result = vkWaitForFences(
+                mDevice.vkDevice(),
+                mSubmitFence,
+                true,
+                0xffffffffffffffffL
+        );
+        mDevice.checkResult(result);
+    }
+
+    private void destroy() {
+        //TODO call this in some way
+        vkDestroyCommandPool(
+                mDevice.vkDevice(),
+                mCommandPool,
+                null
+        );
     }
 }

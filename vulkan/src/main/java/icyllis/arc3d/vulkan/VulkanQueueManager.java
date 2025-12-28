@@ -19,16 +19,21 @@
 
 package icyllis.arc3d.vulkan;
 
-import icyllis.arc3d.engine.*;
+import icyllis.arc3d.engine.CommandBuffer;
+import icyllis.arc3d.engine.QueueManager;
+import icyllis.arc3d.engine.ResourceProvider;
 
 public class VulkanQueueManager extends QueueManager {
 
+    private final VulkanDevice mDevice;
+
     protected VulkanQueueManager(VulkanDevice device) {
         super(device);
+        mDevice = device;
     }
 
     @Override
     protected CommandBuffer createNewCommandBuffer(ResourceProvider resourceProvider) {
-        return null;
+        return VulkanPrimaryCommandBuffer.create(mDevice);
     }
 }
