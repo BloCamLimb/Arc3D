@@ -19,9 +19,12 @@
 
 package icyllis.arc3d.vulkan;
 
+import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.SharedPtr;
+import icyllis.arc3d.core.WeakIdentityKey;
 import icyllis.arc3d.engine.Engine.ImageType;
 import icyllis.arc3d.engine.ManagedResource;
+import icyllis.arc3d.engine.Resource;
 import icyllis.arc3d.engine.Swizzle;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -35,6 +38,8 @@ import static org.lwjgl.vulkan.VK10.*;
  * Represents Vulkan image views, managed by {@link VulkanImage}.
  */
 public final class VulkanImageView extends ManagedResource {
+
+    private final WeakIdentityKey<@RawPtr VulkanImageView> mUniqueID;
 
     private final long mImageView;
     private final short mSwizzle;
@@ -52,6 +57,7 @@ public final class VulkanImageView extends ManagedResource {
         mBaseArrayLayer = baseArrayLayer;
         mLayerCount = layerCount;
         assert imageView != VK_NULL_HANDLE;
+        mUniqueID = new WeakIdentityKey<>(this);
     }
 
     /**
@@ -120,6 +126,13 @@ public final class VulkanImageView extends ManagedResource {
     @NativeType("VkImageView")
     public long vkImageView() {
         return mImageView;
+    }
+
+    /**
+     * Similar to {@link Resource#getUniqueID()}.
+     */
+    public WeakIdentityKey<@RawPtr VulkanImageView> getUniqueID() {
+        return mUniqueID;
     }
 
     public short getSwizzle() {

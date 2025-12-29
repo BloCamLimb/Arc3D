@@ -49,8 +49,11 @@ public final class VulkanImage extends Image {
     @Nullable
     @SharedPtr
     private VulkanImageView mTextureView;
-    // Usually there are only 1 to 3 views, using an array is reasonable
-    // You can't delete these views while VulkanImage is alive, since it may be used by framebuffers
+    /**
+     * Usually there are only 1 to 3 views, using an array is reasonable.
+     * You can't delete these views while VulkanImage is alive, since it may be used by framebuffers,
+     * and {@link VulkanImageView#getUniqueID()}. So this array will only grow but will never shrink.
+     */
     private final ObjectArrayList<@SharedPtr VulkanImageView> mImageViews = new ObjectArrayList<>();
 
     public VulkanImage(VulkanDevice device,
