@@ -67,6 +67,7 @@ public final class VulkanDescriptorSet extends RecycledResource {
 
             var pAllocateInfo = VkDescriptorSetAllocateInfo.calloc(stack)
                     .sType$Default()
+                    .descriptorPool(pool.vkDescriptorPool())
                     .pSetLayouts(pSetLayouts);
 
             for (int ix = 0; ix < count; ) {

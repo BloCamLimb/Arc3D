@@ -29,7 +29,6 @@ import icyllis.arc3d.engine.ImageDesc;
 import icyllis.arc3d.engine.ResourceProvider;
 import icyllis.arc3d.engine.Sampler;
 import icyllis.arc3d.engine.SamplerDesc;
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 public class VulkanResourceProvider extends ResourceProvider {
@@ -81,7 +80,7 @@ public class VulkanResourceProvider extends ResourceProvider {
         if (pool != null) {
             return pool;
         }
-        pool = VulkanDescriptorPool.make(mDevice, RefCnt.create(setLayout), maxSets);
+        pool = VulkanDescriptorPool.create(mDevice, RefCnt.create(setLayout), maxSets);
         if (pool == null) {
             return null;
         }

@@ -511,6 +511,24 @@ public interface Engine {
     }
 
     /**
+     * Types of descriptors.
+     */
+    interface DescriptorType {
+
+        int kCombinedImageSampler = 0;
+        int kSampledImage = 1;
+        int kStorageImage = 2;
+        int kUniformTexelBuffer = 3;
+        int kStorageTexelBuffer = 4;
+        int kUniformBuffer = 5;
+        int kStorageBuffer = 6;
+        int kInputAttachment = 7;
+        int kAccelerationStructure = 8;
+
+        int kCount = 9;
+    }
+
+    /**
      * Describes the encoding of channel data in a ColorType.
      *
      * @see #colorTypeEncoding(int)

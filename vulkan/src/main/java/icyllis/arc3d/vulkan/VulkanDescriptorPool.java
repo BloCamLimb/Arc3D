@@ -65,19 +65,19 @@ public final class VulkanDescriptorPool extends Resource {
 
     @Nullable
     @SharedPtr
-    public static VulkanDescriptorPool make(@NonNull VulkanDevice device,
-                                            @SharedPtr VulkanDescriptorSetLayout layout,
-                                            int maxSets) {
+    public static VulkanDescriptorPool create(@NonNull VulkanDevice device,
+                                              @SharedPtr VulkanDescriptorSetLayout layout,
+                                              int maxSets) {
 
-        if (layout == null || maxSets <= 0) {
+        if (layout == null) {
             return null;
         }
-        if (layout.getInfo().getBindingCount() == 0) {
+        if (maxSets <= 0 || layout.getLayoutDesc().getBindingCount() == 0) {
             layout.unref();
             return null;
         }
         try (var stack = MemoryStack.stackPush()) {
-            var pPoolSizes = layout.getInfo().toVkPoolSizes(
+            var pPoolSizes = layout.getLayoutDesc().toVkPoolSizes(
                     stack, maxSets
             );
 
@@ -162,19 +162,19 @@ public final class VulkanDescriptorPool extends Resource {
 
     public static class ResourceKey implements IResourceKey {
 
-        public DescriptorSetLayout layout;
+        public VulkanDescriptorSetLayout.LayoutDesc layoutDesc;
         public int maxSets;
 
         public ResourceKey() {
         }
 
         public ResourceKey(ResourceKey other) {
-            this.layout = other.layout;
+            this.layoutDesc = other.layoutDesc;
             this.maxSets = other.maxSets;
         }
 
         public ResourceKey set(@RawPtr VulkanDescriptorSetLayout setLayout, int maxSets) {
-            this.layout = setLayout.getInfo();
+            this.layoutDesc = setLayout.getLayoutDesc();
             this.maxSets  = maxSets;
             return this;
         }
@@ -184,7 +184,7 @@ public final class VulkanDescriptorPool extends Resource {
             if (this == o) return true;
             if (o instanceof ResourceKey key)
                 return maxSets == key.maxSets &&
-                        layout.equals(key.layout);
+                        layoutDesc.equals(key.layoutDesc);
             return false;
         }
 
@@ -195,7 +195,7 @@ public final class VulkanDescriptorPool extends Resource {
 
         @Override
         public int hashCode() {
-            int result = layout.hashCode();
+            int result = layoutDesc.hashCode();
             result = 31 * result + maxSets;
             return result;
         }

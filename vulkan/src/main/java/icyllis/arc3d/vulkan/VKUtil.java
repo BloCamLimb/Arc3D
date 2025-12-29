@@ -22,6 +22,7 @@ package icyllis.arc3d.vulkan;
 import icyllis.arc3d.core.Color;
 import icyllis.arc3d.core.ColorInfo;
 import icyllis.arc3d.engine.ContextOptions;
+import icyllis.arc3d.engine.Engine;
 import icyllis.arc3d.engine.ImmediateContext;
 import icyllis.arc3d.engine.Engine.ImageFormat;
 import icyllis.arc3d.engine.Swizzle;
@@ -29,6 +30,7 @@ import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.APIUtil;
 import org.lwjgl.system.NativeType;
 import org.lwjgl.vulkan.EXTMeshShader;
+import org.lwjgl.vulkan.KHRAccelerationStructure;
 
 import static org.lwjgl.vulkan.EXTDebugReport.VK_ERROR_VALIDATION_FAILED_EXT;
 import static org.lwjgl.vulkan.KHRDisplaySwapchain.VK_ERROR_INCOMPATIBLE_DISPLAY_KHR;
@@ -508,6 +510,32 @@ public final class VKUtil {
                  VK_FORMAT_D24_UNORM_S8_UINT,
                  VK_FORMAT_D32_SFLOAT_S8_UINT -> VK_IMAGE_ASPECT_STENCIL_BIT | VK_IMAGE_ASPECT_DEPTH_BIT;
             default -> VK_IMAGE_ASPECT_COLOR_BIT;
+        };
+    }
+
+    public static int toVkDescriptorType(int type) {
+        //TODO currently we only use dynamic offsets, but backend is guaranteed to support only a
+        // small number of dynamic bindings,
+        return switch (type) {
+            case DescriptorType.kCombinedImageSampler ->
+                    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            case DescriptorType.kSampledImage ->
+                    VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+            case DescriptorType.kStorageImage ->
+                    VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            case DescriptorType.kUniformTexelBuffer ->
+                    VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
+            case DescriptorType.kStorageTexelBuffer ->
+                    VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
+            case DescriptorType.kUniformBuffer ->
+                    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+            case DescriptorType.kStorageBuffer ->
+                    VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+            case DescriptorType.kInputAttachment ->
+                    VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+            case DescriptorType.kAccelerationStructure ->
+                    KHRAccelerationStructure.VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+            default -> throw new AssertionError(type);
         };
     }
 }
