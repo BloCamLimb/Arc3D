@@ -19,11 +19,6 @@
 
 package icyllis.arc3d.engine;
 
-import org.jspecify.annotations.Nullable;
-
-import javax.annotation.concurrent.Immutable;
-import java.util.Objects;
-
 /**
  * Abstract class that provides key and full information about a graphics pipeline
  * or a compute pipeline, except for render pass information.
@@ -35,89 +30,6 @@ public abstract class PipelineDesc {
 
     public static final int NO_DYNAMIC_STATE = 0;
     public static final int DYNAMIC_COLOR_BLEND_STATE = 1;
-
-    /**
-     * Represents a resource binding info.
-     * <p>
-     * An array of this structure represents a descriptor set layout.
-     * Binding index is the same as array index. The array index of the set array represents
-     * the set number.
-     * <p>
-     * In OpenGL, CombinedImageSampler/SampledImage of same image view type must appear in the
-     * same set. StorageImage/StorageTexelBuffer must appear in the same set.
-     * In Vulkan, descriptor sets are essential and must be assigned carefully to reduce
-     * the number of resource binding operations: resources that are updated less frequently
-     * should use smaller set numbers, and resources that are updated together should be
-     * grouped into the same set.
-     * <p>
-     * Note that resource array is not supported, because resource array is only supported in Vulkan,
-     * and declaring array in OpenGL means use multiple consecutive bindings instead of one binding
-     * multiple resources, so renderer usually specifies 1 (non-array).
-     */
-    @Immutable
-    public static final class DescriptorInfo {
-        /**
-         * OpenGL-only. For interface block, this is block name; otherwise, this is variable name.
-         */
-        public final transient String mName;
-        /**
-         * See {@link Engine.DescriptorType}
-         */
-        public final int mType;
-        /**
-         * Which shader stages can access the resource, see {@link Engine.ShaderFlags}
-         */
-        public final int mVisibility;
-        /**
-         * Non-null if it's immutable sampler.
-         */
-        @Nullable
-        public final SamplerDesc mImmutableSampler;
-
-        //TODO if resource array is useful, we can allow it in Vulkan backend, but
-        // our compiler doesn't support resource array yet... see SPIRVCodeGenerator
-
-        public DescriptorInfo(String name, int type, int visibility,
-                              @Nullable SamplerDesc immutableSampler) {
-            mName = name;
-            mType = type;
-            mVisibility = visibility;
-            mImmutableSampler = immutableSampler;
-
-            assert immutableSampler == null || (type == Engine.DescriptorType.kCombinedImageSampler);
-        }
-
-        public DescriptorInfo(String name, int type, int visibility) {
-            this(name, type, visibility, null);
-        }
-
-        public DescriptorInfo(int type, int visibility,
-                              @Nullable SamplerDesc immutableSampler) {
-            this("", type, visibility, immutableSampler);
-        }
-
-        public DescriptorInfo(int type, int visibility) {
-            this("", type, visibility, null);
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof DescriptorInfo that)) return false;
-
-            return mType == that.mType &&
-                    mVisibility == that.mVisibility &&
-                    Objects.equals(mImmutableSampler, that.mImmutableSampler);
-        }
-
-        @Override
-        public int hashCode() {
-            int result = mType;
-            result = 31 * result + mVisibility;
-            result = 31 * result + Objects.hashCode(mImmutableSampler);
-            return result;
-        }
-    }
 
     //TODO temporary, to be reviewed
     public static final class UniformBlockInfo {

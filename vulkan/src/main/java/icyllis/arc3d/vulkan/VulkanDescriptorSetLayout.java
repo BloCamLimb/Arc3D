@@ -20,36 +20,31 @@
 package icyllis.arc3d.vulkan;
 
 import icyllis.arc3d.core.SharedPtr;
-import icyllis.arc3d.engine.Engine;
+import icyllis.arc3d.engine.DescriptorSetLayout;
 import icyllis.arc3d.engine.ManagedResource;
-import icyllis.arc3d.engine.PipelineDesc;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryStack;
-import org.lwjgl.vulkan.VkDescriptorPoolSize;
 import org.lwjgl.vulkan.VkDescriptorSetLayoutBinding;
 import org.lwjgl.vulkan.VkDescriptorSetLayoutCreateInfo;
-
-import java.util.Arrays;
 
 import static org.lwjgl.vulkan.VK10.*;
 
 /**
  * The layout is also used to lookup in
- *      * resource cache for descriptor pool and descriptor sets. Our pool is based on layout,
- *      * each pool only allocates descriptor sets for certain layout. This can be also unpacked
- *      * to create actual VkDescriptorSetLayout object when needed.
+ * resource cache for descriptor pool and descriptor sets. Our pool is based on layout,
+ * each pool only allocates descriptor sets for certain layout.
  */
 public final class VulkanDescriptorSetLayout extends ManagedResource {
 
-    private final LayoutDesc mLayoutDesc;
+    private final DescriptorSetLayout mLayoutInfo;
     private final long mSetLayout;
 
     private VulkanDescriptorSetLayout(VulkanDevice device,
-                                      LayoutDesc layoutDesc,
+                                      DescriptorSetLayout layoutInfo,
                                       long setLayout) {
         super(device);
-        mLayoutDesc = layoutDesc;
+        mLayoutInfo = layoutInfo;
         mSetLayout = setLayout;
 
         assert setLayout != VK_NULL_HANDLE;
@@ -58,9 +53,37 @@ public final class VulkanDescriptorSetLayout extends ManagedResource {
     @Nullable
     @SharedPtr
     public static VulkanDescriptorSetLayout make(@NonNull VulkanDevice device,
-                                                 @NonNull LayoutDesc layoutDesc) {
+                                                 @NonNull VulkanResourceProvider resourceProvider,
+                                                 @NonNull DescriptorSetLayout layoutInfo) {
         try (var stack = MemoryStack.stackPush()) {
-            var pBindings = layoutDesc.toVkBindings(stack);
+
+            var pBindings = VkDescriptorSetLayoutBinding
+                    .calloc(layoutInfo.getBindingCount(), stack);
+
+            for (int binding = 0; binding < layoutInfo.getBindingCount(); binding++) {
+                var entry = layoutInfo.getDescriptorInfo(binding);
+
+                int type = VKUtil.toVkDescriptorType(entry.mType);
+                int count = 1;
+                int stageFlags = VKUtil.toVkPipelineStageFlags(entry.mVisibility);
+                boolean useImmutableSampler = entry.mImmutableSampler != null;
+
+                pBindings.binding(binding)
+                        .descriptorType(type)
+                        .descriptorCount(count)
+                        .stageFlags(stageFlags);
+
+                if (useImmutableSampler) {
+
+                    // TODO set this from resource provider
+                }
+
+                pBindings.position(pBindings.position() + 1);
+            }
+
+            assert !pBindings.hasRemaining();
+            pBindings.rewind();
+
             var pCreateInfo = VkDescriptorSetLayoutCreateInfo.calloc(stack)
                     .sType$Default()
                     .flags(0)
@@ -76,18 +99,22 @@ public final class VulkanDescriptorSetLayout extends ManagedResource {
                 return null;
             }
 
-            return new VulkanDescriptorSetLayout(device, layoutDesc,
+            return new VulkanDescriptorSetLayout(device, layoutInfo,
                     pSetLayout.get(0));
         }
     }
 
     @NonNull
-    public LayoutDesc getLayoutDesc() {
-        return mLayoutDesc;
+    public DescriptorSetLayout getLayoutInfo() {
+        return mLayoutInfo;
+    }
+
+    public int getBindingCount() {
+        return mLayoutInfo.getBindingCount();
     }
 
     public int getType(int binding) {
-        return mLayoutDesc.getDescriptorInfo(binding).mType;
+        return mLayoutInfo.getDescriptorInfo(binding).mType;
     }
 
     public long vkSetLayout() {
@@ -100,94 +127,5 @@ public final class VulkanDescriptorSetLayout extends ManagedResource {
         vkDestroyDescriptorSetLayout(device.vkDevice(),
                 mSetLayout, null);
 
-    }
-
-    public static final class LayoutDesc {
-
-        private final PipelineDesc.@NonNull DescriptorInfo @NonNull [] mDescriptorInfos;
-
-        public LayoutDesc(PipelineDesc.@NonNull DescriptorInfo @NonNull [] descriptorInfos) {
-            // inner struct is already immutable, just shallow copy the array
-            mDescriptorInfos = descriptorInfos.clone();
-        }
-
-        public PipelineDesc.@NonNull DescriptorInfo getDescriptorInfo(int binding) {
-            return mDescriptorInfos[binding];
-        }
-
-        public int getBindingCount() {
-            return mDescriptorInfos.length;
-        }
-
-        public VkDescriptorSetLayoutBinding.@NonNull Buffer toVkBindings(@NonNull MemoryStack stack) {
-            var bindings = VkDescriptorSetLayoutBinding.calloc(getBindingCount(), stack);
-
-            for (int binding = 0; binding < mDescriptorInfos.length; binding++) {
-                var entry = mDescriptorInfos[binding];
-
-                int type = VKUtil.toVkDescriptorType(entry.mType);
-                int count = 1;
-                int stageFlags = VKUtil.toVkPipelineStageFlags(entry.mVisibility);
-                boolean useImmutableSampler = entry.mImmutableSampler != null;
-
-                bindings.binding(binding)
-                        .descriptorType(type)
-                        .descriptorCount(count)
-                        .stageFlags(stageFlags);
-
-                if (useImmutableSampler) {
-
-                    // TODO set this
-                }
-
-                bindings.position(bindings.position() + 1);
-            }
-
-            assert !bindings.hasRemaining();
-            return bindings.rewind();
-        }
-
-        public VkDescriptorPoolSize. @NonNull Buffer toVkPoolSizes(@NonNull MemoryStack stack, int maxSets) {
-
-            // Vulkan 1.0 spec says: If multiple pool size structures contain the same descriptor type,
-            // the pool will be created with enough storage for the total number of descriptors of each type.
-            // However, here we still want to calculate the cumulative number of DS for each type.
-            int[] perTypeSizes = new int[Engine.DescriptorType.kCount];
-            for (int i = 0; i < mDescriptorInfos.length; i++) {
-                var entry = mDescriptorInfos[i];
-
-                int type = entry.mType;
-                int count = 1;
-
-                // Since a pool only allocates DS with the same layout, we know the exact size for each type
-                perTypeSizes[type] += count * maxSets;
-            }
-
-            var poolSizes = VkDescriptorPoolSize.calloc(perTypeSizes.length, stack);
-            for (int type = 0; type < perTypeSizes.length; type++) {
-                int size = perTypeSizes[type];
-                if (size != 0) {
-                    poolSizes.type(VKUtil.toVkDescriptorType(type))
-                            .descriptorCount(size);
-
-                    poolSizes.position(poolSizes.position() + 1);
-                }
-            }
-
-            return poolSizes.flip();
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof LayoutDesc that)) return false;
-
-            return Arrays.equals(mDescriptorInfos, that.mDescriptorInfos);
-        }
-
-        @Override
-        public int hashCode() {
-            return Arrays.hashCode(mDescriptorInfos);
-        }
     }
 }

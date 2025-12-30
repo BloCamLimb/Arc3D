@@ -21,22 +21,21 @@ package icyllis.arc3d.vulkan;
 
 import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.SharedPtr;
+import icyllis.arc3d.engine.DescriptorSetLayout;
+import icyllis.arc3d.engine.Engine;
 import icyllis.arc3d.engine.IResourceKey;
 import icyllis.arc3d.engine.Resource;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.vulkan.VkDescriptorPoolCreateInfo;
+import org.lwjgl.vulkan.VkDescriptorPoolSize;
 
 import java.util.ArrayDeque;
 
 import static org.lwjgl.vulkan.VK10.*;
 
 public final class VulkanDescriptorPool extends Resource {
-
-    // since a pool allocates with single DS layout, 256 may be reasonable.
-    // resource buffers use dynamic offsets
-    public static final int DEFAULT_MAX_SETS_PER_POOL = 256;
 
     private final long mDescPool;
     @SharedPtr
@@ -72,17 +71,42 @@ public final class VulkanDescriptorPool extends Resource {
         if (layout == null) {
             return null;
         }
-        if (maxSets <= 0 || layout.getLayoutDesc().getBindingCount() == 0) {
+        if (maxSets <= 0 || layout.getLayoutInfo().getBindingCount() == 0) {
             layout.unref();
             return null;
         }
         try (var stack = MemoryStack.stackPush()) {
-            var pPoolSizes = layout.getLayoutDesc().toVkPoolSizes(
-                    stack, maxSets
-            );
+
+            // Vulkan 1.0 spec says: If multiple pool size structures contain the same descriptor type,
+            // the pool will be created with enough storage for the total number of descriptors of each type.
+            // However, here we still want to calculate the cumulative number of DS for each type.
+            int[] perTypeSizes = new int[Engine.DescriptorType.kCount];
+            for (int i = 0; i < layout.getBindingCount(); i++) {
+                var entry = layout.getLayoutInfo().getDescriptorInfo(i);
+
+                int type = entry.mType;
+                int count = 1;
+
+                // Since a pool only allocates DS with the same layout, we know the exact size for each type
+                perTypeSizes[type] += count * maxSets;
+            }
+
+            var pPoolSizes = VkDescriptorPoolSize.calloc(perTypeSizes.length, stack);
+            for (int type = 0; type < perTypeSizes.length; type++) {
+                int size = perTypeSizes[type];
+                if (size != 0) {
+                    pPoolSizes.type(VKUtil.toVkDescriptorType(type))
+                            .descriptorCount(size);
+
+                    pPoolSizes.position(pPoolSizes.position() + 1);
+                }
+            }
+
+            pPoolSizes.flip();
 
             var pCreateInfo = VkDescriptorPoolCreateInfo.calloc(stack)
                     .sType$Default()
+                    .flags(0)
                     .maxSets(maxSets)
                     .pPoolSizes(pPoolSizes);
             var pPool = stack.mallocLong(1);
@@ -162,19 +186,19 @@ public final class VulkanDescriptorPool extends Resource {
 
     public static class ResourceKey implements IResourceKey {
 
-        public VulkanDescriptorSetLayout.LayoutDesc layoutDesc;
+        public DescriptorSetLayout layoutInfo;
         public int maxSets;
 
         public ResourceKey() {
         }
 
         public ResourceKey(ResourceKey other) {
-            this.layoutDesc = other.layoutDesc;
+            this.layoutInfo = other.layoutInfo;
             this.maxSets = other.maxSets;
         }
 
         public ResourceKey set(@RawPtr VulkanDescriptorSetLayout setLayout, int maxSets) {
-            this.layoutDesc = setLayout.getLayoutDesc();
+            this.layoutInfo = setLayout.getLayoutInfo();
             this.maxSets  = maxSets;
             return this;
         }
@@ -184,7 +208,7 @@ public final class VulkanDescriptorPool extends Resource {
             if (this == o) return true;
             if (o instanceof ResourceKey key)
                 return maxSets == key.maxSets &&
-                        layoutDesc.equals(key.layoutDesc);
+                        layoutInfo.equals(key.layoutInfo);
             return false;
         }
 
@@ -195,7 +219,7 @@ public final class VulkanDescriptorPool extends Resource {
 
         @Override
         public int hashCode() {
-            int result = layoutDesc.hashCode();
+            int result = layoutInfo.hashCode();
             result = 31 * result + maxSets;
             return result;
         }
