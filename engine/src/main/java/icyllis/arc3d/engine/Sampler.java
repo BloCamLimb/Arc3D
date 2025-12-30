@@ -24,7 +24,19 @@ package icyllis.arc3d.engine;
  */
 public abstract class Sampler extends Resource {
 
-    protected Sampler(Device device) {
+    protected final SamplerDesc mDesc;
+
+    protected Sampler(Device device, SamplerDesc desc) {
         super(device, false, 0);
+        mDesc = desc;
+    }
+
+    /**
+     * Returns the description used to create this sampler object.
+     * Sampler are shareable objects, there's no need to check WeakIdentityKey {@link #getUniqueID()},
+     * this is preferred.
+     */
+    public final SamplerDesc getDesc() {
+        return mDesc;
     }
 }

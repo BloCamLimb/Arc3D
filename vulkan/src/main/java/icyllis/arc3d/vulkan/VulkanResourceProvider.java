@@ -55,7 +55,7 @@ public class VulkanResourceProvider extends ResourceProvider {
     @Nullable
     @Override
     protected Sampler createSampler(SamplerDesc desc) {
-        return null;
+        return VulkanSampler.make(mDevice, desc);
     }
 
     @Nullable

@@ -25,6 +25,7 @@ import icyllis.arc3d.engine.ContextOptions;
 import icyllis.arc3d.engine.Engine;
 import icyllis.arc3d.engine.ImmediateContext;
 import icyllis.arc3d.engine.Engine.ImageFormat;
+import icyllis.arc3d.engine.SamplerDesc;
 import icyllis.arc3d.engine.Swizzle;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.APIUtil;
@@ -536,6 +537,43 @@ public final class VKUtil {
             case DescriptorType.kAccelerationStructure ->
                     KHRAccelerationStructure.VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
             default -> throw new AssertionError(type);
+        };
+    }
+
+    public static int toVkFilter(int filter) {
+        return switch (filter) {
+            case SamplerDesc.FILTER_NEAREST ->
+                    VK_FILTER_NEAREST;
+            case SamplerDesc.FILTER_LINEAR ->
+                    VK_FILTER_LINEAR;
+            default -> throw new AssertionError(filter);
+        };
+    }
+
+    public static int toVkMipmapMode(int mipmapMode) {
+        return switch (mipmapMode) {
+            case SamplerDesc.MIPMAP_MODE_NONE ->
+                // none mipmap will use lod clamp instead, see VulkanSampler
+                    VK_SAMPLER_MIPMAP_MODE_NEAREST;
+            case SamplerDesc.MIPMAP_MODE_NEAREST ->
+                    VK_SAMPLER_MIPMAP_MODE_NEAREST;
+            case SamplerDesc.MIPMAP_MODE_LINEAR ->
+                    VK_SAMPLER_MIPMAP_MODE_LINEAR;
+            default -> throw new AssertionError(mipmapMode);
+        };
+    }
+
+    public static int toVkAddressMode(int addressMode) {
+        return switch (addressMode) {
+            case SamplerDesc.ADDRESS_MODE_REPEAT ->
+                VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            case SamplerDesc.ADDRESS_MODE_MIRRORED_REPEAT ->
+                VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+            case SamplerDesc.ADDRESS_MODE_CLAMP_TO_EDGE ->
+                VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+            case SamplerDesc.ADDRESS_MODE_CLAMP_TO_BORDER ->
+                VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+            default -> throw new AssertionError(addressMode);
         };
     }
 }

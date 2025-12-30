@@ -36,12 +36,10 @@ import static org.lwjgl.system.MemoryUtil.memAddress;
  */
 public final class GLSampler extends Sampler {
 
-    private final SamplerDesc mDesc;
     private int mSampler;
 
     private GLSampler(GLDevice device, SamplerDesc desc) {
-        super(device);
-        mDesc = desc;
+        super(device, desc);
     }
 
     @Nullable
