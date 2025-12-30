@@ -217,8 +217,8 @@ public final class DrawPass implements AutoCloseable {
                 }
                 case DrawCommandList.CMD_BIND_UNIFORM_BUFFER -> {
                     int binding = p[i];
-                    long offset = p[i + 1];
-                    long size = p[i + 2];
+                    int offset = p[i + 1];
+                    int size = p[i + 2];
                     commandBuffer.bindUniformBuffer(binding, (Buffer) oa[oi++], offset, size);
                     i += 3;
                 }

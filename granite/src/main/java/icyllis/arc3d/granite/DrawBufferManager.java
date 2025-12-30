@@ -22,7 +22,8 @@ package icyllis.arc3d.granite;
 import icyllis.arc3d.core.MathUtil;
 import icyllis.arc3d.core.SharedPtr;
 import icyllis.arc3d.engine.Buffer;
-import icyllis.arc3d.engine.BufferViewInfo;
+import icyllis.arc3d.engine.BufferBindInfo;
+import icyllis.arc3d.engine.BufferSliceInfo;
 import icyllis.arc3d.engine.Caps;
 import icyllis.arc3d.engine.Engine;
 import icyllis.arc3d.engine.Resource;
@@ -143,7 +144,7 @@ public final class DrawBufferManager implements AutoCloseable {
         public long getMappedSubrange(int count,
                                       int stride,
                                       int align,
-                                      @NonNull BufferViewInfo outInfo) {
+                                      @NonNull BufferBindInfo outInfo) {
             // write-combining buffer is automatically mapped
             assert mMappedPtr != NULL || mBuffer == null;
             prepareForStride(stride, align, count);
@@ -160,6 +161,36 @@ public final class DrawBufferManager implements AutoCloseable {
             outInfo.mBuffer = mBuffer;
             outInfo.mOffset = offset;
             outInfo.mSize = size;
+            mOffset += size;
+            mRemaining -= count;
+            return mMappedPtr + offset;
+        }
+
+        /**
+         * Similar to {@link #getMappedSubrange(int, int, int, BufferBindInfo)}.
+         *
+         * @param count   the minimum number of blocks/structs to reserve
+         * @param align   the alignment requirement
+         */
+        public long getMappedSubrange(int count,
+                                      int stride,
+                                      int align,
+                                      @NonNull BufferSliceInfo outInfo) {
+            // write-combining buffer is automatically mapped
+            assert mMappedPtr != NULL || mBuffer == null;
+            prepareForStride(stride, align, count);
+
+            if (mBuffer == null || count > mRemaining) {
+                outInfo.set(null);
+                return NULL;
+            }
+
+            assert mStride > 0;
+            int size = count * mStride;
+
+            int offset = mOffset;
+            outInfo.mBuffer = mBuffer;
+            outInfo.mOffset = offset;
             mOffset += size;
             mRemaining -= count;
             return mMappedPtr + offset;

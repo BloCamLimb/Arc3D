@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2022-2024 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2022-2025 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,6 +19,7 @@
 
 package icyllis.arc3d.vulkan;
 
+import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.engine.Buffer;
 import icyllis.arc3d.engine.BufferImageCopyData;
 import icyllis.arc3d.engine.CommandBuffer;
@@ -35,6 +36,32 @@ import static org.lwjgl.system.MemoryUtil.NULL;
 import static org.lwjgl.vulkan.VK11.*;
 
 public abstract class VulkanCommandBuffer extends CommandBuffer {
+
+    public static class SetBindingState {
+
+        @RawPtr
+        public Object[] mResources = new Object[16];
+        @RawPtr
+        public VulkanSampler[] mSamplers = new VulkanSampler[16];
+
+        public int[] mBindingOffsets = new int[16];
+        public int[] mBindingSizes = new int[16];
+
+        @RawPtr
+        public VulkanImageView getImageView(int binding) {
+            return ((VulkanImageView) mResources[binding]);
+        }
+
+        @RawPtr
+        public VulkanBuffer getBuffer(int binding) {
+            return ((VulkanBuffer) mResources[binding]);
+        }
+
+        @RawPtr
+        public VulkanSampler getSampler(int binding) {
+            return mSamplers[binding];
+        }
+    }
 
     protected final VulkanDevice mDevice;
     protected final VkCommandBuffer mCommandBuffer;
@@ -101,7 +128,7 @@ public abstract class VulkanCommandBuffer extends CommandBuffer {
     }
 
     @Override
-    public void bindUniformBuffer(int binding, Buffer buffer, long offset, long size) {
+    public void bindUniformBuffer(int binding, Buffer buffer, int offset, int size) {
 
     }
 

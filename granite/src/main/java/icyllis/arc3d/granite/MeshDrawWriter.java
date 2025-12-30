@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2024-2024 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2024-2025 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -42,14 +42,14 @@ public final class MeshDrawWriter implements AutoCloseable {
 
     private boolean mAppendVertices;
 
-    private final BufferViewInfo mAppend = new BufferViewInfo();
-    private final BufferViewInfo mStatic = new BufferViewInfo();
-    private final BufferViewInfo mIndices = new BufferViewInfo();
+    private final BufferSliceInfo mAppend = new BufferSliceInfo();
+    private final BufferSliceInfo mStatic = new BufferSliceInfo();
+    private final BufferSliceInfo mIndices = new BufferSliceInfo();
 
     @RawPtr
     private Buffer mBoundAppendBuffer = null;
-    private final BufferViewInfo mBoundStatic = new BufferViewInfo();
-    private final BufferViewInfo mBoundIndices = new BufferViewInfo();
+    private final BufferSliceInfo mBoundStatic = new BufferSliceInfo();
+    private final BufferSliceInfo mBoundIndices = new BufferSliceInfo();
 
     private int mTemplateCount;
 
@@ -124,8 +124,8 @@ public final class MeshDrawWriter implements AutoCloseable {
     // A != B || (A != null && C != D)
 
     // note if buffer is null, offset must be 0
-    void setTemplate(@Nullable BufferViewInfo vertices,
-                     @Nullable BufferViewInfo indices,
+    void setTemplate(@Nullable BufferSliceInfo vertices,
+                     @Nullable BufferSliceInfo indices,
                      int templateCount) {
         if (mPendingCount == 0) {
             mStatic.set(vertices);
@@ -279,8 +279,8 @@ public final class MeshDrawWriter implements AutoCloseable {
     /**
      * Start writing instance data and bind static vertex buffer and index buffer.
      */
-    public void beginInstances(@Nullable BufferViewInfo vertices,
-                               @Nullable BufferViewInfo indices,
+    public void beginInstances(@Nullable BufferSliceInfo vertices,
+                               @Nullable BufferSliceInfo indices,
                                int vertexCount) {
         assert mAppendStride > 0;
         assert !mAppendVertices;

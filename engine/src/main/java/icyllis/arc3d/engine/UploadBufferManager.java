@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2024-2024 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2024-2025 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -78,23 +78,21 @@ public class UploadBufferManager {
     /**
      * Allocate a staging buffer for uploading, return mapped pointer.
      *
-     * @param outInfo buffer bind info
+     * @param outInfo buffer slice info
      * @return write-only address, or NULL
      */
-    public long getUploadPointer(long requiredBytes,
-                                 long requiredAlignment,
-                                 BufferViewInfo outInfo) {
-        if (requiredBytes <= 0) {
+    public long getUploadPointer(long totalBytes,
+                                 long offsetAlignment,
+                                 @NonNull BufferSliceInfo outInfo) {
+        if (totalBytes <= 0) {
             outInfo.set(null);
             return NULL;
         }
 
-        requiredBytes = MathUtil.alignTo(requiredBytes, requiredAlignment);
-
-        if (requiredBytes >= SMALL_BUFFER_SIZE) {
+        if (totalBytes >= SMALL_BUFFER_SIZE) {
             // Create a dedicated buffer for this request.
             @SharedPtr
-            Buffer buffer = mResourceProvider.findOrCreateBuffer(getLargeBufferSize(requiredBytes),
+            Buffer buffer = mResourceProvider.findOrCreateBuffer(getLargeBufferSize(totalBytes),
                     Engine.BufferUsageFlags.kUpload | Engine.BufferUsageFlags.kHostVisible,
                     "UploadBuffer");
 
@@ -107,15 +105,14 @@ public class UploadBufferManager {
 
             outInfo.mBuffer = buffer;
             outInfo.mOffset = 0;
-            outInfo.mSize = requiredBytes;
 
             mUsedBuffers.add(buffer); // transfer ownership
             return mappedPtr;
         }
 
         // Try to reuse an already-allocated buffer.
-        mSmallBufferOffset = MathUtil.alignTo(mSmallBufferOffset, requiredAlignment);
-        if (mSmallBuffer != null && requiredBytes > mSmallBuffer.getSize() - mSmallBufferOffset) {
+        mSmallBufferOffset = MathUtil.alignTo(mSmallBufferOffset, offsetAlignment);
+        if (mSmallBuffer != null && totalBytes > mSmallBuffer.getSize() - mSmallBufferOffset) {
             mUsedBuffers.add(mSmallBuffer);
             mSmallBuffer = null;
         }
@@ -139,9 +136,8 @@ public class UploadBufferManager {
 
         outInfo.mBuffer = mSmallBuffer;
         outInfo.mOffset = mSmallBufferOffset;
-        outInfo.mSize = requiredBytes;
 
-        mSmallBufferOffset += requiredBytes;
+        mSmallBufferOffset += totalBytes;
 
         return mappedPtr;
     }

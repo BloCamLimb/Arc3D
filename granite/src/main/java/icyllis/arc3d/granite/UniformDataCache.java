@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2024 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2024-2025 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -20,7 +20,7 @@
 package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.MathUtil;
-import icyllis.arc3d.engine.BufferViewInfo;
+import icyllis.arc3d.engine.BufferBindInfo;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.NonNull;
@@ -46,7 +46,7 @@ public final class UniformDataCache implements AutoCloseable {
         // and the memory is managed by cache
         public final IntBuffer mPointer;
         // GPU buffer binding info
-        public final BufferViewInfo mBufferInfo = new BufferViewInfo();
+        public final BufferBindInfo mBufferInfo = new BufferBindInfo();
 
         CacheSlot(IntBuffer pointer) {
             mPointer = pointer;

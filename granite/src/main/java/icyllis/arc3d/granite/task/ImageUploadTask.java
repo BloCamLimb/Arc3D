@@ -178,7 +178,7 @@ public class ImageUploadTask extends Task {
                 mipOffsetsAndRowBytes);
         long minTransferBufferAlignment = mipOffsetsAndRowBytes[mipLevelCount * 2 + 1];
 
-        BufferViewInfo bufferInfo = new BufferViewInfo();
+        BufferSliceInfo bufferInfo = new BufferSliceInfo();
         long writer = context.getUploadBufferManager().getUploadPointer(
                 combinedBufferSize,
                 minTransferBufferAlignment,

@@ -20,7 +20,7 @@
 package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.RawPtr;
-import icyllis.arc3d.engine.BufferViewInfo;
+import icyllis.arc3d.engine.BufferBindInfo;
 import icyllis.arc3d.granite.DrawBufferManager.BufferSubAllocator;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -43,7 +43,7 @@ public final class UniformTracker implements AutoCloseable {
 
     // Internally track the last binding returned, so that we know whether new uploads or
     // rebinds are necessary.
-    private final BufferViewInfo mLastBinding = new BufferViewInfo();
+    private final BufferBindInfo mLastBinding = new BufferBindInfo();
 
     // This keeps track of the last index used for writing uniforms from a provided uniform cache.
     // If a provided index matches the last index, the uniforms are assumed to already be written

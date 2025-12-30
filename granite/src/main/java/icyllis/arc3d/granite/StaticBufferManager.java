@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2024 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2024-2025 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -29,12 +29,14 @@ import static org.lwjgl.system.MemoryUtil.NULL;
 public class StaticBufferManager {
 
     private static class CopyData {
-        BufferViewInfo mSource;
-        BufferViewInfo mTarget;
+        BufferSliceInfo mSource;
+        BufferSliceInfo mTarget;
+        long mSize;
 
-        CopyData(BufferViewInfo source, BufferViewInfo target) {
+        CopyData(BufferSliceInfo source, BufferSliceInfo target, long size) {
             mSource = source;
             mTarget = target;
+            mSize = size;
         }
     }
 
@@ -83,11 +85,10 @@ public class StaticBufferManager {
                 data.mTarget.mBuffer = buffer;
                 data.mTarget.mOffset = offset;
 
-                assert data.mSource.mSize == data.mTarget.mSize;
                 var copyTask = CopyBufferTask.make(
                         RefCnt.create(data.mSource.mBuffer), RefCnt.create(data.mTarget.mBuffer),
                         data.mSource.mOffset, data.mTarget.mOffset,
-                        data.mSource.mSize);
+                        data.mSize);
                 if (!queueManager.addTask(copyTask)) {
                     copyTask.unref();
                     buffer.unref();
@@ -95,7 +96,7 @@ public class StaticBufferManager {
                 }
                 copyTask.unref();
 
-                offset += data.mSource.mSize;
+                offset += data.mSize;
             }
 
             assert offset == mTotalRequiredBytes;
@@ -122,17 +123,17 @@ public class StaticBufferManager {
     }
 
     /**
-     * The passed in {@link BufferViewInfo} is updated when finalize() is later called, to point to the
+     * The passed in {@link BufferBindInfo} is updated when finalize() is later called, to point to the
      * packed, GPU-private buffer at the appropriate offset. The data written to the returned Writer
      * is copied to the private buffer at that offset. 'binding' must live until finalize() returns.
      *
      * @return write-combining buffer address, or NULL
      */
-    public long getVertexWriter(long requiredBytes, BufferViewInfo outInfo) {
+    public long getVertexWriter(long requiredBytes, BufferSliceInfo outInfo) {
         return prepareUploadBuffer(mVertexBuffer, requiredBytes, outInfo);
     }
 
-    public long getIndexWriter(long requiredBytes, BufferViewInfo outInfo) {
+    public long getIndexWriter(long requiredBytes, BufferSliceInfo outInfo) {
         return prepareUploadBuffer(mIndexBuffer, requiredBytes, outInfo);
     }
 
@@ -175,18 +176,17 @@ public class StaticBufferManager {
 
     private long prepareUploadBuffer(BlockBuffer target,
                                      long requiredBytes,
-                                     BufferViewInfo outInfo) {
+                                     BufferSliceInfo outInfo) {
         assert outInfo != null;
         outInfo.mBuffer = null;
         outInfo.mOffset = 0;
-        outInfo.mSize = 0;
         if (requiredBytes == 0 || mMappingFailed) {
             return NULL;
         }
 
         requiredBytes = MathUtil.alignTo(requiredBytes, target.mOffsetAlignment);
 
-        var srcInfo = new BufferViewInfo();
+        var srcInfo = new BufferSliceInfo();
         long mappedPtr = mUploadManager.getUploadPointer(
                 requiredBytes,
                 4,
@@ -197,9 +197,7 @@ public class StaticBufferManager {
             return NULL;
         }
 
-        assert requiredBytes == srcInfo.mSize;
-        outInfo.mSize = requiredBytes;
-        target.mData.add(new CopyData(srcInfo, outInfo));
+        target.mData.add(new CopyData(srcInfo, outInfo, requiredBytes));
         target.mTotalRequiredBytes += requiredBytes;
         return mappedPtr;
     }

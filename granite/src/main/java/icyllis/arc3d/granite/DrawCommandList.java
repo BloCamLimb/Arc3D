@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2024-2024 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2024-2025 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -58,7 +58,7 @@ public class DrawCommandList {
     // length-prefixed command
     public static final int CMD_BIND_TEXTURES = 9;
 
-    // the bind buffer 'offset' and 'size' always fit in 32 bits
+    // the vertex buffer 'offset' always fit in 32 bits
     // we cheat here and in DrawPass
 
     /**
@@ -110,7 +110,7 @@ public class DrawCommandList {
     }
 
     public final void bindIndexBuffer(int indexType,
-                                      BufferViewInfo bufferInfo) {
+                                      BufferSliceInfo bufferInfo) {
         mPrimitives.add(CMD_BIND_INDEX_BUFFER);
         mPrimitives.add(indexType);
         mPrimitives.add((int) bufferInfo.mOffset);
@@ -118,7 +118,7 @@ public class DrawCommandList {
     }
 
     public final void bindVertexBuffer(int binding,
-                                       BufferViewInfo bufferInfo) {
+                                       BufferSliceInfo bufferInfo) {
         mPrimitives.add(CMD_BIND_VERTEX_BUFFER);
         mPrimitives.add(binding);
         mPrimitives.add((int) bufferInfo.mOffset);
@@ -159,11 +159,11 @@ public class DrawCommandList {
     }
 
     public final void bindUniformBuffer(int binding,
-                                        BufferViewInfo bufferInfo) {
+                                        BufferBindInfo bufferInfo) {
         mPrimitives.add(CMD_BIND_UNIFORM_BUFFER);
         mPrimitives.add(binding);
-        mPrimitives.add((int) bufferInfo.mOffset);
-        mPrimitives.add((int) bufferInfo.mSize);
+        mPrimitives.add(bufferInfo.mOffset);
+        mPrimitives.add(bufferInfo.mSize);
         mPointers.add(bufferInfo.mBuffer);
     }
 

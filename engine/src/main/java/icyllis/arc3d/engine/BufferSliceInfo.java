@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2024-2024 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2025 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -23,35 +23,33 @@ import icyllis.arc3d.core.RawPtr;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Struct that can be passed into bind buffer calls on the {@link CommandBuffer}.
+ * Struct that holds slice information sub-allocated from a ring buffer.
  * The ownership of the buffer and its usage in command submission must be tracked by
  * the caller (e.g. as with buffers created by BufferManager).
  */
-public final class BufferViewInfo {
+public final class BufferSliceInfo {
 
     @RawPtr
     public Buffer mBuffer;
-    // offset and size are valid only if buffer is non-null
+    // offset is valid only if buffer is non-null
     public long mOffset;
-    public long mSize;
 
     public boolean isValid() {
         return mBuffer != null;
     }
 
-    public void set(@Nullable BufferViewInfo o) {
+    public void set(@Nullable BufferSliceInfo o) {
         if (o != null) {
             mBuffer = o.mBuffer;
             mOffset = o.mOffset;
-            mSize = o.mSize;
         } else {
             mBuffer = null;
         }
     }
 
-    public boolean equals(@Nullable BufferViewInfo o) {
+    public boolean equals(@Nullable BufferSliceInfo o) {
         return o == null
                 ? mBuffer == null
-                : mBuffer == o.mBuffer && (mBuffer == null || (mOffset == o.mOffset && mSize == o.mSize));
+                : mBuffer == o.mBuffer && (mBuffer == null || mOffset == o.mOffset);
     }
 }

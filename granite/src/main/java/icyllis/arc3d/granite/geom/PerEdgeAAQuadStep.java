@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2024 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2024-2025 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -54,14 +54,13 @@ package icyllis.arc3d.granite.geom;
 
 import icyllis.arc3d.core.MathUtil;
 import icyllis.arc3d.compiler.ShaderDataType;
-import icyllis.arc3d.engine.BufferViewInfo;
+import icyllis.arc3d.engine.BufferSliceInfo;
 import icyllis.arc3d.engine.VertexInputLayout;
 import icyllis.arc3d.granite.CommonDepthStencilSettings;
 import icyllis.arc3d.granite.Draw;
 import icyllis.arc3d.granite.GeometryStep;
 import icyllis.arc3d.granite.MeshDrawWriter;
 import icyllis.arc3d.granite.StaticBufferManager;
-import icyllis.arc3d.granite.shading.UniformHandler;
 import icyllis.arc3d.granite.shading.VaryingHandler;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -132,8 +131,8 @@ public class PerEdgeAAQuadStep extends GeometryStep {
     }
     //@formatter:on
 
-    private final BufferViewInfo mVertexBuffer;
-    private final BufferViewInfo mIndexBuffer;
+    private final BufferSliceInfo mVertexBuffer;
+    private final BufferSliceInfo mIndexBuffer;
 
     @SuppressWarnings("PointlessArithmeticExpression")
     public PerEdgeAAQuadStep(@NonNull StaticBufferManager bufferManager) {
@@ -145,7 +144,7 @@ public class PerEdgeAAQuadStep extends GeometryStep {
                 CommonDepthStencilSettings.kDirectDepthGreaterPass
         );
 
-        var vertexBuffer = new BufferViewInfo();
+        var vertexBuffer = new BufferSliceInfo();
         var vertexWriter = bufferManager.getVertexWriter(4 * 2 * VERTEX_COUNT,
                 vertexBuffer);
         if (vertexWriter != NULL) {
@@ -169,7 +168,7 @@ public class PerEdgeAAQuadStep extends GeometryStep {
         }
         mVertexBuffer = vertexBuffer;
 
-        var indexBuffer = new BufferViewInfo();
+        var indexBuffer = new BufferSliceInfo();
         var indexWriter = bufferManager.getIndexWriter(2 * INDEX_COUNT,
                 indexBuffer);
         if (indexWriter != NULL) {

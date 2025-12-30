@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2022-2024 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2022-2025 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -97,8 +97,8 @@ public abstract class CommandBuffer {
      */
     public abstract void bindUniformBuffer(int binding,
                                            @RawPtr Buffer buffer,
-                                           long offset,
-                                           long size);
+                                           int offset,
+                                           int size);
 
     /**
      * Bind texture view and sampler to the same binding point (combined image sampler).

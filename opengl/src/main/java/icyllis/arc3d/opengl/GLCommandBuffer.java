@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2022-2024 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2022-2025 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -754,11 +754,11 @@ public final class GLCommandBuffer extends CommandBuffer {
     }
 
     @Override
-    public void bindUniformBuffer(int binding, @RawPtr Buffer buffer, long offset, long size) {
+    public void bindUniformBuffer(int binding, @RawPtr Buffer buffer, int offset, int size) {
         assert (mGraphicsPipeline != null);
         GLBuffer glBuffer = (GLBuffer) buffer;
         mDevice.getGL().glBindBufferRange(GL_UNIFORM_BUFFER, binding, glBuffer.getHandle(),
-                offset, size);
+                Integer.toUnsignedLong(offset), Integer.toUnsignedLong(size));
     }
 
     @Override

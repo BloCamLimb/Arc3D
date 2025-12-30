@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2022-2024 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2022-2025 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -300,7 +300,7 @@ public abstract class Caps {
 
     /**
      * @return minimum required alignment, in bytes, for the offset
-     * member of the {@link BufferViewInfo} structure for uniform buffers
+     * member of the {@link BufferBindInfo} structure for uniform buffers
      */
     public final int minUniformBufferOffsetAlignment() {
         return mMinUniformBufferOffsetAlignment;
@@ -308,7 +308,7 @@ public abstract class Caps {
 
     /**
      * @return minimum required alignment, in bytes, for the offset
-     * member of the {@link BufferViewInfo} structure for shader storage buffers
+     * member of the {@link BufferBindInfo} structure for shader storage buffers
      */
     public final int minStorageBufferOffsetAlignment() {
         return mMinStorageBufferOffsetAlignment;
