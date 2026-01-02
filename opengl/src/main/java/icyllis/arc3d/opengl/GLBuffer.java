@@ -153,8 +153,6 @@ public final class GLBuffer extends Buffer {
         int allocFlags;
         if ((usage & BufferUsageFlags.kReadback) != 0) {
             allocFlags = GL_MAP_READ_BIT |
-                    GL_MAP_PERSISTENT_BIT |
-                    GL_MAP_COHERENT_BIT |
                     GL_CLIENT_STORAGE_BIT;
         } else if ((usage & BufferUsageFlags.kHostVisible) != 0) {
             allocFlags = GL_MAP_WRITE_BIT |
