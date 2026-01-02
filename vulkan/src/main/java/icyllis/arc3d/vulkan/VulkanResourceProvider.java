@@ -31,13 +31,16 @@ import icyllis.arc3d.engine.Sampler;
 import icyllis.arc3d.engine.SamplerDesc;
 import org.jspecify.annotations.Nullable;
 
-public class VulkanResourceProvider extends ResourceProvider {
+/**
+ * Provides Vulkan objects with cache.
+ */
+public final class VulkanResourceProvider extends ResourceProvider {
 
     private final VulkanDevice mDevice;
 
     private final VulkanDescriptorPool.ResourceKey mDescriptorPoolKey = new VulkanDescriptorPool.ResourceKey();
 
-    protected VulkanResourceProvider(VulkanDevice device, Context context,
+    VulkanResourceProvider(VulkanDevice device, Context context,
                                      long maxResourceBudget) {
         super(device, context, maxResourceBudget);
         mDevice = device;
@@ -54,14 +57,14 @@ public class VulkanResourceProvider extends ResourceProvider {
 
     @Nullable
     @Override
-    protected Sampler createSampler(SamplerDesc desc) {
-        return VulkanSampler.make(mDevice, desc);
+    protected Buffer onCreateNewBuffer(long size, int usage) {
+        return VulkanBuffer.make(mDevice, size, usage);
     }
 
     @Nullable
     @Override
-    protected Buffer onCreateNewBuffer(long size, int usage) {
-        return null;
+    protected Sampler createSampler(SamplerDesc desc) {
+        return VulkanSampler.make(mDevice, desc);
     }
 
     @Nullable

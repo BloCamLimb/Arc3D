@@ -244,4 +244,43 @@ public class VulkanMemoryAllocator implements AutoCloseable {
         outAllocInfo.mMemoryFlags = flags;
         outAllocInfo.mAllocation = allocation;
     }
+
+    public long mapMemory(VulkanDevice device, VulkanAllocation allocInfo) {
+        assert (allocInfo.mMemoryFlags & VulkanAllocation.kHostVisible_Flag) != 0;
+
+        try (var stack = MemoryStack.stackPush()) {
+            var pp = stack.mallocPointer(1);
+            var result = vmaMapMemory(mAllocator, allocInfo.mAllocation, pp);
+            if (device.checkResult(result)) {
+                return pp.get(0);
+            }
+            return MemoryUtil.NULL;
+        }
+    }
+
+    public void unmapMemory(VulkanAllocation allocInfo) {
+        vmaUnmapMemory(mAllocator, allocInfo.mAllocation);
+    }
+
+    public boolean flushMemory(VulkanDevice device, VulkanAllocation allocInfo,
+                               long offset, long size) {
+        try (var stack = MemoryStack.stackPush()) {
+            var pAlloc = stack.pointers(allocInfo.mAllocation);
+            var offsets = stack.longs(offset);
+            var sizes = stack.longs(size);
+            var result = vmaFlushAllocations(mAllocator, pAlloc, offsets, sizes);
+            return device.checkResult(result);
+        }
+    }
+
+    public boolean invalidateMemory(VulkanDevice device, VulkanAllocation allocInfo,
+                                    long offset, long size) {
+        try (var stack = MemoryStack.stackPush()) {
+            var pAlloc = stack.pointers(allocInfo.mAllocation);
+            var offsets = stack.longs(offset);
+            var sizes = stack.longs(size);
+            var result = vmaInvalidateAllocations(mAllocator, pAlloc, offsets, sizes);
+            return device.checkResult(result);
+        }
+    }
 }
