@@ -53,12 +53,15 @@ public final class VulkanDescriptorSetLayout extends ManagedResource {
     @Nullable
     @SharedPtr
     public static VulkanDescriptorSetLayout make(@NonNull VulkanDevice device,
-                                                 @NonNull VulkanResourceProvider resourceProvider,
                                                  @NonNull DescriptorSetLayout layoutInfo) {
         try (var stack = MemoryStack.stackPush()) {
 
+            // binding count = 0 is allowed, it's used as placeholder to maintain descriptor set indices
             var pBindings = VkDescriptorSetLayoutBinding
                     .calloc(layoutInfo.getBindingCount(), stack);
+            var pImmutableSamplers = layoutInfo.hasImmutableSamplers()
+                    ? stack.mallocLong(layoutInfo.getBindingCount())
+                    : null;
 
             for (int binding = 0; binding < layoutInfo.getBindingCount(); binding++) {
                 var entry = layoutInfo.getDescriptorInfo(binding);
@@ -68,14 +71,25 @@ public final class VulkanDescriptorSetLayout extends ManagedResource {
                 int stageFlags = VKUtil.toVkPipelineStageFlags(entry.mVisibility);
                 boolean useImmutableSampler = entry.mImmutableSampler != null;
 
-                pBindings.binding(binding)
+                pBindings
+                        .binding(binding)
                         .descriptorType(type)
                         .descriptorCount(count)
                         .stageFlags(stageFlags);
 
                 if (useImmutableSampler) {
-
-                    // TODO set this from resource provider
+                    // each time we pass a span [pos,pos+1) from VkHandle array
+                    assert pImmutableSamplers != null;
+                    int immutableSamplerPos = pImmutableSamplers.position();
+                    pImmutableSamplers
+                            .put(immutableSamplerPos, ((VulkanSampler) entry.mImmutableSampler).vkSampler());
+                    pImmutableSamplers.limit(immutableSamplerPos + count);
+                    pBindings
+                            .pImmutableSamplers(pImmutableSamplers);
+                    assert pBindings.descriptorCount() == count;
+                    pImmutableSamplers
+                            .position(immutableSamplerPos + count)
+                            .limit(pImmutableSamplers.capacity());
                 }
 
                 pBindings.position(pBindings.position() + 1);

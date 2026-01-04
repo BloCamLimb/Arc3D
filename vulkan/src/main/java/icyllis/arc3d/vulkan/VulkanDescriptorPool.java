@@ -22,7 +22,7 @@ package icyllis.arc3d.vulkan;
 import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.SharedPtr;
 import icyllis.arc3d.engine.DescriptorSetLayout;
-import icyllis.arc3d.engine.Engine;
+import icyllis.arc3d.engine.Engine.DescriptorType;
 import icyllis.arc3d.engine.IResourceKey;
 import icyllis.arc3d.engine.Resource;
 import org.jspecify.annotations.NonNull;
@@ -52,10 +52,11 @@ public final class VulkanDescriptorPool extends Resource {
     private final ArrayDeque<VulkanDescriptorSet> mFreePool;
 
     private VulkanDescriptorPool(VulkanDevice device,
+                                 long memorySize,
                                  @SharedPtr VulkanDescriptorSetLayout layout,
                                  int maxSets,
                                  long descPool) {
-        super(device, /*wrapped*/ false, /*memorySize*/ 0);
+        super(device, /*wrapped*/ false, memorySize);
         mDescPool = descPool;
         mLayout = layout;
         assert descPool != VK_NULL_HANDLE;
@@ -80,7 +81,7 @@ public final class VulkanDescriptorPool extends Resource {
             // Vulkan 1.0 spec says: If multiple pool size structures contain the same descriptor type,
             // the pool will be created with enough storage for the total number of descriptors of each type.
             // However, here we still want to calculate the cumulative number of DS for each type.
-            int[] perTypeSizes = new int[Engine.DescriptorType.kCount];
+            int[] perTypeSizes = new int[DescriptorType.kCount];
             for (int i = 0; i < layout.getBindingCount(); i++) {
                 var entry = layout.getLayoutInfo().getDescriptorInfo(i);
 
@@ -91,6 +92,9 @@ public final class VulkanDescriptorPool extends Resource {
                 perTypeSizes[type] += count * maxSets;
             }
 
+            // overestimate a pool's memory size
+            long memorySize = 4096;
+
             var pPoolSizes = VkDescriptorPoolSize.calloc(perTypeSizes.length, stack);
             for (int type = 0; type < perTypeSizes.length; type++) {
                 int size = perTypeSizes[type];
@@ -99,6 +103,12 @@ public final class VulkanDescriptorPool extends Resource {
                             .descriptorCount(size);
 
                     pPoolSizes.position(pPoolSizes.position() + 1);
+
+                    if (type == DescriptorType.kCombinedImageSampler) {
+                        memorySize += size * 64L;
+                    } else {
+                        memorySize += size * 32L;
+                    }
                 }
             }
 
@@ -122,7 +132,7 @@ public final class VulkanDescriptorPool extends Resource {
             }
 
             @SharedPtr
-            var resultPool = new VulkanDescriptorPool(device, layout, // move
+            var resultPool = new VulkanDescriptorPool(device, memorySize, layout, // move
                     maxSets, pPool.get(0));
 
             // allocate and exhaust the pool, to full up our ring buffer
