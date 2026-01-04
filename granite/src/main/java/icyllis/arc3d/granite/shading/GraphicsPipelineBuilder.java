@@ -22,7 +22,6 @@ package icyllis.arc3d.granite.shading;
 import icyllis.arc3d.compiler.ShaderDataType;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.BlendFormula;
-import icyllis.arc3d.granite.DrawPass;
 import icyllis.arc3d.granite.FragmentNode;
 import icyllis.arc3d.granite.FragmentStage;
 import icyllis.arc3d.granite.GraniteUtil;
@@ -148,16 +147,31 @@ public class GraphicsPipelineBuilder {
         info.mDepthStencilSettings = mDesc.geomStep().depthStencilSettings();
 
         // pipeline layout
-        info.mUniformBlockInfos = new PipelineDesc.UniformBlockInfo[2];
-        info.mUniformBlockInfos[0] = new PipelineDesc.UniformBlockInfo(mGeometryBlockVisibility,
-                DrawPass.GEOMETRY_UNIFORM_BLOCK_BINDING, DrawPass.GEOMETRY_UNIFORM_BLOCK_NAME);
-        info.mUniformBlockInfos[1] = new PipelineDesc.UniformBlockInfo(mFragmentBlockVisibility,
-                DrawPass.FRAGMENT_UNIFORM_BLOCK_BINDING, DrawPass.FRAGMENT_UNIFORM_BLOCK_NAME);
-        info.mSamplerInfos = new PipelineDesc.SamplerInfo[mFragmentUniforms.numSamplers()];
-        for (int i = 0; i < info.mSamplerInfos.length; i++) {
-            // handle == index == binding index == texture unit
-            info.mSamplerInfos[i] = new PipelineDesc.SamplerInfo(Engine.ShaderFlags.kFragment,
-                    i, mFragmentUniforms.samplerVariable(i));
+        info.mDescriptorSetLayouts = new DescriptorSetLayout[3];
+        //TODO current there's no input attachment
+        info.mDescriptorSetLayouts[UniformHandler.INPUT_DESC_SET] = new DescriptorSetLayout();
+        {
+            var uniformBlockInfos = new DescriptorSetLayout.DescriptorInfo[2];
+            uniformBlockInfos[UniformHandler.GEOMETRY_UNIFORM_BLOCK_BINDING]
+                    = new DescriptorSetLayout.DescriptorInfo(
+                    UniformHandler.GEOMETRY_UNIFORM_BLOCK_NAME,
+                    Engine.DescriptorType.kUniformBuffer, mGeometryBlockVisibility
+            );
+            uniformBlockInfos[UniformHandler.FRAGMENT_UNIFORM_BLOCK_BINDING]
+                    = new DescriptorSetLayout.DescriptorInfo(
+                    UniformHandler.FRAGMENT_UNIFORM_BLOCK_NAME,
+                    Engine.DescriptorType.kUniformBuffer, mFragmentBlockVisibility
+            );
+            info.mDescriptorSetLayouts[UniformHandler.MAIN_DESC_SET] = new DescriptorSetLayout(uniformBlockInfos);
+        }
+        {
+            var samplerInfos = new DescriptorSetLayout.DescriptorInfo[mFragmentUniforms.numSamplers()];
+            for (int i = 0; i < samplerInfos.length; i++) {
+                // handle == index == binding index == texture unit
+                samplerInfos[i] = new DescriptorSetLayout.DescriptorInfo(mFragmentUniforms.samplerVariable(i),
+                        Engine.DescriptorType.kCombinedImageSampler, Engine.ShaderFlags.kFragment);
+            }
+            info.mDescriptorSetLayouts[UniformHandler.SAMPLER_DESC_SET] = new DescriptorSetLayout(samplerInfos);
         }
 
         info.mPipelineLabel = info.mVertLabel + " + ";
@@ -216,7 +230,7 @@ public class GraphicsPipelineBuilder {
 
         //// Uniforms
         if (mGeometryUniforms.appendUniformDecls(Engine.ShaderFlags.kVertex,
-                DrawPass.GEOMETRY_UNIFORM_BLOCK_BINDING, DrawPass.GEOMETRY_UNIFORM_BLOCK_NAME, out)) {
+                UniformHandler.GEOMETRY_UNIFORM_BLOCK_BINDING, UniformHandler.GEOMETRY_UNIFORM_BLOCK_NAME, out)) {
             mGeometryBlockVisibility |= Engine.ShaderFlags.kVertex;
         } else {
             // there's always 2D orthographic projection
@@ -309,11 +323,11 @@ public class GraphicsPipelineBuilder {
 
         //// Uniforms
         if (mGeometryUniforms.appendUniformDecls(Engine.ShaderFlags.kFragment,
-                DrawPass.GEOMETRY_UNIFORM_BLOCK_BINDING, DrawPass.GEOMETRY_UNIFORM_BLOCK_NAME, out)) {
+                UniformHandler.GEOMETRY_UNIFORM_BLOCK_BINDING, UniformHandler.GEOMETRY_UNIFORM_BLOCK_NAME, out)) {
             mGeometryBlockVisibility |= Engine.ShaderFlags.kFragment;
         }
         if (mFragmentUniforms.appendUniformDecls(Engine.ShaderFlags.kFragment,
-                DrawPass.FRAGMENT_UNIFORM_BLOCK_BINDING, DrawPass.FRAGMENT_UNIFORM_BLOCK_NAME, out)) {
+                UniformHandler.FRAGMENT_UNIFORM_BLOCK_BINDING, UniformHandler.FRAGMENT_UNIFORM_BLOCK_NAME, out)) {
             mFragmentBlockVisibility |= Engine.ShaderFlags.kFragment;
         }
         //// Samplers

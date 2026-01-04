@@ -31,33 +31,6 @@ public abstract class PipelineDesc {
     public static final int NO_DYNAMIC_STATE = 0;
     public static final int DYNAMIC_COLOR_BLEND_STATE = 1;
 
-    //TODO temporary, to be reviewed
-    public static final class UniformBlockInfo {
-        // ShaderFlags
-        public final int mVisibility;
-        public final int mBinding;
-        public final String mBlockName;
-
-        public UniformBlockInfo(int visibility, int binding, String blockName) {
-            mVisibility = visibility;
-            mBinding = binding;
-            mBlockName = blockName;
-        }
-    }
-
-    public static final class SamplerInfo {
-        // ShaderFlags
-        public final int mVisibility;
-        public final int mBinding;
-        public final String mName;
-
-        public SamplerInfo(int visibility, int binding, String name) {
-            mVisibility = visibility;
-            mBinding = binding;
-            mName = name;
-        }
-    }
-
     public static final class GraphicsPipelineInfo {
         public byte mPrimitiveType;
         public VertexInputLayout mInputLayout;
@@ -69,8 +42,7 @@ public abstract class PipelineDesc {
         public String mFragLabel;
         public BlendInfo mBlendInfo;
         public DepthStencilSettings mDepthStencilSettings;
-        public UniformBlockInfo[] mUniformBlockInfos;
-        public SamplerInfo[] mSamplerInfos;
+        public DescriptorSetLayout[] mDescriptorSetLayouts;
         public String mPipelineLabel;
     }
 

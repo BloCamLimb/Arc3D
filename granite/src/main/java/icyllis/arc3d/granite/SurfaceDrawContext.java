@@ -21,6 +21,7 @@ package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.*;
 import icyllis.arc3d.engine.*;
+import icyllis.arc3d.granite.shading.UniformHandler;
 import icyllis.arc3d.granite.task.DrawTask;
 import icyllis.arc3d.granite.task.ImageUploadTask;
 import icyllis.arc3d.granite.task.RenderPassTask;
@@ -418,13 +419,13 @@ public final class SurfaceDrawContext implements AutoCloseable {
                     }
                     if (geometryBindingChange) {
                         geometryUniformTracker.bindUniforms(
-                                DrawPass.GEOMETRY_UNIFORM_BLOCK_BINDING,
+                                UniformHandler.GEOMETRY_UNIFORM_BLOCK_BINDING,
                                 commandList
                         );
                     }
                     if (fragmentBindingChange) {
                         fragmentUniformTracker.bindUniforms(
-                                DrawPass.FRAGMENT_UNIFORM_BLOCK_BINDING,
+                                UniformHandler.FRAGMENT_UNIFORM_BLOCK_BINDING,
                                 commandList
                         );
                     }

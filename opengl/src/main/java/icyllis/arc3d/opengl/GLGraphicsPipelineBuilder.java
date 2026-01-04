@@ -27,6 +27,8 @@ import icyllis.arc3d.compiler.TranslationUnit;
 import icyllis.arc3d.core.SharedPtr;
 import icyllis.arc3d.engine.BlendInfo;
 import icyllis.arc3d.engine.DepthStencilSettings;
+import icyllis.arc3d.engine.DescriptorSetLayout;
+import icyllis.arc3d.engine.Engine;
 import icyllis.arc3d.engine.PipelineDesc;
 import icyllis.arc3d.engine.ShaderCaps;
 import icyllis.arc3d.engine.VertexInputLayout;
@@ -60,8 +62,7 @@ public class GLGraphicsPipelineBuilder {
     private String mInputLayoutLabel;
     private BlendInfo mBlendInfo;
     private DepthStencilSettings mDepthStencilSettings;
-    private PipelineDesc.UniformBlockInfo[] mUniformBlockInfos;
-    private PipelineDesc.SamplerInfo[] mSamplerInfos;
+    private DescriptorSetLayout[] mDescriptorSetLayouts;
     private String mPipelineLabel;
 
     private GLGraphicsPipelineBuilder(GLDevice device,
@@ -90,8 +91,7 @@ public class GLGraphicsPipelineBuilder {
         mInputLayoutLabel = info.mInputLayoutLabel;
         mBlendInfo = info.mBlendInfo;
         mDepthStencilSettings = info.mDepthStencilSettings;
-        mUniformBlockInfos = info.mUniformBlockInfos;
-        mSamplerInfos = info.mSamplerInfos;
+        mDescriptorSetLayouts = info.mDescriptorSetLayouts;
         /*mFinalizedVertSource = toUTF8(info.mVertSource);
         mFinalizedFragSource = toUTF8(info.mFragSource);*/
         mPipelineLabel = info.mPipelineLabel;
@@ -342,38 +342,57 @@ public class GLGraphicsPipelineBuilder {
 
         // Setup layout bindings if < OpenGL 4.2
         if (!mDevice.getCaps().shaderCaps().mUniformBindingSupport) {
+            boolean boundProgram = false;
             //noinspection resource
             MemoryStack stack = stackGet();
             int stackPointer = stack.getPointer();
-            if (mUniformBlockInfos != null) {
-                for (var info : mUniformBlockInfos) {
-                    if (info.mVisibility != 0) {
-                        try {
-                            stack.nASCII(info.mBlockName, true);
-                            long uniformBlockNameEncoded = stack.getPointerAddress();
-                            int index = gl.glGetUniformBlockIndex(program, uniformBlockNameEncoded);
-                            assert index != GL_INVALID_INDEX;
-                            gl.glUniformBlockBinding(program, index, info.mBinding);
-                        } finally {
-                            stack.setPointer(stackPointer);
-                        }
+            for (var layout : mDescriptorSetLayouts) {
+                for (int binding = 0; binding < layout.getBindingCount(); binding++) {
+                    var info = layout.getDescriptorInfo(binding);
+                    if (info.mVisibility == 0) {
+                        continue;
                     }
-                }
-            }
-            // Assign texture units to sampler uniforms one time up front
-            if (mSamplerInfos != null && mSamplerInfos.length > 0) {
-                // We can bind program here, since we will bind this pipeline immediately
-                gl.glUseProgram(program);
-                for (var info : mSamplerInfos) {
-                    if (info.mVisibility != 0) {
-                        try {
-                            stack.nASCII(info.mName, true);
-                            long nameEncoded = stack.getPointerAddress();
-                            int location = gl.glGetUniformLocation(program, nameEncoded);
-                            assert location != -1;
-                            gl.glUniform1i(location, info.mBinding); // <- binding is just the texture unit (index)
-                        } finally {
-                            stack.setPointer(stackPointer);
+                    switch (info.mType) {
+                        case Engine.DescriptorType.kUniformBuffer -> {
+                            try {
+                                // block name
+                                stack.nASCII(info.mName, true);
+                                long uniformBlockNameEncoded = stack.getPointerAddress();
+                                int index = gl.glGetUniformBlockIndex(program, uniformBlockNameEncoded);
+                                assert index != GL_INVALID_INDEX;
+                                gl.glUniformBlockBinding(program, index, binding);
+                            } finally {
+                                stack.setPointer(stackPointer);
+                            }
+                        }
+                        case Engine.DescriptorType.kCombinedImageSampler,
+                             Engine.DescriptorType.kSampledImage,
+                             Engine.DescriptorType.kStorageImage,
+                             Engine.DescriptorType.kUniformTexelBuffer,
+                             Engine.DescriptorType.kStorageTexelBuffer -> {
+                            // Assign texture units to sampler uniforms one time up front
+                            if (!boundProgram) {
+                                // We can bind program here, since we will bind this pipeline immediately
+                                gl.glUseProgram(program);
+                                boundProgram = true;
+                            }
+                            try {
+                                stack.nASCII(info.mName, true);
+                                long nameEncoded = stack.getPointerAddress();
+                                int location = gl.glGetUniformLocation(program, nameEncoded);
+                                assert location != -1;
+                                gl.glUniform1i(location, binding); // <- binding is just the texture unit (index)
+                            } finally {
+                                stack.setPointer(stackPointer);
+                            }
+                        }
+                        case Engine.DescriptorType.kStorageBuffer -> {
+                            // ARB_shader_storage_buffer_object allows you to use layout(binding=N)
+                            // even without ARB_shading_language_420pack
+                        }
+                        case Engine.DescriptorType.kInputAttachment,
+                             Engine.DescriptorType.kAccelerationStructure -> {
+                            assert false;
                         }
                     }
                 }

@@ -34,12 +34,6 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 @SuppressWarnings("ForLoopReplaceableByForEach")
 public final class DrawPass implements AutoCloseable {
 
-    public static final int GEOMETRY_UNIFORM_BLOCK_BINDING = 0; // i.e. RenderBlock/StepBlock
-    public static final int FRAGMENT_UNIFORM_BLOCK_BINDING = 1; // i.e. PaintBlock/EffectBlock/ShadingBlock
-
-    public static final String GEOMETRY_UNIFORM_BLOCK_NAME = "GeometryUniforms";
-    public static final String FRAGMENT_UNIFORM_BLOCK_NAME = "FragmentUniforms";
-
     /**
      * Depth buffer is 16-bit, ensure no overflow.
      * The theoretic max for this value is 65535, but we see markedly better

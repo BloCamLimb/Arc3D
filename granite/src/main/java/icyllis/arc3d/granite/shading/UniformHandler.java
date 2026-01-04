@@ -89,28 +89,27 @@ public class UniformHandler {
     public static final int Std140Layout = 0;
     public static final int Std430Layout = 1;
 
-    /**
-     * Binding a descriptor set invalidates all higher index descriptor sets. We must bind
-     * in the order of this enumeration. Samplers are after Uniforms because Ops can specify
-     * GP textures as dynamic state, meaning they get rebound for each draw in a pipeline while
-     * uniforms are bound once before all the draws. We bind input attachments after samplers
-     * so those also need to be rebound if we bind new samplers.
-     */
-    public static final int MAIN_DESC_SET = 0;
-    public static final int SAMPLER_DESC_SET = 1;
-    public static final int INPUT_DESC_SET = 2;
+    public static final int GEOMETRY_UNIFORM_BLOCK_BINDING = 0; // i.e. RenderBlock/StepBlock
+    public static final int FRAGMENT_UNIFORM_BLOCK_BINDING = 1; // i.e. PaintBlock/EffectBlock/ShadingBlock
 
-    /*
-     * The bindings for the main descriptor set.
-     */
-    //public static final int UNIFORM_BINDING = 0; // will use Push Constants if possible
-
-    //public static final String UNIFORM_BLOCK_NAME = "UniformBlock";
+    public static final String GEOMETRY_UNIFORM_BLOCK_NAME = "GeometryUniforms";
+    public static final String FRAGMENT_UNIFORM_BLOCK_NAME = "FragmentUniforms";
 
     /**
      * The bindings for the input descriptor set.
      */
     public static final int INPUT_BINDING = 0;
+
+    /**
+     * Binding a descriptor set invalidates all higher index descriptor sets. We must bind
+     * in the order of this enumeration. Samplers are after Uniforms because Ops can specify
+     * GP textures as dynamic state, meaning they get rebound for each draw in a pipeline while
+     * uniforms are bound once before all the draws. We bind input attachments first
+     * because it won't change during a render pass, we only need to bind once per render pass.
+     */
+    public static final int INPUT_DESC_SET = 0;
+    public static final int MAIN_DESC_SET = 1;
+    public static final int SAMPLER_DESC_SET = 2;
 
     protected final ShaderCaps mShaderCaps;
     private final int mLayout;
