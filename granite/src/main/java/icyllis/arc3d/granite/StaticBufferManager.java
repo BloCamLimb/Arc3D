@@ -62,7 +62,7 @@ public class StaticBufferManager {
         boolean allocateAndSetBindings(
                 ResourceProvider resourceProvider,
                 QueueManager queueManager,
-                GlobalResourceCache globalResourceCache,
+                DeviceBoundCache deviceBoundCache,
                 String label
         ) {
             if (mTotalRequiredBytes == 0) {
@@ -100,7 +100,7 @@ public class StaticBufferManager {
             }
 
             assert offset == mTotalRequiredBytes;
-            globalResourceCache.addStaticResource(buffer); // move
+            deviceBoundCache.trackStaticResource(buffer); // move
             return true;
         }
     }
@@ -142,7 +142,7 @@ public class StaticBufferManager {
     public static final int RESULT_NO_WORK = 2;
 
     public int flush(QueueManager queueManager,
-                     GlobalResourceCache globalResourceCache) {
+                     DeviceBoundCache deviceBoundCache) {
         if (mMappingFailed) {
             return RESULT_FAILURE;
         }
@@ -158,13 +158,13 @@ public class StaticBufferManager {
         mUploadManager.flush(resourceRefs);
         if (!mVertexBuffer.allocateAndSetBindings(mResourceProvider,
                 queueManager,
-                globalResourceCache,
+                deviceBoundCache,
                 "StaticVertexBuffer")) {
             return RESULT_FAILURE;
         }
         if (!mIndexBuffer.allocateAndSetBindings(mResourceProvider,
                 queueManager,
-                globalResourceCache,
+                deviceBoundCache,
                 "StaticIndexBuffer")) {
             return RESULT_FAILURE;
         }

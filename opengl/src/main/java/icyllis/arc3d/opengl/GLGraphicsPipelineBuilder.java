@@ -230,10 +230,10 @@ public class GLGraphicsPipelineBuilder {
         if (mFinalizedFragGLSL != null || mFinalizedFragSPIRV != null) {
             if (mFinalizedFragSPIRV != null) {
                 frag = GLUtil.glSpecializeShader(mDevice, GL_FRAGMENT_SHADER, mFinalizedFragSPIRV,
-                        "main", mDevice.getGlobalResourceCache().getStats());
+                        "main", mDevice.getDeviceBoundCache().getStats());
             } else {
                 frag = GLUtil.glCompileShader(mDevice, GL_FRAGMENT_SHADER, mFinalizedFragGLSL,
-                        mDevice.getGlobalResourceCache().getStats());
+                        mDevice.getDeviceBoundCache().getStats());
             }
             if (frag == 0) {
                 gl.glDeleteProgram(program);
@@ -244,10 +244,10 @@ public class GLGraphicsPipelineBuilder {
         int vert;
         if (mFinalizedVertSPIRV != null) {
             vert = GLUtil.glSpecializeShader(mDevice, GL_VERTEX_SHADER, mFinalizedVertSPIRV,
-                    "main", mDevice.getGlobalResourceCache().getStats());
+                    "main", mDevice.getDeviceBoundCache().getStats());
         } else {
             vert = GLUtil.glCompileShader(mDevice, GL_VERTEX_SHADER, mFinalizedVertGLSL,
-                    mDevice.getGlobalResourceCache().getStats());
+                    mDevice.getDeviceBoundCache().getStats());
         }
         if (vert == 0) {
             gl.glDeleteProgram(program);

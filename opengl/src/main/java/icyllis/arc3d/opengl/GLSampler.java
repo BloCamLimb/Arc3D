@@ -49,14 +49,12 @@ public final class GLSampler extends Sampler {
         GLSampler sampler = new GLSampler(device, desc);
         if (device.isOnExecutingThread()) {
             if (!sampler.initialize()) {
-                sampler.unref();
                 return null;
             }
         } else {
             device.executeRenderCall(dev -> {
-                if (!sampler.isDestroyed() && !sampler.initialize()) {
-                    sampler.setNonCacheable();
-                }
+                sampler.initialize();
+                // result is ignored, if failed, just use default tex sampler
             });
         }
         return sampler;
@@ -108,7 +106,7 @@ public final class GLSampler extends Sampler {
     }
 
     @Override
-    protected void onRelease() {
+    protected void destroy() {
         ((GLDevice) getDevice()).executeRenderCall(dev -> {
             if (mSampler != 0) {
                 try (MemoryStack stack = MemoryStack.stackPush()) {

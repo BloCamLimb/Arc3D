@@ -34,7 +34,7 @@ public class GraniteUtil {
         var staticBufferManager = new StaticBufferManager(context.getResourceProvider(), context.getCaps());
         var rendererProvider = new RendererProvider(context.getCaps(), staticBufferManager);
 
-        var result = staticBufferManager.flush(context.getQueueManager(), context.getGlobalResourceCache());
+        var result = staticBufferManager.flush(context.getQueueManager(), context.getDeviceBoundCache());
         if (result == StaticBufferManager.RESULT_FAILURE) {
             return false;
         }

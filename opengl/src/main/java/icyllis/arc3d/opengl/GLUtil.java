@@ -562,7 +562,7 @@ public final class GLUtil {
     public static int glCompileShader(GLDevice device,
                                       @NativeType("GLenum") int shaderType,
                                       @NativeType("GLchar const *") ByteBuffer glsl,
-                                      GlobalResourceCache.Stats stats) {
+                                      DeviceBoundCache.Stats stats) {
         var gl = device.getGL();
         int shader = gl.glCreateShader(shaderType);
         if (shader == 0) {
@@ -594,7 +594,7 @@ public final class GLUtil {
                                          @NativeType("GLenum") int shaderType,
                                          @NativeType("uint32_t *") ByteBuffer spirv,
                                          @NonNull String entryPoint,
-                                         GlobalResourceCache.@NonNull Stats stats) {
+                                         DeviceBoundCache.@NonNull Stats stats) {
         var gl = device.getGL();
         int shader = gl.glCreateShader(shaderType);
         if (shader == 0) {

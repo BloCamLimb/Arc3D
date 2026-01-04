@@ -107,7 +107,7 @@ public final class GLGraphicsPipeline extends GraphicsPipeline {
 
     private void checkAsyncWork() {
         boolean success = mAsyncWork.join().finish(this);
-        var stats = getDevice().getGlobalResourceCache().getStats();
+        var stats = getDevice().getDeviceBoundCache().getStats();
         if (success) {
             stats.incNumCompilationSuccesses();
         } else {

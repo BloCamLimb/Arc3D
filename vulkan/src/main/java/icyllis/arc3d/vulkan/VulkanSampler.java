@@ -109,7 +109,7 @@ public final class VulkanSampler extends Sampler {
     }
 
     @Override
-    protected void onRelease() {
+    protected void destroy() {
         VulkanDevice device = (VulkanDevice) getDevice();
         vkDestroySampler(
                 device.vkDevice(),

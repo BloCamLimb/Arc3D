@@ -107,7 +107,7 @@ public final class GLCommandBuffer extends CommandBuffer {
 
     // [Unit][ImageType]
     private final WeakIdentityKey<?>[][] mHWTextureStates;
-    private final WeakIdentityKey<?>[] mHWSamplerStates;
+    private final @RawPtr GLSampler[] mHWSamplerStates;
 
     // current pipeline state
     @RawPtr
@@ -134,7 +134,7 @@ public final class GLCommandBuffer extends CommandBuffer {
 
         int maxTextureUnits = device.getCaps().shaderCaps().mMaxFragmentSamplers;
         mHWTextureStates = new WeakIdentityKey<?>[maxTextureUnits][ImageType.kCount];
-        mHWSamplerStates = new WeakIdentityKey<?>[maxTextureUnits];
+        mHWSamplerStates = new GLSampler[maxTextureUnits];
 
         resetStates();
     }
@@ -780,9 +780,9 @@ public final class GLCommandBuffer extends CommandBuffer {
             }
             mHWTextureStates[binding][imageType] = glTexture.getUniqueID();
         }
-        if (mHWSamplerStates[binding] != glSampler.getUniqueID()) {
+        if (mHWSamplerStates[binding] != glSampler) {
             mDevice.getGL().glBindSampler(binding, glSampler.getHandle());
-            mHWSamplerStates[binding] = glSampler.getUniqueID();
+            mHWSamplerStates[binding] = glSampler;
         }
         GLTextureMutableState mutableState = glTexture.getGLMutableState();
         if (mutableState.mBaseMipmapLevel != 0) {

@@ -19,12 +19,12 @@
 
 package icyllis.arc3d.engine;
 
+import icyllis.arc3d.core.RawPtr;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import javax.annotation.concurrent.Immutable;
 import java.util.Arrays;
-import java.util.Objects;
 
 /**
  * Engine-level class that represents a descriptor set layout.
@@ -68,13 +68,14 @@ public final class DescriptorSetLayout {
          * Non-null if it's immutable sampler.
          */
         @Nullable
-        public final SamplerDesc mImmutableSampler;
+        @RawPtr
+        public final Sampler mImmutableSampler;
 
         //TODO if resource array is useful, we can allow it in Vulkan backend, but
         // our compiler doesn't support resource array yet... see SPIRVCodeGenerator
 
         public DescriptorInfo(String name, int type, int visibility,
-                              @Nullable SamplerDesc immutableSampler) {
+                              @Nullable @RawPtr Sampler immutableSampler) {
             mName = name;
             mType = type;
             mVisibility = visibility;
@@ -88,7 +89,7 @@ public final class DescriptorSetLayout {
         }
 
         public DescriptorInfo(int type, int visibility,
-                              @Nullable SamplerDesc immutableSampler) {
+                              @Nullable @RawPtr Sampler immutableSampler) {
             this("", type, visibility, immutableSampler);
         }
 
@@ -103,14 +104,14 @@ public final class DescriptorSetLayout {
 
             return mType == that.mType &&
                     mVisibility == that.mVisibility &&
-                    Objects.equals(mImmutableSampler, that.mImmutableSampler);
+                    mImmutableSampler == that.mImmutableSampler;
         }
 
         @Override
         public int hashCode() {
             int result = mType;
             result = 31 * result + mVisibility;
-            result = 31 * result + Objects.hashCode(mImmutableSampler);
+            result = 31 * result + System.identityHashCode(mImmutableSampler);
             return result;
         }
     }
@@ -130,6 +131,15 @@ public final class DescriptorSetLayout {
 
     public int getBindingCount() {
         return mDescriptorInfos.length;
+    }
+
+    public boolean hasImmutableSamplers() {
+        for (var entry : mDescriptorInfos) {
+            if (entry.mImmutableSampler != null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override

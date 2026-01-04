@@ -22,19 +22,24 @@ package icyllis.arc3d.engine;
 /**
  * Represents GPU sampler objects.
  */
-public abstract class Sampler extends Resource {
+public abstract class Sampler {
 
+    private final Device mDevice;
     protected final SamplerDesc mDesc;
 
     protected Sampler(Device device, SamplerDesc desc) {
-        super(device, false, 0);
+        mDevice = device;
         mDesc = desc;
+    }
+
+    protected abstract void destroy();
+
+    protected Device getDevice() {
+        return mDevice;
     }
 
     /**
      * Returns the description used to create this sampler object.
-     * Sampler are shareable objects, there's no need to check WeakIdentityKey {@link #getUniqueID()},
-     * this is preferred.
      */
     public final SamplerDesc getDesc() {
         return mDesc;

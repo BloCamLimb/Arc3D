@@ -21,7 +21,6 @@ package icyllis.arc3d.granite.trash;
 
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.engine.Device;
-import icyllis.arc3d.core.ImageInfo;
 import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.Nullable;
 
@@ -57,7 +56,7 @@ public final class SharedContext {
 
     private volatile Caps mCaps;
     private volatile ThreadSafeCache mThreadSafeCache;
-    private volatile GlobalResourceCache mGlobalResourceCache;
+    private volatile DeviceBoundCache mDeviceBoundCache;
 
     private final AtomicBoolean mDiscarded = new AtomicBoolean(false);
 
@@ -167,15 +166,15 @@ public final class SharedContext {
     }
 
     @ApiStatus.Internal
-    public GlobalResourceCache getPipelineCache() {
-        return mGlobalResourceCache;
+    public DeviceBoundCache getPipelineCache() {
+        return mDeviceBoundCache;
     }
 
     void init(Device device) {
         assert (device != null);
         mCaps = device.getCaps();
         mThreadSafeCache = new ThreadSafeCache();
-        mGlobalResourceCache = device.getGlobalResourceCache();
+        mDeviceBoundCache = device.getDeviceBoundCache();
     }
 
     boolean discard() {

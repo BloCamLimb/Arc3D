@@ -31,7 +31,7 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * This can only be used on render thread. To create Surface-like resources
  * in other threads, use {@link SurfaceProxy}. To obtain Pipeline resources,
- * use {@link GlobalResourceCache}.
+ * use {@link DeviceBoundCache}.
  */
 public abstract class ResourceProvider {
 
@@ -68,7 +68,7 @@ public abstract class ResourceProvider {
     public GraphicsPipeline findOrCreateGraphicsPipeline(
             PipelineDesc pipelineDesc,
             RenderPassDesc renderPassDesc) {
-        var cache = mDevice.getGlobalResourceCache();
+        var cache = mDevice.getDeviceBoundCache();
         mGraphicsPipelineKey = mDevice.getCaps().makeGraphicsPipelineKey(
                 mGraphicsPipelineKey,
                 pipelineDesc,
@@ -471,23 +471,17 @@ public abstract class ResourceProvider {
      * @return the sampler object, or null if failed
      */
     @Nullable
-    @SharedPtr
+    @RawPtr
     public final Sampler findOrCreateCompatibleSampler(@NonNull SamplerDesc desc) {
-        @SharedPtr
-        Sampler sampler = (Sampler) mResourceCache.findAndRefResource(
-                desc, /*budgeted*/true, /*shareable*/true
-        );
-        if (sampler != null) {
-            return sampler;
-        }
-
-        sampler = createSampler(desc);
+        var cache = mDevice.getDeviceBoundCache();
+        @RawPtr
+        Sampler sampler = cache.findCompatibleSampler(desc);
         if (sampler == null) {
-            return null;
+            sampler = createSampler(desc);
+            if (sampler != null) {
+                sampler = cache.insertCompatibleSampler(desc, sampler);
+            }
         }
-
-        mResourceCache.insertResource(sampler, desc, /*budgeted*/true, /*shareable*/true);
-
         return sampler;
     }
 

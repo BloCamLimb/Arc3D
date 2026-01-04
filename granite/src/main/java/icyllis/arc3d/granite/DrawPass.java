@@ -64,7 +64,7 @@ public final class DrawPass implements AutoCloseable {
     private final ObjectArrayList<@SharedPtr ImageProxyView> mTexturesViews;
 
     private volatile @SharedPtr GraphicsPipeline[] mPipelines;
-    private volatile @SharedPtr Sampler[] mSamplers;
+    private volatile @RawPtr Sampler[] mSamplers;
 
     DrawPass(DrawCommandList commandList, Rect2i bounds, int depthStencilFlags,
                      ObjectArrayList<GraphicsPipelineDesc> pipelineDescs,
@@ -114,10 +114,10 @@ public final class DrawPass implements AutoCloseable {
         }
 
         if (!mSamplerDescs.isEmpty()) {
-            @SharedPtr Sampler[] samplers = new Sampler[mSamplerDescs.size()];
+            @RawPtr Sampler[] samplers = new Sampler[mSamplerDescs.size()];
             try {
                 for (int i = 0; i < mSamplerDescs.size(); i++) {
-                    @SharedPtr
+                    @RawPtr
                     var sampler = resourceProvider.findOrCreateCompatibleSampler(
                             mSamplerDescs.get(i)
                     );
@@ -127,7 +127,6 @@ public final class DrawPass implements AutoCloseable {
                     samplers[i] = sampler;
                 }
             } finally {
-                // We must release the objects that have already been created.
                 mSamplers = samplers;
                 // The DrawPass may be long-lived on a Recording and we no longer need the SamplerDescs
                 // once we've created Samplers, so we drop the storage for them here.
@@ -141,11 +140,6 @@ public final class DrawPass implements AutoCloseable {
     public boolean execute(CommandBuffer commandBuffer) {
         for (var pipeline : mPipelines) {
             commandBuffer.trackResource(RefCnt.create(pipeline));
-        }
-        if (mSamplers != null) {
-            for (var sampler : mSamplers) {
-                commandBuffer.trackResource(RefCnt.create(sampler));
-            }
         }
         for (int i = 0; i < mTexturesViews.size(); i++) {
             commandBuffer.trackCommandBufferResource(mTexturesViews.get(i).getProxy().refImage());
@@ -246,11 +240,6 @@ public final class DrawPass implements AutoCloseable {
         if (mPipelines != null) {
             for (int i = 0; i < mPipelines.length; i++) {
                 mPipelines[i] = RefCnt.move(mPipelines[i]);
-            }
-        }
-        if (mSamplers != null) {
-            for (int i = 0; i < mSamplers.length; i++) {
-                mSamplers[i] = RefCnt.move(mSamplers[i]);
             }
         }
         mTexturesViews.forEach(ImageProxyView::close);

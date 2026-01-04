@@ -71,7 +71,7 @@ public abstract class Device implements Engine {
     private final int mContextID;
 
     private ThreadSafeCache mThreadSafeCache;
-    private GlobalResourceCache mGlobalResourceCache;
+    private DeviceBoundCache mDeviceBoundCache;
     // init on ImmediateContext, publish by clients, no need to use CHM
     final HashMap<String, Object> mSharedObjects = new HashMap<>();
 
@@ -101,7 +101,7 @@ public abstract class Device implements Engine {
         //mContext = context;
         mCaps = caps;
         mCompiler = new ShaderCompiler();
-        mGlobalResourceCache = new GlobalResourceCache();
+        mDeviceBoundCache = new DeviceBoundCache();
     }
 
     public final Logger getLogger() {
@@ -236,8 +236,8 @@ public abstract class Device implements Engine {
 
     public abstract ResourceProvider makeResourceProvider(Context context, long maxResourceBudget);
 
-    public final GlobalResourceCache getGlobalResourceCache() {
-        return mGlobalResourceCache;
+    public final DeviceBoundCache getDeviceBoundCache() {
+        return mDeviceBoundCache;
     }
 
     @SuppressWarnings("unchecked")
@@ -254,7 +254,7 @@ public abstract class Device implements Engine {
      * Otherwise, no cleanup should be attempted, immediately cease making backend API calls.
      */
     public void disconnect(boolean cleanup) {
-        mGlobalResourceCache.release();
+        mDeviceBoundCache.destroy();
     }
 
     /**

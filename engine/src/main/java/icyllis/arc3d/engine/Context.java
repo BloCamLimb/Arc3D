@@ -192,8 +192,8 @@ public abstract class Context extends RefCnt {
     }
 
     @ApiStatus.Internal
-    public final GlobalResourceCache getGlobalResourceCache() {
-        return mDevice.getGlobalResourceCache();
+    public final DeviceBoundCache getDeviceBoundCache() {
+        return mDevice.getDeviceBoundCache();
     }
 
     public final <T> T getSharedObject(String key) {
