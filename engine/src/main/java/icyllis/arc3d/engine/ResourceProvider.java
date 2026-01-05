@@ -77,10 +77,13 @@ public abstract class ResourceProvider {
         GraphicsPipeline pipeline = cache.findGraphicsPipeline(mGraphicsPipelineKey);
         if (pipeline == null) {
             // We have a cache miss
-            var key = mGraphicsPipelineKey.copy();
-            pipeline = createGraphicsPipeline(key.mPipelineDesc, renderPassDesc);
+            var copiedKey = mGraphicsPipelineKey.copy();
+            pipeline = createGraphicsPipeline(
+                    copiedKey.mPipelineDesc,            // copied PipelineDesc
+                    new RenderPassDesc(renderPassDesc)  // copied RenderPassDesc
+            );
             if (pipeline != null) {
-                pipeline = cache.insertGraphicsPipeline(key, pipeline);
+                pipeline = cache.insertGraphicsPipeline(copiedKey, pipeline);
             }
         }
         return pipeline;

@@ -30,6 +30,7 @@ import icyllis.arc3d.engine.DepthStencilSettings;
 import icyllis.arc3d.engine.DescriptorSetLayout;
 import icyllis.arc3d.engine.Engine;
 import icyllis.arc3d.engine.PipelineDesc;
+import icyllis.arc3d.engine.RenderPassDesc;
 import icyllis.arc3d.engine.ShaderCaps;
 import icyllis.arc3d.engine.VertexInputLayout;
 import org.jspecify.annotations.NonNull;
@@ -51,6 +52,7 @@ public class GLGraphicsPipelineBuilder {
 
     private final GLDevice mDevice;
     private final PipelineDesc mPipelineDesc;
+    private final RenderPassDesc mRenderPassDesc;
 
     private ByteBuffer mFinalizedVertGLSL;
     private ByteBuffer mFinalizedFragGLSL;
@@ -66,26 +68,29 @@ public class GLGraphicsPipelineBuilder {
     private String mPipelineLabel;
 
     private GLGraphicsPipelineBuilder(GLDevice device,
-                                      PipelineDesc pipelineDesc) {
+                                      PipelineDesc pipelineDesc,
+                                      RenderPassDesc renderPassDesc) {
         mDevice = device;
         mPipelineDesc = pipelineDesc;
+        mRenderPassDesc = renderPassDesc;
     }
 
     @NonNull
     @SharedPtr
     public static GLGraphicsPipeline createGraphicsPipeline(
             final GLDevice device,
-            final PipelineDesc desc) {
+            final PipelineDesc pipelineDesc,
+            final RenderPassDesc renderPassDesc) {
         return new GLGraphicsPipeline(device,
                 CompletableFuture.supplyAsync(() -> {
-                    GLGraphicsPipelineBuilder builder = new GLGraphicsPipelineBuilder(device, desc);
+                    GLGraphicsPipelineBuilder builder = new GLGraphicsPipelineBuilder(device, pipelineDesc, renderPassDesc);
                     builder.build();
                     return builder;
                 }));
     }
 
     private void build() {
-        var info = mPipelineDesc.createGraphicsPipelineInfo(mDevice);
+        var info = mPipelineDesc.createGraphicsPipelineInfo(mDevice, mRenderPassDesc);
         mPrimitiveType = info.mPrimitiveType;
         mInputLayout = info.mInputLayout;
         mInputLayoutLabel = info.mInputLayoutLabel;

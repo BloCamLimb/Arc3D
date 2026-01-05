@@ -139,7 +139,7 @@ public final class GraphicsPipelineDesc extends PipelineDesc {
     }
 
     @Override
-    public GraphicsPipelineInfo createGraphicsPipelineInfo(Device device) {
+    public GraphicsPipelineInfo createGraphicsPipelineInfo(Device device, RenderPassDesc renderPassDesc) {
         GraphicsPipelineBuilder pipelineBuilder = new GraphicsPipelineBuilder(device, this);
         return pipelineBuilder.build();
     }

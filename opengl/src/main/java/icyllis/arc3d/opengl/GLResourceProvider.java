@@ -42,7 +42,7 @@ public final class GLResourceProvider extends ResourceProvider {
     @Override
     protected GLGraphicsPipeline createGraphicsPipeline(PipelineDesc pipelineDesc,
                                                         RenderPassDesc renderPassDesc) {
-        return GLGraphicsPipelineBuilder.createGraphicsPipeline(mDevice, pipelineDesc);
+        return GLGraphicsPipelineBuilder.createGraphicsPipeline(mDevice, pipelineDesc, renderPassDesc);
     }
 
     @Nullable
