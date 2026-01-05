@@ -21,6 +21,7 @@ package icyllis.arc3d.opengl;
 
 import icyllis.arc3d.core.Color;
 import icyllis.arc3d.core.ColorInfo;
+import icyllis.arc3d.core.ShaderUtils;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.engine.Engine.ImageFormat;
 import org.jetbrains.annotations.ApiStatus;
@@ -572,21 +573,21 @@ public final class GLUtil {
             long string = stack.npointer(glsl);
             long length = stack.nint(glsl.remaining());
             gl.glShaderSource(shader, 1, string, length);
+
+            gl.glCompileShader(shader);
+            stats.incShaderCompilations();
+
+            String log = checkShaderCompiled(gl, shader);
+            if (log != null) {
+                gl.glDeleteShader(shader);
+                handleCompileError(device.getLogger(), MemoryUtil.memUTF8(glsl), log);
+                return 0;
+            }
+
+            return shader;
         } finally {
             Reference.reachabilityFence(glsl);
         }
-
-        gl.glCompileShader(shader);
-        stats.incShaderCompilations();
-
-        String log = checkShaderCompiled(gl, shader);
-        if (log != null) {
-            gl.glDeleteShader(shader);
-            handleCompileError(device.getLogger(), MemoryUtil.memUTF8(glsl), log);
-            return 0;
-        }
-
-        return shader;
     }
 
     @NativeType("GLuint")
@@ -610,20 +611,20 @@ public final class GLUtil {
             gl.glSpecializeShader(shader, pEntryPointEncoded,
                     // no specialization constants, but must pass a valid pointer
                     0, pShaders, pShaders);
+
+            stats.incShaderCompilations();
+
+            String log = checkShaderCompiled(gl, shader);
+            if (log != null) {
+                gl.glDeleteShader(shader);
+                device.getLogger().error(MARKER, "Shader specialization error\n{}", log);
+                return 0;
+            }
+
+            return shader;
         } finally {
             Reference.reachabilityFence(spirv);
         }
-
-        stats.incShaderCompilations();
-
-        String log = checkShaderCompiled(gl, shader);
-        if (log != null) {
-            gl.glDeleteShader(shader);
-            device.getLogger().error(MARKER, "Shader specialization error\n{}", log);
-            return 0;
-        }
-
-        return shader;
     }
 
     public static @Nullable String checkShaderCompiled(@NonNull GLInterface gl,
@@ -682,15 +683,7 @@ public final class GLUtil {
                                           String source,
                                           String errors) {
         if (!logger.isErrorEnabled(MARKER)) return;
-        var f = new Formatter();
-        f.format("Shader compilation error%n");
-        f.format("------------------------%n");
-        String[] lines = source.split("\n");
-        for (int i = 0; i < lines.length; ++i) {
-            f.format(Locale.ROOT, "%4d\t%s%n", i + 1, lines[i]);
-        }
-        f.format(errors);
-        logger.error(MARKER, f.toString());
+        logger.error(MARKER, ShaderUtils.buildShaderErrorMessage(source, errors));
     }
 
     public static void handleLinkError(Logger logger,
