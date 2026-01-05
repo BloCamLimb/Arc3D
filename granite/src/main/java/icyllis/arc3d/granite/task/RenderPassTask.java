@@ -19,6 +19,7 @@
 
 package icyllis.arc3d.granite.task;
 
+import icyllis.arc3d.core.Rect2ic;
 import icyllis.arc3d.core.RefCnt;
 import icyllis.arc3d.core.SharedPtr;
 import icyllis.arc3d.engine.*;
@@ -176,10 +177,20 @@ public final class RenderPassTask extends Task {
                 )
         );
 
+        Rect2ic renderPassBounds;
+        if (mRenderPassDesc.mColorAttachments[0].mLoadOp == Engine.LoadOp.kClear) {
+            // entire framebuffer
+            renderPassBounds = null;
+        } else {
+            renderPassBounds = mDrawPass.getBounds();
+        }
+
+        commandBuffer.setupForShaderRead(mDrawPass.getTextureViews(), v -> v.getProxy().getImage());
+
         if (commandBuffer.beginRenderPass(
                 mRenderPassDesc,
                 framebufferDesc,
-                mDrawPass.getBounds(),
+                renderPassBounds,
                 mClearColor,
                 0.0f, 0
         )) {

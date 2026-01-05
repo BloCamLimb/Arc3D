@@ -35,6 +35,9 @@ import org.lwjgl.vulkan.VkCommandBufferAllocateInfo;
 import org.lwjgl.vulkan.VkCommandBufferBeginInfo;
 import org.lwjgl.vulkan.VkImageMemoryBarrier;
 
+import java.util.List;
+import java.util.function.Function;
+
 import static org.lwjgl.system.MemoryUtil.NULL;
 import static org.lwjgl.vulkan.VK11.*;
 
@@ -123,6 +126,11 @@ public abstract class VulkanCommandBuffer extends CommandBuffer {
         }
     }
 
+    @Override
+    public <T> void setupForShaderRead(@NonNull List<@RawPtr T> textures, @NonNull Function<? super T, @RawPtr Image> toTexture) {
+        throw new UnsupportedOperationException();
+    }
+
     public boolean bindGraphicsPipeline(GraphicsPipeline graphicsPipeline) {
         //TODO
         return false;
@@ -209,6 +217,8 @@ public abstract class VulkanCommandBuffer extends CommandBuffer {
 
     @Override
     protected void begin() {
+        mDevice.flushRenderCalls();
+        mDevice.purgeStaleResourcesIfNeeded();
         try (var stack = MemoryStack.stackPush()) {
             var beginInfo = VkCommandBufferBeginInfo.malloc(stack)
                     .sType$Default()

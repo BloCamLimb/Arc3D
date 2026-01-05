@@ -19,6 +19,7 @@
 
 package icyllis.arc3d.engine;
 
+import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.RefCnt;
 import icyllis.arc3d.core.SharedPtr;
 import org.jspecify.annotations.NonNull;
@@ -447,6 +448,7 @@ public final class ImageProxy extends RefCnt {
         return mImage != null && mImage.isWrapped();
     }
 
+    @RawPtr
     public Image getImage() {
         return mImage;
     }

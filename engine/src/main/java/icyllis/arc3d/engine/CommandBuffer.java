@@ -19,10 +19,17 @@
 
 package icyllis.arc3d.engine;
 
-import icyllis.arc3d.core.*;
+import icyllis.arc3d.core.RawPtr;
+import icyllis.arc3d.core.Rect2ic;
+import icyllis.arc3d.core.RefCounted;
+import icyllis.arc3d.core.SharedPtr;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayDeque;
+import java.util.List;
+import java.util.function.Function;
 
 /**
  * Backend-specific command buffer, executing thread only.
@@ -34,6 +41,9 @@ public abstract class CommandBuffer {
 
     private final ArrayDeque<FlushInfo.FinishedCallback> mFinishedCallbacks = new ArrayDeque<>();
 
+    public abstract <T> void setupForShaderRead(@NonNull List<@RawPtr T> textures,
+                                                @NonNull Function<? super T, @RawPtr Image> toTexture);
+
     /**
      * Begin render pass. If successful, {@link #endRenderPass()} must be called.
      * <p>
@@ -44,15 +54,15 @@ public abstract class CommandBuffer {
      *
      * @param renderPassDesc   descriptor to create a render pass
      * @param framebufferDesc  descriptor to create a framebuffer
-     * @param renderPassBounds content bounds of this render pass
+     * @param renderPassBounds content bounds of this render pass, null means entire framebuffer
      * @param clearColors      clear color for each color attachment, and then resolve attachment
      * @param clearDepth       clear depth
      * @param clearStencil     clear stencil (unsigned)
      * @return success or not
      */
-    public abstract boolean beginRenderPass(RenderPassDesc renderPassDesc,
-                                            FramebufferDesc framebufferDesc,
-                                            Rect2ic renderPassBounds,
+    public abstract boolean beginRenderPass(@NonNull RenderPassDesc renderPassDesc,
+                                            @NonNull FramebufferDesc framebufferDesc,
+                                            @Nullable Rect2ic renderPassBounds,
                                             float[] clearColors,
                                             float clearDepth,
                                             int clearStencil);
@@ -104,9 +114,9 @@ public abstract class CommandBuffer {
      * Bind texture view and sampler to the same binding point (combined image sampler).
      * Render pass scope, caller must track the image and sampler.
      *
-     * @param binding     the binding index
-     * @param texture     the texture image
-     * @param sampler     the sampler state
+     * @param binding the binding index
+     * @param texture the texture image
+     * @param sampler the sampler state
      * @param swizzle the swizzle of the texture view for shader read, see {@link Swizzle}
      */
     public abstract void bindTextureSampler(int binding, @RawPtr Image texture,

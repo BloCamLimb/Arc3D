@@ -52,25 +52,27 @@ public final class DrawPass implements AutoCloseable {
     private final Rect2i mBounds;
     private final int mDepthStencilFlags;
 
-    private final ObjectArrayList<GraphicsPipelineDesc> mPipelineDescs;
-    private final ObjectArrayList<SamplerDesc> mSamplerDescs;
+    // @formatter:off
+    private final ObjectArrayList<GraphicsPipelineDesc>      mPipelineDescs;
+    private final ObjectArrayList<SamplerDesc>               mSamplerDescs;
 
-    private final ObjectArrayList<@SharedPtr ImageProxyView> mTexturesViews;
+    private final ObjectArrayList<@SharedPtr ImageProxyView> mTextureViews;
 
     private volatile @SharedPtr GraphicsPipeline[] mPipelines;
     private volatile @RawPtr Sampler[] mSamplers;
 
     DrawPass(DrawCommandList commandList, Rect2i bounds, int depthStencilFlags,
-                     ObjectArrayList<GraphicsPipelineDesc> pipelineDescs,
-                     ObjectArrayList<SamplerDesc> samplerDescs,
-                     ObjectArrayList<@SharedPtr ImageProxyView> texturesViews) {
+             ObjectArrayList<GraphicsPipelineDesc>      pipelineDescs,
+             ObjectArrayList<SamplerDesc>               samplerDescs,
+             ObjectArrayList<@SharedPtr ImageProxyView> textureViews) {
         mCommandList = commandList;
         mBounds = bounds;
         mDepthStencilFlags = depthStencilFlags;
         mPipelineDescs = pipelineDescs;
         mSamplerDescs = samplerDescs;
-        mTexturesViews = texturesViews;
+        mTextureViews = textureViews;
     }
+    // @formatter:on
 
     public Rect2ic getBounds() {
         return mBounds;
@@ -82,6 +84,10 @@ public final class DrawPass implements AutoCloseable {
 
     public DrawCommandList getCommandList() {
         return mCommandList;
+    }
+
+    public ObjectArrayList<@RawPtr ImageProxyView> getTextureViews() {
+        return mTextureViews;
     }
 
     public boolean prepare(ResourceProvider resourceProvider,
@@ -135,8 +141,8 @@ public final class DrawPass implements AutoCloseable {
         for (var pipeline : mPipelines) {
             commandBuffer.trackResource(RefCnt.create(pipeline));
         }
-        for (int i = 0; i < mTexturesViews.size(); i++) {
-            commandBuffer.trackCommandBufferResource(mTexturesViews.get(i).getProxy().refImage());
+        for (int i = 0; i < mTextureViews.size(); i++) {
+            commandBuffer.trackCommandBufferResource(mTextureViews.get(i).getProxy().refImage());
         }
         var cmdList = getCommandList();
         var p = cmdList.mPrimitives.elements();
@@ -214,7 +220,7 @@ public final class DrawPass implements AutoCloseable {
                     int numBindings = p[i++];
                     for (int binding = 0; binding < numBindings; binding++) {
                         @RawPtr
-                        var textureView = mTexturesViews.get(p[i]);
+                        var textureView = mTextureViews.get(p[i]);
                         @RawPtr
                         var sampler = mSamplers[p[i + 1]];
                         commandBuffer.bindTextureSampler(binding,
@@ -236,8 +242,8 @@ public final class DrawPass implements AutoCloseable {
                 mPipelines[i] = RefCnt.move(mPipelines[i]);
             }
         }
-        mTexturesViews.forEach(ImageProxyView::close);
-        mTexturesViews.clear();
+        mTextureViews.forEach(ImageProxyView::close);
+        mTextureViews.clear();
     }
 
 }

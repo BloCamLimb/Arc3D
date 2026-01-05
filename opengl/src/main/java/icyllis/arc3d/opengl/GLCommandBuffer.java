@@ -33,11 +33,15 @@ import icyllis.arc3d.engine.Engine.ImageType;
 import icyllis.arc3d.engine.Engine.IndexType;
 import icyllis.arc3d.engine.Engine.LoadOp;
 import icyllis.arc3d.engine.Engine.StoreOp;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 
 import static org.lwjgl.opengl.GL33C.*;
 import static org.lwjgl.system.MemoryUtil.memAddress;
@@ -177,9 +181,15 @@ public final class GLCommandBuffer extends CommandBuffer {
     }
 
     @Override
-    public boolean beginRenderPass(RenderPassDesc renderPassDesc,
-                                   FramebufferDesc framebufferDesc,
-                                   Rect2ic renderPassBounds,
+    public <T> void setupForShaderRead(@NonNull List<@RawPtr T> textures,
+                                       @NonNull Function<? super T, @RawPtr Image> toTexture) {
+        // nothing
+    }
+
+    @Override
+    public boolean beginRenderPass(@NonNull RenderPassDesc renderPassDesc,
+                                   @NonNull FramebufferDesc framebufferDesc,
+                                   @Nullable Rect2ic renderPassBounds,
                                    float[] clearColors,
                                    float clearDepth,
                                    int clearStencil) {
@@ -254,7 +264,10 @@ public final class GLCommandBuffer extends CommandBuffer {
             }
         }
         mRenderPassDesc = renderPassDesc;
-        mContentBounds.set(renderPassBounds);
+        if (renderPassBounds != null)
+            mContentBounds.set(renderPassBounds);
+        else
+            mContentBounds.set(0, 0, framebufferDesc.mWidth, framebufferDesc.mHeight);
 
         return true;
     }
