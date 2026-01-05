@@ -45,15 +45,18 @@ public final class VulkanPrimaryCommandBuffer extends VulkanCommandBuffer {
 
     private long mSubmitFence = VK_NULL_HANDLE;
 
-    private VulkanPrimaryCommandBuffer(VulkanDevice device, long commandBuffer,
+    private VulkanPrimaryCommandBuffer(VulkanDevice device,
+                                       VulkanResourceProvider resourceProvider,
+                                       long commandBuffer,
                                        long commandPool) {
-        super(device, commandBuffer);
+        super(device, resourceProvider, commandBuffer);
         mCommandPool = commandPool;
         assert commandPool != VK_NULL_HANDLE;
     }
 
     @Nullable
-    public static VulkanPrimaryCommandBuffer create(@NonNull VulkanDevice device) {
+    public static VulkanPrimaryCommandBuffer create(@NonNull VulkanDevice device,
+                                                    VulkanResourceProvider resourceProvider) {
         int cmdPoolCreateFlags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
         if (device.isProtectedContext()) {
             cmdPoolCreateFlags |= VK_COMMAND_POOL_CREATE_PROTECTED_BIT;
@@ -91,7 +94,9 @@ public final class VulkanPrimaryCommandBuffer extends VulkanCommandBuffer {
             );
             return null;
         }
-        return new VulkanPrimaryCommandBuffer(device, primaryCommandBuffer,
+        return new VulkanPrimaryCommandBuffer(device,
+                resourceProvider,
+                primaryCommandBuffer,
                 commandPool);
     }
 
@@ -102,12 +107,13 @@ public final class VulkanPrimaryCommandBuffer extends VulkanCommandBuffer {
                                    float[] clearColors,
                                    float clearDepth,
                                    int clearStencil) {
+        mInRenderPass = true;
         return false;
     }
 
     @Override
     public void endRenderPass() {
-
+        mInRenderPass = false;
     }
 
     @Override

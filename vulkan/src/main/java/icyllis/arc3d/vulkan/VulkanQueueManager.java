@@ -34,6 +34,7 @@ public class VulkanQueueManager extends QueueManager {
 
     @Override
     protected CommandBuffer createNewCommandBuffer(ResourceProvider resourceProvider) {
-        return VulkanPrimaryCommandBuffer.create(mDevice);
+        var vulkanResourceProvider = (VulkanResourceProvider) resourceProvider;
+        return VulkanPrimaryCommandBuffer.create(mDevice, vulkanResourceProvider);
     }
 }

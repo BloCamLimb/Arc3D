@@ -31,12 +31,17 @@ import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.NativeType;
 import org.lwjgl.vulkan.*;
+import org.slf4j.Logger;
+import org.slf4j.helpers.NOPLogger;
 
 import java.util.Arrays;
+import java.util.Objects;
 
 import static org.lwjgl.vulkan.VK11.*;
 
 public class VulkanCaps extends Caps {
+
+    public static final int MAX_BOUND_SETS = 4;
 
     /**
      * Vulkan image format table.
@@ -55,6 +60,8 @@ public class VulkanCaps extends Caps {
                       VKCapabilitiesInstance capabilitiesInstance,
                       VKCapabilitiesDevice capabilitiesDevice) {
         super(options);
+
+        Logger logger = Objects.requireNonNullElse(options.mLogger, NOPLogger.NOP_LOGGER);
 
         mDepthClipNegativeOneToOne = false;
 
@@ -83,11 +90,11 @@ public class VulkanCaps extends Caps {
             mMaxTextureSize = (int) Math.min(
                     Integer.toUnsignedLong(limits.maxImageDimension2D()), Integer.MAX_VALUE);
 
-            initFormatTable(options, physDev, physProps, stack);
+            initFormatTable(logger, physDev, physProps, stack);
         }
     }
 
-    void initFormatTable(ContextOptions options,
+    void initFormatTable(Logger logger,
                          VkPhysicalDevice physDev,
                          VkPhysicalDeviceProperties physProps,
                          MemoryStack stack) {
@@ -99,7 +106,7 @@ public class VulkanCaps extends Caps {
         {
             final int format = VK_FORMAT_R8G8B8A8_UNORM;
             FormatInfo info = getFormatInfo(format);
-            info.init(options, physDev, physProps, format, stack);
+            info.init(logger, physDev, physProps, format, stack);
             if (info.isSampled(VK_IMAGE_TILING_OPTIMAL)) {
                 info.mColorTypeInfos = new ColorTypeInfo[2];
                 // Format: VK_FORMAT_R8G8B8A8_UNORM, Surface: kRGBA_8888
@@ -293,7 +300,15 @@ public class VulkanCaps extends Caps {
     @NonNull
     @Override
     public PipelineKey makeGraphicsPipelineKey(PipelineKey old, PipelineDesc pipelineDesc, RenderPassDesc renderPassDesc) {
-        return null;
+        VulkanGraphicsPipelineKey pipelineKey;
+        if (old instanceof VulkanGraphicsPipelineKey) {
+            pipelineKey = (VulkanGraphicsPipelineKey) old;
+        } else {
+            pipelineKey = new VulkanGraphicsPipelineKey();
+        }
+        pipelineKey.mPipelineDesc = pipelineDesc;
+        pipelineKey.mCompatibleRenderPassKey.update(renderPassDesc);
+        return pipelineKey;
     }
 
     @Override
@@ -314,7 +329,7 @@ public class VulkanCaps extends Caps {
         return null;
     }
 
-    static int[] initSampleCounts(ContextOptions options,
+    static int[] initSampleCounts(Logger logger,
                                   VkPhysicalDevice physDev,
                                   VkPhysicalDeviceProperties physProps,
                                   int format,
@@ -334,7 +349,7 @@ public class VulkanCaps extends Caps {
                     props
             );
             if (result != VK_SUCCESS) {
-                options.mLogger.warn("Failed to vkGetPhysicalDeviceImageFormatProperties: {}",
+                logger.warn("Failed to vkGetPhysicalDeviceImageFormatProperties: {}",
                         VKUtil.getResultMessage(result));
                 return IntArrays.EMPTY_ARRAY;
             }
@@ -396,7 +411,7 @@ public class VulkanCaps extends Caps {
 
         ColorTypeInfo[] mColorTypeInfos = {};
 
-        void init(ContextOptions options,
+        void init(Logger logger,
                   VkPhysicalDevice physDev,
                   VkPhysicalDeviceProperties physProps,
                   int format,
@@ -419,7 +434,7 @@ public class VulkanCaps extends Caps {
                             VK_IMAGE_USAGE_SAMPLED_BIT |
                             VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
                             VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
-                    mColorSampleCounts = initSampleCounts(options,
+                    mColorSampleCounts = initSampleCounts(logger,
                             physDev,
                             physProps,
                             format,

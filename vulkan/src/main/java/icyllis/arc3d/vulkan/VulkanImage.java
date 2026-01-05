@@ -210,6 +210,11 @@ public final class VulkanImage extends Image {
         return (VulkanImageDesc) getDesc();
     }
 
+    @NonNull
+    public VulkanImageMutableState getVulkanMutableState() {
+        return (VulkanImageMutableState) getMutableState();
+    }
+
     @Nullable
     @RawPtr
     public VulkanImageView findOrCreateTextureView(short swizzle) {

@@ -28,9 +28,12 @@ import icyllis.arc3d.engine.Image;
 import icyllis.arc3d.engine.Sampler;
 import org.jspecify.annotations.NonNull;
 import org.lwjgl.system.MemoryStack;
+import org.lwjgl.vulkan.KHRSwapchain;
+import org.lwjgl.vulkan.VkBufferMemoryBarrier;
 import org.lwjgl.vulkan.VkCommandBuffer;
 import org.lwjgl.vulkan.VkCommandBufferAllocateInfo;
 import org.lwjgl.vulkan.VkCommandBufferBeginInfo;
+import org.lwjgl.vulkan.VkImageMemoryBarrier;
 
 import static org.lwjgl.system.MemoryUtil.NULL;
 import static org.lwjgl.vulkan.VK11.*;
@@ -40,12 +43,14 @@ public abstract class VulkanCommandBuffer extends CommandBuffer {
     public static class SetBindingState {
 
         @RawPtr
-        public Object[] mResources = new Object[16];
+        protected Object[] mResources = new Object[16];
         @RawPtr
-        public VulkanSampler[] mSamplers = new VulkanSampler[16];
+        protected VulkanSampler[] mSamplers = new VulkanSampler[16];
 
         public int[] mBindingOffsets = new int[16];
         public int[] mBindingSizes = new int[16];
+
+        protected int mHighWaterCount;
 
         @RawPtr
         public VulkanImageView getImageView(int binding) {
@@ -63,14 +68,30 @@ public abstract class VulkanCommandBuffer extends CommandBuffer {
         }
     }
 
+    protected final SetBindingState[] mSetsBindingState = new SetBindingState[VulkanCaps.MAX_BOUND_SETS];
+
+    //TODO release these when this is deleted
+    protected VkBufferMemoryBarrier.Buffer mBufferBarriers = VkBufferMemoryBarrier.malloc(4);
+    protected VkImageMemoryBarrier.Buffer mImageBarriers = VkImageMemoryBarrier.malloc(16);
+    protected int mSrcStageMask, mDstStageMask;
+
     protected final VulkanDevice mDevice;
+    protected final VulkanResourceProvider mResourceProvider;
     protected final VkCommandBuffer mCommandBuffer;
     protected boolean mIsRecording = false;
+    protected boolean mInRenderPass = false;
 
-    public VulkanCommandBuffer(@NonNull VulkanDevice device, long commandBuffer) {
+    public VulkanCommandBuffer(@NonNull VulkanDevice device,
+                               VulkanResourceProvider resourceProvider,
+                               long commandBuffer) {
         mDevice = device;
+        mResourceProvider = resourceProvider;
         mCommandBuffer = new VkCommandBuffer(commandBuffer, device.vkDevice());
         assert commandBuffer != VK_NULL_HANDLE;
+
+        for (int i = 0; i < mSetsBindingState.length; i++) {
+            mSetsBindingState[i] = new SetBindingState();
+        }
     }
 
     protected static long allocate(@NonNull VulkanDevice device,
@@ -206,15 +227,284 @@ public abstract class VulkanCommandBuffer extends CommandBuffer {
         mIsRecording = false;
     }
 
-    @Override
-    protected void waitUntilFinished() {
-    }
-
     public void bindVertexBuffers() {
         //vkCmdBindVertexBuffers();
     }
 
     public boolean isRecording() {
         return mIsRecording;
+    }
+
+    //// synchronization used outside render pass
+    //TODO better way to handle more cases, such as adding engine-level ResourceAccess bit flags?
+
+    @SuppressWarnings("DuplicateBranchesInSwitch")
+    protected static int imageLayoutToSrcStageMask(int layout) {
+        // this can be inferred from old layout, for common usage
+        int srcStageMask;
+        switch (layout) {
+            case VK_IMAGE_LAYOUT_GENERAL:
+                // this is really used for storage image only
+                // there's special path for input attachments
+                srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+                        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+                break;
+
+            case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+                srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+                break;
+
+            case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+            case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+                srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
+                        VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+                break;
+
+            case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+                srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+                        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+                break;
+
+            case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+            case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+                srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+                break;
+
+            case VK_IMAGE_LAYOUT_PREINITIALIZED:
+                //TODO verify the usage of linear tiling?
+                srcStageMask = VK_PIPELINE_STAGE_HOST_BIT;
+                break;
+
+            case KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+                srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+                break;
+
+            case VK_IMAGE_LAYOUT_UNDEFINED:
+                srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+                break;
+
+            default:
+                throw new IllegalStateException();
+        }
+        return srcStageMask;
+    }
+
+    protected static int imageLayoutToSrcAccessMask(int layout) {
+        // this can be inferred from old layout, other writes don't need barriers in practical use,
+        // like VK_ACCESS_HOST_WRITE_BIT is guaranteed by queue submission
+        int srcAccessMask;
+        switch (layout) {
+            case VK_IMAGE_LAYOUT_GENERAL:
+                // no fine control
+                srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+                        VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT |
+                        VK_ACCESS_SHADER_WRITE_BIT;
+                break;
+
+            case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+                srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+                break;
+
+            case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+                srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+                break;
+
+            case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+                srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+                break;
+
+            case VK_IMAGE_LAYOUT_UNDEFINED:
+            case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+            case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+            case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+            case VK_IMAGE_LAYOUT_PREINITIALIZED:
+            case KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+                // read only = no writes to sync
+                srcAccessMask = 0;
+                break;
+
+            default:
+                throw new IllegalStateException();
+        }
+        return srcAccessMask;
+    }
+
+    protected void transitionImageLayout(VulkanImage image,
+                                         int newLayout,
+                                         int dstStageMask,
+                                         int dstAccessMask,
+                                         int baseMipLevel,
+                                         int mipLevelCount) {
+        int currentLayout = image.getVulkanMutableState().getImageLayout();
+        int currentQueueIndex = image.getVulkanMutableState().getQueueFamilyIndex();
+        //TODO transition queue family if needed, mainly for future Vulkan Video encode/decode queue
+
+        // layout same and read only, based on our actual usage, no barrier is needed
+        if (currentLayout == newLayout &&
+                (currentLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL ||
+                        currentLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL ||
+                        currentLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)) {
+            return;
+        }
+
+        int srcStageMask = imageLayoutToSrcStageMask(currentLayout);
+        int srcAccessMask = imageLayoutToSrcAccessMask(currentLayout);
+
+        assert mImageBarriers.hasRemaining();
+        var barrier = mImageBarriers.get();
+        barrier
+                .sType$Default()
+                .pNext(NULL)
+                .srcAccessMask(srcAccessMask)
+                .dstAccessMask(dstAccessMask)
+                .oldLayout(currentLayout)
+                .newLayout(newLayout)
+                .srcQueueFamilyIndex(currentQueueIndex)
+                .dstQueueFamilyIndex(currentQueueIndex)
+                .image(image.vkImage());
+        var subresource = barrier.subresourceRange();
+        subresource
+                .aspectMask(VKUtil.getFullAspectMask(image.getVulkanDesc().getVkFormat()))
+                .baseMipLevel(baseMipLevel)
+                .levelCount(mipLevelCount)
+                .baseArrayLayer(0)
+                .layerCount(image.getDesc().getLayerCount());
+
+        mSrcStageMask |= srcStageMask;
+        mDstStageMask |= dstStageMask;
+    }
+
+    //TODO really need to handle more cases, currently only supports Granite renderer
+    protected static int bufferAccessToSrcStageMask(int access) {
+        int srcStageMask;
+        switch (access) {
+            case 0:
+                srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+                break;
+
+            case VK_ACCESS_TRANSFER_WRITE_BIT:
+            case VK_ACCESS_TRANSFER_READ_BIT:
+                srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+                break;
+
+            case VK_ACCESS_SHADER_WRITE_BIT:
+                srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+                break;
+
+            case VK_ACCESS_INDEX_READ_BIT:
+            case VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT:
+                srcStageMask = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
+                break;
+
+            case VK_ACCESS_UNIFORM_READ_BIT:
+                srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+                        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+                break;
+
+            case (VK_ACCESS_INDIRECT_COMMAND_READ_BIT):
+                srcStageMask = VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
+                break;
+
+            case VK_ACCESS_HOST_READ_BIT:
+            case VK_ACCESS_HOST_WRITE_BIT:
+                srcStageMask = VK_PIPELINE_STAGE_HOST_BIT;
+                break;
+
+            default:
+                throw new IllegalStateException();
+        }
+
+        return srcStageMask;
+    }
+
+    protected boolean accessIsReadOnly(int access) {
+
+        int readBits = VK_ACCESS_INDIRECT_COMMAND_READ_BIT |
+                VK_ACCESS_INDEX_READ_BIT |
+                VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT |
+                VK_ACCESS_UNIFORM_READ_BIT |
+                VK_ACCESS_TRANSFER_READ_BIT |
+                VK_ACCESS_HOST_READ_BIT |
+                VK_ACCESS_INPUT_ATTACHMENT_READ_BIT |
+                VK_ACCESS_SHADER_READ_BIT |
+                VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+                VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
+                VK_ACCESS_MEMORY_READ_BIT;
+
+        if (access == (access & readBits)) {
+            return true;
+        }
+
+        int writeBits = VK_ACCESS_TRANSFER_WRITE_BIT |
+                VK_ACCESS_SHADER_WRITE_BIT |
+                VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+                VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT |
+                VK_ACCESS_MEMORY_WRITE_BIT |
+                VK_ACCESS_HOST_WRITE_BIT;
+
+        assert (access & ~(readBits | writeBits)) == 0;
+
+        return false;
+    }
+
+    protected void transitionBufferAccess(VulkanBuffer buffer,
+                                          int dstStageMask,
+                                          int dstAccessMask) {
+        int currentAccess = buffer.getCurrentAccess();
+
+        //TODO the following code only handles if accesses contain only one-bit
+        int srcStageMask = bufferAccessToSrcStageMask(currentAccess);
+        buffer.setCurrentAccess(dstAccessMask);
+
+        if (srcStageMask == VK_PIPELINE_STAGE_HOST_BIT) {
+            // rely on queue submit, no barrier is needed
+            return;
+        }
+
+        boolean currentReadOnly = accessIsReadOnly(currentAccess);
+        if (currentReadOnly && accessIsReadOnly(dstAccessMask) &&
+                (currentAccess & dstAccessMask) == dstAccessMask) {
+            // already visible
+            return;
+        }
+
+        // a read -> X barrier used to make available memory visible
+        // so srcAccessMask is 0, since it's already flushed to L2 in the last barrier
+
+        assert mBufferBarriers.hasRemaining();
+        var barrier = mBufferBarriers.get();
+        barrier
+                .sType$Default()
+                .pNext(NULL)
+                .srcAccessMask(currentReadOnly ? 0 : currentAccess)
+                .dstAccessMask(dstAccessMask)
+                .srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+                .dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+                .buffer(buffer.vkBuffer())
+                .offset(0)
+                .size(buffer.getSize());
+
+        mSrcStageMask |= srcStageMask;
+        mDstStageMask |= dstStageMask;
+    }
+
+    protected void commitPipelineBarriers(boolean forSubpassSelfDependency,
+                                          boolean byRegionDependency) {
+        // barriers cannot be inserted within render pass, except for self-dependency barriers
+        assert !mInRenderPass || forSubpassSelfDependency;
+        // only self-dependency barrier can combine by-region bit
+        assert forSubpassSelfDependency || !byRegionDependency;
+        mBufferBarriers.flip();
+        mImageBarriers.flip();
+        // there must be something to insert
+        assert mBufferBarriers.hasRemaining() || mImageBarriers.hasRemaining();
+        vkCmdPipelineBarrier(mCommandBuffer,
+                mSrcStageMask, mDstStageMask,
+                byRegionDependency ? VK_DEPENDENCY_BY_REGION_BIT : 0,
+                null, mBufferBarriers, mImageBarriers);
+        mBufferBarriers.clear();
+        mImageBarriers.clear();
+        mSrcStageMask = 0;
+        mDstStageMask = 0;
     }
 }

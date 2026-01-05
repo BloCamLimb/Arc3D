@@ -34,6 +34,8 @@ public final class VulkanBuffer extends Buffer {
     private final long mBuffer;
     private final VulkanAllocation mMemoryAlloc;
 
+    private int mCurrentAccess;
+
     public VulkanBuffer(VulkanDevice device,
                         long size,
                         int usage,
@@ -143,6 +145,14 @@ public final class VulkanBuffer extends Buffer {
         return mBuffer;
     }
 
+    public int getCurrentAccess() {
+        return mCurrentAccess;
+    }
+
+    public void setCurrentAccess(int currentAccess) {
+        mCurrentAccess = currentAccess;
+    }
+
     @Override
     protected void onRelease() {
         VulkanDevice device = (VulkanDevice) getDevice();
@@ -163,7 +173,7 @@ public final class VulkanBuffer extends Buffer {
             device.getLogger().error("Failed to map buffer {}", this);
         }
         if (mappedBuffer != NULL && mode == kRead_MapMode && size != 0) {
-            // make device writes available and visible to host
+            // make device writes visible to host, availability was guaranteed by a pipeline barrier
             if ((mMemoryAlloc.mMemoryFlags & VulkanAllocation.kHostCoherent_Flag) == 0) {
                 boolean result = allocator.invalidateMemory(device, mMemoryAlloc, offset, size);
                 if (!result) {
@@ -179,7 +189,7 @@ public final class VulkanBuffer extends Buffer {
         VulkanDevice device = (VulkanDevice) getDevice();
         var allocator = device.getMemoryAllocator();
         if (mode == kWriteDiscard_MapMode && size != 0) {
-            // make host writes visible to device
+            // make host writes available to device, visibility will be guaranteed by vkQueueSubmit
             if ((mMemoryAlloc.mMemoryFlags & VulkanAllocation.kHostCoherent_Flag) == 0) {
                 boolean result = allocator.flushMemory(device, mMemoryAlloc, offset, size);
                 if (!result) {
