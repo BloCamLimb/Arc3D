@@ -83,7 +83,7 @@ public final class VulkanBuffer extends Buffer {
             }
             //TODO texel buffer hint
 
-            if ((vkUsage & BufferUsageFlags.kDeviceLocal) != 0) {
+            if ((usage & BufferUsageFlags.kDeviceLocal) != 0) {
                 vkUsage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
             }
 
@@ -122,7 +122,7 @@ public final class VulkanBuffer extends Buffer {
                 return null;
             }
 
-            result = vkBindImageMemory(
+            result = vkBindBufferMemory(
                     device.vkDevice(),
                     pBuffer.get(0),
                     allocInfo.mMemory,
