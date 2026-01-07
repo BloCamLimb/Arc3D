@@ -288,7 +288,7 @@ public final class VulkanRenderPass extends ManagedResource {
             }
 
             if (desc.mDepthStencilAttachment.isUsed()) {
-                var depthStencilDesc = desc.mColorResolveAttachment;
+                var depthStencilDesc = desc.mDepthStencilAttachment;
 
                 int vkLoadOp = VKUtil.toVkLoadOp(depthStencilDesc.mLoadOp);
                 int vkStoreOp = VKUtil.toVkStoreOp(depthStencilDesc.mStoreOp);
@@ -315,9 +315,7 @@ public final class VulkanRenderPass extends ManagedResource {
 
             mainSubpassDesc.pDepthStencilAttachment(pDepthStencilRef);
 
-            assert !pSubpasses.hasRemaining();
             pAttachments.flip();
-            pSubpasses.flip();
             pDependencies.flip();
 
             VkRenderPassCreateInfo pCreateInfo = VkRenderPassCreateInfo

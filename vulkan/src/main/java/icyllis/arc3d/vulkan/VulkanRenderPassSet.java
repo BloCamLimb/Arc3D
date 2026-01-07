@@ -194,11 +194,7 @@ public final class VulkanRenderPassSet extends RefCnt {
         mLastReturnedIndex = 0;
     }
 
-    @Nullable
-    @SharedPtr
-    public static VulkanRenderPassSet make(@NonNull VulkanDevice device,
-                                           @NonNull RenderPassDesc desc) {
-        // create a standard render pass that is likely to be reused later
+    public static @NonNull RenderPassDesc makeCompatibleDesc(@NonNull RenderPassDesc desc) {
         desc = new RenderPassDesc(desc);
 
         if ((desc.mRenderPassFlags & RenderPassDesc.kLoadFromResolve_Flag) != 0) {
@@ -220,6 +216,16 @@ public final class VulkanRenderPassSet extends RefCnt {
         }
         desc.mDepthStencilAttachment.mLoadOp = Engine.LoadOp.kClear;
         desc.mDepthStencilAttachment.mStoreOp = Engine.StoreOp.kDiscard;
+
+        return desc;
+    }
+
+    @Nullable
+    @SharedPtr
+    public static VulkanRenderPassSet make(@NonNull VulkanDevice device,
+                                           @NonNull RenderPassDesc desc) {
+        // create a standard render pass that is likely to be reused later
+        desc = makeCompatibleDesc(desc);
 
         @SharedPtr
         VulkanRenderPass standardRenderPass = VulkanRenderPass.make(device, desc);
