@@ -22,14 +22,24 @@ package icyllis.arc3d.vulkan;
 import icyllis.arc3d.engine.CommandBuffer;
 import icyllis.arc3d.engine.QueueManager;
 import icyllis.arc3d.engine.ResourceProvider;
+import org.lwjgl.vulkan.VkQueue;
 
-public class VulkanQueueManager extends QueueManager {
+/**
+ * Represents the Vulkan queue that supports Graphics|Compute|Transfer.
+ */
+public final class VulkanQueueManager extends QueueManager {
 
     private final VulkanDevice mDevice;
+    private final VkQueue mQueue;
 
-    protected VulkanQueueManager(VulkanDevice device) {
+    public VulkanQueueManager(VulkanDevice device, VkQueue queue) {
         super(device);
         mDevice = device;
+        mQueue = queue;
+    }
+
+    public VkQueue getQueue() {
+        return mQueue;
     }
 
     @Override

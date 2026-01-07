@@ -21,17 +21,30 @@ package icyllis.arc3d.vulkan;
 
 import icyllis.arc3d.core.Color;
 import icyllis.arc3d.core.ColorInfo;
+import icyllis.arc3d.core.ShaderUtils;
+import icyllis.arc3d.engine.BlendInfo;
 import icyllis.arc3d.engine.ContextOptions;
+import icyllis.arc3d.engine.DepthStencilSettings;
+import icyllis.arc3d.engine.DeviceBoundCache;
 import icyllis.arc3d.engine.Engine;
 import icyllis.arc3d.engine.ImmediateContext;
 import icyllis.arc3d.engine.Engine.ImageFormat;
 import icyllis.arc3d.engine.SamplerDesc;
 import icyllis.arc3d.engine.Swizzle;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.APIUtil;
+import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.NativeType;
 import org.lwjgl.vulkan.EXTMeshShader;
 import org.lwjgl.vulkan.KHRAccelerationStructure;
+import org.lwjgl.vulkan.VkShaderModuleCreateInfo;
+import org.slf4j.Logger;
+import org.slf4j.Marker;
+import org.slf4j.MarkerFactory;
+
+import java.lang.ref.Reference;
+import java.nio.ByteBuffer;
 
 import static org.lwjgl.vulkan.EXTDebugReport.VK_ERROR_VALIDATION_FAILED_EXT;
 import static org.lwjgl.vulkan.KHRDisplaySwapchain.VK_ERROR_INCOMPATIBLE_DISPLAY_KHR;
@@ -45,6 +58,8 @@ import static icyllis.arc3d.engine.Engine.*;
  * Provides user-defined Vulkan utilities.
  */
 public final class VKUtil {
+
+    public static final Marker MARKER = MarkerFactory.getMarker("Vulkan");
 
     /**
      * Creates a DirectContext for a backend context, using default context options.
@@ -74,7 +89,7 @@ public final class VKUtil {
         if (device == null) {
             return null;
         }
-        var queueManager = new VulkanQueueManager(device);
+        var queueManager = new VulkanQueueManager(device, backendContext.mQueue);
         ImmediateContext context = new ImmediateContext(device, queueManager);
         if (context.init()) {
             return context;
@@ -431,19 +446,19 @@ public final class VKUtil {
         };
     }
 
-    public static int toVkPipelineStageFlags(int shaderFlags) {
+    public static int toVkShaderStageFlags(int shaderFlags) {
         int result = 0;
         if ((shaderFlags & ShaderFlags.kVertex) != 0) {
-            result |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
+            result |= VK_SHADER_STAGE_VERTEX_BIT;
         }
         if ((shaderFlags & ShaderFlags.kGeometry) != 0) {
-            result |= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
+            result |= VK_SHADER_STAGE_GEOMETRY_BIT;
         }
         if ((shaderFlags & ShaderFlags.kFragment) != 0) {
-            result |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+            result |= VK_SHADER_STAGE_FRAGMENT_BIT;
         }
         if ((shaderFlags & ShaderFlags.kCompute) != 0) {
-            result |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+            result |= VK_SHADER_STAGE_COMPUTE_BIT;
         }
         if ((shaderFlags & ShaderFlags.kTask) != 0) {
             result |= EXTMeshShader.VK_SHADER_STAGE_TASK_BIT_EXT;
@@ -540,6 +555,35 @@ public final class VKUtil {
         };
     }
 
+    public static long createShaderModule(VulkanDevice device,
+                                            @NativeType("uint32_t const *") ByteBuffer spirv) {
+        assert (spirv.remaining() & 3) == 0;
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            var pCreateInfo = VkShaderModuleCreateInfo
+                    .calloc(stack)
+                    .sType$Default()
+                    .flags(0)
+                    .pCode(spirv);
+            var pShaderModule = stack.mallocLong(1);
+            var result = vkCreateShaderModule(device.vkDevice(), pCreateInfo, null, pShaderModule);
+            device.checkResult(result);
+            if (result != VK_SUCCESS) {
+                device.getLogger().error("Failed to create VkShaderModule");
+                return VK_NULL_HANDLE;
+            }
+            return pShaderModule.get(0);
+        } finally {
+            Reference.reachabilityFence(spirv);
+        }
+    }
+
+    public static void handleCompileError(Logger logger,
+                                          String source,
+                                          String errors) {
+        if (!logger.isErrorEnabled(MARKER)) return;
+        logger.error(MARKER, ShaderUtils.buildShaderErrorMessage(source, errors));
+    }
+
     public static int toVkFilter(int filter) {
         return switch (filter) {
             case SamplerDesc.FILTER_NEAREST ->
@@ -576,4 +620,83 @@ public final class VKUtil {
             default -> throw new AssertionError(addressMode);
         };
     }
+
+    public static int toVkPrimitiveTopology(byte primitiveType) {
+        return switch (primitiveType) {
+            case PrimitiveType.kPointList -> VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+            case PrimitiveType.kLineList -> VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+            case PrimitiveType.kLineStrip -> VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+            case PrimitiveType.kTriangleList -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+            case PrimitiveType.kTriangleStrip -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+            default -> throw new AssertionError(primitiveType);
+        };
+    }
+
+    //@formatter:off
+    public static int toVkCompareOp(byte compareOp) {
+        // actually exactly the same
+        return switch (compareOp) {
+            case DepthStencilSettings.COMPARE_OP_NEVER      -> VK_COMPARE_OP_NEVER;
+            case DepthStencilSettings.COMPARE_OP_LESS       -> VK_COMPARE_OP_LESS;
+            case DepthStencilSettings.COMPARE_OP_EQUAL      -> VK_COMPARE_OP_EQUAL;
+            case DepthStencilSettings.COMPARE_OP_LEQUAL     -> VK_COMPARE_OP_LESS_OR_EQUAL;
+            case DepthStencilSettings.COMPARE_OP_GREATER    -> VK_COMPARE_OP_GREATER;
+            case DepthStencilSettings.COMPARE_OP_NOTEQUAL   -> VK_COMPARE_OP_NOT_EQUAL;
+            case DepthStencilSettings.COMPARE_OP_GEQUAL     -> VK_COMPARE_OP_GREATER_OR_EQUAL;
+            case DepthStencilSettings.COMPARE_OP_ALWAYS     -> VK_COMPARE_OP_ALWAYS;
+            default -> throw new AssertionError(compareOp);
+        };
+    }
+
+    public static int toVkStencilOp(byte stencilOp) {
+        // actually exactly the same
+        return switch (stencilOp) {
+            case DepthStencilSettings.STENCIL_OP_KEEP       -> VK_STENCIL_OP_KEEP;
+            case DepthStencilSettings.STENCIL_OP_ZERO       -> VK_STENCIL_OP_ZERO;
+            case DepthStencilSettings.STENCIL_OP_REPLACE    -> VK_STENCIL_OP_REPLACE;
+            case DepthStencilSettings.STENCIL_OP_INC_CLAMP  -> VK_STENCIL_OP_INCREMENT_AND_CLAMP;
+            case DepthStencilSettings.STENCIL_OP_DEC_CLAMP  -> VK_STENCIL_OP_DECREMENT_AND_CLAMP;
+            case DepthStencilSettings.STENCIL_OP_INVERT     -> VK_STENCIL_OP_INVERT;
+            case DepthStencilSettings.STENCIL_OP_INC_WRAP   -> VK_STENCIL_OP_INCREMENT_AND_WRAP;
+            case DepthStencilSettings.STENCIL_OP_DEC_WRAP   -> VK_STENCIL_OP_DECREMENT_AND_WRAP;
+            default -> throw new AssertionError();
+        };
+    }
+    //@formatter:on
+
+    //@formatter:off
+    public static int toVkBlendOp(byte equation) {
+        return switch (equation) {
+            case BlendInfo.EQUATION_SUBTRACT            -> VK_BLEND_OP_SUBTRACT;
+            case BlendInfo.EQUATION_REVERSE_SUBTRACT    -> VK_BLEND_OP_REVERSE_SUBTRACT;
+            default -> VK_BLEND_OP_ADD;
+        };
+    }
+    //@formatter:on
+
+    //@formatter:off
+    public static int toVkBlendFactor(byte factor) {
+        return switch (factor) {
+            case BlendInfo.FACTOR_ONE                       -> VK_BLEND_FACTOR_ONE;
+            case BlendInfo.FACTOR_SRC_COLOR                 -> VK_BLEND_FACTOR_SRC_COLOR;
+            case BlendInfo.FACTOR_ONE_MINUS_SRC_COLOR       -> VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
+            case BlendInfo.FACTOR_DST_COLOR                 -> VK_BLEND_FACTOR_DST_COLOR;
+            case BlendInfo.FACTOR_ONE_MINUS_DST_COLOR       -> VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
+            case BlendInfo.FACTOR_SRC_ALPHA                 -> VK_BLEND_FACTOR_SRC_ALPHA;
+            case BlendInfo.FACTOR_ONE_MINUS_SRC_ALPHA       -> VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            case BlendInfo.FACTOR_DST_ALPHA                 -> VK_BLEND_FACTOR_DST_ALPHA;
+            case BlendInfo.FACTOR_ONE_MINUS_DST_ALPHA       -> VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
+            case BlendInfo.FACTOR_CONSTANT_COLOR            -> VK_BLEND_FACTOR_CONSTANT_COLOR;
+            case BlendInfo.FACTOR_ONE_MINUS_CONSTANT_COLOR  -> VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR;
+            case BlendInfo.FACTOR_CONSTANT_ALPHA            -> VK_BLEND_FACTOR_CONSTANT_ALPHA;
+            case BlendInfo.FACTOR_ONE_MINUS_CONSTANT_ALPHA  -> VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA;
+            case BlendInfo.FACTOR_SRC_ALPHA_SATURATE        -> VK_BLEND_FACTOR_SRC_ALPHA_SATURATE;
+            case BlendInfo.FACTOR_SRC1_COLOR                -> VK_BLEND_FACTOR_SRC1_COLOR;
+            case BlendInfo.FACTOR_ONE_MINUS_SRC1_COLOR      -> VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR;
+            case BlendInfo.FACTOR_SRC1_ALPHA                -> VK_BLEND_FACTOR_SRC1_ALPHA;
+            case BlendInfo.FACTOR_ONE_MINUS_SRC1_ALPHA      -> VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA;
+            default -> VK_BLEND_FACTOR_ZERO;
+        };
+    }
+    //@formatter:on
 }
