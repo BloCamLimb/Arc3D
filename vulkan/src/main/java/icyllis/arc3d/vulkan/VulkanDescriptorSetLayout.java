@@ -67,8 +67,8 @@ public final class VulkanDescriptorSetLayout extends ManagedResource {
                 var entry = layoutInfo.getDescriptorInfo(binding);
 
                 int type = VKUtil.toVkDescriptorType(entry.mType);
-                int count = 1;
-                int stageFlags = VKUtil.toVkPipelineStageFlags(entry.mVisibility);
+                int count = entry.mVisibility != 0 ? 1 : 0;
+                int stageFlags = VKUtil.toVkShaderStageFlags(entry.mVisibility);
                 boolean useImmutableSampler = entry.mImmutableSampler != null;
 
                 pBindings
@@ -129,6 +129,10 @@ public final class VulkanDescriptorSetLayout extends ManagedResource {
 
     public int getType(int binding) {
         return mLayoutInfo.getDescriptorInfo(binding).mType;
+    }
+
+    public boolean isUsed(int binding) {
+        return mLayoutInfo.getDescriptorInfo(binding).mVisibility != 0;
     }
 
     public long vkSetLayout() {

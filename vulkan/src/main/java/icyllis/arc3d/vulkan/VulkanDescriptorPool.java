@@ -86,7 +86,7 @@ public final class VulkanDescriptorPool extends Resource {
                 var entry = layout.getLayoutInfo().getDescriptorInfo(i);
 
                 int type = entry.mType;
-                int count = 1;
+                int count = entry.mVisibility != 0 ? 1 : 0;
 
                 // Since a pool only allocates DS with the same layout, we know the exact size for each type
                 perTypeSizes[type] += count * maxSets;
