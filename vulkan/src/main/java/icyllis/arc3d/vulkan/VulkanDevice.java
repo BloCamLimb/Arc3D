@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2022-2024 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2022-2026 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -52,7 +52,14 @@ public final class VulkanDevice extends Device {
             = new HashMap<>();
     private final VulkanRenderPassSet.CompatibleKey mLookupCompatibleRenderPassKey
             = new VulkanRenderPassSet.CompatibleKey();
+    // multiple producers, one consumer
     private final AtomicBoolean mNeedsPurgeRenderPasses = new AtomicBoolean(false);
+
+    // executing thread only
+    private final HashMap<DescriptorSetLayout, @SharedPtr VulkanDescriptorSetManager> mDescriptorSetManagers
+            = new HashMap<>();
+    // executing thread only
+    private boolean mNeedsPurgeDescriptorSets = false;
 
     public VulkanDevice(ContextOptions options, VulkanCaps caps,
                         VulkanBackendContext backendContext,
@@ -169,6 +176,10 @@ public final class VulkanDevice extends Device {
         mNeedsPurgeRenderPasses.setRelease(true);
     }
 
+    public void needsPurgeDescriptorSets() {
+        mNeedsPurgeDescriptorSets = true;
+    }
+
     @Override
     protected void freeGpuResources() {
         super.freeGpuResources();
@@ -183,6 +194,7 @@ public final class VulkanDevice extends Device {
                 compatibleSet.purgeAllFramebuffers();
             }
         }
+        purgeStaleDescriptorSetManagers();
     }
 
     @Override
@@ -199,6 +211,7 @@ public final class VulkanDevice extends Device {
                 compatibleSet.purgeFramebuffersNotUsedSince(timeMillis);
             }
         }
+        purgeStaleDescriptorSetManagers();
     }
 
     public void purgeStaleResourcesIfNeeded() {
@@ -212,6 +225,20 @@ public final class VulkanDevice extends Device {
                 } else {
                     compatibleSet.purgeStaleFramebuffers();
                 }
+            }
+        }
+        if (mNeedsPurgeDescriptorSets) {
+            purgeStaleDescriptorSetManagers();
+        }
+    }
+
+    private void purgeStaleDescriptorSetManagers() {
+        mNeedsPurgeDescriptorSets = false;
+        for (var it = mDescriptorSetManagers.values().iterator(); it.hasNext(); ) {
+            var manager = it.next();
+            if (manager.unique()) {
+                manager.unref();
+                it.remove();
             }
         }
     }
@@ -247,6 +274,27 @@ public final class VulkanDevice extends Device {
         VulkanRenderPass renderPass = renderPassSet.findOrCreateRenderPass(this, desc);
         renderPassSet.unref();
         return renderPass; // move
+    }
+
+    // Executing thread only, resource provider is always from ImmediateContext
+    @Nullable
+    @SharedPtr
+    public VulkanDescriptorSetManager findOrCreateDescriptorSetManager(VulkanResourceProvider resourceProvider,
+                                                                       @NonNull DescriptorSetLayout layoutInfo) {
+        VulkanDescriptorSetManager setManager = mDescriptorSetManagers.get(layoutInfo);
+        if (setManager != null) {
+            setManager.ref();
+            return setManager;
+        }
+
+        setManager = VulkanDescriptorSetManager.make(this, resourceProvider, layoutInfo);
+        if (setManager == null) {
+            return null;
+        }
+
+        mDescriptorSetManagers.put(layoutInfo, setManager);
+        setManager.ref();
+        return setManager;
     }
 
     @Override
