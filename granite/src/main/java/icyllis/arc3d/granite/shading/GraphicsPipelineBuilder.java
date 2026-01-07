@@ -20,6 +20,7 @@
 package icyllis.arc3d.granite.shading;
 
 import icyllis.arc3d.compiler.ShaderDataType;
+import icyllis.arc3d.compiler.TargetApi;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.BlendFormula;
 import icyllis.arc3d.granite.FragmentNode;
@@ -225,7 +226,11 @@ public class GraphicsPipelineBuilder {
             out.append("precision highp sampler2D;\n");
         }*/
         out.append("layout(position) out float4 SV_Position;\n");
-        out.append("layout(vertex_id) in int SV_VertexID;\n");
+        if (mCaps.shaderCaps().mTargetApi.isVulkan()) {
+            out.append("layout(vertex_index) in int SV_VertexID;\n");
+        } else {
+            out.append("layout(vertex_id) in int SV_VertexID;\n");
+        }
         Formatter vs = new Formatter(out, Locale.ROOT);
 
         //// Uniforms

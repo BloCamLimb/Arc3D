@@ -284,24 +284,26 @@ public class UniformHandler {
 
         int handle = mSamplers.size();
 
-        String layoutQualifier;
-        if (mShaderCaps.mUniformBindingSupport) {
-            // ARB_shading_language_420pack
-            // equivalent to setting texture unit to index
-            layoutQualifier = "binding = " + handle;
-        } else {
-            layoutQualifier = "";
-        }
-
         var tempInfo = new UniformInfo();
         tempInfo.mVariable = new ShaderVar(resolvedName,
                 type,
                 ShaderVar.kUniform_TypeModifier,
                 ShaderVar.kNonArray,
-                layoutQualifier,
+                "",
                 "");
         tempInfo.mVisibility = Engine.ShaderFlags.kFragment;
         tempInfo.mRawName = name;
+
+        if (mShaderCaps.mTargetApi.isVulkan()) {
+            tempInfo.mVariable.addLayoutQualifier("set = " + SAMPLER_DESC_SET);
+        }
+        if (mShaderCaps.mUniformBindingSupport) {
+            // ARB_shading_language_420pack
+            // equivalent to setting texture unit to index
+            tempInfo.mVariable.addLayoutQualifier("binding = " + handle);
+        } else {
+            assert !mShaderCaps.mTargetApi.isVulkan();
+        }
 
         mSamplers.add(tempInfo);
         return handle;
@@ -392,10 +394,16 @@ public class UniformHandler {
         if (firstVisible) {
             out.append("layout(");
             out.append(mLayout == Std430Layout ? "std430" : "std140");
+            if (mShaderCaps.mTargetApi.isVulkan()) {
+                out.append(", set = ");
+                out.append(MAIN_DESC_SET);
+            }
             if (mShaderCaps.mUniformBindingSupport) {
                 // ARB_shading_language_420pack
                 out.append(", binding = ");
                 out.append(binding);
+            }  else {
+                assert !mShaderCaps.mTargetApi.isVulkan();
             }
             out.append(") uniform ");
             out.append(blockName);
