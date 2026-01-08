@@ -185,7 +185,9 @@ public final class VulkanRenderPass extends ManagedResource {
                 pColorRefs.flip();
                 assert pColorRefs.remaining() == desc.mColorAttachments.length;
 
-                mainSubpassDesc.pColorAttachments(pColorRefs);
+                mainSubpassDesc
+                        .colorAttachmentCount(desc.mColorAttachments.length)
+                        .pColorAttachments(pColorRefs);
 
                 if ((desc.mRenderPassFlags & (RenderPassDesc.kUseDstAsInput_Flag |
                         RenderPassDesc.kUseNonCoherentAdvBlend_Flag)) != 0) {
@@ -270,6 +272,7 @@ public final class VulkanRenderPass extends ManagedResource {
                             .flags(0)
                             .pipelineBindPoint(VK_PIPELINE_BIND_POINT_GRAPHICS)
                             .pInputAttachments(pInputRefs)
+                            .colorAttachmentCount(1)
                             .pColorAttachments(pColorRefs)
                             .pPreserveAttachments(null);
 
