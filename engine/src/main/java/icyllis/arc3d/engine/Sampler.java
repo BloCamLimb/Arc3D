@@ -21,6 +21,9 @@ package icyllis.arc3d.engine;
 
 /**
  * Represents GPU sampler objects.
+ * <p>
+ * Samplers are managed by {@link DeviceBoundCache}, no need to track resources.
+ * Use {@link ResourceProvider} to obtain instances.
  */
 public abstract class Sampler {
 

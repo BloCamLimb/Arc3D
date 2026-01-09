@@ -196,6 +196,7 @@ public final class DeviceBoundCache {
         return mStats;
     }
 
+    //TODO should also consider lastUsedTime to handle pipeline combination peak/highWaterValue
     static class PipelineCache<T extends @SharedPtr ManagedResource> extends LinkedHashMap<IUniqueKey, T> {
 
         private final int maxEntries;
@@ -217,6 +218,8 @@ public final class DeviceBoundCache {
         }
     }
 
+    //TODO should be refined, like Arc3D Compiler frontend/backend, OpenGL Backend Compiler,
+    // Program/Pipeline creation, precompile, and so on..
     public static final class Stats {
 
         private final AtomicInteger mShaderCompilations = new AtomicInteger();

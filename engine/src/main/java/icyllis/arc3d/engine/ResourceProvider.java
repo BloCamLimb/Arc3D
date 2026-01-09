@@ -468,7 +468,9 @@ public abstract class ResourceProvider {
     }*/
 
     /**
-     * Finds or creates a compatible {@link Sampler} based on the SamplerState.
+     * Finds or creates a compatible {@link Sampler} based on the {@link SamplerDesc}.
+     * <p>
+     * There's no need to track resource usage or ref count.
      *
      * @param desc see {@link SamplerDesc}
      * @return the sampler object, or null if failed
