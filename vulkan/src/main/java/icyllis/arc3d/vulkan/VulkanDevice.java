@@ -165,10 +165,11 @@ public final class VulkanDevice extends Device {
 
         flushRenderCalls();
 
-        for (VulkanRenderPassSet compatibleSet : mRenderPassCompatibilityCache.values()) {
-            compatibleSet.unref();
-        }
+        mRenderPassCompatibilityCache.values().forEach(VulkanRenderPassSet::unref);
         mRenderPassCompatibilityCache.clear();
+
+        mDescriptorSetManagers.values().forEach(VulkanDescriptorSetManager::unref);
+        mDescriptorSetManagers.clear();
     }
 
     public void needsPurgeRenderPasses() {
