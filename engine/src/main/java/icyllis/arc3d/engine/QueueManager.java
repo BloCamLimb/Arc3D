@@ -54,6 +54,15 @@ public abstract class QueueManager {
         return task.execute(mContext, mCurrentCommandBuffer) != Task.RESULT_FAILURE;
     }
 
+    public CommandBuffer getCurrentCommandBuffer() {
+        return mCurrentCommandBuffer;
+    }
+
+    public int getCommandBufferCount() {
+        return mAvailableCommandBuffers.size() + mOutstandingCommandBuffers.size() +
+                (mCurrentCommandBuffer != null ? 1 : 0);
+    }
+
     public boolean submit() {
         if (mCurrentCommandBuffer == null) {
             return true;
@@ -108,6 +117,11 @@ public abstract class QueueManager {
 
     protected boolean prepareCommandBuffer(ResourceProvider resourceProvider) {
         if (mCurrentCommandBuffer == null) {
+            //TODO limit max in-flight command buffers or in-flight frames!!
+            if (mOutstandingCommandBuffers.size() >= 2) {
+                mOutstandingCommandBuffers.peekFirst().waitUntilFinished();
+                checkForFinishedWork();
+            }
             if (!mAvailableCommandBuffers.isEmpty()) {
                 mCurrentCommandBuffer = mAvailableCommandBuffers.pop();
                 mCurrentCommandBuffer.begin();

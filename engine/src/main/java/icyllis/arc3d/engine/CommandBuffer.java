@@ -105,7 +105,8 @@ public abstract class CommandBuffer {
     /**
      * Render pass scope, caller must track the buffer.
      */
-    public abstract void bindUniformBuffer(int binding,
+    public abstract void bindUniformBuffer(int set,
+                                           int binding,
                                            @RawPtr Buffer buffer,
                                            int offset,
                                            int size);
@@ -114,13 +115,17 @@ public abstract class CommandBuffer {
      * Bind texture view and sampler to the same binding point (combined image sampler).
      * Render pass scope, caller must track the image and sampler.
      *
+     * @param set     the descriptor set index
      * @param binding the binding index
      * @param texture the texture image
-     * @param sampler the sampler state
      * @param swizzle the swizzle of the texture view for shader read, see {@link Swizzle}
+     * @param sampler the sampler state
      */
-    public abstract void bindTextureSampler(int binding, @RawPtr Image texture,
-                                            @RawPtr Sampler sampler, short swizzle);
+    public abstract void bindTextureSampler(int set,
+                                            int binding,
+                                            @RawPtr Image texture,
+                                            short swizzle,
+                                            @RawPtr Sampler sampler);
 
     /**
      * Records a non-indexed draw to current command buffer.
@@ -219,6 +224,7 @@ public abstract class CommandBuffer {
         return onCopyBufferToImage(srcBuffer, dstImage, srcColorType, dstColorType, copyData);
     }
 
+    //TODO delete srcColorType and dstColorType once we make OpenGL formats Vulkan-like
     protected abstract boolean onCopyBufferToImage(@RawPtr Buffer srcBuffer,
                                                    @RawPtr Image dstImage,
                                                    int srcColorType,
@@ -256,6 +262,12 @@ public abstract class CommandBuffer {
                                            @RawPtr Image dstImage,
                                            int dstX, int dstY,
                                            int mipLevel);
+
+    public void waitSemaphore(@Nullable BackendSemaphore waitSemaphore) {
+    }
+
+    public void signalSemaphore(@Nullable BackendSemaphore signalSemaphore) {
+    }
 
     /**
      * Takes a Usage ref on the Resource that will be released when the command buffer
@@ -316,6 +328,10 @@ public abstract class CommandBuffer {
         resource.refCommandBuffer();
         mTrackingCommandBufferResources.add(resource);
         resource.unref();
+    }
+
+    public void addFinishedCallback(FlushInfo.FinishedCallback callback) {
+        mFinishedCallbacks.add(callback);
     }
 
     // called by Queue, begin command buffer

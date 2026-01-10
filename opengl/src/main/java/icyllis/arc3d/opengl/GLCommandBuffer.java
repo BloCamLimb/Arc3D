@@ -148,6 +148,7 @@ public final class GLCommandBuffer extends CommandBuffer {
 
         mHWProgram = null;
         mHWVertexArray = null;
+        mGraphicsPipeline = null;
 
         mHWScissorTest = kUnknown_TriState;
         mHWScissorX = -1;
@@ -592,6 +593,7 @@ public final class GLCommandBuffer extends CommandBuffer {
         @RawPtr
         GLProgram program = mGraphicsPipeline.getProgram();
         if (program == null) {
+            mGraphicsPipeline = null;
             return false;
         }
         if (mHWProgram != program) {
@@ -767,7 +769,7 @@ public final class GLCommandBuffer extends CommandBuffer {
     }
 
     @Override
-    public void bindUniformBuffer(int binding, @RawPtr Buffer buffer, int offset, int size) {
+    public void bindUniformBuffer(int set, int binding, @RawPtr Buffer buffer, int offset, int size) {
         assert (mGraphicsPipeline != null);
         GLBuffer glBuffer = (GLBuffer) buffer;
         mDevice.getGL().glBindBufferRange(GL_UNIFORM_BUFFER, binding, glBuffer.getHandle(),
@@ -775,8 +777,8 @@ public final class GLCommandBuffer extends CommandBuffer {
     }
 
     @Override
-    public void bindTextureSampler(int binding, @RawPtr Image texture,
-                                   @RawPtr Sampler sampler, short swizzle) {
+    public void bindTextureSampler(int set, int binding, @RawPtr Image texture,
+                                   short swizzle, @RawPtr Sampler sampler) {
         assert (texture != null && texture.isSampledImage());
         GLTexture glTexture = (GLTexture) texture;
         GLSampler glSampler = (GLSampler) sampler;

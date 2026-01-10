@@ -22,6 +22,7 @@ package icyllis.arc3d.granite;
 import icyllis.arc3d.core.*;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.shading.GraphicsPipelineBuilder;
+import icyllis.arc3d.granite.shading.UniformHandler;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 /**
@@ -213,7 +214,13 @@ public final class DrawPass implements AutoCloseable {
                     int binding = p[i];
                     int offset = p[i + 1];
                     int size = p[i + 2];
-                    commandBuffer.bindUniformBuffer(binding, (Buffer) oa[oi++], offset, size);
+                    commandBuffer.bindUniformBuffer(
+                            UniformHandler.MAIN_DESC_SET,
+                            binding,
+                            (Buffer) oa[oi++],
+                            offset,
+                            size
+                    );
                     i += 3;
                 }
                 case DrawCommandList.CMD_BIND_TEXTURES -> {
@@ -223,10 +230,13 @@ public final class DrawPass implements AutoCloseable {
                         var textureView = mTextureViews.get(p[i]);
                         @RawPtr
                         var sampler = mSamplers[p[i + 1]];
-                        commandBuffer.bindTextureSampler(binding,
+                        commandBuffer.bindTextureSampler(
+                                UniformHandler.SAMPLER_DESC_SET,
+                                binding,
                                 textureView.getProxy().getImage(),
-                                sampler,
-                                textureView.getSwizzle());
+                                textureView.getSwizzle(),
+                                sampler
+                        );
                         i += 2;
                     }
                 }
