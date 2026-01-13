@@ -51,8 +51,8 @@ public abstract sealed class GLImage extends Image
         return getGLDesc().mTarget;
     }
 
-    public int getFormat() {
-        return getGLDesc().mFormat;
+    public int getGLFormat() {
+        return getGLDesc().mGLFormat;
     }
 
     public abstract int getHandle();

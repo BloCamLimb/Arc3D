@@ -697,7 +697,7 @@ public final class GLDevice extends Device {
             return false;
         }
         GLTexture glTexture = (GLTexture) image;
-        int glFormat = glTexture.getFormat();
+        int glFormat = glTexture.getGLFormat();
         assert (mCaps.isFormatTexturable(glFormat));
 
         int target = glTexture.getTarget();
@@ -706,13 +706,13 @@ public final class GLDevice extends Device {
         }
 
         int srcFormat = mCaps.getPixelsExternalFormat(
-                glFormat, dstColorType, srcColorType, /*write*/true
+                glFormat, /*write*/true
         );
         if (srcFormat == 0) {
             return false;
         }
         int srcType = mCaps.getPixelsExternalType(
-                glFormat, dstColorType, srcColorType
+                glFormat
         );
         if (srcType == 0) {
             return false;
@@ -851,8 +851,8 @@ public final class GLDevice extends Device {
         // no scaling
         if (mCaps.hasCopyImageSupport() &&
                 mCaps.canCopyImage(
-                        src.getFormat(), 1,
-                        dst.getFormat(), 1
+                        src.getImageFormat(), 1,
+                        dst.getImageFormat(), 1
                 )) {
             //TODO checks
             getGL().glCopyImageSubData(
@@ -872,8 +872,8 @@ public final class GLDevice extends Device {
         if (src.getTarget() == GL_TEXTURE_2D &&
                 dst.getTarget() == GL_TEXTURE_2D &&
                 mCaps.canCopyTexSubImage(
-                        src.getFormat(),
-                        dst.getFormat()
+                        src.getImageFormat(),
+                        dst.getImageFormat()
                 )) {
 
             int framebuffer = mCopySrcFramebuffer;

@@ -22,12 +22,11 @@ package icyllis.arc3d.opengl;
 import icyllis.arc3d.engine.Engine;
 import icyllis.arc3d.engine.ImageDesc;
 import org.lwjgl.opengl.GL30C;
-import org.lwjgl.opengl.GL40C;
 
 import javax.annotation.concurrent.Immutable;
 
 /**
- * Descriptor to create OpenGL images (textures and renderbuffers). The {@link #mFormat} here
+ * Descriptor to create OpenGL images (textures and renderbuffers). The {@link #mGLFormat} here
  * should be a sized, internal format for the texture. We use the sized format since the
  * base internal formats are deprecated.
  * <p>
@@ -43,23 +42,17 @@ public final class GLImageDesc extends ImageDesc {
     /**
      * <code>GLenum</code> - sized internal format
      */
-    public final int mFormat;
+    public final int mGLFormat;
 
-    public GLImageDesc(int target, int format,
+    public GLImageDesc(int target, int glFormat,
+                       int viewType, int viewFormat,
                        int width, int height,
                        int depth, int arraySize,
                        int mipLevelCount, int sampleCount,
                        int flags) {
-        super(switch (target) {
-            case GL30C.GL_TEXTURE_2D -> Engine.ImageType.k2D;
-            case GL30C.GL_TEXTURE_2D_ARRAY -> Engine.ImageType.k2DArray;
-            case GL30C.GL_TEXTURE_3D -> Engine.ImageType.k3D;
-            case GL30C.GL_TEXTURE_CUBE_MAP -> Engine.ImageType.kCube;
-            case GL40C.GL_TEXTURE_CUBE_MAP_ARRAY -> Engine.ImageType.kCubeArray;
-            default -> Engine.ImageType.kNone;  // renderbuffer
-        }, width, height, depth, arraySize, mipLevelCount, sampleCount, flags);
+        super(viewType, viewFormat, width, height, depth, arraySize, mipLevelCount, sampleCount, flags);
         mTarget = target;
-        mFormat = format;
+        mGLFormat = glFormat;
     }
 
     @Override
@@ -68,49 +61,44 @@ public final class GLImageDesc extends ImageDesc {
     }
 
     @Override
-    public int getViewFormat() {
-        return GLUtil.glFormatToImageFormat(mFormat);
-    }
-
-    @Override
     public int getGLFormat() {
-        return mFormat;
+        return mGLFormat;
     }
 
     @Override
     public int getChannelFlags() {
-        return GLUtil.glFormatChannels(mFormat);
+        return GLUtil.glFormatChannels(mGLFormat);
     }
 
     @Override
     public boolean isSRGB() {
-        return GLUtil.glFormatIsSRGB(mFormat);
+        return GLUtil.glFormatIsSRGB(mGLFormat);
     }
 
     @Override
     public int getCompressionType() {
-        return GLUtil.glFormatCompressionType(mFormat);
+        return GLUtil.glFormatCompressionType(mGLFormat);
     }
 
     @Override
     public int getBytesPerBlock() {
-        return GLUtil.glFormatBytesPerBlock(mFormat);
+        return GLUtil.glFormatBytesPerBlock(mGLFormat);
     }
 
     @Override
     public int getDepthBits() {
-        return GLUtil.glFormatDepthBits(mFormat);
+        return GLUtil.glFormatDepthBits(mGLFormat);
     }
 
     @Override
     public int getStencilBits() {
-        return GLUtil.glFormatStencilBits(mFormat);
+        return GLUtil.glFormatStencilBits(mGLFormat);
     }
 
     @Override
     public int hashCode() {
         int result = mTarget;
-        result = 31 * result + mFormat;
+        result = 31 * result + mGLFormat;
         result = 31 * result + mWidth;
         result = 31 * result + mHeight;
         result = 31 * result + mDepth;
@@ -125,7 +113,7 @@ public final class GLImageDesc extends ImageDesc {
         if (this == o) return true;
         if (o instanceof GLImageDesc desc) {
             return mTarget == desc.mTarget &&
-                    mFormat == desc.mFormat &&
+                    mGLFormat == desc.mGLFormat &&
                     mWidth == desc.mWidth &&
                     mHeight == desc.mHeight &&
                     mDepth == desc.mDepth &&
@@ -140,7 +128,7 @@ public final class GLImageDesc extends ImageDesc {
     public String toString() {
         return '{' +
                 "target=" + mTarget +
-                ", format=" + GLUtil.glFormatName(mFormat) +
+                ", format=" + GLUtil.glFormatName(mGLFormat) +
                 ", width=" + mWidth +
                 ", height=" + mHeight +
                 ", depth=" + mDepth +

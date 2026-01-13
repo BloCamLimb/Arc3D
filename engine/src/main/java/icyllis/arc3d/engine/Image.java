@@ -80,7 +80,16 @@ public abstract class Image extends Resource {
      * @return see {@link Engine.ImageType}
      */
     public final int getImageType() {
-        return mDesc.getImageType();
+        return mDesc.getViewType();
+    }
+
+    /**
+     * Returns the default image view format.
+     *
+     * @return see {@link Engine.ImageFormat}
+     */
+    public final int getImageFormat() {
+        return mDesc.getViewFormat();
     }
 
     /**

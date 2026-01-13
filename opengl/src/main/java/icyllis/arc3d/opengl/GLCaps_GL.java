@@ -20,6 +20,7 @@
 package icyllis.arc3d.opengl;
 
 import icyllis.arc3d.compiler.*;
+import icyllis.arc3d.core.ColorInfo;
 import icyllis.arc3d.engine.ShaderCaps;
 import icyllis.arc3d.engine.*;
 import org.jetbrains.annotations.VisibleForTesting;
@@ -380,37 +381,141 @@ public final class GLCaps_GL extends GLCaps {
     }
 
     void initFormatTable(GLCapabilities caps) {
-        super.initFormatTable(mTexStorageSupport, caps.GL_EXT_texture_compression_s3tc);
+        super.initFormatTable(mTexStorageSupport,
+                caps.OpenGL41 || caps.GL_ARB_ES2_compatibility,
+                /* texture_norm16 */ true,      // OpenGL 3.0
+                caps.GL_EXT_texture_compression_s3tc);
 
         final int nonMSAARenderFlags = FormatInfo.COLOR_ATTACHMENT_FLAG;
         final int msaaRenderFlags = nonMSAARenderFlags | FormatInfo.COLOR_ATTACHMENT_WITH_MSAA_FLAG;
 
-        // Format: RGB565
-        if (caps.OpenGL42 || caps.GL_ARB_ES2_compatibility) {
-            // macOS supports this
-            FormatInfo info = getFormatInfo(GL41C.GL_RGB565);
-            info.mFlags |= FormatInfo.TEXTURABLE_FLAG | FormatInfo.TRANSFERS_FLAG;
+        // Format: R16F
+        {
+            FormatInfo info = getFormatInfo(Engine.ImageFormat.kR16F);
             info.mFlags |= msaaRenderFlags;
         }
 
-        // Format: RGB8
+        // Format: RG16F
         {
-            FormatInfo info = getFormatInfo(GL11C.GL_RGB8);
-            // Even in OpenGL 4.6 GL_RGB8 is required to be color renderable but not required to be
-            // a supported render buffer format. Since we usually use render buffers for MSAA on
-            // we don't support MSAA for GL_RGB8.
-            if ((caps.OpenGL43 || caps.GL_ARB_internalformat_query2) &&
-                    GL42C.glGetInternalformati(GL30C.GL_RENDERBUFFER, GL11C.GL_RGB8,
-                            GL43C.GL_INTERNALFORMAT_SUPPORTED) == GL11C.GL_TRUE) {
+            FormatInfo info = getFormatInfo(Engine.ImageFormat.kRG16F);
+            info.mFlags |= msaaRenderFlags;
+        }
+
+        // Format: RGBA16F
+        {
+            FormatInfo info = getFormatInfo(Engine.ImageFormat.kRGBA16F);
+            info.mFlags |= msaaRenderFlags;
+        }
+
+        // Format: BGRA8
+        {
+            FormatInfo info = getFormatInfo(Engine.ImageFormat.kBGRA8);
+            // OpenGL does not have BGRA8 format, only ES has it;
+            // but accepts GL_BGRA as external format, use RGBA8 instead
+            info.mInternalFormatForRenderbuffer = GL_RGBA8;
+
+            info.mDefaultExternalFormat = GL_BGRA;
+            info.mDefaultExternalType = GL_UNSIGNED_BYTE;
+            info.mExternalType = GL_UNSIGNED_BYTE;
+            info.mExternalTexImageFormat = GL_BGRA;
+            info.mExternalReadFormat = GL_BGRA;
+
+            info.mDefaultColorType = ColorInfo.CT_BGRA_8888;
+            info.mFlags = FormatInfo.TEXTURABLE_FLAG | FormatInfo.TRANSFERS_FLAG;
+            info.mFlags |= msaaRenderFlags;
+            if (mTexStorageSupport) {
+                info.mFlags |= FormatInfo.TEXTURE_STORAGE_FLAG;
+            }
+            info.mInternalFormatForTexture = GL_RGBA8;
+
+            info.mColorTypeInfos = new ColorTypeInfo[1];
+            // Format: BGRA8, Surface: kBGRA_8888
+            {
+                ColorTypeInfo ctInfo = info.mColorTypeInfos[0] = new ColorTypeInfo();
+                ctInfo.mColorType = ColorInfo.CT_BGRA_8888;
+                ctInfo.mFlags = ColorTypeInfo.kUploadData_Flag | ColorTypeInfo.kRenderable_Flag;
+            }
+        }
+
+        // Format: BGR5_A1
+        {
+            FormatInfo info = getFormatInfo(Engine.ImageFormat.kBGR5_A1);
+            info.mInternalFormatForRenderbuffer = GL_RGB5_A1;
+
+            info.mDefaultExternalFormat = GL_BGRA;
+            info.mDefaultExternalType = GL_UNSIGNED_SHORT_1_5_5_5_REV;
+            info.mExternalType = GL_UNSIGNED_SHORT_1_5_5_5_REV;
+            info.mExternalTexImageFormat = GL_BGRA;
+            info.mExternalReadFormat = GL_BGRA;
+
+            info.mDefaultColorType = ColorInfo.CT_BGRA_5551;
+            // OpenGL 4.2 spec: Required Texture Formats
+            // Texture and renderbuffer color formats
+            if (caps.OpenGL42) {
+                info.mFlags = FormatInfo.TEXTURABLE_FLAG | FormatInfo.TRANSFERS_FLAG;
                 info.mFlags |= msaaRenderFlags;
-            } else {
-                info.mFlags |= nonMSAARenderFlags;
+            } else if (caps.GL_ARB_internalformat_query2) {
+                // Otherwise, query it
+                if (GL42C.glGetInternalformati(GL_TEXTURE_2D, GL_RGB5_A1,
+                        GL43C.GL_INTERNALFORMAT_SUPPORTED) == GL_TRUE) {
+                    info.mFlags |= FormatInfo.TEXTURABLE_FLAG | FormatInfo.TRANSFERS_FLAG;
+                }
+                if (GL42C.glGetInternalformati(GL_RENDERBUFFER, GL_RGB5_A1,
+                        GL43C.GL_INTERNALFORMAT_SUPPORTED) == GL_TRUE) {
+                    info.mFlags |= msaaRenderFlags;
+                } else {
+                    info.mFlags |= nonMSAARenderFlags;
+                }
+            }
+            if (mTexStorageSupport) {
+                info.mFlags |= FormatInfo.TEXTURE_STORAGE_FLAG;
+            }
+            info.mInternalFormatForTexture = GL_RGB5_A1;
+
+            if ((info.mFlags & FormatInfo.TEXTURABLE_FLAG) != 0) {
+                info.mColorTypeInfos = new ColorTypeInfo[1];
+                // Format: BGR5_A1, Surface: kBGRA_5551
+                {
+                    ColorTypeInfo ctInfo = info.mColorTypeInfos[0] = new ColorTypeInfo();
+                    ctInfo.mColorType = ColorInfo.CT_BGRA_5551;
+                    ctInfo.mFlags = ColorTypeInfo.kUploadData_Flag | ColorTypeInfo.kRenderable_Flag;
+                }
+            }
+        }
+
+        // Format: BGR10_A2
+        {
+            FormatInfo info = getFormatInfo(Engine.ImageFormat.kBGR10_A2);
+            // both OpenGL and OpenGL ES do not have BGR10_A2 format;
+            // but OpenGL accepts GL_BGRA as external format, use RGB10_A2 instead
+            info.mInternalFormatForRenderbuffer = GL_RGB10_A2;
+
+            info.mDefaultExternalFormat = GL_BGRA;
+            info.mDefaultExternalType = GL_UNSIGNED_INT_2_10_10_10_REV;
+            info.mExternalType = GL_UNSIGNED_INT_2_10_10_10_REV;
+            info.mExternalTexImageFormat = GL_BGRA;
+            info.mExternalReadFormat = GL_BGRA;
+
+            info.mDefaultColorType = ColorInfo.CT_BGRA_1010102;
+            info.mFlags = FormatInfo.TEXTURABLE_FLAG | FormatInfo.TRANSFERS_FLAG;
+            info.mFlags |= msaaRenderFlags;
+            if (mTexStorageSupport) {
+                info.mFlags |= FormatInfo.TEXTURE_STORAGE_FLAG;
+            }
+            info.mInternalFormatForTexture = GL_RGB10_A2;
+
+            info.mColorTypeInfos = new ColorTypeInfo[1];
+            // Format: RGB10_A2, Surface: kBGRA_1010102
+            {
+                ColorTypeInfo ctInfo = info.mColorTypeInfos[0] = new ColorTypeInfo();
+                ctInfo.mColorType = ColorInfo.CT_BGRA_1010102;
+                ctInfo.mFlags = ColorTypeInfo.kUploadData_Flag | ColorTypeInfo.kRenderable_Flag;
             }
         }
 
         // Format: COMPRESSED_RGB8_ETC2
         if (caps.OpenGL43 || caps.GL_ARB_ES3_compatibility) {
-            FormatInfo info = getFormatInfo(GL43C.GL_COMPRESSED_RGB8_ETC2);
+            FormatInfo info = getFormatInfo(Engine.ImageFormat.kRGB8_ETC2);
             info.mFlags |= FormatInfo.TEXTURABLE_FLAG;
         }
 
@@ -466,6 +571,8 @@ public final class GLCaps_GL extends GLCaps {
                 info.mColorSampleCounts[0] = 1;
             }
         }
+
+        initColorTypeFormatTable();
     }
 
     @Override

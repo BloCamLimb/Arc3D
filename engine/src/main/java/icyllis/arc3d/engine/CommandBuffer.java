@@ -213,23 +213,18 @@ public abstract class CommandBuffer {
      */
     public final boolean copyBufferToImage(@RawPtr Buffer srcBuffer,
                                            @RawPtr Image dstImage,
-                                           int srcColorType,
-                                           int dstColorType,
-                                           BufferImageCopyData[] copyData) {
-        assert srcBuffer != null && dstImage != null && copyData.length > 0;
+                                           @NonNull List<@NonNull BufferImageCopyData> copyData) {
+        assert srcBuffer != null && dstImage != null && !copyData.isEmpty();
         if (!dstImage.isSampledImage() && !dstImage.isStorageImage()) {
-            //TODO support copy to render buffer
+            //TODO support copy to render buffer?
             return false;
         }
-        return onCopyBufferToImage(srcBuffer, dstImage, srcColorType, dstColorType, copyData);
+        return onCopyBufferToImage(srcBuffer, dstImage, copyData);
     }
 
-    //TODO delete srcColorType and dstColorType once we make OpenGL formats Vulkan-like
     protected abstract boolean onCopyBufferToImage(@RawPtr Buffer srcBuffer,
                                                    @RawPtr Image dstImage,
-                                                   int srcColorType,
-                                                   int dstColorType,
-                                                   BufferImageCopyData[] copyData);
+                                                   @NonNull List<@NonNull BufferImageCopyData> copyData);
 
     /**
      * Perform an image-to-image copy, with the specified regions. Scaling is
@@ -262,6 +257,13 @@ public abstract class CommandBuffer {
                                            @RawPtr Image dstImage,
                                            int dstX, int dstY,
                                            int mipLevel);
+
+    /**
+     * Make device writes to buffer <em>available</em> on host domain.
+     */
+    public void setupBufferForHostRead(@RawPtr Buffer buffer) {
+
+    }
 
     public void waitSemaphore(@Nullable BackendSemaphore waitSemaphore) {
     }

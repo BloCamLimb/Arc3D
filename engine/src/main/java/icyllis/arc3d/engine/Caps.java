@@ -418,14 +418,12 @@ public abstract class Caps {
      * Given a dst pixel config and a src color type what color type must the caller coax
      * the data into in order to use writePixels().
      * <p>
-     * Low 32bits - colorType ((int) value).
-     * High 32bits - transferOffsetAlignment (value >>> 32).
-     * If the <code>write</code> is occurring using transferPixelsTo() then this provides
-     * the minimum alignment of the offset into the transfer buffer.
+     * Returns colorType ((int) value).
      */
-    public abstract long getSupportedWriteColorType(int dstColorType,
-                                                    ImageDesc dstDesc,
-                                                    int srcColorType);
+    @ColorInfo.ColorType
+    public abstract int getSupportedWriteColorType(int dstColorType,
+                                                   ImageDesc dstDesc,
+                                                   int srcColorType);
 
     /**
      * Given a src surface's color type and its backend format as well as a color type the caller
@@ -440,6 +438,7 @@ public abstract class Caps {
      * If the <code>write</code> is occurring using transferPixelsTo() then this provides
      * the minimum alignment of the offset into the transfer buffer.
      */
+    //TODO
     public final long getSupportedReadColorType(int srcColorType,
                                                 BackendFormat srcFormat,
                                                 int dstColorType) {

@@ -133,12 +133,12 @@ public final class GLFramebuffer extends Framebuffer {
             assert attachmentImage != null;
             //TODO attach depth texture besides renderbuffer
             int attachmentPoint;
-            if (GLUtil.glFormatIsPackedDepthStencil(attachmentImage.getFormat())) {
+            if (GLUtil.glFormatIsPackedDepthStencil(attachmentImage.getGLFormat())) {
                 attachmentPoint = GL_DEPTH_STENCIL_ATTACHMENT;
-            } else if (GLUtil.glFormatDepthBits(attachmentImage.getFormat()) > 0) {
+            } else if (GLUtil.glFormatDepthBits(attachmentImage.getGLFormat()) > 0) {
                 attachmentPoint = GL_DEPTH_ATTACHMENT;
             } else {
-                assert GLUtil.glFormatStencilBits(attachmentImage.getFormat()) > 0;
+                assert GLUtil.glFormatStencilBits(attachmentImage.getGLFormat()) > 0;
                 attachmentPoint = GL_STENCIL_ATTACHMENT;
             }
             gl.glFramebufferRenderbuffer(GL_FRAMEBUFFER,

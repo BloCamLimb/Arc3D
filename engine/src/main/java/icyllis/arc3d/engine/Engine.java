@@ -132,7 +132,7 @@ public interface Engine {
     }
 
     /**
-     * Known image view formats between backends.
+     * Known image view formats between backends. Actual support depends on {@link Caps}.
      */
     interface ImageFormat {
         int kUnsupported = 0;
@@ -148,30 +148,42 @@ public interface Engine {
                 kRG32F = 8,
                 kRGB8 = 9,
                 kRGB16 = 10,
-                kB5_G6_R5 = 11,
-                kRGBA8 = 12,
-                kRGBA16 = 13,
-                kRGBA16F = 14,
-                kRGBA32F = 15,
-                kRGB10_A2 = 16,
-                kBGR5_A1 = 17,
-                kBGRA8 = 18,
-                kBGR10_A2 = 19,
-                kRGB9_E5 = 20,
-                kRGB8_ETC2 = 21,
-                kRGB8_BC1 = 22,
-                kRGBA8_BC1 = 23,
-                kYUV8_P2_420 = 24,
-                kYUV8_P3_420 = 25;
+                kRGBA8 = 11,
+                kRGBA16 = 12,
+                kRGBA16F = 13,
+                kRGBA32F = 14,
+                kRGBA8_sRGB = 15,
+                kBGRA8 = 16,
+                kBGRA8_sRGB = 17,
+                kB5_G6_R5 = 18,
+                kBGR5_A1 = 19,
+                kRGB10_A2 = 20,
+                kBGR10_A2 = 21,
+                kR11F_G11F_B10F = 22,
+                kRGB9_E5 = 23;
+
+        int kLastPacked = kRGB9_E5;
+
+        int
+                kRGB8_ETC2 = kLastPacked + 1,
+                kRGB8_BC1 = kLastPacked + 2,
+                kRGBA8_BC1 = kLastPacked + 3;
+
+        int kLastCompressed = kRGBA8_BC1;
+
+        int
+                kYUV8_P2_420 = kLastCompressed + 1,
+                kYUV8_P3_420 = kLastCompressed + 2;
 
         int kLastColor = kYUV8_P3_420;
 
         int
                 kS8 = kLastColor + 1,
                 kD16 = kLastColor + 2,
-                kD32F = kLastColor + 3,
-                kD24_S8 = kLastColor + 4,
-                kD32F_S8 = kLastColor + 5;
+                kD24 = kLastColor + 3, // X8
+                kD32F = kLastColor + 4,
+                kD24_S8 = kLastColor + 5,
+                kD32F_S8 = kLastColor + 6;
 
         int kLast = kD32F_S8;
         int kCount = kLast + 1;
@@ -193,8 +205,9 @@ public interface Engine {
                 case kRG32F:          return Color.COLOR_CHANNEL_FLAGS_RG;
 
                 case kRGB8:
-                case kB5_G6_R5:
                 case kRGB16:
+                case kB5_G6_R5:
+                case kR11F_G11F_B10F:
                 case kRGB9_E5:
                 case kRGB8_ETC2:
                 case kRGB8_BC1:
@@ -205,14 +218,17 @@ public interface Engine {
                 case kRGBA16:
                 case kRGBA16F:
                 case kRGBA32F:
-                case kRGB10_A2:
-                case kBGR5_A1:
+                case kRGBA8_sRGB:
                 case kBGRA8:
+                case kBGRA8_sRGB:
+                case kBGR5_A1:
+                case kRGB10_A2:
                 case kBGR10_A2:
                 case kRGBA8_BC1:       return Color.COLOR_CHANNEL_FLAGS_RGBA;
 
                 case kS8:
                 case kD16:
+                case kD24:
                 case kD32F:
                 case kD24_S8:
                 case kD32F_S8:
@@ -235,6 +251,14 @@ public interface Engine {
             };
         }
 
+        static boolean isSRGB(int format) {
+            return switch (format) {
+                case kRGBA8_sRGB,
+                     kBGRA8_sRGB -> true;
+                default -> false;
+            };
+        }
+
         /**
          * Currently we are just over estimating this value to be used in gpu size calculations even
          * though the actually size is probably less. We should instead treat planar formats similar
@@ -242,32 +266,36 @@ public interface Engine {
          */
         static int bytesPerBlock(int format) {
             switch (format) {
-                case kUnsupported: return 0;
-                case kR8:          return 1;
-                case kR16:         return 2;
-                case kR16F:        return 2;
-                case kR32F:        return 4;
-                case kRG8:         return 2;
-                case kRG16:        return 4;
-                case kRG16F:       return 4;
-                case kRG32F:       return 8;
-                case kRGB8:        return 3;
-                case kRGB16:       return 6;
-                case kB5_G6_R5:    return 2;
-                case kRGBA8:       return 4;
-                case kRGBA16:      return 8;
-                case kRGBA16F:     return 8;
-                case kRGBA32F:     return 16;
-                case kRGB10_A2:    return 4;
-                case kBGR5_A1:     return 2;
-                case kBGRA8:       return 4;
-                case kBGR10_A2:    return 4;
-                case kRGB9_E5:     return 4;
-                case kS8:          return 1;
-                case kD16:         return 2;
-                case kD32F:        return 4;
-                case kD24_S8:      return 4;
-                case kD32F_S8:     return 8; // We assume the GPU stores this format 8 byte aligned
+                case kUnsupported:    return 0;
+                case kR8:             return 1;
+                case kR16:            return 2;
+                case kR16F:           return 2;
+                case kR32F:           return 4;
+                case kRG8:            return 2;
+                case kRG16:           return 4;
+                case kRG16F:          return 4;
+                case kRG32F:          return 8;
+                case kRGB8:           return 3;
+                case kRGB16:          return 6;
+                case kRGBA8:          return 4;
+                case kRGBA16:         return 8;
+                case kRGBA16F:        return 8;
+                case kRGBA32F:        return 16;
+                case kRGBA8_sRGB:     return 4;
+                case kBGRA8:          return 4;
+                case kBGRA8_sRGB:     return 4;
+                case kB5_G6_R5:       return 2;
+                case kBGR5_A1:        return 2;
+                case kRGB10_A2:       return 4;
+                case kBGR10_A2:       return 4;
+                case kR11F_G11F_B10F: return 4;
+                case kRGB9_E5:        return 4;
+                case kS8:             return 1;
+                case kD16:            return 2;
+                case kD24:            return 4;
+                case kD32F:           return 4;
+                case kD24_S8:         return 4;
+                case kD32F_S8:        return 8; // We assume the GPU stores this format 8 byte aligned
                 // NOTE: For compressed formats, the block size refers to an actual compressed block of
                 // multiple texels, whereas with other formats the block size represents a single pixel.
                 case kRGB8_ETC2:
@@ -289,7 +317,8 @@ public interface Engine {
         static int depthBits(int format) {
             return switch (format) {
                 case kD16 -> 16;
-                case kD24_S8 -> 24;
+                case kD24,
+                     kD24_S8 -> 24;
                 case kD32F,
                      kD32F_S8 -> 32;
                 default -> 0;
@@ -312,13 +341,12 @@ public interface Engine {
         static boolean isDepthOrStencil(int format) {
             return switch (format) {
                 case kS8,
-                kD16,
-                kD32F,
-                kD24_S8,
-                kD32F_S8 ->
-                     true;
-                default ->
-                     false;
+                     kD16,
+                     kD24,
+                     kD32F,
+                     kD24_S8,
+                     kD32F_S8 -> true;
+                default -> false;
             };
         }
 
@@ -340,15 +368,18 @@ public interface Engine {
                 case kRG32F -> "RG32F";
                 case kRGB8 -> "RGB8";
                 case kRGB16 -> "RGB16";
-                case kB5_G6_R5 -> "B5_G6_R5";
                 case kRGBA8 -> "RGBA8";
                 case kRGBA16 -> "RBGA16";
                 case kRGBA16F -> "RGBA16F";
                 case kRGBA32F -> "RGBA32F";
-                case kRGB10_A2 -> "RGB10_A2";
-                case kBGR5_A1 -> "BGR5_A1";
+                case kRGBA8_sRGB -> "RGBA8_sRGB";
                 case kBGRA8 -> "BGRA8";
+                case kBGRA8_sRGB -> "BGRA8_sRGB";
+                case kB5_G6_R5 -> "B5_G6_R5";
+                case kBGR5_A1 -> "BGR5_A1";
+                case kRGB10_A2 -> "RGB10_A2";
                 case kBGR10_A2 -> "BGR10_A2";
+                case kR11F_G11F_B10F -> "R11F_G11F_B10F";
                 case kRGB9_E5 -> "RGB9_E5";
                 case kRGB8_ETC2 -> "RGB8_ETC2";
                 case kRGB8_BC1 -> "RGB8_BC1";
@@ -357,6 +388,7 @@ public interface Engine {
                 case kYUV8_P3_420 -> "YUV8_P3_420";
                 case kS8 -> "S8";
                 case kD16 -> "D16";
+                case kD24 -> "D24";
                 case kD32F -> "D32F";
                 case kD24_S8 -> "D24_S8";
                 case kD32F_S8 -> "D32F_S8";

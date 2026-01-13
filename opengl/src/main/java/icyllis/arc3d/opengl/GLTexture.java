@@ -19,6 +19,7 @@
 
 package icyllis.arc3d.opengl;
 
+import icyllis.arc3d.core.ColorInfo;
 import icyllis.arc3d.core.SharedPtr;
 import icyllis.arc3d.engine.Engine;
 import icyllis.arc3d.engine.ISurface;
@@ -45,12 +46,12 @@ public final class GLTexture extends GLImage {
               GLTextureMutableState mutableState,
               int handle) {
         super(device, false, desc, mutableState);
-        assert (GLUtil.glFormatToImageFormat(desc.mFormat) != Engine.ImageFormat.kUnsupported);
+        assert (GLUtil.glFormatToImageFormat(desc.mGLFormat) != Engine.ImageFormat.kUnsupported);
         mOwnership = true;
 
         mHandle = handle;
 
-        if (GLUtil.glFormatIsCompressed(desc.mFormat)) {
+        if (GLUtil.glFormatIsCompressed(desc.mGLFormat)) {
             mFlags |= ISurface.FLAG_READ_ONLY;
         }
 
@@ -117,7 +118,8 @@ public final class GLTexture extends GLImage {
         //TODO create textures other than 2D
         int handle;
         handle = internalCreateTexture2D(device,
-                width, height, desc.mFormat, desc.getMipLevelCount());
+                width, height, desc.getViewFormat(), desc.getMipLevelCount(),
+                desc.mGLFormat);
         if (handle != 0) {
             device.getStats().incImageCreates();
             if (desc.isSampledImage()) {
@@ -129,15 +131,10 @@ public final class GLTexture extends GLImage {
 
     static int internalCreateTexture2D(GLDevice device,
                                        int width, int height,
-                                       int format, int levels) {
-        assert (GLUtil.glFormatToImageFormat(format) != Engine.ImageFormat.kUnsupported);
-        assert (!GLUtil.glFormatIsCompressed(format));
+                                       int format, int levels,
+                                       int internalFormat) {
+        assert (Engine.ImageFormat.compressionType(format) == ColorInfo.COMPRESSION_NONE);
         GLCaps caps = device.getCaps();
-
-        int internalFormat = caps.getTextureInternalFormat(format);
-        if (internalFormat == 0) {
-            return 0;
-        }
 
         GLInterface gl = device.getGL();
 

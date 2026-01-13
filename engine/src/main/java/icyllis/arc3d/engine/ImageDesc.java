@@ -43,9 +43,10 @@ public abstract class ImageDesc {
     protected final short mArraySize;
     protected final byte mMipLevelCount;
     protected final byte mSampleCount;
-    protected final byte mImageType;
+    protected final byte mViewType;
+    protected final byte mViewFormat;
 
-    protected ImageDesc(int imageType,
+    protected ImageDesc(int viewType, int viewFormat,
                         int width, int height,
                         int depth, int arraySize,
                         int mipLevelCount, int sampleCount,
@@ -54,8 +55,10 @@ public abstract class ImageDesc {
                 depth > 0 && arraySize > 0 &&
                 mipLevelCount > 0 && sampleCount > 0;
         assert mipLevelCount == 1 || sampleCount == 1;
-        assert imageType <= Byte.MAX_VALUE;
-        mImageType = (byte) imageType;
+        assert viewType <= Byte.MAX_VALUE;
+        assert viewFormat <= Byte.MAX_VALUE;
+        mViewType = (byte) viewType;
+        mViewFormat = (byte) viewFormat;
         mWidth = width;
         mHeight = height;
         mDepth = (short) depth;
@@ -75,8 +78,8 @@ public abstract class ImageDesc {
      *
      * @return see {@link Engine.ImageType}
      */
-    public final int getImageType() {
-        return mImageType;
+    public final int getViewType() {
+        return mViewType;
     }
 
     /**
@@ -105,7 +108,7 @@ public abstract class ImageDesc {
     }
 
     public final int getLayerCount() {
-        int layers = (mImageType == Engine.ImageType.kCube || mImageType == Engine.ImageType.kCubeArray)
+        int layers = (mViewType == Engine.ImageType.kCube || mViewType == Engine.ImageType.kCubeArray)
                 ? 6
                 : 1;
         return mArraySize * layers;
@@ -161,7 +164,9 @@ public abstract class ImageDesc {
     /**
      * @see Engine.ImageFormat
      */
-    public abstract int getViewFormat();
+    public final int getViewFormat() {
+        return mViewFormat;
+    }
 
     /**
      * If the backend API is OpenGL this gets the format as a GLenum.

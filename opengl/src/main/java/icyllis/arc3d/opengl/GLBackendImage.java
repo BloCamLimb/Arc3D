@@ -65,8 +65,8 @@ public final class GLBackendImage extends BackendImage {
 
     // The GLTextureInfo must have a valid mFormat, can NOT be modified anymore.
     public GLBackendImage(int width, int height, GLImageDesc desc) {
-        this(width, height, desc, new GLTextureMutableState(), GLBackendFormat.make(desc.mFormat));
-        assert desc.mFormat != 0;
+        this(width, height, desc, new GLTextureMutableState(), GLBackendFormat.make(desc.mGLFormat));
+        assert desc.mGLFormat != 0;
         // Make no assumptions about client's texture's parameters.
         glTextureParametersModified();
     }

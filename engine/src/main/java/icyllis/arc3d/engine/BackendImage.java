@@ -70,7 +70,14 @@ public abstract class BackendImage {
      * @return see {@link Engine.ImageType}
      */
     public final int getImageType() {
-        return mDesc.getImageType();
+        return mDesc.getViewType();
+    }
+
+    /**
+     * @return see {@link Engine.ImageFormat}
+     */
+    public final int getImageFormat() {
+        return mDesc.getViewFormat();
     }
 
     /**

@@ -22,8 +22,11 @@ package icyllis.arc3d.granite.task;
 import icyllis.arc3d.core.*;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.RecordingContext;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
+
+import java.util.List;
 
 public class ImageUploadTask extends Task {
 
@@ -91,22 +94,16 @@ public class ImageUploadTask extends Task {
     private Buffer mBuffer;
     @SharedPtr
     private ImageProxy mImageProxy;
-    private int mSrcColorType;
-    private int mDstColorType;
-    private BufferImageCopyData[] mCopyData;
+    private List<BufferImageCopyData> mCopyData;
     @Nullable
     private UploadCondition mUploadCondition;
 
     ImageUploadTask(@RawPtr Buffer buffer,
                     @SharedPtr ImageProxy imageProxy,
-                    int srcColorType,
-                    int dstColorType,
-                    BufferImageCopyData[] copyData,
+                    List<BufferImageCopyData> copyData,
                     @Nullable UploadCondition uploadCondition) {
         mBuffer = buffer;
         mImageProxy = imageProxy;
-        mSrcColorType = srcColorType;
-        mDstColorType = dstColorType;
         mCopyData = copyData;
         mUploadCondition = uploadCondition;
     }
@@ -156,7 +153,7 @@ public class ImageUploadTask extends Task {
         }
 
         @ColorInfo.ColorType
-        int actualColorType = (int) context.getCaps().getSupportedWriteColorType(
+        int actualColorType = context.getCaps().getSupportedWriteColorType(
                 dstColorType,
                 imageProxy.getDesc(),
                 srcColorType
@@ -191,7 +188,7 @@ public class ImageUploadTask extends Task {
             return null;
         }
 
-        BufferImageCopyData[] copyData = new BufferImageCopyData[mipLevelCount];
+        ObjectArrayList<BufferImageCopyData> copyData = new ObjectArrayList<>(mipLevelCount);
 
         int width = dstRect.width();
         int height = dstRect.height();
@@ -220,14 +217,14 @@ public class ImageUploadTask extends Task {
             );
             assert res;
 
-            copyData[mipLevel] = new BufferImageCopyData(
+            copyData.add(new BufferImageCopyData(
                     bufferInfo.mOffset + mipOffset,
                     dstRowBytes,
                     mipLevel,
                     0, 1,
                     dstRect.x(), dstRect.y(), 0,
                     width, height, 1
-            );
+            ));
 
             width = Math.max(1, width >> 1);
             height = Math.max(1, height >> 1);
@@ -236,8 +233,6 @@ public class ImageUploadTask extends Task {
         return new ImageUploadTask(
                 bufferInfo.mBuffer,
                 imageProxy, // move
-                srcColorType,
-                dstColorType,
                 copyData,
                 condition
         );
@@ -266,8 +261,6 @@ public class ImageUploadTask extends Task {
 
         if (!commandBuffer.copyBufferToImage(mBuffer,
                 mImageProxy.getImage(),
-                mSrcColorType,
-                mDstColorType,
                 mCopyData)) {
             return RESULT_FAILURE;
         }

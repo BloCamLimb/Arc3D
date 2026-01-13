@@ -19,7 +19,6 @@
 
 package icyllis.arc3d.opengl;
 
-import icyllis.arc3d.core.ColorInfo;
 import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.Rect2i;
 import icyllis.arc3d.core.Rect2ic;
@@ -51,6 +50,7 @@ import static org.lwjgl.system.MemoryUtil.memAddress;
  * mostly the same as that on {@link GLDevice}, but {@link GLCommandBuffer} assumes some values
  * and will not handle dirty context.
  */
+@SuppressWarnings("ForLoopReplaceableByForEach")
 public final class GLCommandBuffer extends CommandBuffer {
 
     private static final int
@@ -408,9 +408,7 @@ public final class GLCommandBuffer extends CommandBuffer {
     @Override
     protected boolean onCopyBufferToImage(@RawPtr Buffer srcBuffer,
                                           @RawPtr Image dstImage,
-                                          int srcColorType,
-                                          int dstColorType,
-                                          BufferImageCopyData[] copyData) {
+                                          @NonNull List<@NonNull BufferImageCopyData> copyData) {
         GLBuffer glBuffer = (GLBuffer) srcBuffer;
         GLTexture glTexture = (GLTexture) dstImage;
 
@@ -423,15 +421,15 @@ public final class GLCommandBuffer extends CommandBuffer {
         // there's either PBO or client array
         assert glBuffer.getHandle() == 0 || clientBufferPtr == MemoryUtil.NULL;
 
-        int glFormat = glTexture.getFormat();
+        int format = glTexture.getImageFormat();
         int srcFormat = mDevice.getCaps().getPixelsExternalFormat(
-                glFormat, dstColorType, srcColorType, /*write*/true
+                format, /*write*/true
         );
         if (srcFormat == 0) {
             return false;
         }
         int srcType = mDevice.getCaps().getPixelsExternalType(
-                glFormat, dstColorType, srcColorType
+                format
         );
         if (srcType == 0) {
             return false;
@@ -478,12 +476,12 @@ public final class GLCommandBuffer extends CommandBuffer {
         gl.glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
         gl.glPixelStorei(GL_UNPACK_ALIGNMENT, 4); // see Caps default
 
-        int bpp = ColorInfo.bytesPerPixel(srcColorType);
+        int bpp = dstImage.getDesc().getBytesPerBlock();
         assert (glBuffer.getUsage() & BufferUsageFlags.kUpload) != 0;
         gl.glBindBuffer(GL_PIXEL_UNPACK_BUFFER, glBuffer.getHandle());
 
-        for (var data : copyData) {
-
+        for (int i = 0; i < copyData.size(); i++) {
+            var data = copyData.get(i);
             long trimRowBytes = (long) data.mWidth * bpp;
             if (data.mBufferRowBytes != trimRowBytes) {
                 int rowLength = (int) (data.mBufferRowBytes / bpp);

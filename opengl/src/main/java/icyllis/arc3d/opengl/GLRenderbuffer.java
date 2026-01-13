@@ -175,11 +175,8 @@ public final class GLRenderbuffer extends GLImage {
     static int internalCreateRenderbuffer(GLDevice device, GLImageDesc desc) {
         assert desc.mTarget == GL_RENDERBUFFER;
         int width = desc.getWidth(), height = desc.getHeight();
-         /*int internalFormat = glFormat;
-            if (GLUtil.glFormatStencilBits(glFormat) == 0) {
-                internalFormat = getCaps().getRenderbufferInternalFormat(glFormat);
-            }*/
-        int handle = internalCreateRenderbuffer(device, width, height, desc.getSampleCount(), desc.mFormat);
+        int internalFormat = desc.mGLFormat;
+        int handle = internalCreateRenderbuffer(device, width, height, desc.getSampleCount(), internalFormat);
         if (handle != 0) {
             device.getStats().incImageCreates();
         }
