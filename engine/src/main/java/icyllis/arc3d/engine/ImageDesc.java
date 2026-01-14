@@ -190,11 +190,11 @@ public abstract class ImageDesc {
      * @see Color#COLOR_CHANNEL_FLAGS_RGBA
      */
     public int getChannelFlags() {
-        return Engine.ImageFormat.channelFlags(getViewFormat());
+        return Engine.ImageFormat.channelFlags(mViewFormat);
     }
 
     public boolean isSRGB() {
-        throw new UnsupportedOperationException();
+        return Engine.ImageFormat.isSRGB(mViewFormat);
     }
 
     /**
@@ -202,7 +202,7 @@ public abstract class ImageDesc {
      */
     @ColorInfo.CompressionType
     public int getCompressionType() {
-        return Engine.ImageFormat.compressionType(getViewFormat());
+        return Engine.ImageFormat.compressionType(mViewFormat);
     }
 
     public final boolean isCompressed() {
@@ -213,15 +213,15 @@ public abstract class ImageDesc {
      * @return if compressed, bytes per block, otherwise bytes per pixel
      */
     public int getBytesPerBlock() {
-        return Engine.ImageFormat.bytesPerBlock(getViewFormat());
+        return Engine.ImageFormat.bytesPerBlock(mViewFormat);
     }
 
     public int getDepthBits() {
-        return Engine.ImageFormat.depthBits(getViewFormat());
+        return Engine.ImageFormat.depthBits(mViewFormat);
     }
 
     public int getStencilBits() {
-        return Engine.ImageFormat.stencilBits(getViewFormat());
+        return Engine.ImageFormat.stencilBits(mViewFormat);
     }
 
     // No hashCode() and equals() implementation here

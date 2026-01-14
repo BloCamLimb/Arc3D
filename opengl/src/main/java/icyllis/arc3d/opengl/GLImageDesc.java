@@ -65,7 +65,7 @@ public final class GLImageDesc extends ImageDesc {
         return mGLFormat;
     }
 
-    @Override
+    /*@Override
     public int getChannelFlags() {
         return GLUtil.glFormatChannels(mGLFormat);
     }
@@ -93,7 +93,7 @@ public final class GLImageDesc extends ImageDesc {
     @Override
     public int getStencilBits() {
         return GLUtil.glFormatStencilBits(mGLFormat);
-    }
+    }*/
 
     @Override
     public int hashCode() {

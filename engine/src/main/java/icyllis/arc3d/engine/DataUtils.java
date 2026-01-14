@@ -110,9 +110,13 @@ public final class DataUtils {
         // 1) if there's alignment requirement for the whole pixel / compressed block, use that;
         // 2) otherwise (should only for RGB8 and RGB16) it means GPU can read any data if it's optimal,
         // but we still align to at least 2 as it's required by PixelUtils for RGB16 conversion
-        minTransferBufferAlignment = Math.max(
-                MathUtil.isPow2(bytesPerBlock) ? bytesPerBlock : 2,
-                caps.optimalBufferCopyOffsetAlignment());
+        // The following is a very conservative strategy to ensure that both our CPU code and GPU support it.
+        minTransferBufferAlignment = MathUtil.isPow2(bytesPerBlock)
+                ? Math.max(bytesPerBlock, caps.optimalBufferCopyOffsetAlignment())
+                : MathUtil.lcm(bytesPerBlock, caps.optimalBufferCopyOffsetAlignment());
+        long minRowBytesAlignment = MathUtil.isPow2(bytesPerBlock)
+                ? Math.max(bytesPerBlock, caps.optimalBufferCopyRowBytesAlignment())
+                : MathUtil.lcm(bytesPerBlock, caps.optimalBufferCopyRowBytesAlignment());
 
         long combinedBufferSize = 0;
 
@@ -123,11 +127,11 @@ public final class DataUtils {
             int compressedBlockHeight = numBlocks(compressionType,
                     height);
 
-            long alignedRowBytes = MathUtil.alignTo(
+            long alignedRowBytes = MathUtil.alignUp(
                     (long) compressedBlockWidth * bytesPerBlock,
-                    caps.optimalBufferCopyRowBytesAlignment()
+                    minRowBytesAlignment
             );
-            long alignedSize = MathUtil.alignTo(
+            long alignedSize = MathUtil.alignUp(
                     alignedRowBytes * compressedBlockHeight,
                     minTransferBufferAlignment
             );

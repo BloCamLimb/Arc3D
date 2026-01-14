@@ -440,7 +440,7 @@ public final class GLCommandBuffer extends CommandBuffer {
         int target = glTexture.getTarget();
         int handle = glTexture.getHandle();
         int boundTexture = 0;
-        //TODO not only 2D
+        //TODO not only 2D, and compressed
         if (!dsa) {
             try (var stack = mStack.push()) {
                 var p = stack.ints(0);
@@ -476,15 +476,18 @@ public final class GLCommandBuffer extends CommandBuffer {
         gl.glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
         gl.glPixelStorei(GL_UNPACK_ALIGNMENT, 4); // see Caps default
 
-        int bpp = dstImage.getDesc().getBytesPerBlock();
+        int bytesPerBlock = dstImage.getDesc().getBytesPerBlock();
         assert (glBuffer.getUsage() & BufferUsageFlags.kUpload) != 0;
         gl.glBindBuffer(GL_PIXEL_UNPACK_BUFFER, glBuffer.getHandle());
 
         for (int i = 0; i < copyData.size(); i++) {
             var data = copyData.get(i);
-            long trimRowBytes = (long) data.mWidth * bpp;
+            assert data.mBufferOffset % 4 == 0;
+            assert data.mBufferRowBytes % 4 == 0;
+            long trimRowBytes = (long) data.mWidth * bytesPerBlock;
             if (data.mBufferRowBytes != trimRowBytes) {
-                int rowLength = (int) (data.mBufferRowBytes / bpp);
+                assert data.mBufferRowBytes % bytesPerBlock == 0;
+                int rowLength = (int) (data.mBufferRowBytes / bytesPerBlock);
                 gl.glPixelStorei(GL_UNPACK_ROW_LENGTH, rowLength);
             } else {
                 gl.glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);

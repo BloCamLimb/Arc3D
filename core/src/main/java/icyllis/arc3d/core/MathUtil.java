@@ -670,6 +670,15 @@ public class MathUtil {
     }
 
     /**
+     * Aligns {@code a} up to a non power of two.
+     */
+    public static long alignUp(long a, long alignment) {
+        assert alignment > 0;
+        long r = a % alignment;
+        return r == 0 ? a : a + alignment - r;
+    }
+
+    /**
      * Aligns {@code a} up to a non power of two, but only returns the padding.
      */
     public static int alignUpPad(int a, int alignment) {

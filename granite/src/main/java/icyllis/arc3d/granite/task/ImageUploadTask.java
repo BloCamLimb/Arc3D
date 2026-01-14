@@ -122,11 +122,6 @@ public class ImageUploadTask extends Task {
                                        Rect2ic dstRect,
                                        UploadCondition condition) {
         assert imageProxy != null;
-        //TODO take account of Vulkan's optimalBufferCopyOffsetAlignment and
-        // optimalBufferCopyRowPitchAlignment
-
-        //TODO note that the dstInfo means for surface, not an actual target to convert,
-        // in Vulkan backend we need update the logic
 
         int mipLevelCount = levels.length;
         // The assumption is either that we have no mipmaps, or that our rect is the entire texture
