@@ -135,7 +135,7 @@ public final class SurfaceDrawContext implements AutoCloseable {
                 targetView.getHeight() >= deviceInfo.height();
 
         short writeSwizzle = context.getCaps().getWriteSwizzle(
-                targetView.getProxy().getDesc(), deviceInfo.colorType());
+                deviceInfo.colorType(), targetView.getProxy().getDesc());
 
         return new SurfaceDrawContext(
                 targetView,

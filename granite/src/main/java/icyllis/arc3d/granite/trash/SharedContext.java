@@ -66,7 +66,7 @@ public final class SharedContext {
         mContextID = createUniqueID();
     }
 
-    /**
+    /*
      * Retrieve the default {@link BackendFormat} for a given {@code ColorType} and renderability.
      * It is guaranteed that this backend format will be the one used by the following
      * {@code ColorType} and {@link SurfaceCharacterization#createBackendFormat(int, BackendFormat)}.
@@ -76,7 +76,7 @@ public final class SharedContext {
      * @param colorType  see {@link ImageDesc}
      * @param renderable true if the format will be used as color attachments
      */
-    @Nullable
+    /*@Nullable
     public BackendFormat getDefaultBackendFormat(int colorType, boolean renderable) {
         assert (mCaps != null);
 
@@ -86,11 +86,11 @@ public final class SharedContext {
             return null;
         }
         assert (!renderable ||
-                mCaps.isFormatRenderable(colorType, format, 1));
+                mCaps.isRenderableFormat(colorType, format, 1, ));
         return format;
-    }
+    }*/
 
-    /**
+    /*
      * Retrieve the {@link BackendFormat} for a given {@code CompressionType}. This is
      * guaranteed to match the backend format used by the following
      * createCompressedBackendTexture methods that take a {@code CompressionType}.
@@ -99,7 +99,7 @@ public final class SharedContext {
      *
      * @param compressionType see {@link ImageDesc}
      */
-    @Nullable
+    /*@Nullable
     public BackendFormat getCompressedBackendFormat(int compressionType) {
         assert (mCaps != null);
 
@@ -107,16 +107,16 @@ public final class SharedContext {
         assert (format == null) ||
                 (!format.isExternal() && mCaps.isFormatTexturable(format));
         return format;
-    }
+    }*/
 
-    /**
+    /*
      * Gets the maximum supported sample count for a color type. 1 is returned if only non-MSAA
      * rendering is supported for the color type. 0 is returned if rendering to this color type
      * is not supported at all.
      *
      * @param colorType see {@link ImageDesc}
      */
-    public int getMaxSurfaceSampleCount(int colorType) {
+    /*public int getMaxSurfaceSampleCount(int colorType) {
         assert (mCaps != null);
 
         colorType = colorTypeToPublic(colorType);
@@ -124,8 +124,8 @@ public final class SharedContext {
         if (format == null) {
             return 0;
         }
-        return mCaps.getMaxRenderTargetSampleCount(format);
-    }
+        return mCaps.getMaxRenderTargetSampleCount(format, );
+    }*/
 
     /**
      * @return initialized or not, if {@link ImmediateContext} is created, it must be true

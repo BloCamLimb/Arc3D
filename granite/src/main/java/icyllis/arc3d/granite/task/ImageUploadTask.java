@@ -150,8 +150,7 @@ public class ImageUploadTask extends Task {
         @ColorInfo.ColorType
         int actualColorType = context.getCaps().getSupportedWriteColorType(
                 dstColorType,
-                imageProxy.getDesc(),
-                srcColorType
+                imageProxy.getDesc()
         );
         if (actualColorType == ColorInfo.CT_UNKNOWN) {
             return null;

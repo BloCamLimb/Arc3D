@@ -89,7 +89,6 @@ public abstract class Caps {
     protected int mMaxVertexAttributes = 16;
     protected int mMaxVertexBindings = 16;
     protected int mMaxTextureSize = 1;
-    protected int mInternalMultisampleCount = 0;
     protected int mMaxPushConstantsSize = 0;
     protected int mMaxColorAttachments = 4;
     protected int mMinUniformBufferOffsetAlignment = 256;
@@ -381,29 +380,27 @@ public abstract class Caps {
     /**
      * Can a texture be made with the BackendFormat, and then be bound and sampled in a shader.
      * It must be a color format, you cannot pass a stencil format here.
-     * <p>
-     * For OpenGL: Formats that deprecated in core profile are not supported; Compressed formats
-     * from extensions are uncertain; Others are always supported.
      */
-    public abstract boolean isFormatTexturable(BackendFormat format);
+    public abstract boolean isFormatTexturable(int format);
 
     /**
      * Returns the maximum supported sample count for a format. 0 means the format is not renderable
      * 1 means the format is renderable but doesn't support MSAA.
      */
-    public abstract int getMaxRenderTargetSampleCount(BackendFormat format);
+    public abstract int getMaxRenderTargetSampleCount(int format, boolean sampled);
 
-    /**
-     * Returns the number of samples to use when performing draws to the given config with internal
-     * MSAA. If 0, we should not attempt to use internal multisampling.
-     */
-    public final int getInternalMultisampleCount(BackendFormat format) {
-        return Math.min(mInternalMultisampleCount, getMaxRenderTargetSampleCount(format));
+    public boolean isRenderableFormat(int colorType, int format, int sampleCount, boolean sampled) {
+        ColorTypeInfo ctInfo = getColorTypeInfo(colorType, format);
+        if (ctInfo == null) {
+            return false;
+        }
+        if ((ctInfo.mFlags & ColorTypeInfo.kRenderable_Flag) == 0) {
+            return false;
+        }
+        return isRenderableFormat(format, sampleCount, sampled);
     }
 
-    public abstract boolean isFormatRenderable(int colorType, BackendFormat format, int sampleCount);
-
-    public abstract boolean isFormatRenderable(BackendFormat format, int sampleCount);
+    public abstract boolean isRenderableFormat(int format, int sampleCount, boolean sampled);
 
     /**
      * Find a sample count greater than or equal to the requested count which is supported for a
@@ -411,8 +408,10 @@ public abstract class Caps {
      * sample count is 1 then 1 will be returned if non-MSAA rendering is supported, otherwise 0.
      *
      * @param sampleCount requested samples
+     * @param format
+     * @param sampled
      */
-    public abstract int getRenderTargetSampleCount(int sampleCount, BackendFormat format);
+    public abstract int getRenderTargetSampleCount(int sampleCount, int format, boolean sampled);
 
     /**
      * Given a dst pixel config and a src color type what color type must the caller coax
@@ -421,9 +420,8 @@ public abstract class Caps {
      * Returns colorType ((int) value).
      */
     @ColorInfo.ColorType
-    public abstract int getSupportedWriteColorType(int dstColorType,
-                                                   ImageDesc dstDesc,
-                                                   int srcColorType);
+    public abstract int getSupportedWriteColorType(int surfaceColorType,
+                                                   ImageDesc dstDesc);
 
     /**
      * Given a src surface's color type and its backend format as well as a color type the caller
@@ -439,10 +437,9 @@ public abstract class Caps {
      * the minimum alignment of the offset into the transfer buffer.
      */
     //TODO
-    public final long getSupportedReadColorType(int srcColorType,
-                                                BackendFormat srcFormat,
-                                                int dstColorType) {
-        long read = onSupportedReadColorType(srcColorType, srcFormat, dstColorType);
+    public final long getSupportedReadColorType(int surfaceColorType,
+                                                BackendFormat srcFormat) {
+        long read = onSupportedReadColorType(surfaceColorType, srcFormat, 0);
         int colorType = (int) (read & 0xFFFFFFFFL);
         long transferOffsetAlignment = read >>> 32;
 
@@ -582,10 +579,10 @@ public abstract class Caps {
         return mDepthClipNegativeOneToOne;
     }
 
-    /**
+    /*
      * If a texture or render target can be created with these params.
      */
-    public final boolean validateSurfaceParams(int width, int height,
+    /*public final boolean validateSurfaceParams(int width, int height,
                                                BackendFormat format,
                                                int sampleCount,
                                                int surfaceFlags) {
@@ -601,7 +598,7 @@ public abstract class Caps {
             if (width > maxSize || height > maxSize) {
                 return false;
             }
-            return isFormatRenderable(format, sampleCount);
+            return isRenderableFormat(format, sampleCount, );
         }
         final int maxSize = maxTextureSize();
         if (width > maxSize || height > maxSize) {
@@ -609,12 +606,12 @@ public abstract class Caps {
         }
         //TODO allow multisample textures?
         return sampleCount == 1;
-    }
+    }*/
 
-    /**
+    /*
      * If an attachment can be created with these params.
      */
-    public final boolean validateAttachmentParams(int width, int height,
+    /*public final boolean validateAttachmentParams(int width, int height,
                                                   BackendFormat format,
                                                   int sampleCount) {
         if (width < 1 || height < 1) {
@@ -624,23 +621,22 @@ public abstract class Caps {
         if (width > maxSize || height > maxSize) {
             return false;
         }
-        return isFormatRenderable(format, sampleCount);
-    }
+        return isRenderableFormat(format, sampleCount, );
+    }*/
 
-    public final boolean isFormatCompatible(int colorType, BackendFormat format) {
+    public final boolean isFormatCompatible(int colorType, int format) {
         if (colorType == ColorInfo.CT_UNKNOWN) {
             return false;
         }
-        int compression = format.getCompressionType();
+        int compression = Engine.ImageFormat.compressionType(format);
         if (compression != ColorInfo.COMPRESSION_NONE) {
             return colorType == (DataUtils.compressionTypeIsOpaque(compression) ?
                     ColorInfo.CT_RGBX_8888 :
                     ColorInfo.CT_RGBA_8888);
         }
-        return onFormatCompatible(colorType, format);
+        ColorTypeInfo ctInfo = getColorTypeInfo(colorType, format);
+        return ctInfo != null;
     }
-
-    protected abstract boolean onFormatCompatible(int colorType, BackendFormat format);
 
     /**
      * @param imageType
@@ -712,10 +708,10 @@ public abstract class Caps {
         return null;
     }
 
-    /**
+    /*
      * These are used when creating a new texture internally.
      */
-    @Nullable
+    /*@Nullable
     public final BackendFormat getDefaultBackendFormat(int colorType,
                                                        boolean renderable) {
         // Unknown color types are always an invalid format.
@@ -733,14 +729,14 @@ public abstract class Caps {
         // that could be a separate requirement from the caller. It seems less necessary if
         // renderability was requested.
         //TODO
-        /*if ((getSupportedWriteColorType(colorType, format, colorType) & 0xFFFFFFFFL) == ColorInfo.CT_UNKNOWN) {
+        *//*if ((getSupportedWriteColorType(colorType, format, colorType) & 0xFFFFFFFFL) == ColorInfo.CT_UNKNOWN) {
             return null;
-        }*/
-        if (renderable && !isFormatRenderable(colorType, format, 1)) {
+        }*//*
+        if (renderable && !isRenderableFormat(colorType, format, 1, )) {
             return null;
         }
         return format;
-    }
+    }*/
 
     @Nullable
     protected abstract BackendFormat onGetDefaultBackendFormat(int colorType);
@@ -748,13 +744,21 @@ public abstract class Caps {
     @Nullable
     public abstract BackendFormat getCompressedBackendFormat(int compressionType);
 
+    @Nullable
+    public abstract ColorTypeInfo getColorTypeInfo(int colorType,
+                                                   @NonNull ImageDesc desc);
+
+    @Nullable
+    public abstract ColorTypeInfo getColorTypeInfo(int colorType,
+                                                   int format);
+
     @NonNull
     public abstract PipelineKey makeGraphicsPipelineKey(
             PipelineKey old,
             PipelineDesc pipelineDesc,
             RenderPassDesc renderPassDesc);
 
-    public final short getReadSwizzle(ImageDesc desc, int colorType) {
+    public final short getReadSwizzle(int colorType, @NonNull ImageDesc desc) {
         int compression = desc.getCompressionType();
         if (compression != ColorInfo.COMPRESSION_NONE) {
             if (colorType == ColorInfo.CT_RGBX_8888 || colorType == ColorInfo.CT_RGBA_8888) {
@@ -764,12 +768,22 @@ public abstract class Caps {
             return Swizzle.RGBA;
         }
 
-        return onGetReadSwizzle(desc, colorType);
+        final ColorTypeInfo ctInfo = getColorTypeInfo(colorType, desc);
+        if (ctInfo != null) {
+            return ctInfo.mReadSwizzle;
+        }
+        assert false;
+        return Swizzle.RGBA;
     }
 
-    protected abstract short onGetReadSwizzle(ImageDesc desc, int colorType);
-
-    public abstract short getWriteSwizzle(ImageDesc desc, int colorType);
+    public final short getWriteSwizzle(int colorType, @NonNull ImageDesc desc) {
+        final ColorTypeInfo ctInfo = getColorTypeInfo(colorType, desc);
+        if (ctInfo != null) {
+            return ctInfo.mWriteSwizzle;
+        }
+        assert false;
+        return Swizzle.RGBA;
+    }
 
     public abstract IResourceKey computeImageKey(ImageDesc desc,
                                                  IResourceKey recycle);
@@ -783,8 +797,6 @@ public abstract class Caps {
         mShaderCaps.applyOptionsOverrides(options);
         onApplyOptionsOverrides(options);
 
-        mInternalMultisampleCount = options.mInternalMultisampleCount;
-
         // Our render targets are always created with textures as the color attachment, hence this min:
         mMaxRenderTargetSize = Math.min(mMaxRenderTargetSize, mMaxTextureSize);
         mMaxPreferredRenderTargetSize = Math.min(mMaxPreferredRenderTargetSize, mMaxRenderTargetSize);
@@ -792,5 +804,41 @@ public abstract class Caps {
 
     protected void onApplyOptionsOverrides(ContextOptions options) {
         mDriverBugWorkarounds.applyOverrides(options.mDriverBugWorkarounds);
+    }
+
+    public static class ColorTypeInfo {
+        @ColorInfo.ColorType
+        public int mColorType = ColorInfo.CT_UNKNOWN;
+        //TODO split into readColorType and writeColorType
+        @ColorInfo.ColorType
+        public int mTransferColorType = ColorInfo.CT_UNKNOWN;
+
+        public static final int
+                kUploadData_Flag = 0x1,
+                kRenderable_Flag = 0x2;
+        public int mFlags = 0;
+
+        public short mReadSwizzle = Swizzle.RGBA;
+        public short mWriteSwizzle = Swizzle.RGBA;
+
+        @Override
+        public String toString() {
+            StringBuilder b = new StringBuilder("ColorTypeInfo:\n");
+            dump("", b);
+            return b.toString();
+        }
+
+        public void dump(String prefix, StringBuilder out) {
+            out.append(prefix).append("ColorType: ")
+                    .append(ColorInfo.colorTypeToString(mColorType)).append('\n');
+            out.append(prefix).append("TransferColorType: ")
+                    .append(ColorInfo.colorTypeToString(mTransferColorType)).append('\n');
+            out.append(prefix).append("Flags: 0x")
+                    .append(Integer.toHexString(mFlags)).append('\n');
+            out.append(prefix).append("ReadSwizzle: ")
+                    .append(Swizzle.toString(mReadSwizzle)).append('\n');
+            out.append(prefix).append("WriteSwizzle: ")
+                    .append(Swizzle.toString(mWriteSwizzle)).append('\n');
+        }
     }
 }

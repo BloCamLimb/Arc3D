@@ -108,11 +108,11 @@ public final class GLBackendImage extends BackendImage {
         }
     }
 
-    @NonNull
+    /*@NonNull
     @Override
     public BackendFormat getBackendFormat() {
         return mBackendFormat;
-    }
+    }*/
 
     @Override
     public boolean isProtected() {

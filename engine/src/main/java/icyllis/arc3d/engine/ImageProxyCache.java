@@ -98,7 +98,7 @@ public final class ImageProxyCache {
     public void processInvalidUniqueKey(Object key, ImageProxy proxy, boolean invalidateResource) {
     }
 
-    /**
+    /*
      * Create a lazy {@link ImageProxy} without any data.
      *
      * @see ImageProxy
@@ -108,7 +108,7 @@ public final class ImageProxyCache {
      * @see ISurface#FLAG_PROTECTED
      * @see ISurface#FLAG_SKIP_ALLOCATOR
      */
-    @Deprecated
+    /*@Deprecated
     @Nullable
     @SharedPtr
     public ImageProxy createTexture(BackendFormat format,
@@ -137,9 +137,9 @@ public final class ImageProxyCache {
         //FIXME
         //return new ImageProxy(format, width, height, surfaceFlags);
         return null;
-    }
+    }*/
 
-    /**
+    /*
      * Creates a lazy {@link ImageProxy} for the pixel map.
      *
      * @param pixmap       pixel map
@@ -150,7 +150,7 @@ public final class ImageProxyCache {
      * @see ISurface#FLAG_APPROX_FIT
      * @see ISurface#FLAG_MIPMAPPED
      */
-    @Deprecated
+    /*@Deprecated
     @Nullable
     @SharedPtr
     public ImageProxy createTextureFromPixels(@NonNull Pixmap pixmap,
@@ -170,7 +170,7 @@ public final class ImageProxyCache {
             return null;
         }
         var format = mContext.getCaps()
-                .getDefaultBackendFormat(dstColorType, /*renderable*/ false);
+                .getDefaultBackendFormat(dstColorType, *//*renderable*//* false);
         if (format == null) {
             return null;
         }
@@ -187,7 +187,7 @@ public final class ImageProxyCache {
             //texture.doLazyInstantiation(mDirect.getResourceProvider());
         }
         return texture;
-    }
+    }*/
 
     @Deprecated
     private static final class PixelsCallback implements SurfaceProxy.LazyInstantiateCallback {
@@ -234,14 +234,14 @@ public final class ImageProxyCache {
         }
     }
 
-    /**
+    /*
      * @see ISurface#FLAG_BUDGETED
      * @see ISurface#FLAG_APPROX_FIT
      * @see ISurface#FLAG_MIPMAPPED
      * @see ISurface#FLAG_PROTECTED
      * @see ISurface#FLAG_SKIP_ALLOCATOR
      */
-    @Deprecated
+    /*@Deprecated
     @Nullable
     @SharedPtr
     public RenderTargetProxy createRenderTexture(BackendFormat format,
@@ -269,16 +269,16 @@ public final class ImageProxyCache {
         }
 
         return new RenderTargetProxy(format, width, height, sampleCount, surfaceFlags);
-    }
+    }*/
 
-    /**
+    /*
      * Create a RenderTarget that wraps a backend texture and is both texturable and renderable.
      * <p>
      * The texture must be single sampled and will be used as the color attachment 0 of the non-MSAA
      * render target. If <code>sampleCount</code> is > 1, the underlying API uses separate MSAA render
      * buffers then a MSAA render buffer is created that resolves to the texture.
      */
-    @Deprecated
+    /*@Deprecated
     @Nullable
     @SharedPtr
     public RenderTargetProxy wrapRenderableBackendTexture(BackendImage texture,
@@ -290,16 +290,13 @@ public final class ImageProxyCache {
             return null;
         }
 
-        /*// This is only supported on a direct Context.
-        if (mDirect == null) {
-            return null;
-        }*/
 
-        sampleCount = mContext.getCaps().getRenderTargetSampleCount(sampleCount, texture.getBackendFormat());
+
+        sampleCount = mContext.getCaps().getRenderTargetSampleCount(sampleCount, texture.getImageFormat(), );
         assert sampleCount > 0;
         //TODO
         return null;
-    }
+    }*/
 
     @Deprecated
     @Nullable

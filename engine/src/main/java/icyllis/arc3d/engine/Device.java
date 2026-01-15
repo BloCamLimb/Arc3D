@@ -122,7 +122,7 @@ public abstract class Device implements Engine {
         return mExecutingThread == Thread.currentThread();
     }
 
-    /**
+    /*
      * Retrieve the default {@link BackendFormat} for a given {@code ColorType} and renderability.
      * It is guaranteed that this backend format will be the one used by the following
      * {@code ColorType} and {@link SurfaceCharacterization#createBackendFormat(int, BackendFormat)}.
@@ -132,7 +132,7 @@ public abstract class Device implements Engine {
      * @param colorType  see {@link ImageDesc}
      * @param renderable true if the format will be used as color attachments
      */
-    @Nullable
+    /*@Nullable
     public BackendFormat getDefaultBackendFormat(int colorType, boolean renderable) {
         assert (mCaps != null);
 
@@ -142,11 +142,11 @@ public abstract class Device implements Engine {
             return null;
         }
         assert (!renderable ||
-                mCaps.isFormatRenderable(colorType, format, 1));
+                mCaps.isRenderableFormat(colorType, format, 1, ));
         return format;
-    }
+    }*/
 
-    /**
+    /*
      * Retrieve the {@link BackendFormat} for a given {@code CompressionType}. This is
      * guaranteed to match the backend format used by the following
      * createCompressedBackendTexture methods that take a {@code CompressionType}.
@@ -155,7 +155,7 @@ public abstract class Device implements Engine {
      *
      * @param compressionType see {@link ImageDesc}
      */
-    @Nullable
+    /*@Nullable
     public BackendFormat getCompressedBackendFormat(int compressionType) {
         assert (mCaps != null);
 
@@ -163,16 +163,16 @@ public abstract class Device implements Engine {
         assert (format == null) ||
                 (!format.isExternal() && mCaps.isFormatTexturable(format));
         return format;
-    }
+    }*/
 
-    /**
+    /*
      * Gets the maximum supported sample count for a color type. 1 is returned if only non-MSAA
      * rendering is supported for the color type. 0 is returned if rendering to this color type
      * is not supported at all.
      *
      * @param colorType see {@link ImageDesc}
      */
-    public int getMaxSurfaceSampleCount(int colorType) {
+    /*public int getMaxSurfaceSampleCount(int colorType) {
         assert (mCaps != null);
 
         colorType = Engine.colorTypeToPublic(colorType);
@@ -180,8 +180,8 @@ public abstract class Device implements Engine {
         if (format == null) {
             return 0;
         }
-        return mCaps.getMaxRenderTargetSampleCount(format);
-    }
+        return mCaps.getMaxRenderTargetSampleCount(format, );
+    }*/
 
     /**
      * @return initialized or not, if {@link ImmediateContext} is created, it must be true
@@ -519,10 +519,12 @@ public abstract class Device implements Engine {
             return null;
         }
 
-        final Caps caps = mCaps;
+        return null;
 
-        if (!caps.isFormatTexturable(texture.getBackendFormat()) ||
-                !caps.isFormatRenderable(texture.getBackendFormat(), sampleCount)) {
+        /*final Caps caps = mCaps;
+
+        if (!caps.isFormatTexturable(texture.getImageFormat()) ||
+                !caps.isRenderableFormat(texture.getImageFormat(), sampleCount, )) {
             return null;
         }
 
@@ -530,7 +532,7 @@ public abstract class Device implements Engine {
                 texture.getHeight() > caps.maxRenderTargetSize()) {
             return null;
         }
-        return onWrapRenderableBackendTexture(texture, sampleCount, ownership);
+        return onWrapRenderableBackendTexture(texture, sampleCount, ownership);*/
     }
 
     @Deprecated
@@ -548,11 +550,12 @@ public abstract class Device implements Engine {
                                                           int depthBits,
                                                           int stencilBits,
                                                           BackendFormat format) {
-        if (!getCaps().isFormatRenderable(format,
-                sampleCount)) {
+        return null;
+        /*if (!getCaps().isRenderableFormat(format,
+                sampleCount, )) {
             return null;
         }
-        return onWrapGLDefaultFramebuffer(width, height, sampleCount, depthBits, stencilBits, format);
+        return onWrapGLDefaultFramebuffer(width, height, sampleCount, depthBits, stencilBits, format);*/
     }
 
     @Deprecated
@@ -571,11 +574,12 @@ public abstract class Device implements Engine {
     @Nullable
     @SharedPtr
     public GpuRenderTarget wrapBackendRenderTarget(BackendRenderTarget backendRenderTarget) {
-        if (!getCaps().isFormatRenderable(backendRenderTarget.getBackendFormat(),
-                backendRenderTarget.getSampleCount())) {
+        return null;
+       /* if (!getCaps().isRenderableFormat(backendRenderTarget.getBackendFormat(),
+                backendRenderTarget.getSampleCount(), )) {
             return null;
         }
-        return onWrapBackendRenderTarget(backendRenderTarget);
+        return onWrapBackendRenderTarget(backendRenderTarget);*/
     }
 
     @Deprecated

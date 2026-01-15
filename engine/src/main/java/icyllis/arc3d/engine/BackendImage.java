@@ -74,6 +74,8 @@ public abstract class BackendImage {
     }
 
     /**
+     * Get the BackendFormat for this image/texture.
+     *
      * @return see {@link Engine.ImageFormat}
      */
     public final int getImageFormat() {
@@ -136,12 +138,6 @@ public abstract class BackendImage {
      */
     public void setVkQueueFamilyIndex(int queueFamilyIndex) {
     }
-
-    /**
-     * Get the BackendFormat for this image/texture.
-     */
-    @NonNull
-    public abstract BackendFormat getBackendFormat();
 
     /**
      * Returns true if we are working with protected content.

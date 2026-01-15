@@ -57,9 +57,8 @@ public class TextureUtils {
                 ISurface.FLAG_SAMPLED_IMAGE | (mipmapped ? ISurface.FLAG_MIPMAPPED : 0)
         );
         if (desc == null) {
-            //TODO see ImageUploadTask and Caps
-            return null;
-            /*dstCT = ColorInfo.CT_RGBA_8888;
+            //TODO better handling fallback: such as UNORM16 to F16 first
+            dstCT = ColorInfo.CT_RGBA_8888;
             desc = caps.getDefaultColorImageDesc(
                     Engine.ImageType.k2D,
                     dstCT,
@@ -67,11 +66,11 @@ public class TextureUtils {
                     pixmap.getHeight(),
                     1,
                     ISurface.FLAG_SAMPLED_IMAGE | (mipmapped ? ISurface.FLAG_MIPMAPPED : 0)
-            );*/
+            );
         }
         assert desc != null;
 
-        short readSwizzle = caps.getReadSwizzle(desc, dstCT);
+        short readSwizzle = caps.getReadSwizzle(dstCT, desc);
         // If the color type is alpha-only, propagate the alpha value to the other channels.
         if (ColorInfo.colorTypeIsAlphaOnly(dstCT)) {
             readSwizzle = Swizzle.concat(readSwizzle, Swizzle.AAAA);

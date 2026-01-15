@@ -118,22 +118,22 @@ public final class RecordingContext extends Context {
         return mDevice.isDiscarded();
     }
 
-    /**
+    /*
      * Can a {@link Image} be created with the given color type.
      *
      * @param colorType see {@link ColorInfo}
      */
-    public final boolean isImageCompatible(int colorType) {
+    /*public final boolean isImageCompatible(int colorType) {
         return getDefaultBackendFormat(colorType, false) != null;
-    }
+    }*/
 
-    /**
+    /*
      * Can a {@link Surface} be created with the given color type.
      * To check whether MSAA is supported use {@link #getMaxSurfaceSampleCount(int)}.
      *
      * @param colorType see {@link ColorInfo}
      */
-    public final boolean isSurfaceCompatible(int colorType) {
+    /*public final boolean isSurfaceCompatible(int colorType) {
         colorType = Engine.colorTypeToPublic(colorType);
         if (ColorInfo.CT_RG_1616 == colorType ||
                 ColorInfo.CT_A16_UNORM == colorType ||
@@ -145,7 +145,7 @@ public final class RecordingContext extends Context {
         }
 
         return getMaxSurfaceSampleCount(colorType) > 0;
-    }
+    }*/
 
     /*@ApiStatus.Internal
     public final ThreadSafeCache getThreadSafeCache() {

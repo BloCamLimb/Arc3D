@@ -98,7 +98,7 @@ public abstract class ResourceProvider {
     ///////////////////////////////////////////////////////////////////////////
     // Images
 
-    /**
+    /*
      * Finds or creates a texture that matches the descriptor. The texture's format will always
      * match the request. The contents of the texture are undefined.
      * <p>
@@ -136,7 +136,7 @@ public abstract class ResourceProvider {
      * @see ISurface#FLAG_MEMORYLESS
      * @see ISurface#FLAG_PROTECTED
      */
-    @Deprecated
+    /*@Deprecated
     @Nullable
     @SharedPtr
     public final Image createImage(int width, int height,
@@ -184,19 +184,19 @@ public abstract class ResourceProvider {
             return null;
         }
 
-        /*final Image image = findAndRefScratchImage(width, height, format,
+        final Image image = findAndRefScratchImage(width, height, format,
                 sampleCount, surfaceFlags, label);
         if (image != null) {
             if ((surfaceFlags & ISurface.FLAG_BUDGETED) == 0) {
                 image.makeBudgeted(false);
             }
             return image;
-        }*/
+        }
 
-        /*return mDevice.createImage(width, height, format,
-                sampleCount, surfaceFlags, label);*/
+        return mDevice.createImage(width, height, format,
+                sampleCount, surfaceFlags, label);
         return null;
-    }
+    }*/
 
     @Nullable
     @SharedPtr
@@ -329,7 +329,7 @@ public abstract class ResourceProvider {
     ///////////////////////////////////////////////////////////////////////////
     // Textures
 
-    /**
+    /*
      * Finds or creates a texture that matches the descriptor. The texture's format will always
      * match the request. The contents of the texture are undefined.
      * <p>
@@ -367,7 +367,7 @@ public abstract class ResourceProvider {
      * @see ISurface#FLAG_MEMORYLESS
      * @see ISurface#FLAG_PROTECTED
      */
-    @Deprecated
+    /*@Deprecated
     @Nullable
     @SharedPtr
     public final Image createTexture(int width, int height,
@@ -392,7 +392,7 @@ public abstract class ResourceProvider {
                 sampleCount,
                 surfaceFlags,
                 label);
-    }
+    }*/
 
     /*
      * Same as {@link #createTexture(int, int, BackendFormat, int, int, String)} but with initial
@@ -497,7 +497,7 @@ public abstract class ResourceProvider {
     ///////////////////////////////////////////////////////////////////////////
     // Framebuffers
 
-    /**
+    /*
      * Create a single color target, resolve target and optional depth/stencil target,
      * then create the framebuffer for these targets.
      * <p>
@@ -516,7 +516,7 @@ public abstract class ResourceProvider {
      * @param label
      * @return
      */
-    @Deprecated
+    /*@Deprecated
     @Nullable
     @SharedPtr
     public final GpuRenderTarget createRenderTarget(int width, int height,
@@ -561,8 +561,8 @@ public abstract class ResourceProvider {
             width = ISurface.getApproxSize(width);
             height = ISurface.getApproxSize(height);
             // approx fit cannot be mipmapped and must be budgeted
-            /*surfaceFlags &= ISurface.FLAG_TEXTURABLE | ISurface.FLAG_RENDERABLE | ISurface.FLAG_PROTECTED;
-            surfaceFlags |= ISurface.FLAG_BUDGETED;*/
+            *//*surfaceFlags &= ISurface.FLAG_TEXTURABLE | ISurface.FLAG_RENDERABLE | ISurface.FLAG_PROTECTED;
+            surfaceFlags |= ISurface.FLAG_BUDGETED;*//*
         }
 
         if (colorFormat != null && !caps.validateSurfaceParams(
@@ -646,7 +646,7 @@ public abstract class ResourceProvider {
         RefCnt.move(depthStencilAtt);
 
         return null;
-    }
+    }*/
 
     /**
      * Create a new {@link GpuRenderTarget} object for the given attachments (RTs and resolve targets).

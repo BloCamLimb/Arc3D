@@ -20,7 +20,6 @@
 package icyllis.arc3d.opengl;
 
 import icyllis.arc3d.core.ColorInfo;
-import icyllis.arc3d.core.MathUtil;
 import icyllis.arc3d.engine.*;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -838,10 +837,6 @@ public abstract class GLCaps extends Caps {
     }
 
     @Override
-    public boolean isFormatTexturable(BackendFormat format) {
-        return isFormatTexturable(format.getGLFormat());
-    }
-
     public boolean isFormatTexturable(int format) {
         return (getFormatInfo(format).mFlags & FormatInfo.TEXTURABLE_FLAG) != 0;
     }
@@ -851,48 +846,25 @@ public abstract class GLCaps extends Caps {
     }
 
     @Override
-    public int getMaxRenderTargetSampleCount(BackendFormat format) {
-        return getMaxRenderTargetSampleCount(format.getGLFormat());
-    }
-
-    public int getMaxRenderTargetSampleCount(int format) {
+    public int getMaxRenderTargetSampleCount(int format, boolean sampled) {
         int[] table = getFormatInfo(format).mColorSampleCounts;
         if (table.length == 0) {
             return 0;
+        }
+        if (sampled) {
+            //TODO MS Texture
+            return 1;
         }
         return table[table.length - 1];
     }
 
     @Override
-    public boolean isFormatRenderable(int colorType, BackendFormat format, int sampleCount) {
-        if (format.isExternal()) {
-            return false;
-        }
-        int f = format.getGLFormat();
-        if ((getFormatInfo(f).colorTypeFlags(colorType) & ColorTypeInfo.kRenderable_Flag) == 0) {
-            return false;
-        }
-        return isFormatRenderable(f, sampleCount);
+    public boolean isRenderableFormat(int format, int sampleCount, boolean sampled) {
+        return sampleCount <= getMaxRenderTargetSampleCount(format, sampled);
     }
 
     @Override
-    public boolean isFormatRenderable(BackendFormat format, int sampleCount) {
-        if (format.isExternal()) {
-            return false;
-        }
-        return isFormatRenderable(format.getGLFormat(), sampleCount);
-    }
-
-    public boolean isFormatRenderable(int format, int sampleCount) {
-        return sampleCount <= getMaxRenderTargetSampleCount(format);
-    }
-
-    @Override
-    public int getRenderTargetSampleCount(int sampleCount, BackendFormat format) {
-        return getRenderTargetSampleCount(sampleCount, format.getGLFormat());
-    }
-
-    public int getRenderTargetSampleCount(int sampleCount, int format) {
+    public int getRenderTargetSampleCount(int sampleCount, int format, boolean sampled) {
         FormatInfo formatInfo = getFormatInfo(format);
         if (formatInfo.mColorTypeInfos.length == 0) {
             return 0;
@@ -900,6 +872,11 @@ public abstract class GLCaps extends Caps {
 
         if (sampleCount <= 1) {
             return formatInfo.mColorSampleCounts[0] == 1 ? 1 : 0;
+        }
+
+        if (sampled) {
+            //TODO MS Texture
+            return 0;
         }
 
         for (int count : formatInfo.mColorSampleCounts) {
@@ -982,7 +959,8 @@ public abstract class GLCaps extends Caps {
             if ((formatInfo.colorTypeFlags(colorType) & ColorTypeInfo.kRenderable_Flag) == 0) {
                 return null;
             }
-            sampleCount = getRenderTargetSampleCount(sampleCount, format);
+            sampleCount = getRenderTargetSampleCount(sampleCount, format,
+                    (imageFlags & ISurface.FLAG_SAMPLED_IMAGE) != 0);
             if (sampleCount == 0) {
                 return null;
             }
@@ -1073,17 +1051,6 @@ public abstract class GLCaps extends Caps {
         );
     }
 
-    @Override
-    public boolean onFormatCompatible(int colorType, BackendFormat format) {
-        FormatInfo formatInfo = getFormatInfo(format.getGLFormat());
-        for (var info : formatInfo.mColorTypeInfos) {
-            if (info.mColorType == colorType) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     @Nullable
     @Override
     protected BackendFormat onGetDefaultBackendFormat(int colorType) {
@@ -1094,6 +1061,22 @@ public abstract class GLCaps extends Caps {
     @Override
     public BackendFormat getCompressedBackendFormat(int compressionType) {
         return mCompressionTypeToBackendFormat[compressionType];
+    }
+
+    @Override
+    public @Nullable ColorTypeInfo getColorTypeInfo(int colorType, @NonNull ImageDesc desc) {
+        return getColorTypeInfo(colorType, desc.getViewFormat());
+    }
+
+    @Override
+    public @Nullable ColorTypeInfo getColorTypeInfo(int colorType, int format) {
+        final FormatInfo formatInfo = getFormatInfo(format);
+        for (final ColorTypeInfo ctInfo : formatInfo.mColorTypeInfos) {
+            if (ctInfo.mColorType == colorType) {
+                return ctInfo;
+            }
+        }
+        return null;
     }
 
     @NonNull
@@ -1112,30 +1095,6 @@ public abstract class GLCaps extends Caps {
     }
 
     @Override
-    protected short onGetReadSwizzle(ImageDesc desc, int colorType) {
-        final FormatInfo formatInfo = getFormatInfo(desc.getViewFormat());
-        for (final ColorTypeInfo ctInfo : formatInfo.mColorTypeInfos) {
-            if (ctInfo.mColorType == colorType) {
-                return ctInfo.mReadSwizzle;
-            }
-        }
-        assert false;
-        return Swizzle.RGBA;
-    }
-
-    @Override
-    public short getWriteSwizzle(ImageDesc desc, int colorType) {
-        final FormatInfo formatInfo = getFormatInfo(desc.getViewFormat());
-        for (final ColorTypeInfo ctInfo : formatInfo.mColorTypeInfos) {
-            if (ctInfo.mColorType == colorType) {
-                return ctInfo.mWriteSwizzle;
-            }
-        }
-        assert false;
-        return Swizzle.RGBA;
-    }
-
-    @Override
     public IResourceKey computeImageKey(ImageDesc desc,
                                         IResourceKey recycle) {
         if (desc instanceof GLImageDesc glDesc) {
@@ -1145,7 +1104,7 @@ public abstract class GLCaps extends Caps {
     }
 
     @Override
-    public int getSupportedWriteColorType(int dstColorType, ImageDesc dstDesc, int srcColorType) {
+    public int getSupportedWriteColorType(int surfaceColorType, ImageDesc dstDesc) {
         // We first try to find a supported write pixels ColorType that matches the data's
         // srcColorType. If that doesn't exist we will use any supported ColorType.
         final FormatInfo formatInfo = getFormatInfo(dstDesc.getViewFormat());
@@ -1154,7 +1113,7 @@ public abstract class GLCaps extends Caps {
         }
         for (int i = 0; i < formatInfo.mColorTypeInfos.length; ++i) {
             final ColorTypeInfo ctInfo = formatInfo.mColorTypeInfos[i];
-            if (ctInfo.mColorType == dstColorType) {
+            if (ctInfo.mColorType == surfaceColorType) {
                 if (formatInfo.mExternalTexImageFormat != 0) {
                     return ctInfo.mColorType;
                 }
@@ -1402,37 +1361,6 @@ public abstract class GLCaps extends Caps {
                         .append("=>\n");
                 mFormatTable[i].dump("\t\t", out);
             }
-        }
-    }
-
-    static class ColorTypeInfo {
-        @ColorInfo.ColorType
-        int mColorType = ColorInfo.CT_UNKNOWN;
-
-        static final int
-                kUploadData_Flag = 0x1,
-                kRenderable_Flag = 0x2;
-        int mFlags = 0;
-
-        short mReadSwizzle = Swizzle.RGBA;
-        short mWriteSwizzle = Swizzle.RGBA;
-
-        @Override
-        public String toString() {
-            StringBuilder b = new StringBuilder("ColorTypeInfo:\n");
-            dump("", b);
-            return b.toString();
-        }
-
-        void dump(String prefix, StringBuilder out) {
-            out.append(prefix).append("ColorType: ")
-                    .append(ColorInfo.colorTypeToString(mColorType)).append('\n');
-            out.append(prefix).append("Flags: 0x")
-                    .append(Integer.toHexString(mFlags)).append('\n');
-            out.append(prefix).append("ReadSwizzle: ")
-                    .append(Swizzle.toString(mReadSwizzle)).append('\n');
-            out.append(prefix).append("WriteSwizzle: ")
-                    .append(Swizzle.toString(mWriteSwizzle)).append('\n');
         }
     }
 

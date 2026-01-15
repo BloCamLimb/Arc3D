@@ -184,7 +184,7 @@ public final class GraniteSurface extends Surface {
 
     // DEPRECATED code below
 
-    /**
+    /*
      * Wraps a GPU-backed texture into Surface. Caller must ensure the texture is
      * valid for the lifetime of returned Surface. If <code>sampleCount</code> greater
      * than one, creates an intermediate MSAA Surface which is used for drawing
@@ -208,7 +208,7 @@ public final class GraniteSurface extends Surface {
      * @param releaseCallback function called when texture can be released, may be null
      * @return Surface if all parameters are valid; otherwise, null
      */
-    @Nullable
+    /*@Nullable
     public static Surface makeFromBackendTexture(RecordingContext context,
                                                  BackendImage backendImage,
                                                  int origin, int sampleCount,
@@ -229,7 +229,7 @@ public final class GraniteSurface extends Surface {
         }
 
         return null;
-    }
+    }*/
 
     /**
      * Returns Surface on GPU indicated by context. Allocates memory for pixels,
@@ -292,7 +292,7 @@ public final class GraniteSurface extends Surface {
         return new Surface(dev);
     }*/
 
-    private static boolean validateBackendTexture(Caps caps,
+    /*private static boolean validateBackendTexture(Caps caps,
                                                   BackendImage backendImage,
                                                   int sampleCount,
                                                   int colorType,
@@ -301,16 +301,17 @@ public final class GraniteSurface extends Surface {
             return false;
         }
 
-        BackendFormat backendFormat = backendImage.getBackendFormat();
+        BackendFormat backendFormat = backendImage.getImageFormat();
 
         if (!caps.isFormatCompatible(colorType, backendFormat)) {
             return false;
         }
 
-        if (caps.isFormatRenderable(colorType, backendFormat, sampleCount)) {
+        if (caps.isRenderableFormat(colorType, backendFormat, sampleCount, )) {
             return false;
         }
 
-        return !texturable || caps.isFormatTexturable(backendFormat);
-    }
+        //return !texturable || caps.isFormatTexturable(backendFormat);
+        return true;
+    }*/
 }

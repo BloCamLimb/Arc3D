@@ -149,10 +149,10 @@ public class TestManagedResource {
 
         testShaderBuilder(dContext);
 
-        if (dContext.getCaps().isFormatTexturable(
+        /*if (dContext.getCaps().isFormatTexturable(
                 GLBackendFormat.make(EXTTextureCompressionS3TC.GL_COMPRESSED_RGBA_S3TC_DXT1_EXT))) {
             LOGGER.info("Compressed format: OK");
-        }
+        }*/
 
         //noinspection unused
         Swizzle.make("rgb1");
@@ -160,7 +160,7 @@ public class TestManagedResource {
         //int sampler = SamplerDesc.make(SamplerDesc.FILTER_NEAREST, SamplerDesc.MIPMAP_MODE_NONE);
 
         testTexture(dContext);
-        testRenderTarget(dContext);
+        //testRenderTarget(dContext);
 
         //tokenize(pw);
 
@@ -445,15 +445,15 @@ public class TestManagedResource {
         }
     }
 
-    public static void testRenderTarget(ImmediateContext dContext) {
+    /*public static void testRenderTarget(ImmediateContext dContext) {
         GpuRenderTarget renderTarget = dContext.getResourceProvider().createRenderTarget(
                 1920, 1080,
                 GLBackendFormat.make(GL_RG8),
                 ISurface.FLAG_MIPMAPPED |
                         ISurface.FLAG_BUDGETED | ISurface.FLAG_SAMPLED_IMAGE | ISurface.FLAG_RENDERABLE,
                 null, 0,
-                null, 0,/* GLBackendFormat.make(GL_DEPTH24_STENCIL8),
-                ISurface.FLAG_BUDGETED | ISurface.FLAG_RENDERABLE,*/
+                null, 0,*//* GLBackendFormat.make(GL_DEPTH24_STENCIL8),
+                ISurface.FLAG_BUDGETED | ISurface.FLAG_RENDERABLE,*//*
                 1,
                 ISurface.FLAG_BUDGETED,
                 "MyLayer"
@@ -468,8 +468,8 @@ public class TestManagedResource {
                 ISurface.FLAG_MIPMAPPED |
                         ISurface.FLAG_BUDGETED | ISurface.FLAG_SAMPLED_IMAGE | ISurface.FLAG_RENDERABLE,
                 null, 0,
-                null, 0,/* GLBackendFormat.make(GL_DEPTH24_STENCIL8),
-                ISurface.FLAG_BUDGETED | ISurface.FLAG_RENDERABLE,*/
+                null, 0,*//* GLBackendFormat.make(GL_DEPTH24_STENCIL8),
+                ISurface.FLAG_BUDGETED | ISurface.FLAG_RENDERABLE,*//*
                 1,
                 ISurface.FLAG_BUDGETED,
                 "MyLayer"
@@ -478,7 +478,7 @@ public class TestManagedResource {
             LOGGER.info(renderTarget.toString()); // same RT
             renderTarget.unref();
         }
-    }
+    }*/
 
     public static void testRightHandedRotation(PrintWriter pw) {
         Matrix4 mat = new Matrix4();

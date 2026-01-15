@@ -143,7 +143,7 @@ public final class GraniteDevice extends Device {
             return null;
         }
         short readSwizzle = rc.getCaps().getReadSwizzle(
-                desc, deviceInfo.colorType());
+                deviceInfo.colorType(), desc);
         @SharedPtr
         ImageProxy target = ImageProxy.make(rc, desc,
                 (surfaceFlags & ISurface.FLAG_BUDGETED) != 0, label);

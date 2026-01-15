@@ -110,6 +110,7 @@ public final class ContextOptions {
      * <p>
      * If 0, Engine will disable internal code paths that use multisampling.
      */
+    //TODO move to GraniteDevice options
     public int mInternalMultisampleCount = 4;
 
     /**

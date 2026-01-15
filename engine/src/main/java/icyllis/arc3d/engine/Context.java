@@ -47,7 +47,7 @@ public abstract class Context extends RefCnt {
         return mDevice.getBackend();
     }
 
-    /**
+    /*
      * Retrieve the default {@link BackendFormat} for a given {@code ColorType} and renderability.
      * It is guaranteed that this backend format will be the one used by the following
      * {@code ColorType} and {@link SurfaceCharacterization#createBackendFormat(int, BackendFormat)}.
@@ -57,12 +57,12 @@ public abstract class Context extends RefCnt {
      * @param colorType  see {@link ImageDesc}
      * @param renderable true if the format will be used as color attachments
      */
-    @Nullable
+    /*@Nullable
     public final BackendFormat getDefaultBackendFormat(int colorType, boolean renderable) {
         return mDevice.getDefaultBackendFormat(colorType, renderable);
-    }
+    }*/
 
-    /**
+    /*
      * Retrieve the {@link BackendFormat} for a given {@code CompressionType}. This is
      * guaranteed to match the backend format used by the following
      * createCompressedBackendTexture methods that take a {@code CompressionType}.
@@ -71,21 +71,21 @@ public abstract class Context extends RefCnt {
      *
      * @param compressionType see {@link ImageDesc}
      */
-    @Nullable
+    /*@Nullable
     public final BackendFormat getCompressedBackendFormat(int compressionType) {
         return mDevice.getCompressedBackendFormat(compressionType);
-    }
+    }*/
 
-    /**
+    /*
      * Gets the maximum supported sample count for a color type. 1 is returned if only non-MSAA
      * rendering is supported for the color type. 0 is returned if rendering to this color type
      * is not supported at all.
      *
      * @param colorType see {@link ImageDesc}
      */
-    public final int getMaxSurfaceSampleCount(int colorType) {
+    /*public final int getMaxSurfaceSampleCount(int colorType) {
         return mDevice.getMaxSurfaceSampleCount(colorType);
-    }
+    }*/
 
     public final boolean isImmediate() {
         return this instanceof ImmediateContext;

@@ -590,7 +590,7 @@ public final class GLDevice extends Device {
                                                          int depthBits,
                                                          int stencilBits,
                                                          BackendFormat format) {
-        int actualSamplerCount = mCaps.getRenderTargetSampleCount(sampleCount, format.getGLFormat());
+        /*int actualSamplerCount = mCaps.getRenderTargetSampleCount(sampleCount, format.getGLFormat());
         return GLRenderTarget.makeWrapped(null,
                 width,
                 height,
@@ -599,13 +599,14 @@ public final class GLDevice extends Device {
                 0,
                 depthBits,
                 stencilBits,
-                false);
+                false);*/
+        return null;
     }
 
     @Nullable
     @Override
     public GLRenderTarget onWrapBackendRenderTarget(BackendRenderTarget backendRenderTarget) {
-        GLBackendRenderTarget gl = (GLBackendRenderTarget) backendRenderTarget;
+        /*GLBackendRenderTarget gl = (GLBackendRenderTarget) backendRenderTarget;
         GLFramebufferInfo info = new GLFramebufferInfo();
         if (!gl.getGLFramebufferInfo(info)) {
             return null;
@@ -625,7 +626,8 @@ public final class GLDevice extends Device {
                 info.mFramebuffer,
                 0,
                 backendRenderTarget.getStencilBits(),
-                false);
+                false);*/
+        return null;
     }
 
     /**
