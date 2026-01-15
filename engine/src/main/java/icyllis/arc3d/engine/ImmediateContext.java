@@ -171,7 +171,7 @@ public final class ImmediateContext extends Context {
         /*if (mResourceProvider != null) {
             mResourceProvider.destroy(true);
         }*/
-        mQueueManager.finishOutstandingWork();
+        mQueueManager.destroy();
         if (mDevice != null) {
             mDevice.disconnect(true);
         }

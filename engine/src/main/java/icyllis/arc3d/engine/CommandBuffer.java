@@ -366,4 +366,6 @@ public abstract class CommandBuffer {
         mTrackingCommandBufferResources.forEach(Resource::unrefCommandBuffer);
         mTrackingCommandBufferResources.clear();
     }
+
+    protected abstract void destroy();
 }

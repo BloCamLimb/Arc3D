@@ -42,6 +42,17 @@ public abstract class QueueManager {
         mDevice = device;
     }
 
+    protected void destroy() {
+        finishOutstandingWork();
+        if (mCurrentCommandBuffer != null) {
+            mCurrentCommandBuffer.destroy();
+            mCurrentCommandBuffer = null;
+        }
+        mAvailableCommandBuffers.forEach(CommandBuffer::destroy);
+        mAvailableCommandBuffers.clear();
+        assert mOutstandingCommandBuffers.isEmpty();
+    }
+
     public boolean addTask(@RawPtr Task task) {
         if (task == null) {
             return false;

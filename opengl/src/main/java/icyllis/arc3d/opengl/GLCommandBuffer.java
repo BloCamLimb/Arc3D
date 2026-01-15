@@ -1013,4 +1013,9 @@ public final class GLCommandBuffer extends CommandBuffer {
     protected void waitUntilFinished() {
         mDevice.getGL().glFinish();
     }
+
+    @Override
+    protected void destroy() {
+        assert mSubmitFence == 0;
+    }
 }
