@@ -22,13 +22,7 @@ package icyllis.arc3d.vulkan;
 import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.RefCnt;
 import icyllis.arc3d.core.SharedPtr;
-import icyllis.arc3d.engine.Buffer;
-import icyllis.arc3d.engine.Context;
-import icyllis.arc3d.engine.Image;
-import icyllis.arc3d.engine.ImageDesc;
-import icyllis.arc3d.engine.ResourceProvider;
-import icyllis.arc3d.engine.Sampler;
-import icyllis.arc3d.engine.SamplerDesc;
+import icyllis.arc3d.engine.*;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -44,6 +38,13 @@ public final class VulkanResourceProvider extends ResourceProvider {
                                      long maxResourceBudget) {
         super(device, context, maxResourceBudget);
         mDevice = device;
+    }
+
+    @SharedPtr
+    @Override
+    protected VulkanGraphicsPipeline createGraphicsPipeline(PipelineDesc pipelineDesc,
+                                                            RenderPassDesc renderPassDesc) {
+        return VulkanGraphicsPipelineBuilder.createGraphicsPipeline(mDevice, pipelineDesc, renderPassDesc);
     }
 
     @Nullable
