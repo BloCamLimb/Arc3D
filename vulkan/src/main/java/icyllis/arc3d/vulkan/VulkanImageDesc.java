@@ -43,19 +43,20 @@ public final class VulkanImageDesc extends ImageDesc {
     // add Vk prefix to distinguish between this and base class
     public final /*VkImageCreateFlags*/ int mVkFlags;
     public final /*VkImageType*/ int mVkImageType;
-    public final /*VkFormat*/ int mFormat;
+    public final /*VkFormat*/ int mVkFormat;
     public final /*VkImageTiling*/ int mImageTiling;
     public final /*VkImageUsageFlags*/ int mImageUsageFlags;
     public final /*VkSharingMode*/ int mSharingMode;
 
     public VulkanImageDesc(int vkFlags, int vkImageType,
-                           int format, int imageTiling, int imageUsageFlags, int sharingMode,
-                           int imageType, int width, int height, int depth, int arraySize,
+                           int vkFormat, int imageTiling, int imageUsageFlags, int sharingMode,
+                           int viewType, int viewFormat,
+                           int width, int height, int depth, int arraySize,
                            int mipLevelCount, int sampleCount, int flags) {
-        super(imageType, width, height, depth, arraySize, mipLevelCount, sampleCount, flags);
+        super(viewType, viewFormat, width, height, depth, arraySize, mipLevelCount, sampleCount, flags);
         mVkFlags = vkFlags;
         mVkImageType = vkImageType;
-        mFormat = format;
+        mVkFormat = vkFormat;
         mImageTiling = imageTiling;
         mImageUsageFlags = imageUsageFlags;
         mSharingMode = sharingMode;
@@ -67,28 +68,23 @@ public final class VulkanImageDesc extends ImageDesc {
     }
 
     @Override
-    public int getViewFormat() {
-        return VKUtil.vkFormatToImageFormat(mFormat);
-    }
-
-    @Override
     public int getVkFormat() {
-        return mFormat;
+        return mVkFormat;
     }
 
-    @Override
+    /*@Override
     public int getChannelFlags() {
-        return VKUtil.vkFormatChannels(mFormat);
+        return VKUtil.vkFormatChannels(mVkFormat);
     }
 
     @Override
     public boolean isSRGB() {
-        return mFormat == VK_FORMAT_R8G8B8A8_SRGB;
+        return mVkFormat == VK_FORMAT_R8G8B8A8_SRGB;
     }
 
     @Override
     public int getCompressionType() {
-        return VKUtil.vkFormatCompressionType(mFormat);
+        return VKUtil.vkFormatCompressionType(mVkFormat);
     }
 
     @Override
@@ -104,13 +100,13 @@ public final class VulkanImageDesc extends ImageDesc {
     @Override
     public int getStencilBits() {
         return VKUtil.vkFormatStencilBits(mFormat);
-    }
+    }*/
 
     @Override
     public int hashCode() {
         int result = mVkFlags;
         result = 31 * result + mVkImageType;
-        result = 31 * result + mFormat;
+        result = 31 * result + mVkFormat;
         result = 31 * result + mImageTiling;
         result = 31 * result + mImageUsageFlags;
         result = 31 * result + mSharingMode;
@@ -129,7 +125,7 @@ public final class VulkanImageDesc extends ImageDesc {
         if (o instanceof VulkanImageDesc desc) {
             return mVkFlags == desc.mVkFlags &&
                     mVkImageType == desc.mVkImageType &&
-                    mFormat == desc.mFormat &&
+                    mVkFormat == desc.mVkFormat &&
                     mImageTiling == desc.mImageTiling &&
                     mImageUsageFlags == desc.mImageUsageFlags &&
                     mSharingMode == desc.mSharingMode &&
@@ -148,7 +144,7 @@ public final class VulkanImageDesc extends ImageDesc {
         return '{' +
                 "vkFlags=0x" + Integer.toHexString(mVkFlags) +
                 ", vkImageType=" + mVkImageType +
-                ", vkFormat=" + VKUtil.vkFormatName(mFormat) +
+                ", vkFormat=" + VKUtil.vkFormatName(mVkFormat) +
                 ", imageTiling=" + mImageTiling +
                 ", imageUsageFlags=0x" + Integer.toHexString(mImageUsageFlags) +
                 ", sharingMode=" + mSharingMode +

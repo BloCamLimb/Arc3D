@@ -100,7 +100,7 @@ public final class VulkanImage extends Image {
                     .pNext(MemoryUtil.NULL)
                     .flags(desc.mVkFlags)
                     .imageType(desc.mVkImageType)
-                    .format(desc.mFormat);
+                    .format(desc.mVkFormat);
             pCreateInfo.extent().set(desc.getWidth(), desc.getHeight(), desc.getDepth());
 
             pCreateInfo
@@ -235,7 +235,7 @@ public final class VulkanImage extends Image {
             textureView = VulkanImageView.make(
                     device,
                     mImage,
-                    desc.getImageType(),
+                    desc.getViewType(),
                     desc.getVkFormat(),
                     swizzle,
                     mipLevelCount,
@@ -284,7 +284,7 @@ public final class VulkanImage extends Image {
         VulkanImageView view = VulkanImageView.make(
                 device,
                 mImage,
-                desc.getImageType(),
+                desc.getViewType(),
                 desc.getVkFormat(),
                 swizzle,
                 mipLevelCount,
@@ -309,10 +309,14 @@ public final class VulkanImage extends Image {
         mTextureView = RefCnt.move(mTextureView);
         mImageViews.forEach(RefCnt::unref);
         mImageViews.clear();
+        VulkanDevice device = (VulkanDevice) getDevice();
         if (!isWrapped()) {
-            VulkanDevice device = (VulkanDevice) getDevice();
             device.getMemoryAllocator().freeMemory(mMemoryAlloc);
             vkDestroyImage(device.vkDevice(), mImage, null);
+        }
+        if (getDesc().isRenderable()) {
+            // purge Framebuffers in all RenderPassSets
+            device.needsPurgeRenderPasses();
         }
     }
 

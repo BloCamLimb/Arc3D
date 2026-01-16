@@ -43,26 +43,23 @@ public final class VulkanBackendImage extends BackendImage {
             VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
     private long mImage;
-    public int mLevelCount = 0;
     public long mMemoryHandle = -1;
     private VulkanAllocation mAlloc;
-    private final VulkanImageDesc mInfo;
-    final VulkanImageMutableState mState;
-
-    private final BackendFormat mBackendFormat;
 
     // The VkImageInfo can NOT be modified anymore.
-    public VulkanBackendImage(int width, int height, VulkanImageDesc desc) {
+    public VulkanBackendImage(long image, VulkanImageDesc desc, VulkanImageMutableState state, VulkanAllocation alloc) {
         //TODO disallow VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT
-        this(width, height, desc, null, VkBackendFormat.make(desc.mFormat));
+        super(desc, state);
+        mImage = image;
+        mAlloc = alloc;
     }
 
-    VulkanBackendImage(int width, int height, VulkanImageDesc desc,
-                       VulkanImageMutableState state, BackendFormat backendFormat) {
-        super(desc, state);
-        mInfo = desc;
-        mState = state;
-        mBackendFormat = backendFormat;
+    public long getImage() {
+        return mImage;
+    }
+
+    public VulkanAllocation getAlloc() {
+        return mAlloc;
     }
 
     @Override
@@ -72,7 +69,7 @@ public final class VulkanBackendImage extends BackendImage {
 
     @Override
     public boolean isExternal() {
-        return mBackendFormat.isExternal();
+        throw new UnsupportedOperationException();
     }
 
     /*
@@ -88,23 +85,17 @@ public final class VulkanBackendImage extends BackendImage {
 
     @Override
     public void setVkImageLayout(int layout) {
-        mState.setImageLayout(layout);
+        ((VulkanImageMutableState)getMutableState()).setImageLayout(layout);
     }
 
     @Override
     public void setVkQueueFamilyIndex(int queueFamilyIndex) {
-        mState.setQueueFamilyIndex(queueFamilyIndex);
-    }
-
-    @NonNull
-    @Override
-    public BackendFormat getBackendFormat() {
-        return mBackendFormat;
+        ((VulkanImageMutableState)getMutableState()).setQueueFamilyIndex(queueFamilyIndex);
     }
 
     @Override
     public boolean isProtected() {
-        return mInfo.isProtected();
+        return getDesc().isProtected();
     }
 
     @Override

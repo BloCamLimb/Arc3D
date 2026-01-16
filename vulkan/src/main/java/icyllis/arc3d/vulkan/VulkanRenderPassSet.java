@@ -91,7 +91,7 @@ public final class VulkanRenderPassSet extends RefCnt {
         //noinspection ConstantValue
         assert Engine.ImageFormat.kCount <= (1 << kDepthStencilFormatBits);
         //noinspection ConstantValue
-        assert (Engine.ImageFormat.kLastColor + 1) <= (1 << kColorFormatBits); // currently there are 26 color formats, fits in 5 bits
+        assert (Engine.ImageFormat.kLastColor + 1) <= (1 << kColorFormatBits); // currently there are 29 color formats, fits in 5 bits
         //noinspection ConstantValue
         assert Engine.ImageFormat.kUnsupported == 0;
     }
