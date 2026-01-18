@@ -741,39 +741,6 @@ public class Canvas implements AutoCloseable {
     }
 
     /**
-     * Intersect the current clip with the specified rectangle and updates
-     * the stencil buffer if changed, which is expressed in local coordinates,
-     * with an aliased or anti-aliased clip edge. The clip bounds cannot be
-     * expanded unless restore() is called.
-     *
-     * @param rect the rectangle to intersect with the current clip
-     * @param doAA true if clip is to be anti-aliased
-     */
-    public final void clipRect(Rect2fc rect, boolean doAA) {
-        clipRect(rect, CLIP_OP_INTERSECT, doAA);
-    }
-
-    /**
-     * Intersect the current clip with the specified rectangle and updates
-     * the stencil buffer if changed, which is expressed in local coordinates,
-     * with an aliased or anti-aliased clip edge. The clip bounds cannot be
-     * expanded unless restore() is called.
-     *
-     * @param left   the left side of the rectangle to intersect with the
-     *               current clip
-     * @param top    the top of the rectangle to intersect with the current clip
-     * @param right  the right side of the rectangle to intersect with the
-     *               current clip
-     * @param bottom the bottom of the rectangle to intersect with the current
-     *               clip
-     * @param doAA   true if clip is to be anti-aliased
-     */
-    public final void clipRect(float left, float top, float right, float bottom, boolean doAA) {
-        mTmpRect.set(left, top, right, bottom);
-        clipRect(mTmpRect, CLIP_OP_INTERSECT, doAA);
-    }
-
-    /**
      * Replaces the current clip with the intersection or difference of the current clip
      * and the given rect, with an aliased or anti-aliased clip edge. The rectangle is
      * transformed by the current matrix before it is combined with clip.
@@ -805,9 +772,9 @@ public class Canvas implements AutoCloseable {
      *
      * @param clipOp ClipOp to apply to clip
      */
-    public final void clipRect(float left, float top, float right, float bottom, int clipOp) {
+    public final void clipRect(float left, float top, float right, float bottom, int clipOp, boolean doAA) {
         mTmpRect.set(left, top, right, bottom);
-        clipRect(mTmpRect, clipOp, false);
+        clipRect(mTmpRect, clipOp, doAA);
     }
 
     /**
@@ -1199,8 +1166,8 @@ public class Canvas implements AutoCloseable {
 
     /**
      * Draw a line segment from (x0, y0) to (x1, y1) using the current matrix,
-     * clip and specified paint. Note that line shape is a stroked line rather
-     * than a line path, you can fill or stroke the stroked line.
+     * clip and specified paint. Note that line segment is defined as oriented box,
+     * you can fill or stroke the stroked line.
      * <p>
      * The <var>cap</var> describes the end of the line shape, the <var>width</var>
      * describes the line shape thickness. In paint: Style determines if line shape
