@@ -76,7 +76,7 @@ public class TestPathUtils {
         graphics.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL,
                 RenderingHints.VALUE_STROKE_PURE);
         if (stroke) {
-            graphics.setStroke(new BasicStroke(0));
+            graphics.setStroke(new BasicStroke(0.5f));
             graphics.draw(src);
         } else {
             graphics.fill(src);

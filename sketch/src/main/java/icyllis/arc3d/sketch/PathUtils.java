@@ -35,25 +35,16 @@ public class PathUtils {
      *                 as well as pathEffect will be used.
      * @param dst      resulting Path; may be the same as src, but may not be nullptr
      * @param cullRect optional limit passed to PathEffect
-     * @param resScale if > 1, increase precision, else if (0 < resScale < 1) reduce precision
-     *                 to favor speed and size
-     * @return true if the dst path was updated, false if it was not (e.g. if the path
-     * represents hairline and cannot be filled).
+     * @param ctm      a local-to-device transform, if average scaling > 1, increase precision,
+     *                 else if (0 < scaling < 1) reduce precision to favor speed and size
+     * @return true if the dst can be filled, false if the path represents hairline and cannot be filled.
      */
     public static boolean fillPathWithPaint(
             @NonNull Path src, @NonNull Paint paint,
-            @NonNull Path dst, @Nullable Rect2fc cullRect,
-            float resScale) {
-        return fillPathWithPaint(src, paint, dst, cullRect,
-                Matrix.makeScale(resScale, resScale));
-    }
-
-    public static boolean fillPathWithPaint(
-            @NonNull Path src, @NonNull Paint paint,
-            @NonNull Path dst, @Nullable Rect2fc cullRect,
+            @NonNull PathBuilder dst, @Nullable Rect2fc cullRect,
             @NonNull Matrixc ctm) {
+        dst.reset();
         if (!src.isFinite()) {
-            dst.reset();
             return false;
         }
 
@@ -81,10 +72,6 @@ public class PathUtils {
             dst.set(src);
         }
 
-        if (!dst.isFinite()) {
-            dst.reset();
-            return false;
-        }
         return !strokeRec.isHairlineStyle();
     }
 }

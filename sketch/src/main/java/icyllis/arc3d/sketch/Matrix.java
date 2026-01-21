@@ -31,6 +31,7 @@ import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
 
 import javax.annotation.CheckReturnValue;
+import java.awt.geom.AffineTransform;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 
@@ -175,6 +176,27 @@ public non-sealed class Matrix implements Matrixc, Cloneable {
         var matrix = new Matrix();
         matrix.setScale(sx, sy);
         return matrix;
+    }
+
+    /**
+     * Creates a new matrix from Java2D affine transform.
+     * The created matrix {@link #getType()} is valid before returns.
+     *
+     * @param transform the transform to create from, null means identity
+     * @return a matrix that represents the given transform
+     */
+    public static @NonNull Matrix make(@Nullable AffineTransform transform) {
+        if (transform != null && !transform.isIdentity()) {
+            var matrix = new Matrix(
+                    (float) transform.getScaleX(), (float) transform.getShearY(), 0,
+                    (float) transform.getShearX(), (float) transform.getScaleY(), 0,
+                    (float) transform.getTranslateX(), (float) transform.getTranslateY(), 1
+            );
+            // compute type in advance
+            matrix.getType();
+            return matrix;
+        }
+        return new Matrix();
     }
 
     /**

@@ -34,8 +34,8 @@ public class PathStroker implements PathConsumer {
 
     private static final boolean DEBUG = false;
 
-    private PathConsumer mOuter;
-    private final Path mInner = new Path();
+    private PathBuilder mOuter;
+    private final PathBuilder mInner = new PathBuilder();
 
     // stroke radius, half the stroke width
     private float mRadius;
@@ -75,13 +75,12 @@ public class PathStroker implements PathConsumer {
 
     private boolean mPrevIsLine;
 
-    public void init(@NonNull PathConsumer out,
+    public void init(@NonNull PathBuilder out,
                      float radius,
                      @Paint.Cap int cap,
                      @Paint.Join int join,
                      float miterLimit,
                      float resScale) {
-        assert out != this;
         mOuter = out;
         mRadius = radius;
 
@@ -868,14 +867,14 @@ public class PathStroker implements PathConsumer {
     }
 
     private void emitDegenerateLine(QuadState pp) {
-        PathConsumer path = mStrokeType == STROKE_TYPE_OUTER ? mOuter : mInner;
+        var path = mStrokeType == STROKE_TYPE_OUTER ? mOuter : mInner;
         path.lineTo(pp.q2x, pp.q2y);
     }
 
     private boolean strokeQuad(float[] quad, QuadState pp) {
         var result = check_quad_quad(quad, pp);
         if (result == INTERSECT_QUADRATIC) {
-            PathConsumer path = mStrokeType == STROKE_TYPE_OUTER ? mOuter : mInner;
+            var path = mStrokeType == STROKE_TYPE_OUTER ? mOuter : mInner;
             path.quadTo(pp.q1x, pp.q1y, pp.q2x, pp.q2y);
             return true;
         }
@@ -1000,7 +999,7 @@ public class PathStroker implements PathConsumer {
         if (mFoundTangents) {
             var result = check_quad_cubic(cubic, pp);
             if (result == INTERSECT_QUADRATIC) {
-                PathConsumer path = mStrokeType == STROKE_TYPE_OUTER ? mOuter : mInner;
+                var path = mStrokeType == STROKE_TYPE_OUTER ? mOuter : mInner;
                 path.quadTo(pp.q1x, pp.q1y, pp.q2x, pp.q2y);
                 return true;
             }
@@ -1218,15 +1217,19 @@ public class PathStroker implements PathConsumer {
                 );
                 mOuter.close();
 
-                mInner.reversePop(mOuter, true);
-                mOuter.close();
+                if (mInner.countPoints() > 0) {
+                    mOuter.moveTo(mInner.mCoords[mInner.mCoordSize - 2],
+                            mInner.mCoords[mInner.mCoordSize - 1]);
+                    mOuter.reversePathTo(mInner);
+                    mOuter.close();
+                }
             } else {
                 mCapper.cap(
                         mOuter,
                         mPrevX, mPrevY,
                         mPrevNormalX, mPrevNormalY
                 );
-                mInner.reversePop(mOuter, false);
+                mOuter.reversePathTo(mInner);
                 mCapper.cap(
                         mOuter,
                         mFirstX, mFirstY,
@@ -1235,6 +1238,7 @@ public class PathStroker implements PathConsumer {
                 mOuter.close();
             }
         }
+        mInner.reset();
         mSegmentCount = -1;
     }
 
@@ -1244,7 +1248,7 @@ public class PathStroker implements PathConsumer {
     public interface Capper {
 
         void cap(
-                PathConsumer path,
+                PathBuilder path,
                 float pivotX,
                 float pivotY,
                 float normalX,
@@ -1261,7 +1265,7 @@ public class PathStroker implements PathConsumer {
         }
 
         static void doButtCap(
-                PathConsumer path,
+                PathBuilder path,
                 float pivotX,
                 float pivotY,
                 float normalX,
@@ -1279,7 +1283,7 @@ public class PathStroker implements PathConsumer {
         float C = 0.5519150244935105707435627f;
 
         static void doRoundCap(
-                PathConsumer path,
+                PathBuilder path,
                 float pivotX,
                 float pivotY,
                 float normalX,
@@ -1300,7 +1304,7 @@ public class PathStroker implements PathConsumer {
         }
 
         static void doSquareCap(
-                PathConsumer path,
+                PathBuilder path,
                 float pivotX,
                 float pivotY,
                 float normalX,
@@ -1318,8 +1322,8 @@ public class PathStroker implements PathConsumer {
     public interface Joiner {
 
         void join(
-                PathConsumer outer,
-                PathConsumer inner,
+                PathBuilder outer,
+                PathBuilder inner,
                 float beforeUnitNormalX,
                 float beforeUnitNormalY,
                 float pivotX,
@@ -1356,8 +1360,8 @@ public class PathStroker implements PathConsumer {
         int ANGLE_NEARLY_90 = 4;  // 90 degrees
 
         static void doMiterJoin(
-                PathConsumer outer,
-                PathConsumer inner,
+                PathBuilder outer,
+                PathBuilder inner,
                 float beforeUnitNormalX,
                 float beforeUnitNormalY,
                 float pivotX,
@@ -1464,8 +1468,8 @@ public class PathStroker implements PathConsumer {
         }
 
         static void doRoundJoin(
-                PathConsumer outer,
-                PathConsumer inner,
+                PathBuilder outer,
+                PathBuilder inner,
                 float beforeUnitNormalX,
                 float beforeUnitNormalY,
                 float pivotX,
@@ -1622,7 +1626,7 @@ public class PathStroker implements PathConsumer {
         // fast approximation for arcs (span < 90 degrees)
         // radius 3663 pixels to get 1 pixel error
         static void doBezierApproxForArc(
-                PathConsumer path,
+                PathBuilder path,
                 float beforeUnitNormalX,
                 float beforeUnitNormalY,
                 float pivotX,
@@ -1655,7 +1659,7 @@ public class PathStroker implements PathConsumer {
         }
 
         static void doBezierApproxForArc(
-                PathConsumer path,
+                PathBuilder path,
                 float beforeX,
                 float beforeY,
                 float pivotX,
@@ -1679,8 +1683,8 @@ public class PathStroker implements PathConsumer {
         }
 
         static void doBevelJoin(
-                PathConsumer outer,
-                PathConsumer inner,
+                PathBuilder outer,
+                PathBuilder inner,
                 float beforeUnitNormalX,
                 float beforeUnitNormalY,
                 float pivotX,

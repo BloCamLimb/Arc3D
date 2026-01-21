@@ -22,15 +22,17 @@ package icyllis.arc3d.sketch.test;
 import icyllis.arc3d.core.*;
 import icyllis.arc3d.sketch.Matrix;
 import icyllis.arc3d.sketch.Path;
+import icyllis.arc3d.sketch.PathBuilder;
 
 public class TestPathTransform {
 
+    //TODO
     public static void main(String[] args) {
-        Path path = new Path();
-        path.moveTo(20, 0);
-        path.lineTo(20, 160);
-        path.cubicTo(160, 130, 120, 100, 190, 60);
-        Path path2 = new Path(path);
+        Path path = new PathBuilder()
+        .moveTo(20, 0)
+        .lineTo(20, 160)
+        .cubicTo(160, 130, 120, 100, 190, 60)
+                .build();
 
         Matrix matrix = new Matrix();
         matrix.setScale(0.4f, 0.6f);

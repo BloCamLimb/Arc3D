@@ -21,8 +21,8 @@ package icyllis.arc3d.sketch.test;
 
 import icyllis.arc3d.sketch.Paint;
 import icyllis.arc3d.sketch.Path;
-import icyllis.arc3d.sketch.StrokeRec;
-import icyllis.arc3d.sketch.j2d.J2DUtils;
+import icyllis.arc3d.sketch.PathBuilder;
+import icyllis.arc3d.sketch.PathStroker;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 import org.openjdk.jmh.runner.Runner;
@@ -76,15 +76,15 @@ public class TestBenchmark {
         DST_PIXMAP = new Pixmap(
                 newInfo, null, newPixels, newInfo.minRowBytes()
         );*/
-        Path src = new Path();
-        src.moveTo(100, 120);
-        src.lineTo(130, 160);
-        src.lineTo(100, 200);
-        src.lineTo(180, 140);
-        src.lineTo(170, 130);
-        src.lineTo(170, 120);
-        src.cubicTo(160, 130, 120, 100, 190, 60);
-        SRC_PATH = src;
+        PathBuilder src = new PathBuilder()
+                .moveTo(100, 120)
+                .lineTo(130, 160)
+                .lineTo(100, 200)
+                .lineTo(180, 140)
+                .lineTo(170, 130)
+                .lineTo(170, 120)
+                .cubicTo(160, 130, 120, 100, 190, 60);
+        SRC_PATH = src.build();
     }
 
     /*@Benchmark
@@ -95,26 +95,28 @@ public class TestBenchmark {
 
     @Benchmark
     public void arcStroker(Blackhole bh) {
-        Path dst = new Path();
-        StrokeRec strokeRec = new StrokeRec();
-        strokeRec.setWidth(10);
-        strokeRec.setStrokeParams(Paint.CAP_ROUND, Paint.JOIN_ROUND, Paint.ALIGN_CENTER, 4);
-        strokeRec.applyToPath(SRC_PATH, dst);
+        PathBuilder dst = new PathBuilder();
+        PathStroker stroker = new PathStroker();
+        stroker.init(
+                dst, 10 * 0.5f, Paint.CAP_ROUND, Paint.JOIN_ROUND, 4, 1
+        );
+        SRC_PATH.forEach(stroker);
         bh.consume(dst);
     }
 
     @Benchmark
     public void marlinStroker(Blackhole bh) {
-        BasicStroke strokeRec = new BasicStroke(10, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 4);
-        var shape = strokeRec.createStrokedShape(SRC_PATH);
+        BasicStroke stroker = new BasicStroke(10, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 4);
+        var shape = stroker.createStrokedShape(SRC_PATH);
         bh.consume(shape);
     }
 
     @Benchmark
     public void marlinStrokerConvert(Blackhole bh) {
-        BasicStroke strokeRec = new BasicStroke(10, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 4);
-        var shape = strokeRec.createStrokedShape(SRC_PATH);
-        Path dst = J2DUtils.toPath(shape.getPathIterator(null), null);
+        PathBuilder dst = new PathBuilder();
+        BasicStroke stroker = new BasicStroke(10, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 4);
+        var shape = stroker.createStrokedShape(SRC_PATH);
+        dst.addShape(shape, null);
         bh.consume(dst);
     }
 }

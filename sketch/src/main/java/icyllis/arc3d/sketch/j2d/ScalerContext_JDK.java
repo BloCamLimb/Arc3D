@@ -22,9 +22,10 @@ package icyllis.arc3d.sketch.j2d;
 import icyllis.arc3d.core.*;
 import icyllis.arc3d.sketch.Glyph;
 import icyllis.arc3d.sketch.Mask;
-import icyllis.arc3d.sketch.Path;
+import icyllis.arc3d.sketch.PathBuilder;
 import icyllis.arc3d.sketch.ScalerContext;
 import icyllis.arc3d.sketch.StrikeDesc;
+import org.jspecify.annotations.NonNull;
 import sun.misc.Unsafe;
 
 import java.awt.Color;
@@ -33,6 +34,7 @@ import java.awt.*;
 import java.awt.font.FontRenderContext;
 import java.awt.font.GlyphVector;
 import java.awt.geom.AffineTransform;
+import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 
@@ -157,12 +159,17 @@ public class ScalerContext_JDK extends ScalerContext {
     }
 
     @Override
-    protected boolean generatePath(Glyph glyph, Path dst) {
+    protected boolean generatePath(@NonNull Glyph glyph, @NonNull PathBuilder dst) {
         GlyphVector gv = mFont.createGlyphVector(mFRC, new int[]{glyph.getGlyphID()});
         var outline = gv.getOutline();
 
-        var pi = outline.getPathIterator(null);
-        J2DUtils.toPath(pi, dst);
+        // the above code should return GeneralPath and WIND_NON_ZERO,
+        // but set it explicitly here to make sense
+        if (outline instanceof Path2D) {
+            dst.setWindingRule(((Path2D) outline).getWindingRule());
+        } // else PathBuilder default is WIND_NON_ZERO anyway
+
+        dst.addShape(outline, null);
 
         // even if the glyph has no path, gv.getOutline() will return an empty path,
         // so we cannot distinguish between 'have no path' and 'have empty path',

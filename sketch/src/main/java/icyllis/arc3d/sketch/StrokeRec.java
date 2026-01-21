@@ -20,11 +20,16 @@
 package icyllis.arc3d.sketch;
 
 import icyllis.arc3d.core.MathUtil;
+import org.jspecify.annotations.NonNull;
+
+import java.awt.BasicStroke;
+import java.awt.geom.PathIterator;
 
 /**
  * This class collects stroke params from paint and constructs new paths
  * by stroking geometries.
  */
+@SuppressWarnings("ConstantValue")
 public class StrokeRec {
 
     public static final int
@@ -230,6 +235,16 @@ public class StrokeRec {
         mResScale = resScale;
     }
 
+    static {
+        assert Paint.CAP_BUTT == BasicStroke.CAP_BUTT;
+        assert Paint.CAP_ROUND == BasicStroke.CAP_ROUND;
+        assert Paint.CAP_SQUARE == BasicStroke.CAP_SQUARE;
+
+        assert Paint.JOIN_MITER == BasicStroke.JOIN_MITER;
+        assert Paint.JOIN_ROUND == BasicStroke.JOIN_ROUND;
+        assert Paint.JOIN_BEVEL == BasicStroke.JOIN_BEVEL;
+    }
+
     /**
      * Apply these stroke parameters to the src path, emitting the result
      * to dst.
@@ -240,21 +255,74 @@ public class StrokeRec {
      * <p>
      * src and dst must NOT come from the same object.
      */
-    public boolean applyToPath(Shape src, PathConsumer dst) {
+    public boolean applyToPath(@NonNull Path src, @NonNull PathBuilder dst) {
         if (mWidth <= 0) { // hairline or fill
             return false;
         }
 
-        var stroker = new PathStroker();
-        stroker.init(dst, mWidth * 0.5f, mCap, mJoin, mMiterLimit, mResScale);
-        src.forEach(stroker);
+        // We use Java2D's Marlin Stroker, it expects the input shape to be in
+        // "user space" and relies on ULP error instead of ResScale when needed.
+        // Anyway, ResScale is used by our dashing methods and other path effects.
+        // Marlin Stroker runs faster than Skia Stroker, and also offers extremely
+        // high precision, which is far more precise that Skia.
+        //
+        // Java 21 or higher is recommended (fixing bugs).
+        //
+        // There are implicit Cap and Join casts here, guaranteed by the static assert above.
+        var stroker = new BasicStroke(
+                mWidth, mCap, mJoin, mMiterLimit
+        );
+        var result = stroker.createStrokedShape(src);
+
+        // strokes are filled with the default non-zero rule
+        dst.reset()
+                .setIsVolatile(true);
+        appendStrokedShape(result, dst);
 
         if (mStrokeAndFill) {
             //TODO handle direction
-            src.forEach(dst);
+            dst.addPath(src, null, PathBuilder.ADD_PATH_APPEND);
         }
 
         return true;
+    }
+
+    public static void appendStrokedShape(java.awt.@NonNull Shape result, @NonNull PathBuilder dst) {
+        // The input is actually Path2D.Double, and it can only be read via PathIterator.
+        // Marlin Stroker yields many degenerate lines, eliminate them here.
+
+        var pi = result.getPathIterator(null);
+        float[] coords = new float[6];
+        float lastX = 0, lastY = 0;
+        while (!pi.isDone()) {
+            switch (pi.currentSegment(coords)) {
+                case PathIterator.SEG_MOVETO -> {
+                    lastX = coords[0];
+                    lastY = coords[1];
+                    dst.moveTo(lastX, lastY);
+                }
+                case PathIterator.SEG_LINETO -> {
+                    if (lastX != coords[0] || lastY != coords[1]) {
+                        lastX = coords[0];
+                        lastY = coords[1];
+                        dst.lineTo(lastX, lastY);
+                    }
+                    // don't emit degenerate line
+                }
+                case PathIterator.SEG_QUADTO -> {
+                    lastX = coords[2];
+                    lastY = coords[3];
+                    dst.quadTo(coords[0], coords[1], lastX, lastY);
+                }
+                case PathIterator.SEG_CUBICTO -> {
+                    lastX = coords[4];
+                    lastY = coords[5];
+                    dst.cubicTo(coords[0], coords[1], coords[2], coords[3], lastX, lastY);
+                }
+                case PathIterator.SEG_CLOSE -> dst.close();
+            }
+            pi.next();
+        }
     }
 
     /**

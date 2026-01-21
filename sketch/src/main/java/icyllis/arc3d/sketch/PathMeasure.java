@@ -48,11 +48,10 @@ public class PathMeasure {
     public static final int MATRIX_FLAG_GET_TANGENT = 0x2;
     public static final int MATRIX_FLAG_GET_POS_AND_TAN = MATRIX_FLAG_GET_POSITION | MATRIX_FLAG_GET_TANGENT;
 
-    private final Path mPath = new Path();
     private float mTolerance;
     private boolean mForceClose;
 
-    private Path.RawIterator mIterator;
+    private PathData.RawIterator mIterator;
 
     private static final int SEGMENT_COLUMNS = 3;
 
@@ -125,9 +124,6 @@ public class PathMeasure {
      * This method releases the internal reference to the original path.
      */
     public void reset() {
-        // mPath is a fast copy of the given path, we would like to recycle it
-        mPath.release();
-
         mIterator = null;
         // just clear segments, because we check against it
         // coords are values, no need to clear
@@ -161,12 +157,11 @@ public class PathMeasure {
      */
     public boolean reset(Path path, boolean forceClose, float resScale) {
         if (path != null && path.isFinite()) {
-            mPath.set(path);
             // use 0.5 instead of 0.25
             mTolerance = 0.5f / resScale;
             mForceClose = forceClose;
 
-            mIterator = mPath.new RawIterator();
+            mIterator = path.getPathData().new RawIterator();
             return nextContour();
         } else {
             reset();
@@ -306,7 +301,7 @@ public class PathMeasure {
      */
     @CheckReturnValue
     public boolean getSegment(float startDistance, float endDistance,
-                              PathConsumer dst, boolean startWithMoveTo) {
+                              PathBuilder dst, boolean startWithMoveTo) {
         if (!hasContour()) {
             return false;
         }
@@ -764,7 +759,7 @@ public class PathMeasure {
         return index;
     }
 
-    private void segmentTo(int segIndex, float startT, float endT, PathConsumer dst) {
+    private void segmentTo(int segIndex, float startT, float endT, PathBuilder dst) {
         assert (startT >= 0 && startT <= 1);
         assert (endT >= 0 && endT <= 1);
         assert (startT <= endT);

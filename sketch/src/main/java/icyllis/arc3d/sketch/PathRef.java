@@ -148,7 +148,7 @@ final class PathRef implements RefCounted {
         USAGE_CNT.getAndAdd(this, -1);
     }
 
-    void createTransformedCopy(Matrixc matrix, Path dstPath) {
+    /*void createTransformedCopy(Matrixc matrix, Path dstPath) {
         if (matrix.isIdentity()) {
             if (this != dstPath.mPathRef) {
                 dstPath.mPathRef = RefCnt.create(dstPath.mPathRef, this);
@@ -194,7 +194,7 @@ final class PathRef implements RefCounted {
         if (keepThisAlive) {
             unref();
         }
-    }
+    }*/
 
     void dirtyBounds() {
         mBounds.set(0, 0, -1, -1);

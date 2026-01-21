@@ -20,7 +20,7 @@
 package icyllis.arc3d.sketch.test;
 
 import icyllis.arc3d.sketch.Matrix;
-import icyllis.arc3d.sketch.Path;
+import icyllis.arc3d.sketch.PathBuilder;
 import icyllis.arc3d.sketch.PathConsumer;
 import icyllis.arc3d.sketch.PathMeasure;
 
@@ -59,16 +59,17 @@ public class TestPathMeasure {
     };
 
     public static void main(String[] args) {
-        var path = new Path();
-        path.moveTo(100, 120);
-        path.lineTo(130, 160);
-        path.cubicTo(160, 130, 120, 100, 190, 60);
+        var path = new PathBuilder()
+                .moveTo(100, 120)
+                .lineTo(130, 160)
+                .cubicTo(160, 130, 120, 100, 190, 60)
+                .build();
 
         var measure = new PathMeasure(path, false);
         float length = measure.getContourLength();
         System.out.println("Path length " + length);
 
-        var dst = new Path();
+        var dst = new PathBuilder();
         boolean res = measure.getSegment(0, length * 0.7f, dst, true);
         if (res) {
             dst.forEach(PRINTER);

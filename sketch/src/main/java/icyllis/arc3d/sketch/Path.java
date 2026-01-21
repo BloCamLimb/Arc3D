@@ -21,8 +21,6 @@ package icyllis.arc3d.sketch;
 
 import icyllis.arc3d.core.Rect2f;
 import icyllis.arc3d.core.Rect2fc;
-import icyllis.arc3d.core.RefCnt;
-import icyllis.arc3d.core.SharedPtr;
 import org.intellij.lang.annotations.MagicConstant;
 import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.NonNull;
@@ -59,8 +57,7 @@ import java.util.Arrays;
  * Note: Path also implements AWT Shape for convenience, but only a
  * few methods are actually implemented.
  */
-public class Path implements Shape, java.awt.Shape, PathConsumer {
-    //TODO make Path immutable and use PathBuilder
+public class Path implements Shape, java.awt.Shape {
 
     /**
      * The fill rule constant for specifying an even-odd rule
@@ -119,61 +116,76 @@ public class Path implements Shape, java.awt.Shape, PathConsumer {
             SEGMENT_QUAD = 1 << 1,
             SEGMENT_CUBIC = 1 << 3;
 
-    private static final byte CONVEXITY_CONVEX = 0;
-    private static final byte CONVEXITY_CONCAVE = 1;
-    private static final byte CONVEXITY_UNKNOWN = 2;
+    static final byte CONVEXITY_CONVEX_CW = 0;
+    static final byte CONVEXITY_CONVEX_CCW = 1;
+    static final byte CONVEXITY_CONVEX_DEGENERATE = 2;
+    static final byte CONVEXITY_CONCAVE = 3;
+    static final byte CONVEXITY_UNKNOWN = 4;
 
-    private static final byte FIRST_DIRECTION_CW = DIRECTION_CW;
-    private static final byte FIRST_DIRECTION_CCW = DIRECTION_CCW;
-    private static final byte FIRST_DIRECTION_UNKNOWN = 2;
+    static final byte FIRST_DIRECTION_CW = DIRECTION_CW;
+    static final byte FIRST_DIRECTION_CCW = DIRECTION_CCW;
+    static final byte FIRST_DIRECTION_UNKNOWN = 2;
+
+    // This is a singleton instance which Path uses to signify that its pathdata is in error:
+    // either because the inputs were invalid (e.g. bad verbs), or its coordintes were non-finite
+    // (either from the client, or after a makeTransform() call).
+    private static final PathData ERROR = new PathData(
+            PathData.EMPTY_VERBS, PathData.EMPTY_COORDS,
+            0, 0, 0, 0,
+            (byte) 0, Path.CONVEXITY_CONVEX_DEGENERATE);
+
+    static {
+        // This must be a different object from PathData.empty(), isFinite() relies on this.
+        assert ERROR != PathData.empty();
+    }
 
     public static final int APPROXIMATE_ARC_WITH_CUBICS = 0;
     public static final int APPROXIMATE_CONIC_WITH_QUADS = 1;
 
-    @SharedPtr
-    PathRef mPathRef;
+    @NonNull
+    PathData mPathData;
 
-    private int mLastMoveToIndex;
-
-    private byte mConvexity;
-    private byte mFirstDirection;
-    private byte mWindingRule;
+    byte mWindingRule;
+    boolean mIsVolatile;
 
     /**
      * Creates an empty Path with a default fill rule of {@link #WIND_NON_ZERO}.
      */
     public Path() {
-        mPathRef = RefCnt.create(PathRef.EMPTY);
-        resetFields();
+        mPathData = PathData.empty();
+        mWindingRule = WIND_NON_ZERO;
+    }
+
+    public Path(int rule) {
+        mPathData = PathData.empty();
+        setWindingRule(rule);
     }
 
     /**
      * Creates a copy of an existing Path object.
      * <p>
      * Internally, the two paths share reference values. The underlying
-     * verb array, coordinate array and weights are copied when modified.
+     * verb array and point array will not be copied.
      */
-    @SuppressWarnings("IncompleteCopyConstructor")
     public Path(@NonNull Path other) {
-        mPathRef = RefCnt.create(other.mPathRef);
-        copyFields(other);
+        mPathData = other.mPathData;
+        mWindingRule = other.mWindingRule;
+        mIsVolatile = other.mIsVolatile;
     }
 
     /**
-     * Resets all fields other than {@link #mPathRef} to their initial 'empty' values.
+     * Remember: null PathData means invalid, instead of empty path.
+     * <p>
+     * API user must use factories to create Path instances.
+     *
+     * @hidden
      */
-    private void resetFields() {
-        mLastMoveToIndex = ~0;
-        mWindingRule = WIND_NON_ZERO;
-        mConvexity = CONVEXITY_UNKNOWN;
-        mFirstDirection = FIRST_DIRECTION_UNKNOWN;
-    }
-
-    private void copyFields(@NonNull Path other) {
-        mLastMoveToIndex = other.mLastMoveToIndex;
-        mConvexity = other.mConvexity;
-        mFirstDirection = other.mFirstDirection;
-        mWindingRule = other.mWindingRule;
+    @ApiStatus.Internal
+    protected Path(@Nullable PathData data, int rule, boolean isVolatile) {
+        mPathData = data != null ? data : ERROR;
+        assert rule == Path.WIND_NON_ZERO || rule == Path.WIND_EVEN_ODD;
+        mWindingRule = (byte) rule;
+        mIsVolatile = isVolatile;
     }
 
     /**
@@ -191,105 +203,46 @@ public class Path implements Shape, java.awt.Shape, PathConsumer {
      * or {@link #WIND_EVEN_ODD} .
      */
     public void setWindingRule(int rule) {
-        if ((rule & ~1) != 0) {
-            throw new IllegalArgumentException();
+        if (rule == Path.WIND_NON_ZERO || rule == Path.WIND_EVEN_ODD) {
+            mWindingRule = (byte) rule;
+            return;
         }
-        assert rule == WIND_NON_ZERO || rule == WIND_EVEN_ODD;
-        mWindingRule = (byte) rule;
+
+        throw new IllegalArgumentException("Unknown winding rule: " + rule);
     }
 
     /**
      * Creates a copy of an existing Path object.
      * <p>
      * Internally, the two paths share reference values. The underlying
-     * verb array, coordinate array and weights are copied when modified.
+     * verb array and point array will not be copied.
      */
     public void set(@NonNull Path other) {
         if (other != this) {
-            mPathRef = RefCnt.create(mPathRef, other.mPathRef);
-            copyFields(other);
-        }
-    }
-
-    /**
-     * Moves contents from other path into this path. This is equivalent to call
-     * {@code this.set(other)} and then {@code other.recycle()}.
-     */
-    public void move(@NonNull Path other) {
-        if (other != this) {
-            mPathRef = RefCnt.move(mPathRef, other.mPathRef);
-            other.mPathRef = RefCnt.create(PathRef.EMPTY);
-            copyFields(other);
-            other.resetFields();
+            mPathData = other.mPathData;
+            mWindingRule = other.mWindingRule;
+            mIsVolatile = other.mIsVolatile;
         }
     }
 
     /**
      * Resets the path to its initial state, clears points and verbs and
      * sets fill rule to {@link #WIND_NON_ZERO}.
-     * <p>
-     * Preserves internal storage if it's unique, otherwise discards.
      */
     public void reset() {
-        if (mPathRef.unique()) {
-            mPathRef.reset();
-        } else {
-            mPathRef = RefCnt.create(mPathRef, PathRef.EMPTY);
-        }
-        resetFields();
-    }
-
-    /**
-     * Resets the path to its initial state, clears points and verbs and
-     * sets fill rule to {@link #WIND_NON_ZERO}.
-     * <p>
-     * Preserves internal storage if it's unique, otherwise allocates new
-     * storage with the same size.
-     */
-    public void clear() {
-        if (mPathRef.unique()) {
-            mPathRef.reset();
-        } else {
-            int verbSize = mPathRef.mVerbSize;
-            int coordSize = mPathRef.mCoordSize;
-            mPathRef = RefCnt.move(mPathRef, new PathRef(verbSize, coordSize));
-        }
-        resetFields();
-    }
-
-    /**
-     * Resets the path to its initial state, clears points and verbs and
-     * sets fill rule to {@link #WIND_NON_ZERO}.
-     * <p>
-     * This explicitly discards the internal storage, it is recommended to
-     * call when the path object will be no longer used.
-     */
-    public void release() {
-        mPathRef = RefCnt.create(mPathRef, PathRef.EMPTY);
-        resetFields();
-    }
-
-    /**
-     * Trims the internal storage to the current size. This operation can
-     * minimize memory usage, see {@link #estimatedByteSize()}.
-     */
-    public void trimToSize() {
-        if (mPathRef.unique()) {
-            mPathRef.trimToSize();
-        } else {
-            mPathRef = RefCnt.move(mPathRef, new PathRef(mPathRef));
-        }
+        mPathData = PathData.empty();
+        mWindingRule = WIND_NON_ZERO;
+        mIsVolatile = false;
     }
 
     /**
      * Returns true if path has no point and verb. {@link #reset()},
-     * {@link #clear()} and {@link #release()} make path empty.
+     * makes path empty.
      *
      * @return true if the path contains no verb
      */
     public boolean isEmpty() {
-        assert (mPathRef.mVerbSize == 0) == (mPathRef.mCoordSize == 0);
-        return mPathRef.mVerbSize == 0;
+        return mPathData.isEmpty();
     }
 
     /**
@@ -298,215 +251,10 @@ public class Path implements Shape, java.awt.Shape, PathConsumer {
      * @return true if all point coordinates are finite
      */
     public boolean isFinite() {
-        return mPathRef.isFinite();
+        return mPathData != ERROR;
     }
 
-    private void dirtyAfterEdit() {
-        mConvexity = CONVEXITY_UNKNOWN;
-        mFirstDirection = FIRST_DIRECTION_UNKNOWN;
-    }
-
-    /**
-     * Adds a point to the path by moving to the specified point {@code (x,y)}.
-     * A new contour begins at {@code (x,y)}.
-     *
-     * @param x the specified X coordinate
-     * @param y the specified Y coordinate
-     */
-    @Override
-    public void moveTo(float x, float y) {
-        mLastMoveToIndex = mPathRef.mCoordSize;
-        editor().addVerb(VERB_MOVE)
-                .addPoint(x, y);
-        dirtyAfterEdit();
-    }
-
-    /**
-     * Relative version of "move to".
-     *
-     * @param dx offset from last point to contour start on x-axis
-     * @param dy offset from last point to contour start on y-axis
-     * @throws IllegalStateException Path is empty
-     */
-    public void moveToRel(float dx, float dy) {
-        int n = mPathRef.mCoordSize;
-        if (n != 0) {
-            float px = mPathRef.mCoords[n - 2];
-            float py = mPathRef.mCoords[n - 1];
-            moveTo(px + dx, py + dy);
-        } else {
-            throw new IllegalStateException("No first point");
-        }
-    }
-
-    /**
-     * Adds a point to the path by drawing a straight line from the
-     * current point to the new specified point {@code (x,y)}.
-     *
-     * @param x the specified X coordinate
-     * @param y the specified Y coordinate
-     * @throws IllegalStateException No contour
-     */
-    @Override
-    public void lineTo(float x, float y) {
-        if (mLastMoveToIndex >= 0) {
-            editor().addVerb(VERB_LINE)
-                    .addPoint(x, y);
-            dirtyAfterEdit();
-        } else {
-            throw new IllegalStateException("No initial point");
-        }
-    }
-
-    /**
-     * Relative version of "line to".
-     * <p>
-     * Adds a line from the last point to the specified vector (dx, dy).
-     *
-     * @param dx the offset from last point to line end on x-axis
-     * @param dy the offset from last point to line end on y-axis
-     */
-    public void lineToRel(float dx, float dy) {
-        int n = mPathRef.mCoordSize;
-        if (n != 0) {
-            float px = mPathRef.mCoords[n - 2];
-            float py = mPathRef.mCoords[n - 1];
-            lineTo(px + dx, py + dy);
-        } else {
-            throw new IllegalStateException("No first point");
-        }
-    }
-
-    /**
-     * Adds a curved segment, defined by two new points, to the path by
-     * drawing a quadratic Bézier curve that intersects both the current
-     * point and the specified point {@code (x2,y2)}, using the specified
-     * point {@code (x1,y1)} as a quadratic control point.
-     *
-     * @param x1 the X coordinate of the quadratic control point
-     * @param y1 the Y coordinate of the quadratic control point
-     * @param x2 the X coordinate of the final end point
-     * @param y2 the Y coordinate of the final end point
-     */
-    @Override
-    public void quadTo(float x1, float y1,
-                       float x2, float y2) {
-        if (mLastMoveToIndex >= 0) {
-            editor().addVerb(VERB_QUAD)
-                    .addPoint(x1, y1)
-                    .addPoint(x2, y2);
-            dirtyAfterEdit();
-        } else {
-            throw new IllegalStateException("No initial point");
-        }
-    }
-
-    /**
-     * Relative version of "quad to".
-     * <p>
-     * Adds quad from last point towards vector (dx1, dy1), to vector (dx2, dy2).
-     *
-     * @param dx1 offset from last point to quad control on x-axis
-     * @param dy1 offset from last point to quad control on y-axis
-     * @param dx2 offset from last point to quad end on x-axis
-     * @param dy2 offset from last point to quad end on y-axis
-     */
-    public void quadToRel(float dx1, float dy1,
-                          float dx2, float dy2) {
-        int n = mPathRef.mCoordSize;
-        if (n != 0) {
-            float px = mPathRef.mCoords[n - 2];
-            float py = mPathRef.mCoords[n - 1];
-            quadTo(px + dx1, py + dy1, px + dx2, py + dy2);
-        } else {
-            throw new IllegalStateException("No first point");
-        }
-    }
-
-    /**
-     * Adds a curved segment, defined by three new points, to the path by
-     * drawing a cubic Bézier curve that intersects both the current
-     * point and the specified point {@code (x3,y3)}, using the specified
-     * points {@code (x1,y1)} and {@code (x2,y2)} as cubic control points.
-     *
-     * @param x1 the X coordinate of the first cubic control point
-     * @param y1 the Y coordinate of the first cubic control point
-     * @param x2 the X coordinate of the second cubic control point
-     * @param y2 the Y coordinate of the second cubic control point
-     * @param x3 the X coordinate of the final end point
-     * @param y3 the Y coordinate of the final end point
-     */
-    @Override
-    public void cubicTo(float x1, float y1,
-                        float x2, float y2,
-                        float x3, float y3) {
-        if (mLastMoveToIndex >= 0) {
-            editor().addVerb(VERB_CUBIC)
-                    .addPoint(x1, y1)
-                    .addPoint(x2, y2)
-                    .addPoint(x3, y3);
-            dirtyAfterEdit();
-        } else {
-            throw new IllegalStateException("No initial point");
-        }
-    }
-
-    /**
-     * Relative version of "cubic to".
-     * <p>
-     * Adds cubic from last point towards vector (dx1, dy1), vector (dx2, dy2),
-     * to vector (dx3, dy3).
-     *
-     * @param dx1 offset from last point to first cubic control on x-axis
-     * @param dy1 offset from last point to first cubic control on y-axis
-     * @param dx2 offset from last point to second cubic control on x-axis
-     * @param dy2 offset from last point to second cubic control on y-axis
-     * @param dx3 offset from last point to cubic end on x-axis
-     * @param dy3 offset from last point to cubic end on y-axis
-     */
-    public void cubicToRel(float dx1, float dy1,
-                           float dx2, float dy2,
-                           float dx3, float dy3) {
-        int n = mPathRef.mCoordSize;
-        if (n != 0) {
-            float px = mPathRef.mCoords[n - 2];
-            float py = mPathRef.mCoords[n - 1];
-            cubicTo(px + dx1, py + dy1, px + dx2, py + dy2, px + dx3, py + dy3);
-        } else {
-            throw new IllegalStateException("No first point");
-        }
-    }
-
-    /**
-     * Closes the current contour by drawing a straight line back to
-     * the point of the last {@link #moveTo}.  If the path is already
-     * closed then this method has no effect.
-     */
-    @Override
-    public void close() {
-        int count = countVerbs();
-        if (count != 0) {
-            switch (mPathRef.mVerbs[count - 1]) {
-                case VERB_MOVE:
-                case VERB_LINE:
-                case VERB_QUAD:
-                case VERB_CUBIC: {
-                    editor().addVerb(VERB_CLOSE);
-                    break;
-                }
-                case VERB_CLOSE:
-                    break;
-                default:
-                    throw new AssertionError();
-            }
-        }
-        mLastMoveToIndex ^= ~mLastMoveToIndex >> (Integer.SIZE - 1);
-    }
-
-    @Override
-    public void done() {
-    }
-
+    //TODO
     /**
      * Transforms verb array, Point array, and weight by matrix.
      * transform may change verbs and increase their number.
@@ -542,12 +290,12 @@ public class Path implements Shape, java.awt.Shape, PathConsumer {
         if (matrix.hasPerspective()) {
             //TODO
         } else {
-            mPathRef.createTransformedCopy(matrix, dst);
+            /*mPathRef.createTransformedCopy(matrix, dst);
 
             if (this != dst) {
                 dst.mLastMoveToIndex = mLastMoveToIndex;
                 dst.mWindingRule = mWindingRule;
-            }
+            }*/
         }
     }
 
@@ -557,7 +305,7 @@ public class Path implements Shape, java.awt.Shape, PathConsumer {
      * @return size of verb list
      */
     public int countVerbs() {
-        return mPathRef.mVerbSize;
+        return mPathData.countVerbs();
     }
 
     /**
@@ -566,41 +314,54 @@ public class Path implements Shape, java.awt.Shape, PathConsumer {
      * @return size of point list
      */
     public int countPoints() {
-        assert mPathRef.mCoordSize % 2 == 0;
-        return mPathRef.mCoordSize >> 1;
+        return mPathData.countPoints();
     }
 
+    /**
+     * Compatibility-only, do not use.
+     *
+     * @see #getBounds(Rect2f)
+     */
+    @Deprecated
     @Override
     public java.awt.@NonNull Rectangle getBounds() {
         return getBounds2D().getBounds();
     }
 
     /**
-     * Returns minimum and maximum axes values of coordinates. Returns empty
-     * if path contains no points or is not finite.
-     * <p>
-     * Returned bounds includes all points added to path, including points
-     * associated with MOVE that define empty contours.
-     * <p>
-     * This method returns a cached result; it is recalculated only after
-     * this path is altered.
-     *
-     * @return bounds of all points
-     * @see #isFinite()
+     * @see #getBounds(Rect2f)
      */
     @Override
     public @NonNull Rectangle2D getBounds2D() {
-        var bounds = mPathRef.getBounds();
-        return new Rectangle2D.Float(bounds.x(), bounds.y(),
-                bounds.width(), bounds.height());
+        var data = mPathData;
+        return new Rectangle2D.Float(data.mLeft, data.mTop,
+                data.mRight - data.mLeft, data.mBottom - data.mTop);
     }
 
     /**
-     * Helper method to {@link #getBounds()}, stores the result to dst.
+     * Returns minimum and maximum axes values of path's 'trimmed' points.
+     * <p>
+     * The trimmed points are all of the points in the path, except the path
+     * having more than one contour, and the last contour containing only a
+     * MOVE verb. In that case the trailing MOVE point is ignored when
+     * computing the bounds.
+     * <p>
+     * Returns empty if path contains no points or is not finite.
+     * <p>
+     * This method returns a cached result; it is recalculated only after
+     * this path is altered.
+     * <p>
+     * Return value is stored to <var>dest</var> rectangle, always overwriting
+     * the previous values.
+     * <p>
+     * It's safe to call this method from multiple threads simultaneously.
+     *
+     * @param dest the destination rectangle to store the bounds to
+     * @see #isFinite()
      */
     @Override
-    public void getBounds(@NonNull Rect2f dst) {
-        mPathRef.getBounds().store(dst);
+    public void getBounds(@NonNull Rect2f dest) {
+        mPathData.getBounds(dest);
     }
 
     @Override
@@ -648,7 +409,6 @@ public class Path implements Shape, java.awt.Shape, PathConsumer {
      * a race condition where each draw separately computes the bounds.
      */
     public void updateBoundsCache() {
-        mPathRef.updateBounds();
     }
 
     /**
@@ -661,7 +421,7 @@ public class Path implements Shape, java.awt.Shape, PathConsumer {
      */
     @SegmentMask
     public int getSegmentMask() {
-        return mPathRef.mSegmentMask;
+        return mPathData.mSegmentMask;
     }
 
     @Override
@@ -716,7 +476,7 @@ public class Path implements Shape, java.awt.Shape, PathConsumer {
 
         @Override
         public void next() {
-            byte verb = mPathRef.mVerbs[verbPos++];
+            byte verb = mPathData.mVerbs[verbPos++];
             coordPos += switch (verb) {
                 case VERB_MOVE,VERB_LINE -> 2;
                 case VERB_QUAD -> 4;
@@ -727,7 +487,7 @@ public class Path implements Shape, java.awt.Shape, PathConsumer {
 
         @Override
         public int currentSegment(float[] coords) {
-            byte verb = mPathRef.mVerbs[verbPos];
+            byte verb = mPathData.mVerbs[verbPos];
             int numCoords = switch (verb) {
                 case VERB_MOVE,VERB_LINE -> 2;
                 case VERB_QUAD -> 4;
@@ -735,7 +495,7 @@ public class Path implements Shape, java.awt.Shape, PathConsumer {
                 default -> 0;
             };
             if (numCoords > 0) {
-                System.arraycopy(mPathRef.mCoords, coordPos,
+                System.arraycopy(mPathData.mCoords, coordPos,
                         coords, 0, numCoords);
             }
             return verb;
@@ -743,7 +503,7 @@ public class Path implements Shape, java.awt.Shape, PathConsumer {
 
         @Override
         public int currentSegment(double[] coords) {
-            byte verb = mPathRef.mVerbs[verbPos];
+            byte verb = mPathData.mVerbs[verbPos];
             int numCoords = switch (verb) {
                 case VERB_MOVE,VERB_LINE -> 2;
                 case VERB_QUAD -> 4;
@@ -752,7 +512,7 @@ public class Path implements Shape, java.awt.Shape, PathConsumer {
             };
             if (numCoords > 0) {
                 for (int i = 0; i < numCoords; i++) {
-                    coords[i] = mPathRef.mCoords[coordPos + i];
+                    coords[i] = mPathData.mCoords[coordPos + i];
                 }
             }
             return verb;
@@ -782,7 +542,7 @@ public class Path implements Shape, java.awt.Shape, PathConsumer {
 
         @Override
         public void next() {
-            byte verb = mPathRef.mVerbs[verbPos++];
+            byte verb = mPathData.mVerbs[verbPos++];
             coordPos += switch (verb) {
                 case VERB_MOVE,VERB_LINE -> 2;
                 case VERB_QUAD -> 4;
@@ -793,7 +553,7 @@ public class Path implements Shape, java.awt.Shape, PathConsumer {
 
         @Override
         public int currentSegment(float[] coords) {
-            byte verb = mPathRef.mVerbs[verbPos++];
+            byte verb = mPathData.mVerbs[verbPos];
             int numCoords = switch (verb) {
                 case VERB_MOVE,VERB_LINE -> 2;
                 case VERB_QUAD -> 4;
@@ -801,7 +561,7 @@ public class Path implements Shape, java.awt.Shape, PathConsumer {
                 default -> 0;
             };
             if (numCoords > 0) {
-                affine.transform(mPathRef.mCoords, coordPos,
+                affine.transform(mPathData.mCoords, coordPos,
                         coords, 0, numCoords / 2);
             }
             return verb;
@@ -809,7 +569,7 @@ public class Path implements Shape, java.awt.Shape, PathConsumer {
 
         @Override
         public int currentSegment(double[] coords) {
-            byte verb = mPathRef.mVerbs[verbPos++];
+            byte verb = mPathData.mVerbs[verbPos];
             int numCoords = switch (verb) {
                 case VERB_MOVE,VERB_LINE -> 2;
                 case VERB_QUAD -> 4;
@@ -817,7 +577,7 @@ public class Path implements Shape, java.awt.Shape, PathConsumer {
                 default -> 0;
             };
             if (numCoords > 0) {
-                affine.transform(mPathRef.mCoords, coordPos,
+                affine.transform(mPathData.mCoords, coordPos,
                         coords, 0, numCoords / 2);
             }
             return verb;
@@ -831,8 +591,8 @@ public class Path implements Shape, java.awt.Shape, PathConsumer {
     public void forEach(@NonNull PathConsumer action) {
         int n = countVerbs();
         if (n != 0) {
-            byte[] vs = mPathRef.mVerbs;
-            float[] cs = mPathRef.mCoords;
+            byte[] vs = mPathData.mVerbs;
+            float[] cs = mPathData.mCoords;
             int vi = 0;
             int ci = 0;
             ITR:
@@ -865,85 +625,26 @@ public class Path implements Shape, java.awt.Shape, PathConsumer {
     }
 
     /**
-     * Low-level access to path elements.
-     */
-    @ApiStatus.Internal
-    public class RawIterator {
-
-        private final int count = countVerbs();
-        private int verbPos;
-        private int coordPos;
-        private int coordOff;
-        private int coordInc;
-
-        public boolean hasNext() {
-            return verbPos < count;
-        }
-
-        public byte next() {
-            if (verbPos == count) {
-                return VERB_DONE;
-            }
-            byte verb = mPathRef.mVerbs[verbPos++];
-            coordPos += coordInc;
-            switch (verb) {
-                case VERB_MOVE, VERB_LINE -> coordInc = 2;
-                case VERB_QUAD -> coordInc = 4;
-                case VERB_CUBIC -> coordInc = 6;
-                case VERB_CLOSE -> coordInc = 0;
-            }
-            // -2 is used to peek the current point
-            coordOff = verb == VERB_MOVE ? 0 : -2;
-            return verb;
-        }
-
-        //TODO use arraycopy
-        public float x0() {
-            return mPathRef.mCoords[coordPos + coordOff];
-        }
-
-        public float y0() {
-            return mPathRef.mCoords[coordPos + coordOff + 1];
-        }
-
-        public float x1() {
-            return mPathRef.mCoords[coordPos + coordOff + 2];
-        }
-
-        public float y1() {
-            return mPathRef.mCoords[coordPos + coordOff + 3];
-        }
-
-        public float x2() {
-            return mPathRef.mCoords[coordPos + coordOff + 4];
-        }
-
-        public float y2() {
-            return mPathRef.mCoords[coordPos + coordOff + 5];
-        }
-
-        public float x3() {
-            return mPathRef.mCoords[coordPos + coordOff + 6];
-        }
-
-        public float y3() {
-            return mPathRef.mCoords[coordPos + coordOff + 7];
-        }
-    }
-
-    /**
      * Returns the estimated byte size of path object in memory.
      * This method does not take into account whether internal storage is shared or not.
      */
     public long estimatedByteSize() {
-        long size = 32;
-        size += mPathRef.estimatedByteSize();
+        long size = 24;
+        size += mPathData.estimatedByteSize();
         return size;
+    }
+
+    /**
+     * @hidden
+     */
+    @ApiStatus.Internal
+    public final @NonNull PathData getPathData() {
+        return mPathData;
     }
 
     @Override
     public int hashCode() {
-        int hash = mPathRef.hashCode();
+        int hash = mPathData.hashCode();
         hash = 31 * hash + mWindingRule;
         return hash;
     }
@@ -954,68 +655,9 @@ public class Path implements Shape, java.awt.Shape, PathConsumer {
             return true;
         }
         if (obj instanceof Path other) {
-            return mWindingRule == other.mWindingRule && mPathRef.equals(other.mPathRef);
+            return mWindingRule == other.mWindingRule && mPathData.equals(other.mPathData);
         }
         return false;
-    }
-
-    // ignore the last point of the contour
-    // there must be moveTo() for the contour
-    void reversePop(@NonNull PathConsumer out, boolean addMoveTo) {
-        assert mPathRef != null;
-        byte[] vs = mPathRef.mVerbs;
-        float[] cs = mPathRef.mCoords;
-        int vi = mPathRef.mVerbSize;
-        int ci = mPathRef.mCoordSize - 2;
-        if (addMoveTo) {
-            if (ci >= 0) {
-                out.moveTo(cs[ci], cs[ci + 1]);
-            } else {
-                out.moveTo(0, 0);
-            }
-        }
-        ITR:
-        while (vi != 0) {
-            switch (vs[--vi]) {
-                case VERB_MOVE -> {
-                    assert vi == 0 && ci == 0;
-                    break ITR;
-                }
-                case VERB_LINE -> {
-                    out.lineTo(
-                            cs[ci - 2], cs[ci - 1]
-                    );
-                    ci -= 2;
-                }
-                case VERB_QUAD -> {
-                    out.quadTo(
-                            cs[ci - 2], cs[ci - 1],
-                            cs[ci - 4], cs[ci - 3]
-                    );
-                    ci -= 4;
-                }
-                case VERB_CUBIC -> {
-                    out.cubicTo(
-                            cs[ci - 2], cs[ci - 1],
-                            cs[ci - 4], cs[ci - 3],
-                            cs[ci - 6], cs[ci - 5]
-                    );
-                    ci -= 6;
-                }
-                default -> {
-                    assert false;
-                }
-            }
-        }
-        clear();
-    }
-
-    private PathRef editor() {
-        if (!mPathRef.unique()) {
-            mPathRef = RefCnt.move(mPathRef, new PathRef(mPathRef));
-        }
-        mPathRef.dirtyBounds();
-        return mPathRef;
     }
 
     // the state of the convex computation
@@ -1074,6 +716,26 @@ public class Path implements Shape, java.awt.Shape, PathConsumer {
             newCap = Integer.MAX_VALUE - 1;
         }
         return Arrays.copyOf(old, newCap);
+    }
+
+    // Returns false if the bounds is not finite
+    static boolean getTrimmedBounds(byte @NonNull[] verbs, int verbSize,
+                                    float @NonNull[] coords, int coordSize,
+                                    @NonNull Rect2f bounds) {
+        // Does a trailing kMove verb contribute to the bounds?
+        // - only if it is the only verb in the path
+        // - otherwise we ignore it when computing bounds
+        if (verbSize > 1 && verbs[verbSize - 1] == VERB_MOVE) {
+            assert coordSize > 0;
+            // While trailing moves do not contribute to the bounds, we still reject them.
+            if (!Float.isFinite(coords[coordSize - 2]) ||
+                    !Float.isFinite(coords[coordSize - 1])) {
+                return false;
+            }
+            coordSize -= 2;
+        }
+        assert coordSize % 2 == 0;
+        return bounds.setBounds(coords, 0, coordSize >> 1);
     }
 
 }

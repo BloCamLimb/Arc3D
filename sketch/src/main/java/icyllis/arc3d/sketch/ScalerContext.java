@@ -22,7 +22,7 @@ package icyllis.arc3d.sketch;
 import icyllis.arc3d.core.MathUtil;
 import icyllis.arc3d.core.PixelUtils;
 import icyllis.arc3d.core.Rect2f;
-import icyllis.arc3d.sketch.j2d.DrawBase;
+import icyllis.arc3d.sketch.j2d.RasterDraw;
 import org.jspecify.annotations.NonNull;
 import sun.misc.Unsafe;
 
@@ -160,11 +160,9 @@ public abstract class ScalerContext {
         BufferedImage bufferedImage = new BufferedImage(glyph.getWidth(), glyph.getHeight(),
                 BufferedImage.TYPE_BYTE_GRAY);
 
-        DrawBase draw = new DrawBase();
-        draw.mG2D = bufferedImage.createGraphics();
-        draw.mCTM = matrix;
+        var g2d = bufferedImage.createGraphics();
 
-        draw.drawPath(path, paint);
+        RasterDraw.drawPath(g2d, matrix, path, paint);
 
         var data = ((DataBufferByte) bufferedImage.getRaster().getDataBuffer()).getData();
 
@@ -207,59 +205,73 @@ public abstract class ScalerContext {
             return;
         }
 
-        Path path = new Path();
-        if (!generatePath(glyph, path)) {
+        PathBuilder builder = new PathBuilder();
+        if (!generatePath(glyph, builder)) {
             glyph.setPath((Path) null);
             return;
         }
 
-        if (mDesc.getFrameWidth() >= 0 || mDesc.getPathEffect() != null) {
-            // need the path in user-space, with only the point-size applied
-            // so that our stroking and effects will operate the same way they
-            // would if the user had extracted the path themself, and then
-            // called drawPath
-            Matrix matrix = new Matrix();
-            Matrix inverse = new Matrix();
-
-            mDesc.getDeviceMatrix(matrix);
-            if (!matrix.invert(inverse)) {
-                glyph.setPath(new Path());
-                return;
+        if (isSubpixel()) {
+            float subX = glyph.getSubX();
+            if (subX != 0) {
+                builder.offset(subX, 0);
             }
-            Path localPath = new Path();
-            path.transform(inverse, localPath);
-            // now localPath is only affected by the paint settings, and not the canvas matrix
-
-            StrokeRec strokeRec = new StrokeRec();
-
-            if (mDesc.getFrameWidth() >= 0) {
-                strokeRec.setStrokeStyle(mDesc.getFrameWidth(),
-                        (mDesc.mFlags & StrikeDesc.kFrameAndFill_Flag) != 0);
-                // glyphs are always closed contours, so cap type is ignored,
-                // so we just pass something.
-                strokeRec.setStrokeParams(Paint.CAP_BUTT,
-                        mDesc.getStrokeJoin(),
-                        Paint.ALIGN_CENTER,
-                        mDesc.getMiterLimit());
-            }
-
-            if (mDesc.getPathEffect() != null) {
-                //TODO
-            }
-
-            path.reset();
-            if (strokeRec.applyToPath(localPath, path)) {
-                // set to stroke path
-                localPath.set(path);
-            }
-
-            // transform into device space
-            localPath.transform(matrix, path);
-            localPath.release();
         }
-        path.trimToSize();
-        glyph.setPath(path);
-        path.release();
+
+        if (mDesc.getFrameWidth() < 0 && mDesc.getPathEffect() == null) {
+            glyph.setPath(builder.build());
+            return;
+        }
+
+        // need the path in user-space, with only the point-size applied
+        // so that our stroking and effects will operate the same way they
+        // would if the user had extracted the path themself, and then
+        // called drawPath
+        Matrix localToDevice = new Matrix();
+        Matrix deviceToLocal = new Matrix();
+
+        mDesc.getDeviceMatrix(localToDevice);
+        if (!localToDevice.invert(deviceToLocal)) {
+            glyph.setPath(new Path());
+            return;
+        }
+
+        builder.transform(deviceToLocal);
+        // now builder holds local path that is only affected by the paint settings,
+        // and not the canvas matrix
+
+        StrokeRec strokeRec = new StrokeRec();
+
+        if (mDesc.getFrameWidth() >= 0) {
+            strokeRec.setStrokeStyle(mDesc.getFrameWidth(),
+                    (mDesc.mFlags & StrikeDesc.kFrameAndFill_Flag) != 0);
+            // glyphs are always closed contours, so cap type is ignored,
+            // so we just pass something.
+            //TODO pass user-supplied cap, custom font may have open contours
+            strokeRec.setStrokeParams(Paint.CAP_BUTT,
+                    mDesc.getStrokeJoin(),
+                    Paint.ALIGN_CENTER,
+                    mDesc.getMiterLimit());
+
+            // added by Arc3D, this is missing in Skia
+            strokeRec.setResScale(localToDevice.getMaxScale());
+        }
+
+        if (mDesc.getPathEffect() != null) {
+            //TODO
+        }
+
+        if (strokeRec.isStrokeStyle()) {
+            // wide strokes
+            Path localPath = builder.build();
+            builder.reset();
+            boolean res = strokeRec.applyToPath(localPath, builder);
+            assert res;
+        }
+
+        // transform into device space
+        builder.transform(localToDevice);
+        glyph.setPath(builder.build());
     }
 
     public static class GlyphMetrics {
@@ -294,11 +306,15 @@ public abstract class ScalerContext {
     protected abstract void generateImage(Glyph glyph, Object imageBase, long imageAddress);
 
     /**
-     * Sets the passed path to the glyph outline.
-     * If this cannot be done the path is set to empty;
-     * Does not apply subpixel positioning to the path.
+     * Appends the glyph's outline to the path builder. The builder
+     * is in its <em>initial state</em> when this method is called.
+     * <p>
+     * A glyph can have an empty outline, but if the glyph cannot be
+     * represented as a path (like color emoji), returns false instead.
+     * <p>
+     * Subclass must NOT apply subpixel positioning to the path.
      *
      * @return false if this glyph does not have any path.
      */
-    protected abstract boolean generatePath(Glyph glyph, Path dst);
+    protected abstract boolean generatePath(@NonNull Glyph glyph, @NonNull PathBuilder dst);
 }
