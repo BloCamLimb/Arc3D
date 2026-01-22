@@ -145,6 +145,7 @@ public final class Glyph {
     Object mImage;
 
     Path mPath;
+    boolean mPathIsHairline;
     boolean mPathIsRequested;
 
     // Mask::Format
@@ -327,13 +328,12 @@ public final class Glyph {
         return false;
     }
 
-    public boolean setPath(Path path) {
+    public boolean setPath(Path path, boolean hairline) {
         if (!setPathHasBeenCalled()) {
             mPathIsRequested = true;
             if (path != null) {
                 mPath = new Path(path);
-                mPath.updateBoundsCache();
-                //TODO getGenerationID()
+                mPathIsHairline = hairline;
             }
             return getPath() != null;
         }
@@ -350,6 +350,10 @@ public final class Glyph {
     public Path getPath() {
         assert setPathHasBeenCalled();
         return mPath;
+    }
+
+    public boolean getPathIsHairline() {
+        return mPathIsHairline;
     }
 
     /**

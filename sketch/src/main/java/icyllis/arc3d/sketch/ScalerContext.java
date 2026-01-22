@@ -109,6 +109,9 @@ public abstract class ScalerContext {
 
                 var bounds = new Rect2f();
                 devPath.getBounds(bounds);
+                if (!bounds.isEmpty() && glyph.getPathIsHairline()) {
+                    bounds.outset(1, 1);
+                }
                 saturate_glyph_bounds(glyph,
                         bounds.left(), bounds.top(),
                         bounds.right(), bounds.bottom());
@@ -118,7 +121,7 @@ public abstract class ScalerContext {
                     metrics.mLeft, metrics.mTop,
                     metrics.mRight, metrics.mBottom);
             if (metrics.mNeverRequestPath) {
-                glyph.setPath((Path) null);
+                glyph.setPath((Path) null, false);
             }
         }
 
@@ -153,7 +156,12 @@ public abstract class ScalerContext {
         Matrix matrix = Matrix.makeTranslate(-glyph.getLeft(), -glyph.getTop());
 
         Paint paint = new Paint();
-        paint.setStyle(Paint.FILL);
+        if (glyph.getPathIsHairline()) {
+            paint.setStroke(true);
+            paint.setStrokeWidth(0);
+        } else {
+            paint.setStyle(Paint.FILL);
+        }
         paint.setAntiAlias(glyph.getMaskFormat() != Mask.kBW_Format);
         paint.setBlendMode(BlendMode.SRC);
 
@@ -207,7 +215,7 @@ public abstract class ScalerContext {
 
         PathBuilder builder = new PathBuilder();
         if (!generatePath(glyph, builder)) {
-            glyph.setPath((Path) null);
+            glyph.setPath((Path) null, false);
             return;
         }
 
@@ -218,8 +226,11 @@ public abstract class ScalerContext {
             }
         }
 
-        if (mDesc.getFrameWidth() < 0 && mDesc.getPathEffect() == null) {
-            glyph.setPath(builder.build());
+        if (mDesc.getFrameWidth() <= 0 && mDesc.getPathEffect() == null) {
+            // fill or hairline, but hairline+fill == fill
+            boolean hairline = mDesc.getFrameWidth() == 0 &&
+                    (mDesc.mFlags & StrikeDesc.kFrameAndFill_Flag) == 0;
+            glyph.setPath(builder.build(), hairline);
             return;
         }
 
@@ -232,7 +243,7 @@ public abstract class ScalerContext {
 
         mDesc.getDeviceMatrix(localToDevice);
         if (!localToDevice.invert(deviceToLocal)) {
-            glyph.setPath(new Path());
+            glyph.setPath(new Path(), false);
             return;
         }
 
@@ -271,7 +282,7 @@ public abstract class ScalerContext {
 
         // transform into device space
         builder.transform(localToDevice);
-        glyph.setPath(builder.build());
+        glyph.setPath(builder.build(), strokeRec.isHairlineStyle());
     }
 
     public static class GlyphMetrics {
