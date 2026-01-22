@@ -127,7 +127,7 @@ public final class GLUtil {
         if (device == null) {
             return null;
         }
-        var queueManager = new GLQueueManager(device);
+        var queueManager = new GLQueueManager(device, options);
         ImmediateContext context = new ImmediateContext(device, queueManager);
         if (context.init()) {
             return context;

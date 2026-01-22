@@ -20,8 +20,10 @@
 package icyllis.arc3d.vulkan;
 
 import icyllis.arc3d.engine.CommandBuffer;
+import icyllis.arc3d.engine.ContextOptions;
 import icyllis.arc3d.engine.QueueManager;
 import icyllis.arc3d.engine.ResourceProvider;
+import org.jetbrains.annotations.ApiStatus;
 import org.lwjgl.vulkan.VkQueue;
 
 /**
@@ -32,8 +34,12 @@ public final class VulkanQueueManager extends QueueManager {
     private final VulkanDevice mDevice;
     private final VkQueue mQueue;
 
-    public VulkanQueueManager(VulkanDevice device, VkQueue queue) {
-        super(device);
+    /**
+     * Use {@link VKUtil} to create context.
+     */
+    @ApiStatus.Internal
+    public VulkanQueueManager(VulkanDevice device, ContextOptions options, VkQueue queue) {
+        super(device, options);
         mDevice = device;
         mQueue = queue;
     }

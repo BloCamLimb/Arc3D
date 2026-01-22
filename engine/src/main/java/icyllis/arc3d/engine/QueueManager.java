@@ -36,10 +36,14 @@ public abstract class QueueManager {
     private final ArrayDeque<CommandBuffer> mAvailableCommandBuffers = new ArrayDeque<>();
     private final ArrayDeque<CommandBuffer> mOutstandingCommandBuffers = new ArrayDeque<>();
 
-    private int mMaxCommandBuffers;
+    private final int mMaxCommandBuffersInflight;
 
-    protected QueueManager(Device device) {
+    private int mHighWaterCommandBufferCount;
+
+    protected QueueManager(Device device, ContextOptions options) {
         mDevice = device;
+        //TODO add a frame delimiter to determine max in-flight frames?
+        mMaxCommandBuffersInflight = Math.max(options.mMaxCommandBuffersInflight, 1);
     }
 
     protected void destroy() {
@@ -69,11 +73,6 @@ public abstract class QueueManager {
         return mCurrentCommandBuffer;
     }
 
-    public int getCommandBufferCount() {
-        return mAvailableCommandBuffers.size() + mOutstandingCommandBuffers.size() +
-                (mCurrentCommandBuffer != null ? 1 : 0);
-    }
-
     public boolean submit() {
         if (mCurrentCommandBuffer == null) {
             return true;
@@ -81,7 +80,7 @@ public abstract class QueueManager {
 
         if (mCurrentCommandBuffer.submit(this)) {
             mOutstandingCommandBuffers.add(mCurrentCommandBuffer);
-            mMaxCommandBuffers = Math.max(mMaxCommandBuffers, mOutstandingCommandBuffers.size());
+            mHighWaterCommandBufferCount = Math.max(mHighWaterCommandBufferCount, mOutstandingCommandBuffers.size());
             mCurrentCommandBuffer = null;
             return true;
         }
@@ -89,8 +88,13 @@ public abstract class QueueManager {
         return false;
     }
 
-    public int getMaxCommandBuffers() {
-        return mMaxCommandBuffers;
+    public int getCurrentCommandBufferCount() {
+        return mAvailableCommandBuffers.size() + mOutstandingCommandBuffers.size() +
+                (mCurrentCommandBuffer != null ? 1 : 0);
+    }
+
+    public int getHighWaterCommandBufferCount() {
+        return mHighWaterCommandBufferCount;
     }
 
     /**
@@ -128,8 +132,8 @@ public abstract class QueueManager {
 
     protected boolean prepareCommandBuffer(ResourceProvider resourceProvider) {
         if (mCurrentCommandBuffer == null) {
-            //TODO limit max in-flight command buffers or in-flight frames!!
-            if (mOutstandingCommandBuffers.size() >= 2) {
+            assert mMaxCommandBuffersInflight >= 1;
+            if (mOutstandingCommandBuffers.size() >= mMaxCommandBuffersInflight) {
                 mOutstandingCommandBuffers.peekFirst().waitUntilFinished();
                 checkForFinishedWork();
             }

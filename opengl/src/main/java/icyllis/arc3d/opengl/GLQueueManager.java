@@ -19,6 +19,7 @@
 
 package icyllis.arc3d.opengl;
 
+import icyllis.arc3d.engine.ContextOptions;
 import icyllis.arc3d.engine.QueueManager;
 import icyllis.arc3d.engine.ResourceProvider;
 import org.jetbrains.annotations.ApiStatus;
@@ -34,8 +35,8 @@ public final class GLQueueManager extends QueueManager {
      * Use {@link GLUtil} to create context.
      */
     @ApiStatus.Internal
-    public GLQueueManager(GLDevice device) {
-        super(device);
+    public GLQueueManager(GLDevice device, ContextOptions options) {
+        super(device, options);
         mDevice = device;
     }
 

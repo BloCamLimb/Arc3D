@@ -153,6 +153,16 @@ public final class ContextOptions {
 
     public long mVulkanVMALargeHeapBlockSize = 0;
 
+    /**
+     * Max number of command buffers in-flight.
+     */
+    public int mMaxCommandBuffersInflight = 8;
+
+    /**
+     * Max number of frames in-flight.
+     */
+    public int mMaxFramesInflight = 2;
+
     public DriverBugWorkarounds mDriverBugWorkarounds;
 
     public ContextOptions() {

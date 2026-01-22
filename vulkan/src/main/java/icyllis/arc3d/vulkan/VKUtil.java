@@ -89,7 +89,7 @@ public final class VKUtil {
         if (device == null) {
             return null;
         }
-        var queueManager = new VulkanQueueManager(device, backendContext.mQueue);
+        var queueManager = new VulkanQueueManager(device, options, backendContext.mQueue);
         ImmediateContext context = new ImmediateContext(device, queueManager);
         if (context.init()) {
             return context;
