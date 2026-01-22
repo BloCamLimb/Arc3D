@@ -57,28 +57,19 @@ public final class GraniteSurface extends Surface {
 
     @Nullable
     @SharedPtr
-    static GraniteSurface make(RecordingContext rc,
+    static GraniteSurface make(RecordingContext context,
                                ImageInfo info,
                                boolean budgeted,
                                boolean mipmapped,
-                               boolean approxFit,
+                               boolean exact,
                                int surfaceOrigin,
                                byte initialLoadOp,
                                String label,
                                boolean trackDevice) {
-        int flags = 0;
-        if (budgeted) {
-            flags |= ISurface.FLAG_BUDGETED;
-        }
-        if (mipmapped) {
-            flags |= ISurface.FLAG_MIPMAPPED;
-        }
-        if (approxFit) {
-            flags |= ISurface.FLAG_APPROX_FIT;
-        }
         @SharedPtr
         GraniteDevice device = GraniteDevice.make(
-                rc, info, flags, surfaceOrigin, initialLoadOp, label, trackDevice
+                context, info, budgeted, mipmapped, exact, surfaceOrigin,
+                initialLoadOp, label, trackDevice
         );
         if (device == null) {
             return null;
@@ -95,22 +86,42 @@ public final class GraniteSurface extends Surface {
                                       ImageInfo info,
                                       boolean budgeted,
                                       boolean mipmapped,
-                                      boolean approxFit,
+                                      boolean exact,
                                       int surfaceOrigin,
                                       String label) {
-        return make(rc, info, budgeted, mipmapped, approxFit,
+        return make(rc, info, budgeted, mipmapped, exact,
                 surfaceOrigin, Engine.LoadOp.kClear, label, true);
     }
 
     /**
+     * Returns Surface on GPU indicated by context. Allocates memory for pixels,
+     * based on the width, height, and ColorType in ColorInfo. <code>imageInfo</code>
+     * describes the pixel format in ColorType, and transparency in AlphaType.
+     * <p>
      * While clients hold a ref on a Surface, the backing gpu object does <em>not</em>
      * count against the budget. Once a Surface is freed, the backing gpu object may or may
      * not become a scratch (i.e., reusable) resource but, if it does, it will be counted against
      * the budget.
+     * <p>
+     * When MSAA is required, the implementation uses dynamic/discardable MSAA.
+     * There's no way to request explicit MSAA for this method.
+     * <p>
+     * <code>origin</code> pins either the top-left or the bottom-left corner to the origin.
+     * Note that bottom-left origin is deprecated, shaders that require device space coordinates
+     * will not be working properly.
+     * <p>
+     * <code>mipmapped</code> hints that Image returned by makeImageSnapshot() has mipmaps.
+     *
+     * @param context       GPU context
+     * @param info          width, height, ColorType, AlphaType; width, or height, or both, may be zero
+     * @param mipmapped     hint that Surface will host mipmap images
+     * @param surfaceOrigin see {@link Engine.SurfaceOrigin}
+     * @param label         the GPU object label; null to use a default label, empty to clear label
+     * @return Surface if all parameters are valid; otherwise, null
      */
     @Nullable
     @SharedPtr
-    public static GraniteSurface makeRenderTarget(RecordingContext rc,
+    public static GraniteSurface makeRenderTarget(RecordingContext context,
                                                   @NonNull ImageInfo info,
                                                   boolean mipmapped,
                                                   int surfaceOrigin,
@@ -119,7 +130,7 @@ public final class GraniteSurface extends Surface {
             label = "SurfaceRenderTarget";
         }
         // create non-budgeted, exact-fit device
-        return make(rc, info, false, mipmapped, false,
+        return make(context, info, false, mipmapped, true,
                 surfaceOrigin, label);
     }
 
@@ -182,6 +193,11 @@ public final class GraniteSurface extends Surface {
         return mDevice;
     }
 
+    //<code>sampleCount</code> requests the number of samples per pixel.
+    //     * Pass one to disable multi-sample anti-aliasing.  The request is rounded
+    //     * up to the next supported count, or rounded down if it is larger than the
+    //     * maximum supported count.
+
     // DEPRECATED code below
 
     /*
@@ -230,41 +246,6 @@ public final class GraniteSurface extends Surface {
 
         return null;
     }*/
-
-    /**
-     * Returns Surface on GPU indicated by context. Allocates memory for pixels,
-     * based on the width, height, and ColorType in ColorInfo. <code>budgeted</code>
-     * selects whether allocation for pixels is tracked by context. <code>imageInfo</code>
-     * describes the pixel format in ColorType, and transparency in AlphaType.
-     * <p>
-     * <code>sampleCount</code> requests the number of samples per pixel.
-     * Pass one to disable multi-sample anti-aliasing.  The request is rounded
-     * up to the next supported count, or rounded down if it is larger than the
-     * maximum supported count.
-     * <p>
-     * <code>origin</code> pins either the top-left or the bottom-left corner to the origin.
-     * <p>
-     * <code>mipmapped</code> hints that Image returned by makeImageSnapshot() has mipmaps.
-     *
-     * @param context     GPU context
-     * @param imageInfo   width, height, ColorType, AlphaType; width, or height, or both, may be zero
-     * @param sampleCount samples per pixel, or 1 to disable full scene anti-aliasing
-     * @param mipmapped   hint that Surface will host mipmap images
-     * @return Surface if all parameters are valid; otherwise, null
-     */
-    @Nullable
-    public static Surface makeRenderTarget(RecordingContext context,
-                                           ImageInfo imageInfo,
-                                           int origin,
-                                           int sampleCount,
-                                           boolean mipmapped,
-                                           boolean budgeted) {
-        if (context == null || imageInfo == null || sampleCount < 1) {
-            return null;
-        }
-
-        return null;
-    }
 
     /*@Nullable
     public static Surface wrapBackendRenderTarget(RecordingContext rContext,

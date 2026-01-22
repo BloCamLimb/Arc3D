@@ -34,6 +34,7 @@ import icyllis.arc3d.granite.geom.EdgeAAQuad;
 import icyllis.arc3d.granite.geom.HybridBoundsManager;
 import icyllis.arc3d.granite.geom.Rect;
 import icyllis.arc3d.granite.geom.SubRunData;
+import icyllis.arc3d.granite.shading.UniformHandler;
 import icyllis.arc3d.granite.task.DrawTask;
 import icyllis.arc3d.granite.task.RenderPassTask;
 import icyllis.arc3d.sketch.*;
@@ -70,7 +71,7 @@ public final class GraniteDevice extends Device {
     private final PaintParams mPaintParams = new PaintParams();
 
     /**
-     * Gatherer of {@link DrawPass#GEOMETRY_UNIFORM_BLOCK_NAME} and {@link DrawPass#FRAGMENT_UNIFORM_BLOCK_NAME}.
+     * Gatherer of {@link UniformHandler#GEOMETRY_UNIFORM_BLOCK_NAME} and {@link UniformHandler#FRAGMENT_UNIFORM_BLOCK_NAME}.
      * But we will not gather both at the same time.
      */
     @SharedPtr
@@ -108,51 +109,54 @@ public final class GraniteDevice extends Device {
 
     @Nullable
     @SharedPtr
-    public static GraniteDevice make(@RawPtr RecordingContext rc,
+    public static GraniteDevice make(@RawPtr RecordingContext context,
                                      @NonNull ImageInfo deviceInfo,
-                                     int surfaceFlags,
-                                     int origin,
+                                     boolean budgeted,
+                                     boolean mipmapped,
+                                     boolean exact,
+                                     int surfaceOrigin,
                                      byte initialLoadOp,
                                      String label,
                                      boolean trackDevice) {
-        if (rc == null) {
+        if (context == null) {
             return null;
         }
 
-        if ((surfaceFlags & ISurface.FLAG_MIPMAPPED) != 0 &&
-                (surfaceFlags & ISurface.FLAG_APPROX_FIT) != 0) {
+        if (mipmapped && !exact) {
             // mipmapping requires full size
+            //TODO actually we can use pingpong scratch surfaces + strict subset draw
+            // to handle it. But now we have not yet implemented mipmapping at all
             return null;
         }
 
         int backingWidth = deviceInfo.width();
         int backingHeight = deviceInfo.height();
-        if ((surfaceFlags & ISurface.FLAG_APPROX_FIT) != 0) {
+        if (!exact) {
             backingWidth = ISurface.getApproxSize(backingWidth);
             backingHeight = ISurface.getApproxSize(backingHeight);
         }
 
-        ImageDesc desc = rc.getCaps().getDefaultColorImageDesc(
+        ImageDesc desc = context.getCaps().getDefaultColorImageDesc(
                 Engine.ImageType.k2D,
                 deviceInfo.colorType(),
                 backingWidth,
                 backingHeight,
                 1,
-                surfaceFlags | ISurface.FLAG_SAMPLED_IMAGE | ISurface.FLAG_RENDERABLE);
+                (mipmapped ? ISurface.FLAG_MIPMAPPED : 0) | ISurface.FLAG_SAMPLED_IMAGE | ISurface.FLAG_RENDERABLE);
         if (desc == null) {
             return null;
         }
-        short readSwizzle = rc.getCaps().getReadSwizzle(
-                deviceInfo.colorType(), desc);
         @SharedPtr
-        ImageProxy target = ImageProxy.make(rc, desc,
-                (surfaceFlags & ISurface.FLAG_BUDGETED) != 0, label);
+        ImageProxy target = ImageProxy.make(context, desc,
+                budgeted, label);
         if (target == null) {
             return null;
         }
+        short readSwizzle = context.getCaps().getReadSwizzle(
+                deviceInfo.colorType(), desc);
 
-        return make(rc, new ImageProxyView(target, // move
-                        origin, readSwizzle), // move
+        return make(context, new ImageProxyView(target, // move
+                        surfaceOrigin, readSwizzle), // move
                 deviceInfo, initialLoadOp, trackDevice);
     }
 

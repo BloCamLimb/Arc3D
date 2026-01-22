@@ -51,6 +51,7 @@ import org.lwjgl.opengles.GLES20;
 import org.lwjgl.stb.STBImage;
 import org.lwjgl.stb.STBImageWrite;
 import org.lwjgl.system.MemoryUtil;
+import org.lwjgl.util.tinyfd.TinyFileDialogs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,6 +65,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.LockSupport;
 
 import static org.lwjgl.glfw.GLFW.*;
 
@@ -87,6 +90,7 @@ public class TestGraniteRenderer {
 
     public static final int TEST_SCENE = 1;
     public static final boolean POST_PROCESS = false;
+    public static final boolean RECORD_FIRST_FRAME = false;
 
     public static final ExecutorService RECORDING_THREAD = Executors.newSingleThreadExecutor();
 
@@ -108,6 +112,7 @@ public class TestGraniteRenderer {
     //-Dorg.slf4j.simpleLogger.defaultLogLevel=debug
     //-XX:+UseZGC
     //-XX:+ZGenerational
+    //-Dorg.lwjgl.opengl.libname=F:\mesa3d-22.1.2-release-mingw\x64\opengl32.dll
     public static void main(String[] args) {
         System.setProperty("java.awt.headless", "true");
         glfwInit();
@@ -237,6 +242,11 @@ public class TestGraniteRenderer {
                         formatMicroseconds(time5, time4),
                         formatMicroseconds(time6, time5),
                         formatMicroseconds(time7, time6));*/
+                /*try {
+                    Thread.sleep(1);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }*/
             }
             frame++;
 
@@ -325,6 +335,9 @@ public class TestGraniteRenderer {
 
         float[] mMarkPts1;
 
+        @SharedPtr
+        BigRecord mBigRecord;
+
         public Painter(ImmediateContext immediateContext) {
             mRC = RecordingContext.makeRecordingContext(
                     immediateContext, new RecordingContext.Options()
@@ -335,7 +348,9 @@ public class TestGraniteRenderer {
                         mRC,
                         ImageInfo.make(CANVAS_WIDTH, CANVAS_HEIGHT, ColorInfo.CT_RGBA_8888,
                                 ColorInfo.AT_PREMUL, ColorSpace.get(ColorSpace.Named.SRGB)),
-                        ISurface.FLAG_SAMPLED_IMAGE | ISurface.FLAG_RENDERABLE | ISurface.FLAG_BUDGETED,
+                        true,
+                        false,
+                        true,
                         Engine.SurfaceOrigin.kUpperLeft,
                         Engine.LoadOp.kLoad,
                         "TestDevice",
@@ -369,7 +384,7 @@ public class TestGraniteRenderer {
                             MemoryUtil.memAddress(imgData),
                             4 * x[0]
                     );
-                    var newInfo = ImageInfo.make(x[0], y[0], ColorInfo.CT_RGBA_F16, ColorInfo.AT_UNPREMUL, null);
+                    var newInfo = ImageInfo.make(x[0], y[0], ColorInfo.CT_RGB_888, ColorInfo.AT_OPAQUE, null);
                     long newPixels = MemoryUtil.nmemAlloc(newInfo.computeMinByteSize());
                     Pixmap convertedPixmap = new Pixmap(
                             newInfo, null, newPixels, newInfo.minRowBytes()
@@ -469,7 +484,7 @@ public class TestGraniteRenderer {
                     new java.awt.Font("Microsoft YaHei", java.awt.Font.PLAIN, 1));
             {
                 char[] text = "9-nine-天色天歌天籁音".toCharArray();
-                float fontSize = 14;
+                float fontSize = 56;
                 var vector = typeface.getFont().deriveFont(fontSize).layoutGlyphVector(
                         new FontRenderContext(null, true, true),
                         text, 0, text.length, java.awt.Font.LAYOUT_LEFT_TO_RIGHT);
@@ -672,7 +687,7 @@ public class TestGraniteRenderer {
                 paint.setStrokeJoin(Paint.JOIN_MITER);
                 paint.setStrokeAlign(Paint.ALIGN_CENTER);
                 canvas.save();
-                canvas.clipRect(150, 160, 100, 330, Canvas.CLIP_OP_DIFFERENCE);
+                canvas.clipRect(150, 160, 100, 330, Canvas.CLIP_OP_DIFFERENCE, false);
                 lines.run();
                 canvas.restore();
 
@@ -737,7 +752,7 @@ public class TestGraniteRenderer {
                 perspectiveMatrix.preTranslate(-CANVAS_WIDTH / 2f, -CANVAS_HEIGHT / 2f);
                 perspectiveMatrix.postTranslate(CANVAS_WIDTH / 2f, CANVAS_HEIGHT / 2f);
                 canvas.save();
-                canvas.setMatrix(perspectiveMatrix);
+                //canvas.setMatrix(perspectiveMatrix);
                 paint.setStroke(true);
                 paint.setStrokeJoin(Paint.JOIN_MITER);
                 paint.setStrokeWidth(1);
@@ -874,7 +889,17 @@ public class TestGraniteRenderer {
         public Recording paint() {
             double time1 = glfwGetTime();
 
-            if (POST_PROCESS) {
+            if (RECORD_FIRST_FRAME) {
+                if (mBigRecord == null) {
+                    mBigRecord = new BigRecord();
+                    RecordCanvas canvas = new RecordCanvas(CANVAS_WIDTH, CANVAS_HEIGHT);
+                    canvas.reset(mBigRecord);
+                    drawScene(canvas);
+                    canvas.close();
+                }
+                Canvas canvas = mSurface.getCanvas();
+                mBigRecord.draw(canvas, null);
+            } else if (POST_PROCESS) {
                 @SharedPtr
                 Image snapshot;
                 {
@@ -921,6 +946,7 @@ public class TestGraniteRenderer {
             mPostSurface = RefCnt.move(mPostSurface);
             mSurface = RefCnt.move(mSurface);
             mRC = RefCnt.move(mRC);
+            mBigRecord = RefCnt.move(mBigRecord);
 
             LOGGER.info("Closed painter");
         }
