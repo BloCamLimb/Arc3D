@@ -357,7 +357,7 @@ public final class GLCaps_GLES extends GLCaps {
 
         // Format: COMPRESSED_RGB8_ETC2
         {
-            FormatInfo info = getFormatInfo(GL_COMPRESSED_RGB8_ETC2);
+            FormatInfo info = getFormatInfo(Engine.ImageFormat.kRGB8_ETC2);
             info.mFlags |= FormatInfo.TEXTURABLE_FLAG;
         }
 
