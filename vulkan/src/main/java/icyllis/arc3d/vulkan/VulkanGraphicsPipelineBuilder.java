@@ -707,7 +707,7 @@ public class VulkanGraphicsPipelineBuilder {
                 return false;
             }
 
-            renderPassSet = VulkanRenderPassSet.make(mDevice, mRenderPassDesc);
+            renderPassSet = mDevice.findOrCreateCompatibleRenderPassSet(mRenderPassDesc);
             if (renderPassSet == null) {
                 // this shouldn't happen, since beginRenderPass will first be called
                 return false;
