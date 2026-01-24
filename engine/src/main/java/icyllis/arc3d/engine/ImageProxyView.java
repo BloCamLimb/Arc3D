@@ -20,8 +20,8 @@
 package icyllis.arc3d.engine;
 
 import icyllis.arc3d.core.RawPtr;
+import icyllis.arc3d.core.RefCounted;
 import icyllis.arc3d.core.SharedPtr;
-import org.jspecify.annotations.NonNull;
 
 import java.util.Objects;
 
@@ -31,12 +31,12 @@ import static icyllis.arc3d.engine.Engine.SurfaceOrigin;
  * Image views contain additional metadata for pipeline operations on images.
  * This class is a tuple of {@link ImageProxy}, SurfaceOrigin and Swizzle.
  */
-public final class ImageProxyView implements AutoCloseable {
+public final class ImageProxyView implements RefCounted {
 
     @SharedPtr
-    ImageProxy mProxy;
-    int mOrigin;
-    short mSwizzle;
+    private final ImageProxy mProxy;
+    private final int mOrigin;
+    private final short mSwizzle;
 
     public ImageProxyView(@SharedPtr ImageProxy proxy) {
         mProxy = proxy; // std::move()
@@ -48,17 +48,6 @@ public final class ImageProxyView implements AutoCloseable {
         mProxy = proxy; // std::move()
         mOrigin = origin;
         mSwizzle = swizzle;
-    }
-
-    @SuppressWarnings("IncompleteCopyConstructor")
-    public ImageProxyView(@RawPtr @NonNull ImageProxyView view) {
-        var proxy = view.mProxy;
-        if (proxy != null) {
-            proxy.ref();
-        }
-        mProxy = proxy; // move
-        mOrigin = view.mOrigin;
-        mSwizzle = view.mSwizzle;
     }
 
     public int getWidth() {
@@ -91,18 +80,6 @@ public final class ImageProxyView implements AutoCloseable {
     }
 
     /**
-     * This does not reset the origin or swizzle, so the view can still be used to access those
-     * properties associated with the detached proxy.
-     */
-    @SharedPtr
-    public ImageProxy detachProxy() {
-        // just like std::move(), R-value reference
-        ImageProxy surfaceProxy = mProxy;
-        mProxy = null;
-        return surfaceProxy;
-    }
-
-    /**
      * @see SurfaceOrigin
      */
     public int getOrigin() {
@@ -117,40 +94,17 @@ public final class ImageProxyView implements AutoCloseable {
     }
 
     /**
-     * Concat swizzle.
+     * Same as {@link #refProxy()}.
      */
-    public void concatSwizzle(short swizzle) {
-        mSwizzle = Swizzle.concat(mSwizzle, swizzle);
-    }
-
-    /**
-     * Replace the view's swizzle.
-     */
-    public void replaceSwizzle(short swizzle) {
-        mSwizzle = swizzle;
-    }
-
-    /**
-     * Recycle this view.
-     */
-    public void reset() {
-        if (mProxy != null) {
-            mProxy.unref();
-        }
-        mProxy = null;
-        mOrigin = SurfaceOrigin.kUpperLeft;
-        mSwizzle = Swizzle.RGBA;
-    }
-
-    /**
-     * Destructs this view.
-     */
+    // We can leak the ref countability to the underlying object in this scenario
     @Override
-    public void close() {
-        if (mProxy != null) {
-            mProxy.unref();
-        }
-        mProxy = null;
+    public void ref() {
+        mProxy.ref();
+    }
+
+    @Override
+    public void unref() {
+        mProxy.unref();
     }
 
     @Override

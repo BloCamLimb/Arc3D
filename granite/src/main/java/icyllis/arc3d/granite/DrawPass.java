@@ -252,7 +252,7 @@ public final class DrawPass implements AutoCloseable {
                 mPipelines[i] = RefCnt.move(mPipelines[i]);
             }
         }
-        mTextureViews.forEach(ImageProxyView::close);
+        mTextureViews.forEach(ImageProxyView::unref);
         mTextureViews.clear();
     }
 

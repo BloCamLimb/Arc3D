@@ -43,6 +43,13 @@ public final class TextureDataGatherer implements AutoCloseable {
 
     private final Object2IntOpenHashMap<@RawPtr ImageProxyView> mTextureToIndex = new Object2IntOpenHashMap<>();
     private ObjectArrayList<@SharedPtr ImageProxyView> mIndexToTexture = new ObjectArrayList<>();
+    private final ToIntFunction<@RawPtr ImageProxyView> mTextureAccumulator = texture -> {
+        int index = mIndexToTexture.size();
+        // persist the proxy ref
+        texture.ref();
+        mIndexToTexture.add(texture);
+        return index;
+    };
 
     private final Object2IntOpenHashMap<SamplerDesc> mSamplerToIndex = new Object2IntOpenHashMap<>();
     private ObjectArrayList<SamplerDesc> mIndexToSampler = new ObjectArrayList<>();
@@ -55,19 +62,8 @@ public final class TextureDataGatherer implements AutoCloseable {
     final IntArrayList mTextureData = new IntArrayList();
     int mPaintTextureCount;
 
-    {
-        mTextureToIndex.defaultReturnValue(-1);
-    }
-
     public void add(@RawPtr @NonNull ImageProxyView textureView, @NonNull SamplerDesc samplerDesc) {
-        int textureIndex = mTextureToIndex.getInt(textureView);
-        if (textureIndex < 0) {
-            textureIndex = mIndexToTexture.size();
-            // persist the proxy ref, since ImageProxyView represents a single owner, just create new one
-            var copy = new ImageProxyView(textureView);
-            mIndexToTexture.add(copy);
-            mTextureToIndex.put(copy, textureIndex);
-        }
+        int textureIndex = mTextureToIndex.computeIfAbsent(textureView, mTextureAccumulator);
         int samplerIndex = mSamplerToIndex.computeIfAbsent(samplerDesc, mSamplerAccumulator);
         mTextureData.add(textureIndex);
         mTextureData.add(samplerIndex);
@@ -113,7 +109,7 @@ public final class TextureDataGatherer implements AutoCloseable {
         // intended behavior: only ArrayLists shrink, HashMaps will not shrink
         mTextureToIndex.clear();
         if (mIndexToTexture != null) {
-            mIndexToTexture.forEach(ImageProxyView::close);
+            mIndexToTexture.forEach(ImageProxyView::unref);
         }
         mIndexToTexture = new ObjectArrayList<>();
 
@@ -136,7 +132,7 @@ public final class TextureDataGatherer implements AutoCloseable {
     @Override
     public void close() {
         if (mIndexToTexture != null) {
-            mIndexToTexture.forEach(ImageProxyView::close);
+            mIndexToTexture.forEach(ImageProxyView::unref);
         }
         mIndexToTexture = null;
     }

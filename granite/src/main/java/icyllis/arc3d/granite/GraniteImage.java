@@ -111,7 +111,7 @@ public final class GraniteImage extends Image {
 
     @Override
     protected void deallocate() {
-        mImageProxyView.close();
+        mImageProxyView.unref();
         mImageProxyView = null;
     }
 

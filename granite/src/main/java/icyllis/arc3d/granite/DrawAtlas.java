@@ -748,7 +748,7 @@ public class DrawAtlas implements AutoCloseable {
             }
             page.mPlots = null;
             if (page.mTextureView != null) {
-                page.mTextureView.close();
+                page.mTextureView.unref();
             }
             page.mTextureView = null;
         }
@@ -1229,7 +1229,7 @@ public class DrawAtlas implements AutoCloseable {
         }
 
         // remove ref to the texture proxy
-        lastPage.mTextureView.close();
+        lastPage.mTextureView.unref();
         lastPage.mTextureView = null;
         --mNumActivePages;
     }

@@ -19,21 +19,19 @@
 
 package icyllis.arc3d.granite;
 
-import icyllis.arc3d.core.ColorInfo;
 import icyllis.arc3d.core.ImageInfo;
 import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.Rect2i;
 import icyllis.arc3d.core.Rect2ic;
 import icyllis.arc3d.core.RefCnt;
 import icyllis.arc3d.core.SharedPtr;
-import icyllis.arc3d.engine.BackendFormat;
-import icyllis.arc3d.engine.BackendImage;
-import icyllis.arc3d.engine.Caps;
 import icyllis.arc3d.engine.Engine;
-import icyllis.arc3d.engine.ISurface;
+import icyllis.arc3d.engine.ImageProxy;
+import icyllis.arc3d.engine.ImageProxyView;
 import icyllis.arc3d.sketch.Canvas;
 import icyllis.arc3d.sketch.Image;
 import icyllis.arc3d.sketch.Surface;
+import org.jetbrains.annotations.VisibleForTesting;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -50,6 +48,7 @@ public final class GraniteSurface extends Surface {
     @SharedPtr
     private GraniteDevice mDevice;
 
+    @VisibleForTesting
     public GraniteSurface(@SharedPtr GraniteDevice device) {
         super(device.getWidth(), device.getHeight());
         mDevice = device;
@@ -188,9 +187,22 @@ public final class GraniteSurface extends Surface {
         return mDevice.getCommandContext();
     }
 
+    /**
+     * Raw ptr to render target proxy to underlying image.
+     * Can be null when wrapping OpenGL default FBO.
+     */
     @RawPtr
-    public GraniteDevice getDevice() {
-        return mDevice;
+    public ImageProxy getBackingTarget() {
+        return mDevice.getReadView().getProxy();
+    }
+
+    /**
+     * Raw ptr to read view.
+     * Even if the target is not texturable, this returns non-null.
+     */
+    @RawPtr
+    public ImageProxyView getReadSurfaceView() {
+        return mDevice.getReadView();
     }
 
     //<code>sampleCount</code> requests the number of samples per pixel.

@@ -114,17 +114,17 @@ public final class SurfaceDrawContext implements AutoCloseable {
             return null;
         }
         if (context == null || context.isDiscarded()) {
-            targetView.close();
+            targetView.unref();
             return null;
         }
         if (deviceInfo.alphaType() != ColorInfo.AT_OPAQUE &&
                 deviceInfo.alphaType() != ColorInfo.AT_PREMUL) {
             // we only render to premultiplied alpha type
-            targetView.close();
+            targetView.unref();
             return null;
         }
         if (!targetView.getProxy().getDesc().isRenderable()) {
-            targetView.close();
+            targetView.unref();
             return null;
         }
 
@@ -148,7 +148,7 @@ public final class SurfaceDrawContext implements AutoCloseable {
      */
     @Override
     public void close() {
-        mReadView.close();
+        mReadView.unref();
         mDrawTaskList.close();
         mPendingUploads.forEach(RefCnt::unref);
         mPendingUploads.clear();

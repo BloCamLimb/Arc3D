@@ -127,6 +127,6 @@ public class SurfaceContext implements AutoCloseable {
      */
     @Override
     public void close() {
-        mReadView.close();
+        mReadView.unref();
     }
 }
