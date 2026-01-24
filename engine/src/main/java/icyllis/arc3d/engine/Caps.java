@@ -45,7 +45,7 @@ public abstract class Caps {
      * 'int' as enable mask type, then this is 32, see {@link VertexInputLayout}.
      */
     public static final int MAX_VERTEX_ATTRIBUTES = 32;
-    public static final int MAX_VERTEX_BINDINGS = 32;
+    public static final int MAX_VERTEX_BINDINGS = 8;
     // the constants above are used to create fixed length arrays, however, there is no such thing in Java
 
     /**
