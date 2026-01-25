@@ -109,8 +109,8 @@ public final class VulkanBuffer extends Buffer {
             var allocator = device.getMemoryAllocator();
             var allocInfo = new VulkanAllocation();
 
-            // only upload buffer use persistent mapping, and it's always combined with host visible flag
-            boolean persistentlyMapped = (usage & BufferUsageFlags.kUpload) != 0;
+            boolean persistentlyMapped = (usage & BufferUsageFlags.kReadback) == 0 &&
+                    (usage & BufferUsageFlags.kHostVisible) != 0;
             int allocFlags = persistentlyMapped ? VulkanMemoryAllocator.kPersistentlyMapped_AllocFlag : 0;
 
             if (!allocator.allocateBufferMemory(
