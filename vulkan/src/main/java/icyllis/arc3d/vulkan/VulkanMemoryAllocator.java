@@ -50,9 +50,11 @@ public class VulkanMemoryAllocator implements AutoCloseable {
             kLazyAllocation_AllocFlag = 0x4;
 
     protected /*VmaAllocator*/ long mAllocator;
+    protected boolean mWrapped;
 
-    public VulkanMemoryAllocator(long allocator) {
+    public VulkanMemoryAllocator(long allocator, boolean wrapped) {
         mAllocator = allocator;
+        mWrapped = wrapped;
     }
 
     @Nullable
@@ -82,13 +84,13 @@ public class VulkanMemoryAllocator implements AutoCloseable {
             if (vmaCreateAllocator(pCreateInfo, pAllocator) != VK_SUCCESS) {
                 return null;
             }
-            return new VulkanMemoryAllocator(pAllocator.get(0));
+            return new VulkanMemoryAllocator(pAllocator.get(0), false);
         }
     }
 
     @Override
     public void close() {
-        if (mAllocator != VK_NULL_HANDLE) {
+        if (mAllocator != VK_NULL_HANDLE && !mWrapped) {
             vmaDestroyAllocator(mAllocator);
         }
         mAllocator = VK_NULL_HANDLE;
