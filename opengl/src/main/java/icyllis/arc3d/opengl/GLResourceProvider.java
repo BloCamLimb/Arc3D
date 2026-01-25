@@ -21,6 +21,7 @@ package icyllis.arc3d.opengl;
 
 import icyllis.arc3d.core.SharedPtr;
 import icyllis.arc3d.engine.*;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import static org.lwjgl.opengl.GL33C.GL_RENDERBUFFER;
@@ -57,6 +58,16 @@ public final class GLResourceProvider extends ResourceProvider {
         } else {
             return GLTexture.make(mDevice, glImageDesc);
         }
+    }
+
+    @Nullable
+    @SharedPtr
+    @Override
+    protected Image onWrapBackendImage(@NonNull BackendImage backendImage) {
+        if (!(backendImage instanceof GLBackendImage glBackendImage)) {
+            return null;
+        }
+        return GLTexture.wrap(mDevice, glBackendImage);
     }
 
     @Nullable

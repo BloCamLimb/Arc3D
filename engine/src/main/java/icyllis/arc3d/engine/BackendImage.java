@@ -94,6 +94,10 @@ public abstract class BackendImage {
         return mDesc.isMipmapped();
     }
 
+    public final int getSampleCount() {
+        return mDesc.getSampleCount();
+    }
+
     public final int getMipLevelCount() {
         return mDesc.mMipLevelCount;
     }

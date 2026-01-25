@@ -240,6 +240,7 @@ public final class GLRenderbuffer extends GLImage {
 
     @Override
     protected void onRelease() {
+        super.onRelease();
         getDevice().executeRenderCall(dev -> {
             if (mRenderbuffer != 0) {
                 try (MemoryStack stack = MemoryStack.stackPush()) {
@@ -250,7 +251,6 @@ public final class GLRenderbuffer extends GLImage {
             }
             mRenderbuffer = 0;
         });
-        super.onRelease();
     }
 
     public int getHandle() {

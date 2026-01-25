@@ -38,16 +38,15 @@ import static org.lwjgl.system.MemoryUtil.memAddress;
 public final class GLTexture extends GLImage {
 
     private volatile int mHandle;
-    private final boolean mOwnership;
 
     // Constructor for instances created by ourselves.
     GLTexture(GLDevice device,
               GLImageDesc desc,
               GLTextureMutableState mutableState,
-              int handle) {
-        super(device, false, desc, mutableState);
+              int handle,
+              boolean wrapped) {
+        super(device, wrapped, desc, mutableState);
         assert (GLUtil.glFormatToImageFormat(desc.mGLFormat) != Engine.ImageFormat.kUnsupported);
-        mOwnership = true;
 
         mHandle = handle;
 
@@ -55,18 +54,20 @@ public final class GLTexture extends GLImage {
             mFlags |= ISurface.FLAG_READ_ONLY;
         }
 
-        getGLMutableState().mMaxMipmapLevel = getMipLevelCount() - 1;
+        if (!wrapped) {
+            getGLMutableState().mMaxMipmapLevel = getMipLevelCount() - 1;
 
-        if (mHandle == 0) {
-            getDevice().recordRenderCall(dev -> {
-                if (isDestroyed()) {
-                    return;
-                }
-                mHandle = internalCreateTexture(dev, getGLDesc());
-                if (mHandle == 0) {
-                    setNonCacheable();
-                }
-            });
+            if (mHandle == 0) {
+                getDevice().recordRenderCall(dev -> {
+                    if (isDestroyed()) {
+                        return;
+                    }
+                    mHandle = internalCreateTexture(dev, getGLDesc());
+                    if (mHandle == 0) {
+                        setNonCacheable();
+                    }
+                });
+            }
         }
     }
 
@@ -109,7 +110,20 @@ public final class GLTexture extends GLImage {
         }
         return new GLTexture(device, desc,
                 new GLTextureMutableState(),
-                handle);
+                handle, false);
+    }
+
+    @Nullable
+    @SharedPtr
+    public static GLTexture wrap(GLDevice device,
+                                 GLBackendImage backendImage) {
+        int handle = backendImage.handle;
+        if (handle == 0) {
+            return null;
+        }
+        return new GLTexture(device, backendImage.getGLImageInfo(),
+                (GLTextureMutableState) backendImage.getMutableState(),
+                handle, true);
     }
 
     static int internalCreateTexture(GLDevice device, GLImageDesc desc) {
@@ -242,7 +256,8 @@ public final class GLTexture extends GLImage {
 
     @Override
     protected void onRelease() {
-        if (mOwnership) {
+        super.onRelease();
+        if (!isWrapped()) {
             getDevice().executeRenderCall(dev -> {
                 if (mHandle != 0) {
                     try (MemoryStack stack = MemoryStack.stackPush()) {
@@ -265,7 +280,6 @@ public final class GLTexture extends GLImage {
                 } // Linux transfers the fd
             }*/
         }
-        super.onRelease();
     }
 
     @Override
@@ -274,7 +288,6 @@ public final class GLTexture extends GLImage {
                 "mDesc=" + getDesc() +
                 ", mHandle=" + mHandle +
                 ", mDestroyed=" + isDestroyed() +
-                ", mOwnership=" + mOwnership +
                 ", mLabel=" + getLabel() +
                 ", mMemorySize=" + getMemorySize() +
                 '}';

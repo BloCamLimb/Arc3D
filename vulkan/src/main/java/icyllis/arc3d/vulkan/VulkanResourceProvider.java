@@ -23,6 +23,7 @@ import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.RefCnt;
 import icyllis.arc3d.core.SharedPtr;
 import icyllis.arc3d.engine.*;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -48,12 +49,23 @@ public final class VulkanResourceProvider extends ResourceProvider {
     }
 
     @Nullable
+    @SharedPtr
     @Override
     protected Image onCreateNewImage(ImageDesc desc) {
         if (!(desc instanceof VulkanImageDesc vulkanImageDesc)) {
             return null;
         }
         return VulkanImage.make(mDevice, vulkanImageDesc);
+    }
+
+    @Nullable
+    @SharedPtr
+    @Override
+    protected Image onWrapBackendImage(@NonNull BackendImage backendImage) {
+        if (!(backendImage instanceof VulkanBackendImage vulkanBackendImage)) {
+            return null;
+        }
+        return VulkanImage.wrap(mDevice, vulkanBackendImage);
     }
 
     @Nullable

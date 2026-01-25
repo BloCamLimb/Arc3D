@@ -326,6 +326,23 @@ public abstract class ResourceProvider {
         return findAndRefScratchImage(key, budgeted, shareable, label);
     }
 
+    @Nullable
+    @SharedPtr
+    public final Image wrapBackendImage(@NonNull BackendImage backendImage,
+                                        @Nullable String label) {
+        Image image = onWrapBackendImage(backendImage);
+        if (image != null) {
+            if (label != null) {
+                image.setLabel(label);
+            }
+        }
+        return image;
+    }
+
+    @Nullable
+    @SharedPtr
+    protected abstract Image onWrapBackendImage(@NonNull BackendImage backendImage);
+
     ///////////////////////////////////////////////////////////////////////////
     // Textures
 

@@ -25,6 +25,7 @@ import icyllis.arc3d.core.Rect2i;
 import icyllis.arc3d.core.Rect2ic;
 import icyllis.arc3d.core.RefCnt;
 import icyllis.arc3d.core.SharedPtr;
+import icyllis.arc3d.engine.BackendImage;
 import icyllis.arc3d.engine.Engine;
 import icyllis.arc3d.engine.ImageProxy;
 import icyllis.arc3d.engine.ImageProxyView;
@@ -131,6 +132,70 @@ public final class GraniteSurface extends Surface {
         // create non-budgeted, exact-fit device
         return make(context, info, false, mipmapped, true,
                 surfaceOrigin, label);
+    }
+
+    @Nullable
+    @SharedPtr
+    public static GraniteSurface wrapBackendImage(RecordingContext context,
+                                                  BackendImage backendImage,
+                                                  @NonNull ImageInfo info,
+                                                  int surfaceOrigin,
+                                                  @Nullable Runnable releaseFn,
+                                                  @Nullable String label) {
+        try {
+            if (context == null) {
+                return null;
+            }
+
+            if (backendImage == null || !info.isValid()) {
+                return null;
+            }
+            if (info.width() != backendImage.getWidth() ||
+                    info.height() != backendImage.getHeight()) {
+                return null;
+            }
+
+            if (!context.getCaps().isRenderableFormat(info.colorType(),
+                    backendImage.getImageFormat(), backendImage.getSampleCount(), false)) {
+                return null;
+            }
+
+            if (label == null) {
+                label = "SurfaceWrappedImage";
+            }
+
+            @SharedPtr
+            icyllis.arc3d.engine.Image image = context.getResourceProvider().wrapBackendImage(backendImage, label);
+            if (image == null) {
+                return null;
+            }
+
+            image.setReleaseCallback(releaseFn);
+            releaseFn = null;
+
+            @SharedPtr
+            ImageProxy proxy = ImageProxy.wrap(image); // move
+
+            short readSwizzle = context.getCaps().getReadSwizzle(
+                    info.colorType(), image.getDesc());
+
+            @SharedPtr
+            ImageProxyView view = new ImageProxyView(proxy, surfaceOrigin, readSwizzle); // move
+
+            GraniteDevice device = GraniteDevice.make(
+                    context, view, // move
+                    info, Engine.LoadOp.kLoad,
+                    true
+            );
+            if (device == null) {
+                return null;
+            }
+            return new GraniteSurface(device);
+        } finally {
+            if (releaseFn != null) {
+                releaseFn.run();
+            }
+        }
     }
 
     @Override

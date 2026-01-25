@@ -200,6 +200,23 @@ public final class VulkanImage extends Image {
                 false);
     }
 
+    @Nullable
+    @SharedPtr
+    public static VulkanImage wrap(@NonNull VulkanDevice device,
+                                   @NonNull VulkanBackendImage backendImage) {
+        long image = backendImage.getImage();
+        if (image == VK_NULL_HANDLE) {
+            return null;
+        }
+
+        return new VulkanImage(device,
+                (VulkanImageDesc) backendImage.getDesc(),
+                (VulkanImageMutableState) backendImage.getMutableState(),
+                image,
+                null,
+                true);
+    }
+
     @NativeType("VkImage")
     public long vkImage() {
         return mImage;
@@ -306,6 +323,7 @@ public final class VulkanImage extends Image {
 
     @Override
     protected void onRelease() {
+        super.onRelease();
         mTextureView = RefCnt.move(mTextureView);
         mImageViews.forEach(RefCnt::unref);
         mImageViews.clear();

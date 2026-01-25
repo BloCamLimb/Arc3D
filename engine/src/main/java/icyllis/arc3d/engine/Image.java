@@ -22,6 +22,7 @@ package icyllis.arc3d.engine;
 import icyllis.arc3d.core.RefCnt;
 import icyllis.arc3d.core.SharedPtr;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents GPU image resources, which may be 2D or 3D. This class also represents a
@@ -53,8 +54,7 @@ public abstract class Image extends Resource {
      */
     private boolean mMipmapsDirty;
 
-    @SharedPtr
-    private ReleaseCallback mReleaseCallback;
+    private Runnable mReleaseCallback;
 
     protected Image(Device device,
                     boolean wrapped,
@@ -251,14 +251,14 @@ public abstract class Image extends Resource {
      * Unmanaged backends (e.g. Vulkan) may want to specially handle the release proc in order to
      * ensure it isn't called until GPU work related to the resource is completed.
      */
-    public void setReleaseCallback(@SharedPtr ReleaseCallback callback) {
-        mReleaseCallback = RefCnt.move(mReleaseCallback, callback);
+    public void setReleaseCallback(@Nullable Runnable callback) {
+        mReleaseCallback = callback;
     }
 
     @Override
     protected void onRelease() {
         if (mReleaseCallback != null) {
-            mReleaseCallback.unref();
+            mReleaseCallback.run();
         }
         mReleaseCallback = null;
     }

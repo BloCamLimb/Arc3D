@@ -33,19 +33,10 @@ import static icyllis.arc3d.engine.Engine.*;
  */
 public final class GLBackendImage extends BackendImage {
 
-    private final GLImageDesc mInfo;
-    // Null for renderbuffers.
-    final GLTextureMutableState mParams;
-
     /**
      * <code>GLuint</code> - image name
      */
     public int handle;
-
-    /**
-     * <code>GLsizei</code> - number of mip levels
-     */
-    public int levels = 0;
 
     /**
      * <code>GLuint</code> - memory
@@ -61,23 +52,13 @@ public final class GLBackendImage extends BackendImage {
      */
     public long memoryHandle = -1;
 
-    private final BackendFormat mBackendFormat;
-
     // The GLTextureInfo must have a valid mFormat, can NOT be modified anymore.
-    public GLBackendImage(int width, int height, GLImageDesc desc) {
-        this(width, height, desc, new GLTextureMutableState(), GLBackendFormat.make(desc.mGLFormat));
+    public GLBackendImage(int handle, GLImageDesc desc, GLTextureMutableState mutableState) {
+        super(desc, mutableState);
         assert desc.mGLFormat != 0;
+        this.handle = handle;
         // Make no assumptions about client's texture's parameters.
         glTextureParametersModified();
-    }
-
-    // Internally used by GLContext and GLTexture
-    GLBackendImage(int width, int height, GLImageDesc desc,
-                   GLTextureMutableState params, BackendFormat backendFormat) {
-        super(desc, params);
-        mInfo = desc;
-        mParams = params;
-        mBackendFormat = backendFormat;
     }
 
     @Override
@@ -87,7 +68,7 @@ public final class GLBackendImage extends BackendImage {
 
     @Override
     public boolean isExternal() {
-        return mBackendFormat.isExternal();
+        return false;
     }
 
     /*
@@ -98,13 +79,14 @@ public final class GLBackendImage extends BackendImage {
     }*/
 
     public GLImageDesc getGLImageInfo() {
-        return mInfo;
+        return (GLImageDesc) getDesc();
     }
 
     @Override
     public void glTextureParametersModified() {
-        if (mParams != null) {
-            mParams.invalidate();
+        var params = (GLTextureMutableState)getMutableState();
+        if (params != null) {
+            params.invalidate();
         }
     }
 
@@ -127,7 +109,7 @@ public final class GLBackendImage extends BackendImage {
         return false;
     }
 
-    @Override
+    /*@Override
     public String toString() {
         return "{" +
                 "mBackend=OpenGL" +
@@ -135,5 +117,5 @@ public final class GLBackendImage extends BackendImage {
                 ", mParams=" + mParams +
                 ", mBackendFormat=" + mBackendFormat +
                 '}';
-    }
+    }*/
 }
