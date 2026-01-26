@@ -144,7 +144,11 @@ public final class GLUtil {
         NVIDIA,
         ATI,
         INTEL,
-        QUALCOMM
+        QUALCOMM,
+        ARM,
+        APPLE,
+        GOOGLE,
+        IMAGINATION
     }
 
     /**
@@ -153,19 +157,35 @@ public final class GLUtil {
     public enum GLDriver {
         OTHER,
         NVIDIA,
-        AMD,
         INTEL,
+        QUALCOMM,
         FREEDRENO,
-        MESA
+        MESA,
+        APPLE,
+        IMAGINATION
     }
 
     public static GLVendor findVendor(String vendorString) {
         Objects.requireNonNull(vendorString);
-        if (vendorString.equals("NVIDIA Corporation")) {
-            return GLVendor.NVIDIA;
-        }
-        if (vendorString.equals("ATI Technologies Inc.")) {
-            return GLVendor.ATI;
+        switch (vendorString) {
+            case "NVIDIA Corporation" -> {
+                return GLVendor.NVIDIA;
+            }
+            case "ATI Technologies Inc." -> {
+                return GLVendor.ATI;
+            }
+            case "ARM" -> {
+                return GLVendor.ARM;
+            }
+            case "Google Inc." -> {
+                return GLVendor.GOOGLE;
+            }
+            case "Imagination Technologies" -> {
+                return GLVendor.IMAGINATION;
+            }
+            case "Apple" -> {
+                return GLVendor.APPLE;
+            }
         }
         if (vendorString.startsWith("Intel ") || vendorString.equals("Intel")) {
             return GLVendor.INTEL;
@@ -178,26 +198,48 @@ public final class GLUtil {
 
     public static GLDriver findDriver(GLVendor vendor,
                                       String vendorString,
-                                      String versionString) {
+                                      String versionString,
+                                      boolean isGLES) {
         Objects.requireNonNull(vendorString);
-        if (vendorString.equals("freedreno")) {
+        if ("freedreno".equals(vendorString)) {
             return GLDriver.FREEDRENO;
         }
         if (vendor == GLVendor.NVIDIA) {
             return GLDriver.NVIDIA;
         }
-        {
+        if (!isGLES) {
             var matcher = Pattern.compile("\\d+\\.\\d+( \\(Core Profile\\))? Mesa \\d+\\.\\d+")
                     .matcher(versionString);
             if (matcher.find()) {
                 return GLDriver.MESA;
             }
-        }
-        if (vendor == GLVendor.ATI) {
-            return GLDriver.AMD;
+        } else {
+            if (vendor == GLVendor.IMAGINATION) {
+                var matcher = Pattern.compile("OpenGL ES \\d+\\.\\d+ build \\d+\\.\\d+@\\d+")
+                        .matcher(versionString);
+                if (matcher.find()) {
+                    return GLDriver.IMAGINATION;
+                }
+            } else {
+                var matcher = Pattern.compile("OpenGL ES \\d+\\.\\d+ Mesa \\d+\\.\\d+")
+                        .matcher(versionString);
+                if (matcher.find()) {
+                    return GLDriver.MESA;
+                }
+            }
         }
         if (vendor == GLVendor.INTEL) {
             return GLDriver.INTEL;
+        }
+        if (vendor == GLVendor.QUALCOMM) {
+            return GLDriver.QUALCOMM;
+        }
+        if (vendor == GLVendor.APPLE) {
+            var matcher = Pattern.compile("\\d+\\.\\d+ Metal - \\d+")
+                    .matcher(versionString);
+            if (matcher.find()) {
+                return GLDriver.APPLE;
+            }
         }
         return GLDriver.OTHER;
     }

@@ -163,7 +163,7 @@ public final class GLCaps_GL extends GLCaps {
         String versionString = glGetString(GL_VERSION);
         String vendorString = glGetString(GL_VENDOR);
         mVendor = GLUtil.findVendor(vendorString);
-        mDriver = GLUtil.findDriver(mVendor, vendorString, versionString);
+        mDriver = GLUtil.findDriver(mVendor, vendorString, versionString, false);
 
         // macOS supports this
         if (caps.OpenGL41 || caps.GL_ARB_ES2_compatibility) {
@@ -204,6 +204,11 @@ public final class GLCaps_GL extends GLCaps {
         } else {
             mMaxLabelLength = 0;
         }
+
+        // We found that omitting the fragment shader on the AppleMetalOpenGLRenderer causes depth writes
+        // to be discarded. This can be resolved by providing a dummy FS, a behavior we have not observed
+        // with other vendors.
+        mMustHaveFragmentShader = (mVendor == GLUtil.GLVendor.APPLE);
 
         ShaderCaps shaderCaps = mShaderCaps;
         // target API is just for validation
@@ -299,6 +304,7 @@ public final class GLCaps_GL extends GLCaps {
         }
         if (mShaderBinarySupport &&
                 (caps.OpenGL46 || caps.GL_ARB_gl_spirv) &&
+                !mMustHaveFragmentShader &&
                 options.mAllowGLSPIRV) {
             int count = GL11C.glGetInteger(GL_NUM_SHADER_BINARY_FORMATS);
             if (count > 0) {

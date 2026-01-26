@@ -139,8 +139,10 @@ public class GLGraphicsPipelineBuilder {
                     success = false;
                 }
             }
-        } else if (mDevice.getCaps().isGLES()) {
-            // OpenGL ES requires both a vertex shader and fragment shader, create a simple shader
+        } else if (mDevice.getCaps().mustHaveFragmentShader()) {
+            // OpenGL ES requires both a vertex shader and fragment shader;
+            // On macOS, we also require this to work around a driver bug;
+            assert !mDevice.getCaps().hasSPIRVSupport(); // neither of them supports SPIR-V
             String trivialFragGLSL = shaderCaps.mGLSLVersion.mVersionDecl + """
                     void main() {
                     }

@@ -112,7 +112,7 @@ public final class GLCaps_GLES extends GLCaps {
         String versionString = GLES20.glGetString(GL_VERSION);
         String vendorString = GLES20.glGetString(GL_VENDOR);
         mVendor = GLUtil.findVendor(vendorString);
-        mDriver = GLUtil.findDriver(mVendor, vendorString, versionString);
+        mDriver = GLUtil.findDriver(mVendor, vendorString, versionString, true);
         logger.info("Identified OpenGL vendor: {}", mVendor);
         logger.info("Identified OpenGL driver: {}", mDriver);
 
@@ -132,6 +132,9 @@ public final class GLCaps_GLES extends GLCaps {
         } else {
             mMaxLabelLength = 0;
         }
+
+        // By OpenGL ES spec, fragment shader must be present to form a complete pipeline
+        mMustHaveFragmentShader = true;
 
         ShaderCaps shaderCaps = mShaderCaps;
         // target API is just for validation
