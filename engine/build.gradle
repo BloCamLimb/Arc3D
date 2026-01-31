@@ -8,3 +8,65 @@ dependencies {
     api "org.slf4j:slf4j-api:${slf4j_version}"
     testImplementation "org.slf4j:slf4j-simple:${slf4j_version}"
 }
+
+publishing {
+    def lwjglVersion = getProperty('lwjgl_version')
+    publications {
+        mavenEngine(MavenPublication) {
+            artifact tasks.named('jar')
+            artifact tasks.named('sourcesJar')
+            artifactId = project.name
+            groupId = project.group
+            version = project.version
+
+            pom {
+                artifactId = project.name
+                groupId = project.group
+                version = project.version
+                name = 'Arc3D Engine'
+                packaging = 'pom'
+                scm {
+                    url = 'https://github.com/BloCamLimb/Arc3D.git'
+                }
+                issueManagement {
+                    system = 'github'
+                    url = 'https://github.com/BloCamLimb/Arc3D/issues'
+                }
+                licenses {
+                    license {
+                        name = 'LGPL-3.0-or-later'
+                        url = 'https://www.gnu.org/licenses/lgpl-3.0.en.html'
+                        distribution = 'repo'
+                    }
+                }
+                withXml {
+                    def dependenciesNode = asNode().appendNode('dependencies')
+                    configurations.implementation.allDependencies.each {
+                        if (it.group == 'org.lwjgl') return
+                        def dependencyNode = dependenciesNode.appendNode('dependency')
+                        dependencyNode.appendNode('groupId', it.group)
+                        dependencyNode.appendNode('artifactId', it.name)
+                        dependencyNode.appendNode('version', it.version)
+                        dependencyNode.appendNode('scope', 'compile')
+                    }
+                    configurations.compileOnly.allDependencies.each {
+                        if (it.group == 'org.lwjgl') return
+                        def dependencyNode = dependenciesNode.appendNode('dependency')
+                        dependencyNode.appendNode('groupId', it.group)
+                        dependencyNode.appendNode('artifactId', it.name)
+                        dependencyNode.appendNode('version', it.version)
+                        dependencyNode.appendNode('scope', 'provided')
+                    }
+                    configurations.runtimeOnly.allDependencies.each {
+                        if (it.group == 'org.lwjgl') return
+                        def dependencyNode = dependenciesNode.appendNode('dependency')
+                        dependencyNode.appendNode('groupId', it.group)
+                        dependencyNode.appendNode('artifactId', it.name)
+                        dependencyNode.appendNode('version', it.version)
+                        dependencyNode.appendNode('scope', 'runtime')
+                    }
+                }
+            }
+        }
+    }
+}
