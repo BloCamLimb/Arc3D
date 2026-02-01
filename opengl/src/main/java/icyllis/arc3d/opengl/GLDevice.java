@@ -699,8 +699,8 @@ public final class GLDevice extends Device {
             return false;
         }
         GLTexture glTexture = (GLTexture) image;
-        int glFormat = glTexture.getGLFormat();
-        assert (mCaps.isFormatTexturable(glFormat));
+        int format = glTexture.getImageFormat();
+        assert (mCaps.isFormatTexturable(format));
 
         int target = glTexture.getTarget();
         if (target == GL_RENDERBUFFER) {
@@ -708,13 +708,13 @@ public final class GLDevice extends Device {
         }
 
         int srcFormat = mCaps.getPixelsExternalFormat(
-                glFormat, /*write*/true
+                format, /*write*/true
         );
         if (srcFormat == 0) {
             return false;
         }
         int srcType = mCaps.getPixelsExternalType(
-                glFormat
+                format
         );
         if (srcType == 0) {
             return false;
