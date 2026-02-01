@@ -98,7 +98,7 @@ public class VulkanGraphicsPipelineBuilder {
                     VulkanGraphicsPipelineBuilder builder = new VulkanGraphicsPipelineBuilder(device, pipelineDesc, renderPassDesc);
                     builder.build();
                     return builder;
-                }));
+                }, device.getOptions().mPipelineCompilationExecutor));
     }
 
     // 3.3.1 Object Lifetime

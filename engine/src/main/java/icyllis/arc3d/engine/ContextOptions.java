@@ -22,6 +22,9 @@ package icyllis.arc3d.engine;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
+
 /**
  * Holds the options for creating a {@link ImmediateContext}, all fields should remain unchanged
  * after creating the context.
@@ -162,6 +165,11 @@ public final class ContextOptions {
      * Max number of frames in-flight.
      */
     public int mMaxFramesInflight = 2;
+
+    /**
+     * An executor used for pipeline compilation in background. May not be null.
+     */
+    public Executor mPipelineCompilationExecutor = ForkJoinPool.commonPool();
 
     public DriverBugWorkarounds mDriverBugWorkarounds;
 

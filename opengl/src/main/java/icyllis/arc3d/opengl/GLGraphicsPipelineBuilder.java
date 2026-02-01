@@ -86,7 +86,7 @@ public class GLGraphicsPipelineBuilder {
                     GLGraphicsPipelineBuilder builder = new GLGraphicsPipelineBuilder(device, pipelineDesc, renderPassDesc);
                     builder.build();
                     return builder;
-                }));
+                }, device.getOptions().mPipelineCompilationExecutor));
     }
 
     private void build() {
