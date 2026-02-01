@@ -1,16 +1,26 @@
 # Arc3D
-Arc3D is a modern graphics engine, which is written purely in Java 17 and based on LWJGL 3.3.3
+Arc3D is a modern graphics engine, which is written purely in Java 17 and based on LWJGL 3.3.6  
 
-### Components
-#### Compiler
-A compiler that compiles shaders written in Arc3D shading language into SPIR-V 1.0+, GLSL 3.30+,
-and ESSL 3.00+, it is 6 to 70 times faster than glslang/shaderc/glslc.
-#### Others are not listed
+Compatible with headless JDK builds.  
+Compatible with LWJGL from 3.3.1 to 3.3.6.
+
+At runtime, Java 21 or above is recommended.
+
+If you're looking for a framework that already fully integrates Arc3D, check out
+[ModernUI](https://github.com/BloCamLimb/ModernUI).
 
 ### Dependencies
-Arc3D depends on LWJGL (OpenGL binding, Vulkan binding, Vulkan Memory Allocator), fastutil, and SLF4J API,
-no other dependencies.
+* fastutil
 
-### Progress/Plan
-Currently, Arc3D is used for [ModernUI](https://github.com/BloCamLimb/ModernUI).
-You have to read the source code to find more.
+If arc3d-core is used, the following LWJGL modules are needed:
+* lwjgl (core)
+
+If arc3d-engine is used, at least one of the following to provide 3D API binding:
++ lwjgl-opengl
++ lwjgl-opengles
++ lwjgl-vulkan, lwjgl-vma
+
+
+### Copyright Notice
+This project is licensed under LGPL-3.0-or-later.  
+Additional copyright notice are included in the header of specific files.
