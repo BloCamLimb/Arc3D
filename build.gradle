@@ -44,7 +44,7 @@ subprojects {
     version = "${arc3d_version}"
     group = 'icyllis.arc3d'
 
-    java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+    java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
     repositories {
         mavenCentral()

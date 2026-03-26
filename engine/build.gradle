@@ -9,6 +9,10 @@ dependencies {
     testImplementation "org.slf4j:slf4j-simple:${slf4j_version}"
 }
 
+test {
+    failOnNoDiscoveredTests = false
+}
+
 publishing {
     def lwjglVersion = getProperty('lwjgl_version')
     publications {

@@ -32,8 +32,6 @@ public final class Analysis {
      */
     public static boolean isCompileTimeConstant(Expression expr) {
         class IsCompileTimeConstantVisitor extends TreeVisitor {
-            static final IsCompileTimeConstantVisitor visitor = new IsCompileTimeConstantVisitor();
-
             @Override
             public boolean visitExpression(@NonNull Expression expr) {
                 return switch (expr.getKind()) {
@@ -57,7 +55,7 @@ public final class Analysis {
                 };
             }
         }
-        return !expr.accept(IsCompileTimeConstantVisitor.visitor);
+        return !expr.accept(new IsCompileTimeConstantVisitor());
     }
 
     public static boolean updateVariableRefKind(Expression expr, int refKind) {

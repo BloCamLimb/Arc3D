@@ -2,14 +2,20 @@ repositories {
     mavenCentral()
 }
 
+test {
+    failOnNoDiscoveredTests = false
+}
+
 dependencies {
     api project(':arc3d-engine')
+    api "org.lwjgl:lwjgl-vulkan"
     implementation "org.lwjgl:lwjgl-vma"
-    implementation "org.lwjgl:lwjgl-vulkan"
     runtimeOnly "org.lwjgl:lwjgl-vma::${rootProject.ext.lwjglNatives}"
     if (rootProject.ext.lwjglNatives == "natives-macos" || rootProject.ext.lwjglNatives == "natives-macos-arm64") {
         runtimeOnly "org.lwjgl:lwjgl-vulkan::${rootProject.ext.lwjglNatives}"
     }
+
+    testImplementation "org.slf4j:slf4j-simple:${slf4j_version}"
 
     testImplementation "org.lwjgl:lwjgl-glfw"
     testImplementation "org.lwjgl:lwjgl-stb"

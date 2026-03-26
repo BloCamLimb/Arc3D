@@ -15,6 +15,10 @@ dependencies {
     testRuntimeOnly "org.lwjgl:lwjgl-stb::${rootProject.ext.lwjglNatives}"
 }
 
+test {
+    failOnNoDiscoveredTests = false
+}
+
 publishing {
     def lwjglVersion = getProperty('lwjgl_version')
     publications {
