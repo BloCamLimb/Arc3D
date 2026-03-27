@@ -123,8 +123,10 @@ public class CoverBoundsStep extends GeometryStep {
             MemoryUtil.memPutFloat(instanceData + 12, solidColor[3]);
         } else {
             // 0.0F is 0s
-            MemoryUtil.memPutLong(instanceData, 0);
-            MemoryUtil.memPutLong(instanceData + 8, 0);
+            MemoryUtil.memPutInt(instanceData, 0);
+            MemoryUtil.memPutInt(instanceData + 4, 0);
+            MemoryUtil.memPutInt(instanceData + 8, 0);
+            MemoryUtil.memPutInt(instanceData + 12, 0);
         }
         if (draw.mInverseFill) {
             var bounds = draw.mScissorRect;
