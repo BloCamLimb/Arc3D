@@ -19,9 +19,9 @@
 
 package icyllis.arc3d.core;
 
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
-import org.lwjgl.system.MemoryUtil;
 import org.lwjgl.system.libc.LibCString;
 
 import java.nio.ByteOrder;
@@ -31,26 +31,48 @@ import java.nio.ByteOrder;
  */
 public class PixelUtils {
 
-    static final sun.misc.Unsafe UNSAFE = getUnsafe();
+    // We know that memory access methods in Unsafe are deprecated for removal since Java 23,
+    // but LWJGL 3.4's MemoryUtil may not trigger JIT optimized path at different callsites.
+    // We'll continue using Unsafe for now until it's completely removed.
+    // And then switch to MemorySegment.
+    @Deprecated
+    @ApiStatus.Internal
+    public static final sun.misc.Unsafe UNSAFE = getUnsafe();
 
     // we assume little-endian and do conversion if we're on big-endian machines
     public static final boolean NATIVE_BIG_ENDIAN =
             (false);
 
     static {
+        // our engine assumes little host endianness everywhere,
+        // in addition, lwjgl does not support big endian machines at all
         if ((ByteOrder.nativeOrder() == ByteOrder.BIG_ENDIAN)) {
-            throw new RuntimeException("Not built for BIG_ENDIAN");
+            throw new UnsupportedOperationException("Not built for BIG_ENDIAN");
         }
     }
 
     private static sun.misc.Unsafe getUnsafe() {
-        try {
-            var field = MemoryUtil.class.getDeclaredField("UNSAFE");
-            field.setAccessible(true);
-            return (sun.misc.Unsafe) field.get(null);
-        } catch (Exception e) {
-            throw new AssertionError("No MemoryUtil.UNSAFE", e);
+        java.lang.reflect.Field[] fields = sun.misc.Unsafe.class.getDeclaredFields();
+
+        for (java.lang.reflect.Field field : fields) {
+            if (!field.getType().equals(sun.misc.Unsafe.class)) {
+                continue;
+            }
+
+            int modifiers = field.getModifiers();
+            if (!(java.lang.reflect.Modifier.isStatic(modifiers) && java.lang.reflect.Modifier.isFinal(modifiers))) {
+                continue;
+            }
+
+            try {
+                field.setAccessible(true);
+                return (sun.misc.Unsafe) field.get(null);
+            } catch (Exception e) {
+                throw new AssertionError("No sun.misc.Unsafe", e);
+            }
         }
+
+        throw new AssertionError("No sun.misc.Unsafe");
     }
 
     /**
