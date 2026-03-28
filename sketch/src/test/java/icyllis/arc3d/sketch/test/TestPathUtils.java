@@ -25,6 +25,7 @@ import icyllis.arc3d.sketch.PathConsumer;
 import javax.imageio.ImageIO;
 import java.awt.BasicStroke;
 import java.awt.RenderingHints;
+import java.awt.geom.PathIterator;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -62,8 +63,28 @@ public class TestPathUtils {
         }
     };
 
-    public static void writePath(Path src, boolean stroke, String outName) {
-        var image = new BufferedImage(256, 256, BufferedImage.TYPE_BYTE_GRAY);
+    public static void print(java.awt.Shape src) {
+        float[] coords = new float[6];
+        var iter = src.getPathIterator(null);
+        while (!iter.isDone()) {
+            switch (iter.currentSegment(coords)) {
+                case PathIterator.SEG_MOVETO ->
+                        PRINTER.moveTo(coords[0], coords[1]);
+                case PathIterator.SEG_LINETO ->
+                        PRINTER.lineTo(coords[0], coords[1]);
+                case PathIterator.SEG_QUADTO ->
+                        PRINTER.quadTo(coords[0], coords[1], coords[2], coords[3]);
+                case PathIterator.SEG_CUBICTO ->
+                        PRINTER.cubicTo(coords[0], coords[1], coords[2], coords[3], coords[4], coords[5]);
+                case PathIterator.SEG_CLOSE ->
+                        PRINTER.close();
+            }
+            iter.next();
+        }
+    }
+
+    public static void writePath(java.awt.Shape src, boolean stroke, String outName) {
+        var image = new BufferedImage(256, 512, BufferedImage.TYPE_BYTE_GRAY);
         var graphics = image.createGraphics();
         graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
                 RenderingHints.VALUE_ANTIALIAS_ON);

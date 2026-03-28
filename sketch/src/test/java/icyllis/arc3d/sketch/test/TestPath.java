@@ -19,25 +19,39 @@
 
 package icyllis.arc3d.sketch.test;
 
+import icyllis.arc3d.sketch.AnalyticSDFGenerator;
 import icyllis.arc3d.sketch.Paint;
 import icyllis.arc3d.sketch.Path;
 import icyllis.arc3d.sketch.PathBuilder;
 import icyllis.arc3d.sketch.PathStroker;
 import icyllis.arc3d.sketch.StrokeRec;
 
+import javax.imageio.ImageIO;
 import java.awt.BasicStroke;
+import java.awt.Font;
+import java.awt.Rectangle;
+import java.awt.font.FontRenderContext;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Area;
+import java.awt.geom.Path2D;
+import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferByte;
+import java.io.File;
+import java.io.IOException;
 
 public class TestPath {
 
     public static void main(String[] args) {
         Path src = new PathBuilder()
-                .moveTo(100, 120)
+                .moveTo(170, 120)
                 .lineTo(130, 160)
                 .lineTo(100, 200)
                 .lineTo(180, 140)
                 .lineTo(170, 130)
                 .lineTo(170, 120)
-                .cubicTo(160, 130, 120, 100, 190, 60)
+                .quadTo(/*160, 130, */120, 100, 190, 60)
+                .close()
                 .build();
         System.out.println("Src path:");
         src.forEach(TestPathUtils.PRINTER);
@@ -49,6 +63,56 @@ public class TestPath {
         result = testRoundJoin2(src);
         TestPathUtils.writePath(result, true, "run/test_path_stroke_round_join2.png");
         System.out.println("Empty path bytes: " + new Path().estimatedByteSize());
+
+        try {
+            Font font = new Font("Microsoft YaHei UI", Font.PLAIN, 1);
+            font = font.deriveFont(32f);
+
+            var gv = font.layoutGlyphVector(new FontRenderContext(null, true, true),
+                    new char[]{'♂'}, 0, 1, Font.LAYOUT_LEFT_TO_RIGHT);
+            testSDF(gv.getOutline(), 6);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void testSDF(java.awt.Shape path, float scale) {
+        Rectangle2D bounds = path.getBounds2D();
+        float dx = (float) Math.floor(bounds.getX() * scale);
+        float dy = (float) Math.floor(bounds.getY() * scale);
+        bounds.setRect(bounds.getX() * scale - dx, bounds.getY() * scale - dy, bounds.getWidth() * scale, bounds.getHeight() * scale);
+
+        AffineTransform drawMatrix = AffineTransform.getTranslateInstance(-dx, -dy);
+        drawMatrix.scale(scale, scale);
+        drawMatrix.preConcatenate(AffineTransform.getTranslateInstance(
+                AnalyticSDFGenerator.SK_DistanceFieldPad, AnalyticSDFGenerator.SK_DistanceFieldPad
+        ));
+        Rectangle devBounds = bounds.getBounds();
+        Path2D.Float devPath = new Path2D.Float(path, drawMatrix);
+        assert devBounds.x == 0 && devBounds.y == 0;
+
+        int width = devBounds.width + 2 * AnalyticSDFGenerator.SK_DistanceFieldPad;
+        int height = devBounds.height + 2 * AnalyticSDFGenerator.SK_DistanceFieldPad;
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
+        byte[] sdf = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
+
+        Area processed = new Area(devPath);
+        System.out.println("Processed path");
+        TestPathUtils.print(processed);
+        TestPathUtils.writePath(processed, true, "run/test_path_preprocessed.png");
+
+
+        AnalyticSDFGenerator.generateDistanceFieldFromPath(
+                sdf, 0, processed, false,
+                width, height, width, new AnalyticSDFGenerator.Scratch()
+        );
+
+        try {
+            ImageIO.write(image, "png", new File("run/test_distance_field_from_path.png"));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     /*public static Path testMiterJoin() {
@@ -95,7 +159,7 @@ public class TestPath {
 
     public static Path testRoundJoin2(Path src) {
         PathBuilder dst = new PathBuilder();
-        BasicStroke stroker = new BasicStroke(10, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 4);
+        BasicStroke stroker = new BasicStroke(10, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 4);
         var resultShape = stroker.createStrokedShape(src);
         StrokeRec.appendStrokedShape(resultShape, dst);
         var result = dst.build();
