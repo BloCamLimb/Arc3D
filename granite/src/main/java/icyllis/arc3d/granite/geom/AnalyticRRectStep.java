@@ -446,8 +446,10 @@ public class AnalyticRRectStep extends GeometryStep {
             memPutFloat(instanceData + 12, solidColor[3]);
         } else {
             // 0.0F is 0s
-            memPutLong(instanceData, 0);
-            memPutLong(instanceData + 8, 0);
+            memPutInt(instanceData, 0);
+            memPutInt(instanceData + 4, 0);
+            memPutInt(instanceData + 8, 0);
+            memPutInt(instanceData + 12, 0);
         }
 
         RRect shape = (RRect) draw.mGeometry;
