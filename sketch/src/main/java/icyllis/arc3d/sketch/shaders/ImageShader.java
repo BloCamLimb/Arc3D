@@ -39,32 +39,32 @@ public final class ImageShader extends RefCnt implements Shader {
     // If subset == (0,0,w,h) of the image, then no subset is applied. Subset will not be empty.
     public final Rect2f mSubset;
 
-    ImageShader(Image image, Rect2fc subset, int tileModeX, int tileModeY, SamplingOptions sampling) {
+    ImageShader(@NonNull Image image, @Nullable Rect2fc subset,
+                int tileModeX, int tileModeY, @NonNull SamplingOptions sampling) {
         mImage = image;
         mSampling = sampling;
         mTileModeX = tileModeX;
         mTileModeY = tileModeY;
-        mSubset = new Rect2f(subset);
+        mSubset = subset != null ? new Rect2f(subset)
+                : new Rect2f(0, 0, image.getWidth(), image.getHeight());
+        assert !mSubset.isEmpty();
     }
 
     @Nullable
     @SharedPtr
     public static Shader make(@SharedPtr Image image,
                               int tileModeX, int tileModeY,
-                              SamplingOptions sampling,
+                              @NonNull SamplingOptions sampling,
                               @Nullable Matrixc localMatrix) {
-        Rect2fc subset = image != null
-                ? new Rect2f(0, 0, image.getWidth(), image.getHeight())
-                : Rect2f.empty();
-        return makeSubset(image, subset, tileModeX, tileModeY, sampling, localMatrix);
+        return makeSubset(image, null, tileModeX, tileModeY, sampling, localMatrix);
     }
 
     @Nullable
     @SharedPtr
     public static Shader makeSubset(@SharedPtr Image image,
-                                    Rect2fc subset,
+                                    @Nullable Rect2fc subset,
                                     int tileModeX, int tileModeY,
-                                    SamplingOptions sampling,
+                                    @NonNull SamplingOptions sampling,
                                     @Nullable Matrixc localMatrix) {
         if (sampling.mUseCubic) {
             if (!(sampling.mCubicB >= 0 && sampling.mCubicB <= 1) || // also capture NaN
@@ -73,16 +73,18 @@ public final class ImageShader extends RefCnt implements Shader {
                 return null;
             }
         }
-        if (image == null || subset.isEmpty()) {
+        if (image == null || (subset != null && subset.isEmpty())) {
             RefCnt.move(image);
             return EmptyShader.INSTANCE;
         }
 
-        if (!(0 <= subset.left() && 0 <= subset.top() && // also capture NaN
-                image.getWidth() >= subset.right() &&
-                image.getHeight() >= subset.bottom())) {
-            image.unref();
-            return null;
+        if (subset != null) {
+            if (!(0 <= subset.left() && 0 <= subset.top() && // also capture NaN
+                    image.getWidth() >= subset.right() &&
+                    image.getHeight() >= subset.bottom())) {
+                image.unref();
+                return null;
+            }
         }
 
         @SharedPtr
