@@ -32,10 +32,13 @@ import java.nio.ByteOrder;
 public class PixelUtils {
 
     // We know that memory access methods in Unsafe are deprecated for removal since Java 23,
-    // but LWJGL 3.4's MemoryUtil may not trigger JIT optimized path at different callsites.
-    // We'll continue using Unsafe for now until it's completely removed.
-    // And then switch to MemorySegment.
-    @Deprecated
+    // but we observed severe performance regressions with MemorySegment in many scenarios.
+    // We'll continue using Unsafe for now until it's completely removed, and then
+    // switch to MemorySegment, or nio.Buffer (slower than Unsafe, but does not degrade excessively).
+    /**
+     * @hide
+     * @hidden
+     */
     @ApiStatus.Internal
     public static final sun.misc.Unsafe UNSAFE = getUnsafe();
 
@@ -68,11 +71,11 @@ public class PixelUtils {
                 field.setAccessible(true);
                 return (sun.misc.Unsafe) field.get(null);
             } catch (Exception e) {
-                throw new AssertionError("No sun.misc.Unsafe", e);
+                throw new UnsupportedOperationException("No sun.misc.Unsafe", e);
             }
         }
 
-        throw new AssertionError("No sun.misc.Unsafe");
+        throw new UnsupportedOperationException("No sun.misc.Unsafe");
     }
 
     /**

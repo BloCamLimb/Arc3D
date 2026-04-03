@@ -96,13 +96,13 @@ public class TestRectanglePacker {
         System.out.println("Algorithm Power Of Two:");
         packer5.print();
 
-        ImageIO.write(packer1.bm, "png", new File("rect_packer1.png"));
-        ImageIO.write(packer2.bm, "png", new File("rect_packer2.png"));
-        ImageIO.write(packer4.bm, "png", new File("rect_packer4.png"));
-        ImageIO.write(packer5.bm, "png", new File("rect_packer5.png"));
-        ImageIO.write(packer6.bm, "png", new File("rect_packer6.png"));
-        ImageIO.write(packer7.bm, "png", new File("rect_packer7.png"));
-        ImageIO.write(packer8.bm, "png", new File("rect_packer8.png"));
+        ImageIO.write(packer1.bm, "png", new File("run/rect_packer1.png"));
+        ImageIO.write(packer2.bm, "png", new File("run/rect_packer2.png"));
+        ImageIO.write(packer4.bm, "png", new File("run/rect_packer4.png"));
+        ImageIO.write(packer5.bm, "png", new File("run/rect_packer5.png"));
+        ImageIO.write(packer6.bm, "png", new File("run/rect_packer6.png"));
+        ImageIO.write(packer7.bm, "png", new File("run/rect_packer7.png"));
+        ImageIO.write(packer8.bm, "png", new File("run/rect_packer8.png"));
 
         packer6.free();
         packer7.free();
