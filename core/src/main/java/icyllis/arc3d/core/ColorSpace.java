@@ -1205,6 +1205,19 @@ public abstract class ColorSpace {
     @Size(min = 3)
     public abstract float @NonNull[] toXyz(@Size(min = 3) float @NonNull[] v);
 
+    /**
+     * Similar to {@link #toXyz}, but results are not clamped to {@link #getMinValue(int)} and
+     * {@link #getMaxValue(int)}.
+     *
+     * @param v An array of color components containing the color space's
+     *          color value to convert to XYZ, and large enough to hold
+     *          the resulting tristimulus XYZ values
+     * @return The array passed in parameter
+     * @see #toXyz(float[])
+     */
+    @Size(min = 3)
+    public abstract float @NonNull[] toXyzUnclamped(@Size(min = 3) float @NonNull[] v);
+
 
     /**
      * <p>Converts tristimulus values from the CIE XYZ space to this
@@ -1247,6 +1260,19 @@ public abstract class ColorSpace {
      */
     @Size(min = 3)
     public abstract float @NonNull[] fromXyz(@Size(min = 3) float @NonNull[] v);
+
+    /**
+     * Similar to {@link #fromXyz}, but results are not clamped to {@link #getMinValue(int)} and
+     * {@link #getMaxValue(int)}.
+     *
+     * @param v An array of color components containing the XYZ values
+     *          to convert from, and large enough to hold the number
+     *          of components of this color space's model
+     * @return The array passed in parameter
+     * @see #fromXyz(float[])
+     */
+    @Size(min = 3)
+    public abstract float @NonNull[] fromXyzUnclamped(@Size(min = 3) float @NonNull[] v);
 
     @Override
     public int hashCode() {
@@ -1874,12 +1900,22 @@ public abstract class ColorSpace {
             return v;
         }
 
+        @Override
+        public float @NonNull[] toXyzUnclamped(@Size(min = 3) float @NonNull[] v) {
+            return v;
+        }
+
 
         @Override
         public float @NonNull[] fromXyz(@Size(min = 3) float @NonNull[] v) {
             v[0] = MathUtil.clamp(v[0], -2.0f, 2.0f);
             v[1] = MathUtil.clamp(v[1], -2.0f, 2.0f);
             v[2] = MathUtil.clamp(v[2], -2.0f, 2.0f);
+            return v;
+        }
+
+        @Override
+        public float @NonNull[] fromXyzUnclamped(@Size(min = 3) float @NonNull[] v) {
             return v;
         }
     }
@@ -1936,6 +1972,21 @@ public abstract class ColorSpace {
             return v;
         }
 
+        @Override
+        public float @NonNull[] toXyzUnclamped(@Size(min = 3) float @NonNull[] v) {
+            float fy = (v[0] + 16.0f) / 116.0f;
+            float fx = fy + (v[1] * 0.002f);
+            float fz = fy - (v[2] * 0.005f);
+            float X = fx > D ? fx * fx * fx : (1.0f / B) * (fx - C);
+            float Y = fy > D ? fy * fy * fy : (1.0f / B) * (fy - C);
+            float Z = fz > D ? fz * fz * fz : (1.0f / B) * (fz - C);
+
+            v[0] = X * ILLUMINANT_D50_XYZ[0];
+            v[1] = Y * ILLUMINANT_D50_XYZ[1];
+            v[2] = Z * ILLUMINANT_D50_XYZ[2];
+
+            return v;
+        }
 
         @Override
         public float @NonNull[] fromXyz(@Size(min = 3) float @NonNull[] v) {
@@ -1954,6 +2005,27 @@ public abstract class ColorSpace {
             v[0] = MathUtil.clamp(L, 0.0f, 100.0f);
             v[1] = MathUtil.clamp(a, -128.0f, 128.0f);
             v[2] = MathUtil.clamp(b, -128.0f, 128.0f);
+
+            return v;
+        }
+
+        @Override
+        public float @NonNull[] fromXyzUnclamped(@Size(min = 3) float @NonNull[] v) {
+            float X = v[0] / ILLUMINANT_D50_XYZ[0];
+            float Y = v[1] / ILLUMINANT_D50_XYZ[1];
+            float Z = v[2] / ILLUMINANT_D50_XYZ[2];
+
+            float fx = X > A ? (float) Math.pow(X, 1.0 / 3.0) : B * X + C;
+            float fy = Y > A ? (float) Math.pow(Y, 1.0 / 3.0) : B * Y + C;
+            float fz = Z > A ? (float) Math.pow(Z, 1.0 / 3.0) : B * Z + C;
+
+            float L = 116.0f * fy - 16.0f;
+            float a = 500.0f * (fx - fy);
+            float b = 200.0f * (fy - fz);
+
+            v[0] = L;
+            v[1] = a;
+            v[2] = b;
 
             return v;
         }
@@ -2636,6 +2708,59 @@ public abstract class ColorSpace {
          * @param min                The minimum valid value in this color space's RGB range
          * @param max                The maximum valid value in this color space's RGB range
          * @param transferParameters Parameters for the transfer functions
+         * @throws IllegalArgumentException If any of the following conditions is met:
+         *                                  <ul>
+         *                                      <li>The name is null or has a length of 0.</li>
+         *                                      <li>The primaries array is null or has a length that is neither 6 or
+         *                                      9.</li>
+         *                                      <li>The white point array is null or has a length that is neither 2
+         *                                      or 3.</li>
+         *                                      <li>The OETF is null or the EOTF is null.</li>
+         *                                      <li>The minimum valid value is >= the maximum valid value.</li>
+         *                                  </ul>
+         * @see #get(Named)
+         */
+        public Rgb(
+                @NonNull @Size(min = 1) String name,
+                @Size(min = 6, max = 9) float @NonNull[] primaries,
+                @Size(min = 2, max = 3) float @NonNull[] whitePoint,
+                @Size(9) float @Nullable[] transform,
+                @NonNull DoubleUnaryOperator oetf,
+                @NonNull DoubleUnaryOperator eotf,
+                float min,
+                float max,
+                @Nullable TransferParameters transferParameters) {
+            this(name, primaries, whitePoint, transform,
+                    oetf, eotf, min, max, transferParameters, MIN_ID);
+        }
+
+        /**
+         * <p>Creates a new RGB color space using a specified set of primaries
+         * and a specified white point.</p>
+         *
+         * <p>The primaries and white point can be specified in the CIE xyY space
+         * or in CIE XYZ. The length of the arrays depends on the chosen space:</p>
+         *
+         * <table summary="Parameters length">
+         *     <tr><th>Space</th><th>Primaries length</th><th>White point length</th></tr>
+         *     <tr><td>xyY</td><td>6</td><td>2</td></tr>
+         *     <tr><td>XYZ</td><td>9</td><td>3</td></tr>
+         * </table>
+         *
+         * <p>When the primaries and/or white point are specified in xyY, the Y component
+         * does not need to be specified and is assumed to be 1.0. Only the xy components
+         * are required.</p>
+         *
+         * @param name               Name of the color space, cannot be null, its length must be >= 1
+         * @param primaries          RGB primaries as an array of 6 (xy) or 9 (XYZ) floats
+         * @param whitePoint         Reference white as an array of 2 (xy) or 3 (XYZ) floats
+         * @param transform          Computed transform matrix that converts from RGB to XYZ, or
+         *                           {@code null} to compute it from {@code primaries} and {@code whitePoint}.
+         * @param oetf               Opto-electronic transfer function, cannot be null
+         * @param eotf               Electro-optical transfer function, cannot be null
+         * @param min                The minimum valid value in this color space's RGB range
+         * @param max                The maximum valid value in this color space's RGB range
+         * @param transferParameters Parameters for the transfer functions
          * @param id                 ID of this color space as an integer between {@link #MIN_ID} and {@link #MAX_ID}
          * @throws IllegalArgumentException If any of the following conditions is met:
          *                                  <ul>
@@ -2905,6 +3030,17 @@ public abstract class ColorSpace {
         }
 
         /**
+         * Similar to {@link #getOetf}, but not clamped to min/max per spec.
+         *
+         * @see #getOetf()
+         * @return A transfer function that converts from linear space to "gamma space"
+         */
+        @NonNull
+        public DoubleUnaryOperator getUnclampedOetf() {
+            return mOetf;
+        }
+
+        /**
          * <p>Returns the electro-optical transfer function (EOTF) of this color space.
          * The inverse function is the opto-electronic transfer function (OETF)
          * returned by {@link #getOetf()}. These functions are defined to satisfy the
@@ -2925,6 +3061,17 @@ public abstract class ColorSpace {
         @NonNull
         public DoubleUnaryOperator getEotf() {
             return mClampedEotf;
+        }
+
+        /**
+         * Similar to {@link #getEotf}, but not clamped to min/max per spec.
+         *
+         * @see #getEotf()
+         * @return A transfer function that converts from "gamma space" to linear space
+         */
+        @NonNull
+        public DoubleUnaryOperator getUnclampedEotf() {
+            return mEotf;
         }
 
         /**
@@ -3012,6 +3159,13 @@ public abstract class ColorSpace {
             return v;
         }
 
+        @Size(min = 3)
+        public float @NonNull[] toLinearUnclamped(@Size(min = 3) float @NonNull[] v) {
+            v[0] = (float) mEotf.applyAsDouble(v[0]);
+            v[1] = (float) mEotf.applyAsDouble(v[1]);
+            v[2] = (float) mEotf.applyAsDouble(v[2]);
+            return v;
+        }
 
         /**
          * <p>Encodes an RGB value from linear space to this color space's
@@ -3059,6 +3213,14 @@ public abstract class ColorSpace {
             return v;
         }
 
+        @Size(min = 3)
+        public float @NonNull[] fromLinearUnclamped(@Size(min = 3) float @NonNull[] v) {
+            v[0] = (float) mOetf.applyAsDouble(v[0]);
+            v[1] = (float) mOetf.applyAsDouble(v[1]);
+            v[2] = (float) mOetf.applyAsDouble(v[2]);
+            return v;
+        }
+
         @Override
         @Size(min = 3)
         public float @NonNull[] toXyz(@Size(min = 3) float @NonNull[] v) {
@@ -3070,11 +3232,30 @@ public abstract class ColorSpace {
 
         @Override
         @Size(min = 3)
+        public float @NonNull [] toXyzUnclamped(float @NonNull [] v) {
+            v[0] = (float) mEotf.applyAsDouble(v[0]);
+            v[1] = (float) mEotf.applyAsDouble(v[1]);
+            v[2] = (float) mEotf.applyAsDouble(v[2]);
+            return mul3x3Float3(mTransform, v);
+        }
+
+        @Override
+        @Size(min = 3)
         public float @NonNull[] fromXyz(@Size(min = 3) float @NonNull[] v) {
             mul3x3Float3(mInverseTransform, v);
             v[0] = (float) mClampedOetf.applyAsDouble(v[0]);
             v[1] = (float) mClampedOetf.applyAsDouble(v[1]);
             v[2] = (float) mClampedOetf.applyAsDouble(v[2]);
+            return v;
+        }
+
+        @Override
+        @Size(min = 3)
+        public float @NonNull [] fromXyzUnclamped(float @NonNull [] v) {
+            mul3x3Float3(mInverseTransform, v);
+            v[0] = (float) mOetf.applyAsDouble(v[0]);
+            v[1] = (float) mOetf.applyAsDouble(v[1]);
+            v[2] = (float) mOetf.applyAsDouble(v[2]);
             return v;
         }
 
@@ -3130,7 +3311,7 @@ public abstract class ColorSpace {
          * @return True if the color space can be considered as the sRGB color space
          * @see #isSrgb()
          */
-        private static boolean isSrgb(
+        public static boolean isSrgb(
                 @Size(6) float @NonNull[] primaries,
                 @Size(2) float @NonNull[] whitePoint,
                 @NonNull DoubleUnaryOperator oetf,
@@ -3167,7 +3348,7 @@ public abstract class ColorSpace {
          * @param toXYZ A XYZ D50 matrix.
          * @return true if this is a special gray matrix.
          */
-        private static boolean isGray( @Size(9) float @NonNull[] toXYZ) {
+        public static boolean isGray( @Size(9) float @NonNull[] toXYZ) {
             return toXYZ.length == 9 &&
                     toXYZ[1] == 0 &&
                     toXYZ[2] == 0 &&
@@ -3177,7 +3358,7 @@ public abstract class ColorSpace {
                     toXYZ[7] == 0;
         }
 
-        private static boolean compare(double point,
+        public static boolean compare(double point,
                                        @NonNull DoubleUnaryOperator a,
                                        @NonNull DoubleUnaryOperator b) {
             double rA = a.applyAsDouble(point);
@@ -3199,7 +3380,7 @@ public abstract class ColorSpace {
          * @see #isWideGamut()
          * @see #area(float[])
          */
-        private static boolean isWideGamut( @Size(6) float @NonNull[] primaries,
+        public static boolean isWideGamut( @Size(6) float @NonNull[] primaries,
                                            float min, float max) {
             return (area(primaries) / area(NTSC_1953_PRIMARIES) > 0.9f &&
                     contains(primaries, SRGB_PRIMARIES)) || (min < 0.0f && max > 1.0f);
@@ -3213,7 +3394,7 @@ public abstract class ColorSpace {
          * @return The area of the triangle
          * @see #isWideGamut(float[], float, float)
          */
-        private static float area( @Size(6) float @NonNull[] primaries) {
+        public static float area( @Size(6) float @NonNull[] primaries) {
             float Rx = primaries[0];
             float Ry = primaries[1];
             float Gx = primaries[2];
@@ -3234,7 +3415,7 @@ public abstract class ColorSpace {
          * @param by The y coordinate of the second vector
          * @return The result of a x b
          */
-        private static float cross(float ax, float ay, float bx, float by) {
+        public static float cross(float ax, float ay, float bx, float by) {
             return ax * by - ay * bx;
         }
 
@@ -3298,7 +3479,7 @@ public abstract class ColorSpace {
          * @see #isWideGamut(float[], float, float)
          */
         @SuppressWarnings("RedundantIfStatement")
-        private static boolean contains( @Size(6) float @NonNull[] p1,  @Size(6) float @NonNull[] p2) {
+        public static boolean contains( @Size(6) float @NonNull[] p1,  @Size(6) float @NonNull[] p2) {
             // Translate the vertices p1 in the coordinates system
             // with the vertices p2 as the origin
             float[] p0 = {
@@ -3335,7 +3516,7 @@ public abstract class ColorSpace {
          * primaries in CIE xyY
          */
         @Size(6)
-        private static float @NonNull[] computePrimaries(@Size(9) float @NonNull[] toXYZ) {
+        public static float @NonNull[] computePrimaries(@Size(9) float @NonNull[] toXYZ) {
             float[] r = mul3x3Float3(toXYZ, new float[]{1.0f, 0.0f, 0.0f});
             float[] g = mul3x3Float3(toXYZ, new float[]{0.0f, 1.0f, 0.0f});
             float[] b = mul3x3Float3(toXYZ, new float[]{0.0f, 0.0f, 1.0f});
@@ -3362,7 +3543,7 @@ public abstract class ColorSpace {
          * white point in CIE xyY
          */
         @Size(2)
-        private static float @NonNull[] computeWhitePoint(@Size(9) float @NonNull[] toXYZ) {
+        public static float @NonNull[] computeWhitePoint(@Size(9) float @NonNull[] toXYZ) {
             float[] w = mul3x3Float3(toXYZ, new float[]{1.0f, 1.0f, 1.0f});
             float sum = w[0] + w[1] + w[2];
             return new float[]{w[0] / sum, w[1] / sum};
@@ -3378,7 +3559,7 @@ public abstract class ColorSpace {
          * @return A new array of 6 floats containing the primaries in xyY
          */
         @Size(6)
-        private static float @NonNull[] xyPrimaries(@Size(min = 6, max = 9) float @NonNull[] primaries) {
+        public static float @NonNull[] xyPrimaries(@Size(min = 6, max = 9) float @NonNull[] primaries) {
             float[] xyPrimaries = new float[6];
 
             // XYZ to xyY
@@ -3413,7 +3594,7 @@ public abstract class ColorSpace {
          * @return A new array of 2 floats containing the white point in xyY
          */
         @Size(2)
-        private static float @NonNull[] xyWhitePoint(@Size(min = 2, max = 3) float @NonNull[] whitePoint) {
+        public static float @NonNull[] xyWhitePoint(@Size(min = 2, max = 3) float @NonNull[] whitePoint) {
             float[] xyWhitePoint = new float[2];
 
             // XYZ to xyY
@@ -3439,7 +3620,7 @@ public abstract class ColorSpace {
          * @return A 3x3 matrix as a new array of 9 floats
          */
         @Size(9)
-        private static float @NonNull[] computeXYZMatrix(
+        public static float @NonNull[] computeXYZMatrix(
                 @Size(6) float @NonNull[] primaries,
                 @Size(2) float @NonNull[] whitePoint) {
             float Rx = primaries[0];
@@ -3519,7 +3700,7 @@ public abstract class ColorSpace {
      * @see ColorSpace#connect(ColorSpace, RenderIntent)
      * @see ColorSpace#connect(ColorSpace)
      */
-    public static class Connector {
+    public static sealed class Connector {
         @NonNull
         private final ColorSpace mSource;
         @NonNull
@@ -3675,10 +3856,33 @@ public abstract class ColorSpace {
         }
 
         /**
+         * Similar to {@link #transform}, but not clamp to source and destination's
+         * min/max per spec.
+         *
+         * @param v A non-null array of 3 floats containing the value to transform
+         *          and that will hold the result of the transform
+         * @return The v array passed as a parameter, containing the specified color
+         * transformed from the source space to the destination space
+         */
+        @Size(min = 3)
+        public float @NonNull[] transformUnclamped(@Size(min = 3) float @NonNull[] v) {
+            float[] xyz = mTransformSource.toXyzUnclamped(v);
+            if (mTransform != null) {
+                xyz[0] *= mTransform[0];
+                xyz[1] *= mTransform[1];
+                xyz[2] *= mTransform[2];
+            }
+            return mTransformDestination.fromXyzUnclamped(xyz);
+        }
+
+        /**
          * Optimized connector for RGB->RGB conversions.
+         *
+         * @hide
+         * @hidden
          */
         @ApiStatus.Internal
-        public static class Rgb extends Connector {
+        public static final class Rgb extends Connector {
 
             private final ColorSpace.@NonNull Rgb mSource;
 
@@ -3707,6 +3911,17 @@ public abstract class ColorSpace {
                 return rgb;
             }
 
+            @Override
+            public float @NonNull[] transformUnclamped(@Size(min = 3) float @NonNull[] rgb) {
+                rgb[0] = (float) mSource.mEotf.applyAsDouble(rgb[0]);
+                rgb[1] = (float) mSource.mEotf.applyAsDouble(rgb[1]);
+                rgb[2] = (float) mSource.mEotf.applyAsDouble(rgb[2]);
+                mul3x3Float3(mTransform, rgb);
+                rgb[0] = (float) mDestination.mOetf.applyAsDouble(rgb[0]);
+                rgb[1] = (float) mDestination.mOetf.applyAsDouble(rgb[1]);
+                rgb[2] = (float) mDestination.mOetf.applyAsDouble(rgb[2]);
+                return rgb;
+            }
 
             /**
              * <p>Computes the color transform that connects two RGB color spaces.</p>
@@ -3816,13 +4031,24 @@ public abstract class ColorSpace {
          */
         @NonNull
         static Connector identity(@NonNull ColorSpace source) {
-            return new Connector(source, source, source, source, RenderIntent.RELATIVE, null) {
+            return new Identity(source);
+        }
 
-                @Override
-                public float @NonNull[] transform(@Size(min = 3) float @NonNull[] v) {
-                    return v;
-                }
-            };
+        private static final class Identity extends Connector {
+
+            public Identity(@NonNull ColorSpace source) {
+                super(source, source, source, source, RenderIntent.RELATIVE, null);
+            }
+
+            @Override
+            public float @NonNull [] transform(@Size(min = 3) float @NonNull[] v) {
+                return v;
+            }
+
+            @Override
+            public float @NonNull[] transformUnclamped(@Size(min = 3) float @NonNull[] v) {
+                return v;
+            }
         }
     }
 }

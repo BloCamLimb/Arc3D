@@ -73,7 +73,7 @@ public final class ColorShader implements Shader {
         }
         if (colorSpace != null && !colorSpace.isSrgb()) {
             float[] srgb = ColorSpace.connect(colorSpace)
-                    .transform(Arrays.copyOfRange(color, 0, color.length - 1));
+                    .transformUnclamped(Arrays.copyOfRange(color, 0, color.length - 1));
             return new ColorShader(srgb[0], srgb[1], srgb[2], color[color.length - 1]);
         }
         return new ColorShader(color[0], color[1], color[2], color[3]);
@@ -87,7 +87,7 @@ public final class ColorShader implements Shader {
         }
         if (colorSpace != null && !colorSpace.isSrgb()) {
             float[] srgb = ColorSpace.connect(colorSpace)
-                    .transform(r, g, b);
+                    .transformUnclamped(new float[]{r, g, b});
             return new ColorShader(srgb[0], srgb[1], srgb[2], a);
         }
         return new ColorShader(r, g, b, a);

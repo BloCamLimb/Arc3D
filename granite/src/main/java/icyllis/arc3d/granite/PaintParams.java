@@ -22,8 +22,12 @@ package icyllis.arc3d.granite;
 import icyllis.arc3d.core.ColorInfo;
 import icyllis.arc3d.core.ColorSpace;
 import icyllis.arc3d.core.ImageInfo;
+import icyllis.arc3d.core.Rect2fc;
+import icyllis.arc3d.core.SamplingOptions;
 import icyllis.arc3d.sketch.BlendMode;
 import icyllis.arc3d.sketch.Blender;
+import icyllis.arc3d.sketch.Image;
+import icyllis.arc3d.sketch.Matrix;
 import icyllis.arc3d.sketch.Paint;
 import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.sketch.effects.ColorFilter;
@@ -52,7 +56,7 @@ public final class PaintParams {
      */
     public static final int DST_USAGE_DST_READ_REQUIRED = 0x2;
 
-    // color components using non-premultiplied alpha
+    // color components using non-premultiplied alpha, in sRGB space
     private final float[] mColor = new float[4];
     // A nullptr mPrimitiveBlender means there's no primitive color blending and it is skipped.
     // In the case where there is primitive blending, the primitive color is the source color and
@@ -90,6 +94,29 @@ public final class PaintParams {
         mDither = paint.isDither();
         mSkipColorTransform = skipColorTransform;
         // antialias flag is already handled
+        return this;
+    }
+
+    public PaintParams setSimpleImage(@Nullable Paint paint,
+                                      @RawPtr @NonNull Image image,
+                                      Matrix localMatrix,
+                                      Rect2fc subset,
+                                      SamplingOptions sampling,
+                                      float extraAlpha) {
+        if (paint != null) {
+            paint.getColor4f(mColor);
+        } else {
+            mColor[0] = 0.0f;
+            mColor[1] = 0.0f;
+            mColor[2] = 0.0f;
+            mColor[3] = 1.0f;
+        }
+
+        boolean imageIsAlphaOnly = image.isAlphaOnly();
+        if (imageIsAlphaOnly && paint.getShader() != null) {
+
+        }
+
         return this;
     }
 
@@ -144,7 +171,7 @@ public final class PaintParams {
         ColorSpace dstCS = dstInfo.colorSpace();
         if (dstCS != null && !dstCS.isSrgb()) {
             ColorSpace.connect(ColorSpace.get(ColorSpace.Named.SRGB), dstCS)
-                    .transform(color);
+                    .transformUnclamped(color);
         }
     }
 

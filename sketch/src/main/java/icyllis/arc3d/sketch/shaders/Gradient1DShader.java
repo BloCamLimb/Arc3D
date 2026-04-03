@@ -376,7 +376,7 @@ public abstract sealed class Gradient1DShader extends GradientShader
                 var connector = ColorSpace.connect(shader.mColorSpace, mIntermediateColorSpace);
                 for (int i = 0; i < colorCount; i++) {
                     System.arraycopy(shader.mColors, i * 4, col, 0, 4);
-                    System.arraycopy(connector.transform(col), 0, mColors, i * 4, 4);
+                    System.arraycopy(connector.transformUnclamped(col), 0, mColors, i * 4, 4);
                 }
             }
 

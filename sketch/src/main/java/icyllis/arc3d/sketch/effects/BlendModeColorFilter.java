@@ -57,7 +57,7 @@ public final class BlendModeColorFilter extends ColorFilter {
         // until the final dst color space is known when actually filtering.
         float[] srgb = Arrays.copyOfRange(color, 0, 4);
         if (colorSpace != null && !colorSpace.isSrgb()) {
-            ColorSpace.connect(colorSpace).transform(srgb);
+            ColorSpace.connect(colorSpace).transformUnclamped(srgb);
         }
 
         // Next collapse some modes if possible
@@ -128,7 +128,7 @@ public final class BlendModeColorFilter extends ColorFilter {
         float[] blendColor = getColor();
         if (dstCS != null && !dstCS.isSrgb()) {
             ColorSpace.connect(ColorSpace.get(ColorSpace.Named.SRGB), dstCS)
-                    .transform(blendColor);
+                    .transformUnclamped(blendColor);
         }
         for (int i = 0; i < 3; i++) {
             blendColor[i] *= blendColor[3];

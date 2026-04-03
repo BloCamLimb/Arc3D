@@ -630,7 +630,7 @@ public class FragmentHelpers {
         ColorSpace dstCS = keyContext.dstInfo.colorSpace();
         if (dstCS != null && !dstCS.isSrgb()) {
             ColorSpace.connect(ColorSpace.get(ColorSpace.Named.SRGB), dstCS)
-                    .transform(color);
+                    .transformUnclamped(color);
         }
         // premul
         for (int i = 0; i < 3; i++) {

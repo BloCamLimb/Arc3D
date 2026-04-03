@@ -1471,7 +1471,7 @@ public class PixelUtils {
                         col[2] *= scale;
                     }
                     if (connector != null) {
-                        connector.transform(col);
+                        connector.transformUnclamped(col);
                     }
                     if (premul) {
                         float scale = col[3];

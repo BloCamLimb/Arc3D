@@ -394,7 +394,7 @@ public class Paint implements AutoCloseable {
                                 @Nullable ColorSpace colorSpace) {
         if (colorSpace != null && !colorSpace.isSrgb()) {
             float[] srgb = ColorSpace.connect(colorSpace)
-                    .transform(Arrays.copyOfRange(color, 0, color.length - 1));
+                    .transformUnclamped(Arrays.copyOfRange(color, 0, color.length - 1));
             setColor4f(srgb[0], srgb[1], srgb[2], color[color.length - 1]);
         } else {
             setColor4f(color[0], color[1], color[2], color[3]);
@@ -450,7 +450,7 @@ public class Paint implements AutoCloseable {
                                  @Nullable ColorSpace colorSpace) {
         if (colorSpace != null && !colorSpace.isSrgb()) {
             float[] srgb = ColorSpace.connect(colorSpace)
-                    .transform(r, g, b);
+                    .transformUnclamped(new float[]{r, g, b});
             setColor4f(srgb[0], srgb[1], srgb[2], a);
         } else {
             setColor4f(r, g, b, a);
