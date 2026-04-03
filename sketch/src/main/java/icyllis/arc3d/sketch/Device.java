@@ -31,6 +31,8 @@ import icyllis.arc3d.core.SamplingOptions;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+
 /**
  * Base class for drawing devices.
  */
@@ -298,6 +300,13 @@ public abstract class Device extends RefCnt {
                                       Paint paint);
 
     public void drawEdgeAAQuad(Rect2fc r, float[] clip, int clipOffset, int flags, Paint paint) {
+    }
+
+    public void drawEdgeAAImageSet(@NonNull List<Canvas.ImageSetEntry> imageSet,
+                                   float[] dstClips, int dstClipsOffset,
+                                   List<Matrix> preViewMatrices,
+                                   @NonNull SamplingOptions sampling,
+                                   @Nullable Paint paint, int constraint) {
     }
 
     public boolean drawBlurredRRect(RRect rr, Paint paint, float blurRadius, float noiseAlpha) {

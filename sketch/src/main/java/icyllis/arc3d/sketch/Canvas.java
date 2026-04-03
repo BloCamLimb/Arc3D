@@ -28,6 +28,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -1470,11 +1471,12 @@ public class Canvas implements AutoCloseable {
      * draw. The Style and smooth radius is ignored in the paint, images are always filled.
      *
      * @param image the image to be drawn
-     * @param src   the subset of the image to be drawn, null meaning full image
+     * @param src   the subset of the image to be drawn
      * @param dst   the rectangle that the image will be scaled/translated to fit into
      * @param paint the paint used to draw the image, null meaning a default paint
      */
-    public final void drawImageRect(@RawPtr Image image, Rect2fc src, Rect2fc dst, SamplingOptions sampling,
+    public final void drawImageRect(@RawPtr Image image, @NonNull Rect2fc src, @NonNull Rect2fc dst,
+                                    @NonNull SamplingOptions sampling,
                                     @Nullable Paint paint, @SrcRectConstraint int constraint) {
         if (image == null) {
             return;
@@ -1482,8 +1484,9 @@ public class Canvas implements AutoCloseable {
         if (!src.isFinite() || src.isEmpty() || !dst.isFinite() || dst.isEmpty()) {
             return;
         }
-        var cleanedPaint = mTmpPaint;
+        Paint cleanedPaint = null;
         if (paint != null) {
+            cleanedPaint = mTmpPaint;
             cleanedPaint.set(paint);
             cleanedPaint.setStyle(Paint.FILL);
             cleanedPaint.setPathEffect(null);
@@ -1500,7 +1503,9 @@ public class Canvas implements AutoCloseable {
             }
         }
         onDrawImageRect(image, src, dst, sampling, cleanedPaint, constraint);
-        cleanedPaint.reset();
+        if (cleanedPaint != null) {
+            cleanedPaint.reset();
+        }
     }
 
     /**
@@ -1601,6 +1606,13 @@ public class Canvas implements AutoCloseable {
         cleanedPaint.reset();
     }
 
+    @ApiStatus.Experimental
+    @MagicConstant(flags = {EDGE_AA_FLAG_LEFT, EDGE_AA_FLAG_TOP,
+            EDGE_AA_FLAG_RIGHT, EDGE_AA_FLAG_BOTTOM})
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface EdgeAAFlags {
+    }
+
     //@formatter:off
     @ApiStatus.Experimental
     public static final int
@@ -1645,9 +1657,8 @@ public class Canvas implements AutoCloseable {
     @ApiStatus.Experimental
     public final void drawEdgeAAQuad(@Nullable Rect2fc rect,
                                      float @Nullable [] clip, int clipOffset,
-                                     @MagicConstant(flags = {EDGE_AA_FLAG_LEFT, EDGE_AA_FLAG_TOP,
-                                             EDGE_AA_FLAG_RIGHT, EDGE_AA_FLAG_BOTTOM}) int edgeFlags,
-                                     Paint paint) {
+                                     @EdgeAAFlags int edgeFlags,
+                                     @Nullable Paint paint) {
         if (rect == null && clip == null) {
             // no geometry is defined
             return;
@@ -1657,6 +1668,62 @@ public class Canvas implements AutoCloseable {
         cleanedPaint.setStyle(Paint.FILL);
         cleanedPaint.setPathEffect(null);
         onDrawEdgeAAQuad(rect, clip, clipOffset, edgeFlags, cleanedPaint);
+        cleanedPaint.reset();
+    }
+
+    /**
+     * Experimental API from The Chromium Project.
+     */
+    @ApiStatus.Experimental
+    public static class ImageSetEntry {
+
+        /**
+         * Caller needs to track image manually.
+         */
+        @RawPtr
+        public Image mImage;
+        public Rect2fc mSrcRect; // may not be null, see drawImageRect
+        public Rect2fc mDstRect; // may not be null, see drawImageRect
+        /**
+         * If >= 0, index to {@code preViewMatrices}.
+         */
+        public int mMatrixIndex = -1;
+        public float mAlpha = 1.0f;
+        @EdgeAAFlags
+        public int mEdgeFlags = EDGE_AA_FLAGS_NONE;
+        /**
+         * True to use next 4 points in {@code dstClips} as quad.
+         */
+        public boolean mHasClip = false;
+    }
+
+    public final void drawEdgeAAImageSet(List<ImageSetEntry> imageSet,
+                                         float[] dstClips, int dstClipsOffset,
+                                         List<Matrix> preViewMatrices,
+                                         SamplingOptions sampling,
+                                         Paint paint, @SrcRectConstraint int constraint) {
+        if (imageSet == null || imageSet.isEmpty()) {
+            return;
+        }
+        var cleanedPaint = mTmpPaint;
+        if (paint != null) {
+            cleanedPaint.set(paint);
+            cleanedPaint.setStyle(Paint.FILL);
+            cleanedPaint.setPathEffect(null);
+        }
+        if (constraint == SRC_RECT_CONSTRAINT_STRICT) {
+            if (sampling.mMipmap != SamplingOptions.MIPMAP_MODE_NONE) {
+                // Use linear filter if is linear and remove mipmap mode
+                int filter = sampling.mFilter;
+                sampling = filter == SamplingOptions.FILTER_MODE_LINEAR
+                        ? SamplingOptions.LINEAR
+                        : SamplingOptions.NEAREST;
+            } else if (sampling.isAnisotropy()) {
+                sampling = SamplingOptions.LINEAR;
+            }
+        }
+        onDrawEdgeAAImageSet(imageSet, dstClips, dstClipsOffset, preViewMatrices,
+                sampling, cleanedPaint, constraint);
         cleanedPaint.reset();
     }
 
@@ -2074,8 +2141,8 @@ public class Canvas implements AutoCloseable {
         }
     }
 
-    protected void onDrawImageRect(@RawPtr Image image, Rect2fc src, Rect2fc dst,
-                                   SamplingOptions sampling, Paint paint,
+    protected void onDrawImageRect(@RawPtr @NonNull Image image, @NonNull Rect2fc src, @NonNull Rect2fc dst,
+                                   @NonNull SamplingOptions sampling, @Nullable Paint paint,
                                    int constraint) {
         if (internalQuickReject(dst, paint)) {
             return;
@@ -2125,6 +2192,31 @@ public class Canvas implements AutoCloseable {
 
         if (predrawNotify(false)) {
             topDevice().drawEdgeAAQuad(rect, clip, clipOffset, edgeFlags, paint);
+        }
+    }
+
+    protected void onDrawEdgeAAImageSet(@NonNull List<ImageSetEntry> imageSet,
+                                        float[] dstClips, int dstClipsOffset,
+                                        List<Matrix> preViewMatrices,
+                                        @NonNull SamplingOptions sampling,
+                                        @Nullable Paint paint, int constraint) {
+        int count = imageSet.size();
+        assert count > 0;
+
+        if (count == 1) {
+            var bounds = mTmpRect2;
+            var first = imageSet.get(0);
+            bounds.set(first.mDstRect);
+            if (first.mMatrixIndex >= 0) {
+                preViewMatrices.get(first.mMatrixIndex).mapRect(bounds);
+            }
+            if (internalQuickReject(bounds, paint)) {
+                return;
+            }
+        }
+
+        if (predrawNotify(false)) {
+            topDevice().drawEdgeAAImageSet(imageSet, dstClips, dstClipsOffset, preViewMatrices, sampling, paint, constraint);
         }
     }
 
