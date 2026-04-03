@@ -202,7 +202,8 @@ public class NWayCanvas extends NoDrawCanvas {
     }
 
     @Override
-    protected void onDrawImageRect(@RawPtr Image image, Rect2fc src, Rect2fc dst, SamplingOptions sampling, Paint paint,
+    protected void onDrawImageRect(@RawPtr @NonNull Image image, @NonNull Rect2fc src, @NonNull Rect2fc dst,
+                                   @NonNull SamplingOptions sampling, @Nullable Paint paint,
                                    int constraint) {
         for (int i = 0; i < mSize; i++) {
             mList[i].drawImageRect(image, src, dst, sampling, paint, constraint);

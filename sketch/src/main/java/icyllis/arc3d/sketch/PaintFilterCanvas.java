@@ -168,7 +168,8 @@ public abstract class PaintFilterCanvas extends NWayCanvas {
     }
 
     @Override
-    protected void onDrawImageRect(@RawPtr Image image, Rect2fc src, Rect2fc dst, SamplingOptions sampling, Paint paint,
+    protected void onDrawImageRect(@RawPtr @NonNull Image image, @NonNull Rect2fc src, @NonNull Rect2fc dst,
+                                   @NonNull SamplingOptions sampling, @Nullable Paint paint,
                                    int constraint) {
         mFilterPaint.set(paint);
         if (onFilter(mFilterPaint)) {
