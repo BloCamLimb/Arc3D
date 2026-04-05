@@ -552,7 +552,6 @@ public class MathUtil {
      * Aligns {@code a} up to 2 (half-word).
      */
     public static int align2(int a) {
-        assert a >= 0 && a <= Integer.MAX_VALUE - 8;
         return (a + 1) & -2;
     }
 
@@ -560,7 +559,6 @@ public class MathUtil {
      * Aligns {@code a} up to 4 (word).
      */
     public static int align4(int a) {
-        assert a >= 0 && a <= Integer.MAX_VALUE - 8;
         return (a + 3) & -4;
     }
 
@@ -568,7 +566,6 @@ public class MathUtil {
      * Aligns {@code a} up to 8 (double word).
      */
     public static int align8(int a) {
-        assert a >= 0 && a <= Integer.MAX_VALUE - 8;
         return (a + 7) & -8;
     }
 
@@ -576,7 +573,6 @@ public class MathUtil {
      * Aligns {@code a} up to 2 (half-word).
      */
     public static long align2(long a) {
-        assert a >= 0 && a <= Long.MAX_VALUE - 16;
         return (a + 1) & -2;
     }
 
@@ -584,7 +580,6 @@ public class MathUtil {
      * Aligns {@code a} up to 4 (word).
      */
     public static long align4(long a) {
-        assert a >= 0 && a <= Long.MAX_VALUE - 16;
         return (a + 3) & -4;
     }
 
@@ -592,55 +587,48 @@ public class MathUtil {
      * Aligns {@code a} up to 8 (double word).
      */
     public static long align8(long a) {
-        assert a >= 0 && a <= Long.MAX_VALUE - 16;
         return (a + 7) & -8;
     }
 
     /**
-     * Returns {@code true} if {@code a} is a multiple of 2. Asserts {@code a >= 0}.
+     * Returns {@code true} if {@code a} is a multiple of 2.
      */
     public static boolean isAlign2(int a) {
-        assert a >= 0;
         return (a & 1) == 0;
     }
 
     /**
-     * Returns {@code true} if {@code a} is a multiple of 4. Asserts {@code a >= 0}.
+     * Returns {@code true} if {@code a} is a multiple of 4.
      */
     public static boolean isAlign4(int a) {
-        assert a >= 0;
         return (a & 3) == 0;
     }
 
     /**
-     * Returns {@code true} if {@code a} is a multiple of 8. Asserts {@code a >= 0}.
+     * Returns {@code true} if {@code a} is a multiple of 8.
      */
     public static boolean isAlign8(int a) {
-        assert a >= 0;
         return (a & 7) == 0;
     }
 
     /**
-     * Returns {@code true} if {@code a} is a multiple of 2. Asserts {@code a >= 0}.
+     * Returns {@code true} if {@code a} is a multiple of 2.
      */
     public static boolean isAlign2(long a) {
-        assert a >= 0;
         return (a & 1) == 0;
     }
 
     /**
-     * Returns {@code true} if {@code a} is a multiple of 4. Asserts {@code a >= 0}.
+     * Returns {@code true} if {@code a} is a multiple of 4.
      */
     public static boolean isAlign4(long a) {
-        assert a >= 0;
         return (a & 3) == 0;
     }
 
     /**
-     * Returns {@code true} if {@code a} is a multiple of 8. Asserts {@code a >= 0}.
+     * Returns {@code true} if {@code a} is a multiple of 8.
      */
     public static boolean isAlign8(long a) {
-        assert a >= 0;
         return (a & 7) == 0;
     }
 
@@ -692,90 +680,90 @@ public class MathUtil {
     }
 
     /**
-     * Returns {@code true} if {@code a} is a power of 2. Asserts {@code a > 0}.
+     * Returns {@code true} if {@code a} is a power of 2. Asserts {@code a != 0}.
      */
     public static boolean isPow2(int a) {
-        assert a > 0 : "undefined";
+        assert a != 0 : "undefined";
         return (a & a - 1) == 0;
     }
 
     /**
-     * Returns {@code true} if {@code a} is a power of 2. Asserts {@code a > 0}.
+     * Returns {@code true} if {@code a} is a power of 2. Asserts {@code a != 0}.
      */
     public static boolean isPow2(long a) {
-        assert a > 0 : "undefined";
+        assert a != 0 : "undefined";
         return (a & a - 1) == 0;
     }
 
     /**
      * Returns the log2 of {@code a}, were that value to be rounded up to the
-     * next power of 2. Asserts {@code a > 0}. NextLog2.
+     * next power of 2. Asserts {@code a != 0}. NextLog2.
      */
     public static int ceilLog2(int a) {
-        assert a > 0 : "undefined";
+        assert a != 0 : "undefined";
         return Integer.SIZE - Integer.numberOfLeadingZeros(a - 1);
     }
 
     /**
      * Returns the log2 of {@code a}, were that value to be rounded up to the
-     * next power of 2. Asserts {@code a > 0}. NextLog2.
+     * next power of 2. Asserts {@code a != 0}. NextLog2.
      */
     public static int ceilLog2(long a) {
-        assert a > 0 : "undefined";
+        assert a != 0 : "undefined";
         return Long.SIZE - Long.numberOfLeadingZeros(a - 1);
     }
 
     /**
      * Returns the smallest power of two greater than or equal to {@code a}.
-     * Asserts {@code a > 0 && a <= 2^30}. NextPow2.
+     * Asserts {@code a >= 0 && a <= 2^31}. NextPow2.
      */
     public static int ceilPow2(int a) {
-        assert a > 0 && a <= (1 << (Integer.SIZE - 2)) : "undefined";
+        assert a >= 0 || a == (1 << 31) : "undefined";
         return 1 << -Integer.numberOfLeadingZeros(a - 1);
     }
 
     /**
      * Returns the smallest power of two greater than or equal to {@code a}.
-     * Asserts {@code a > 0 && a <= 2^62}. NextPow2.
+     * Asserts {@code a >= 0 && a <= 2^63}. NextPow2.
      */
     public static long ceilPow2(long a) {
-        assert a > 0 && a <= (1L << (Long.SIZE - 2)) : "undefined";
+        assert a >= 0 || a == (1L << 63) : "undefined";
         return 1L << -Long.numberOfLeadingZeros(a - 1);
     }
 
     /**
      * Returns the log2 of {@code a}, were that value to be rounded down to the
-     * previous power of 2. Asserts {@code a > 0}. PrevLog2.
+     * previous power of 2. Asserts {@code a != 0}. PrevLog2.
      */
     public static int floorLog2(int a) {
-        assert a > 0 : "undefined";
+        assert a != 0 : "undefined";
         return (Integer.SIZE - 1) - Integer.numberOfLeadingZeros(a);
     }
 
     /**
      * Returns the log2 of {@code a}, were that value to be rounded down to the
-     * previous power of 2. Asserts {@code a > 0}. PrevLog2.
+     * previous power of 2. Asserts {@code a != 0}. PrevLog2.
      */
     public static int floorLog2(long a) {
-        assert a > 0 : "undefined";
+        assert a != 0 : "undefined";
         return (Long.SIZE - 1) - Long.numberOfLeadingZeros(a);
     }
 
     /**
      * Returns the largest power of two less than or equal to {@code a}.
-     * Asserts {@code a > 0}. PrevPow2.
+     * Asserts {@code a != 0}. PrevPow2.
      */
     public static int floorPow2(int a) {
-        assert a > 0 : "undefined";
+        assert a != 0 : "undefined";
         return Integer.highestOneBit(a);
     }
 
     /**
      * Returns the largest power of two less than or equal to {@code a}.
-     * Asserts {@code a > 0}. PrevPow2.
+     * Asserts {@code a != 0}. PrevPow2.
      */
     public static long floorPow2(long a) {
-        assert a > 0 : "undefined";
+        assert a != 0 : "undefined";
         return Long.highestOneBit(a);
     }
 
