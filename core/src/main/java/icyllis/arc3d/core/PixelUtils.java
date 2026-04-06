@@ -1322,24 +1322,13 @@ public class PixelUtils {
                 dstInfo, dstBase, dstAddr, dstRowBytes, false);
     }
 
-    private static int checkAlignment(long addr, long rowBytes, int ct) {
+    private static int checkAlignment(Object base, long addr, long rowBytes, @ColorInfo.ColorType int ct) {
         int bpp = ColorInfo.bytesPerPixel(ct);
-        assert bpp != 0;
-        if (MathUtil.isPow2(bpp)) {
-            // align to bytes-per-pixel if is power of two
-            if (rowBytes % bpp != 0 ||
-                    addr % bpp != 0) {
-                return 0;
-            }
-        } else {
-            // otherwise align to bytes-per-channel
-            int bits = ColorInfo.maxBitsPerChannel(ct);
-            assert MathUtil.isAlign8(bits);
-            assert MathUtil.isPow2(bits / 8);
-            if (rowBytes % (bits / 8) != 0 ||
-                    addr % (bits / 8) != 0) {
-                return 0;
-            }
+        if (!ColorInfo.validMemoryAddress(ct, base, addr)) {
+            return 0;
+        }
+        if (!ColorInfo.validMemoryAddress(ct, null, rowBytes)) {
+            return 0;
         }
         return bpp;
     }
@@ -1369,8 +1358,8 @@ public class PixelUtils {
                 dstRowBytes < dstInfo.minRowBytes()) {
             return false;
         }
-        int srcBpp = checkAlignment(srcAddr, srcRowBytes, srcInfo.colorType());
-        int dstBpp = checkAlignment(dstAddr, dstRowBytes, dstInfo.colorType());
+        int srcBpp = checkAlignment(srcBase, srcAddr, srcRowBytes, srcInfo.colorType());
+        int dstBpp = checkAlignment(dstBase, dstAddr, dstRowBytes, dstInfo.colorType());
         if (srcBpp == 0 || dstBpp == 0) {
             return false;
         }

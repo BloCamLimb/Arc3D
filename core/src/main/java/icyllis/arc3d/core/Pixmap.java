@@ -63,6 +63,10 @@ public class Pixmap {
                   @Nullable Object base,
                   @NativeType("const void *") long address,
                   int rowBytes) {
+        assert ColorInfo.validMemoryAddress(info.colorType(),
+                base, address);
+        assert ColorInfo.validMemoryAddress(info.colorType(),
+                null, rowBytes);
         mInfo = Objects.requireNonNull(info);
         mBase = base;
         mAddress = address;

@@ -21,6 +21,7 @@ package icyllis.arc3d.core;
 
 import org.intellij.lang.annotations.MagicConstant;
 import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Nullable;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -501,6 +502,99 @@ public final class ColorInfo {
                 throw new AssertionError(ct);
         }
         return at;
+    }
+
+    /**
+     * Check the array type is valid for ct, and address is aligned for ct, for pixel operations.
+     */
+    public static boolean validMemoryAddress(@ColorType int ct, @Nullable Object base, long address) {
+        if (base != null) {
+            // heap array is limited
+            if (address < 0 || address > Integer.MAX_VALUE) {
+                return false;
+            }
+        }
+        return switch (ct) {
+            case CT_UNKNOWN -> true;
+            case CT_R_8,
+                 CT_ALPHA_8,
+                 CT_GRAY_8,
+                 CT_RGB_888 -> {
+                if (base != null &&
+                        !(base instanceof byte[])) {
+                    yield false;
+                }
+                yield true;
+            }
+            case CT_RG_88,
+                 CT_GRAY_ALPHA_88 -> {
+                if (base != null &&
+                        !(base instanceof byte[])) {
+                    yield false;
+                }
+                yield MathUtil.isAlign2(address);
+            }
+            case CT_BGR_565,
+                 CT_BGRA_5551,
+                 CT_R_16,
+                 CT_R_F16,
+                 CT_ALPHA_16,
+                 CT_ALPHA_F16,
+                 CT_GRAY_16,
+                 CT_RGB_161616,
+                 CT_RG_F16,
+                 CT_RGBA_F16 -> {
+                if (base != null &&
+                        !(base instanceof short[])) {
+                    yield false;
+                }
+                yield MathUtil.isAlign2(address);
+            }
+            case CT_RG_1616,
+                 CT_GRAY_ALPHA_1616 -> {
+                if (base != null &&
+                        !(base instanceof short[])) {
+                    yield false;
+                }
+                yield MathUtil.isAlign4(address);
+            }
+            case CT_RGBA_8888,
+                 CT_BGRA_8888,
+                 CT_RGBX_8888 -> {
+                if (base != null &&
+                        !(base instanceof byte[]) &&
+                        !(base instanceof int[])) { // assume little-endian host, it can be packed
+                    yield false;
+                }
+                yield MathUtil.isAlign4(address);
+            }
+            case CT_BGRA_1010102,
+                 CT_RGBA_1010102,
+                 CT_RGBE_9995 -> {
+                if (base != null &&
+                        !(base instanceof int[])) {
+                    yield false;
+                }
+                yield MathUtil.isAlign4(address);
+            }
+            case CT_R_F32,
+                 CT_RG_F32,
+                 CT_RGBA_F32 -> {
+                if (base != null &&
+                        !(base instanceof float[])) {
+                    yield false;
+                }
+                yield MathUtil.isAlign4(address);
+            }
+            case CT_RGBA_16161616 -> {
+                if (base != null &&
+                        !(base instanceof short[])) {
+                    yield false;
+                }
+                yield MathUtil.isAlign8(address);
+            }
+            default -> throw new AssertionError(ct);
+        };
     }
 
     @ApiStatus.Internal
