@@ -417,99 +417,6 @@ public class PixelUtils {
         int val = UNSAFE.getByte(base, addr);
         return val << 24;
     }
-    public static int load_R_16(Object base, long addr) {
-        int val = (int) ((UNSAFE.getShort(base, addr) & 0xffff) * (255/65535.0f) + .5f);
-        return val << 16 | 0xff000000;
-    }
-    public static int load_RG_1616(Object base, long addr) {
-        int val = UNSAFE.getInt(base, addr);
-        int r, g;
-        if (NATIVE_BIG_ENDIAN) {
-            r = (int) (((val >>> 16)         ) * (255/65535.0f) + .5f);
-            g = (int) (((val       ) & 0xffff) * (255/65535.0f) + .5f);
-        } else {
-            r = (int) (((val       ) & 0xffff) * (255/65535.0f) + .5f);
-            g = (int) (((val >>> 16)         ) * (255/65535.0f) + .5f);
-        }
-        return g << 8 | r << 16 | 0xff000000;
-    }
-    @SuppressWarnings("PointlessArithmeticExpression")
-    public static int load_RGB_161616(Object base, long addr) {
-        int r = (int) ((UNSAFE.getShort(base, addr+0) & 0xffff) * (255/65535.0f) + .5f);
-        int g = (int) ((UNSAFE.getShort(base, addr+2) & 0xffff) * (255/65535.0f) + .5f);
-        int b = (int) ((UNSAFE.getShort(base, addr+4) & 0xffff) * (255/65535.0f) + .5f);
-        return b | g << 8 | r << 16 | 0xff000000;
-    }
-    public static int load_RGBA_16161616(Object base, long addr) {
-        long val = UNSAFE.getLong(base, addr);
-        int r, g, b, a;
-        if (NATIVE_BIG_ENDIAN) {
-            r = (int) (((val >>> 48)         ) * (255/65535.0f) + .5f);
-            g = (int) (((val >>> 32) & 0xffff) * (255/65535.0f) + .5f);
-            b = (int) (((val >>> 16) & 0xffff) * (255/65535.0f) + .5f);
-            a = (int) (((val       ) & 0xffff) * (255/65535.0f) + .5f);
-        } else {
-            r = (int) (((val       ) & 0xffff) * (255/65535.0f) + .5f);
-            g = (int) (((val >>> 16) & 0xffff) * (255/65535.0f) + .5f);
-            b = (int) (((val >>> 32) & 0xffff) * (255/65535.0f) + .5f);
-            a = (int) (((val >>> 48)         ) * (255/65535.0f) + .5f);
-        }
-        return b | g << 8 | r << 16 | a << 24;
-    }
-    public static int load_GRAY_16(Object base, long addr) {
-        int lum = (int) ((UNSAFE.getShort(base, addr) & 0xffff) * (255/65535.0f) + .5f);
-        return lum | lum << 8 | lum << 16 | 0xff000000;
-    }
-    public static int load_GRAY_ALPHA_1616(Object base, long addr) {
-        int val = UNSAFE.getInt(base, addr);
-        int lum =   (int) (((val       ) & 0xffff) * (255/65535.0f) + .5f);
-        int alpha = (int) (((val >>> 16) & 0xffff) * (255/65535.0f) + .5f);
-        return (alpha << 24) | (lum << 16) | (lum << 8) | lum;
-    }
-    public static int load_ALPHA_16(Object base, long addr) {
-        int val = (int) ((UNSAFE.getShort(base, addr) & 0xffff) * (255/65535.0f) + .5f);
-        return val << 24;
-    }
-    public static int load_R_F16(Object base, long addr) {
-        int val = (int) (MathUtil.halfToFloat(UNSAFE.getShort(base, addr)) * 255 + .5f);
-        return val << 16 | 0xff000000;
-    }
-    @SuppressWarnings("PointlessArithmeticExpression")
-    public static int load_RG_F16(Object base, long addr) {
-        int r = (int) (MathUtil.halfToFloat(UNSAFE.getShort(base, addr+0)) * 255 + .5f);
-        int g = (int) (MathUtil.halfToFloat(UNSAFE.getShort(base, addr+2)) * 255 + .5f);
-        return g << 8 | r << 16 | 0xff000000;
-    }
-    @SuppressWarnings("PointlessArithmeticExpression")
-    public static int load_RGBA_F16(Object base, long addr) {
-        int r = (int) (MathUtil.halfToFloat(UNSAFE.getShort(base, addr+0)) * 255 + .5f);
-        int g = (int) (MathUtil.halfToFloat(UNSAFE.getShort(base, addr+2)) * 255 + .5f);
-        int b = (int) (MathUtil.halfToFloat(UNSAFE.getShort(base, addr+4)) * 255 + .5f);
-        int a = (int) (MathUtil.halfToFloat(UNSAFE.getShort(base, addr+6)) * 255 + .5f);
-        return b | g << 8 | r << 16 | a << 24;
-    }
-    public static int load_ALPHA_F16(Object base, long addr) {
-        int val = (int) (MathUtil.halfToFloat(UNSAFE.getShort(base, addr)) * 255 + .5f);
-        return val << 24;
-    }
-    public static int load_R_F32(Object base, long addr) {
-        int val = (int) (UNSAFE.getFloat(base, addr) * 255 + .5f);
-        return val << 16 | 0xff000000;
-    }
-    @SuppressWarnings("PointlessArithmeticExpression")
-    public static int load_RG_F32(Object base, long addr) {
-        int r = (int) (UNSAFE.getFloat(base, addr +  0) * 255 + .5f);
-        int g = (int) (UNSAFE.getFloat(base, addr +  4) * 255 + .5f);
-        return g << 8 | r << 16 | 0xff000000;
-    }
-    @SuppressWarnings("PointlessArithmeticExpression")
-    public static int load_RGBA_F32(Object base, long addr) {
-        int r = (int) (UNSAFE.getFloat(base, addr +  0) * 255 + .5f);
-        int g = (int) (UNSAFE.getFloat(base, addr +  4) * 255 + .5f);
-        int b = (int) (UNSAFE.getFloat(base, addr +  8) * 255 + .5f);
-        int a = (int) (UNSAFE.getFloat(base, addr + 12) * 255 + .5f);
-        return b | g << 8 | r << 16 | a << 24;
-    }
 
     /**
      * Load a pixel value in low precision.
@@ -531,20 +438,20 @@ public class PixelUtils {
             case ColorInfo.CT_GRAY_8          -> PixelUtils::load_GRAY_8;
             case ColorInfo.CT_GRAY_ALPHA_88   -> PixelUtils::load_GRAY_ALPHA_88;
             case ColorInfo.CT_ALPHA_8         -> PixelUtils::load_ALPHA_8;
-            case ColorInfo.CT_R_16            -> PixelUtils::load_R_16;
-            case ColorInfo.CT_RG_1616         -> PixelUtils::load_RG_1616;
-            case ColorInfo.CT_RGB_161616      -> PixelUtils::load_RGB_161616;
-            case ColorInfo.CT_RGBA_16161616   -> PixelUtils::load_RGBA_16161616;
-            case ColorInfo.CT_GRAY_16         -> PixelUtils::load_GRAY_16;
-            case ColorInfo.CT_GRAY_ALPHA_1616 -> PixelUtils::load_GRAY_ALPHA_1616;
-            case ColorInfo.CT_ALPHA_16        -> PixelUtils::load_ALPHA_16;
-            case ColorInfo.CT_R_F16           -> PixelUtils::load_R_F16;
-            case ColorInfo.CT_RG_F16          -> PixelUtils::load_RG_F16;
-            case ColorInfo.CT_RGBA_F16        -> PixelUtils::load_RGBA_F16;
-            case ColorInfo.CT_ALPHA_F16       -> PixelUtils::load_ALPHA_F16;
-            case ColorInfo.CT_R_F32           -> PixelUtils::load_R_F32;
-            case ColorInfo.CT_RG_F32          -> PixelUtils::load_RG_F32;
-            case ColorInfo.CT_RGBA_F32        -> PixelUtils::load_RGBA_F32;
+            case ColorInfo.CT_R_16,
+                 ColorInfo.CT_RG_1616,
+                 ColorInfo.CT_RGB_161616,
+                 ColorInfo.CT_RGBA_16161616,
+                 ColorInfo.CT_GRAY_16,
+                 ColorInfo.CT_GRAY_ALPHA_1616,
+                 ColorInfo.CT_ALPHA_16,
+                 ColorInfo.CT_R_F16,
+                 ColorInfo.CT_RG_F16,
+                 ColorInfo.CT_RGBA_F16,
+                 ColorInfo.CT_ALPHA_F16,
+                 ColorInfo.CT_R_F32,
+                 ColorInfo.CT_RG_F32,
+                 ColorInfo.CT_RGBA_F32 -> throw new UnsupportedOperationException();
             default -> throw new AssertionError(ct);
         };
     }
@@ -706,47 +613,52 @@ public class PixelUtils {
         void op(Object base, long addr, /*Color4f*/ float[/*4*/] col);
     }
 
+    //---- load ops ----
+
     //@formatter:off
-    public static void load_BGR_565(Object base, long addr, float[] dst) {
-        int val = UNSAFE.getShort(base, addr);
+
+    //---- off heap ----
+
+    public static void load_BGR_565_u(Object base, long addr, float[] dst) {
+        int val = MemoryUtil.memGetShort(addr);
         dst[0] = (val & (31<<11)) * (1.0f / (31<<11));
         dst[1] = (val & (63<< 5)) * (1.0f / (63<< 5));
         dst[2] = (val & (31    )) * (1.0f / (31    ));
         dst[3] = 1.0f;
     }
 
-    public static void load_BGRA_5551(Object base, long addr, float[] dst) {
-        int val = UNSAFE.getShort(base, addr);
+    public static void load_BGRA_5551_u(Object base, long addr, float[] dst) {
+        int val = MemoryUtil.memGetShort(addr);
         dst[0] = (val & (31<<10)) * (1.0f / (31<<10));
         dst[1] = (val & (31<< 5)) * (1.0f / (31<< 5));
         dst[2] = (val & (31    )) * (1.0f / (31    ));
         dst[3] = (val & (1 <<15)) != 0 ? 1.0f : 0.0f;
     }
 
-    public static void load_RGBA_1010102(Object base, long addr, float[] dst) {
-        int val = UNSAFE.getInt(base, addr);
+    public static void load_RGBA_1010102_u(Object base, long addr, float[] dst) {
+        int val = MemoryUtil.memGetInt(addr);
         dst[0] = ((val       ) & 0x3ff) * (1.0f/1023);
         dst[1] = ((val >>> 10) & 0x3ff) * (1.0f/1023);
         dst[2] = ((val >>> 20) & 0x3ff) * (1.0f/1023);
         dst[3] = ((val >>> 30)        ) * (1.0f/   3);
     }
 
-    public static void load_BGRA_1010102(Object base, long addr, float[] dst) {
-        int val = UNSAFE.getInt(base, addr);
+    public static void load_BGRA_1010102_u(Object base, long addr, float[] dst) {
+        int val = MemoryUtil.memGetInt(addr);
         dst[0] = ((val >>> 20) & 0x3ff) * (1.0f/1023);
         dst[1] = ((val >>> 10) & 0x3ff) * (1.0f/1023);
         dst[2] = ((val       ) & 0x3ff) * (1.0f/1023);
         dst[3] = ((val >>> 30)        ) * (1.0f/   3);
     }
 
-    public static void load_R_8(Object base, long addr, float[] dst) {
-        dst[0] = (UNSAFE.getByte(base, addr) & 0xff) * (1/255.0f);
+    public static void load_R_8_u(Object base, long addr, float[] dst) {
+        dst[0] = (MemoryUtil.memGetByte(addr) & 0xff) * (1/255.0f);
         dst[1] = dst[2] = 0.0f;
         dst[3] = 1.0f;
     }
 
-    public static void load_RG_88(Object base, long addr, float[] dst) {
-        int val = UNSAFE.getShort(base, addr);
+    public static void load_RG_88_u(Object base, long addr, float[] dst) {
+        int val = MemoryUtil.memGetShort(addr);
         if (NATIVE_BIG_ENDIAN) {
             dst[0] = ((val >>> 8) & 0xff) * (1/255.0f);
             dst[1] = ((val      ) & 0xff) * (1/255.0f);
@@ -758,15 +670,15 @@ public class PixelUtils {
         dst[3] = 1.0f;
     }
 
-    public static void load_RGB_888(Object base, long addr, float[] dst) {
+    public static void load_RGB_888_u(Object base, long addr, float[] dst) {
         for (int i = 0; i < 3; i++) {
-            dst[i] = (UNSAFE.getByte(base, addr+i) & 0xff) * (1/255.0f);
+            dst[i] = (MemoryUtil.memGetByte(addr+i) & 0xff) * (1/255.0f);
         }
         dst[3] = 1.0f;
     }
 
-    public static void load_RGBX_8888(Object base, long addr, float[] dst) {
-        int val = UNSAFE.getInt(base, addr);
+    public static void load_RGBX_8888_u(Object base, long addr, float[] dst) {
+        int val = MemoryUtil.memGetInt(addr);
         if (NATIVE_BIG_ENDIAN) {
             dst[0] = ((val >>> 24)       ) * (1/255.0f);
             dst[1] = ((val >>> 16) & 0xff) * (1/255.0f);
@@ -779,8 +691,8 @@ public class PixelUtils {
         dst[3] = 1.0f;
     }
 
-    public static void load_RGBA_8888(Object base, long addr, float[] dst) {
-        int val = UNSAFE.getInt(base, addr);
+    public static void load_RGBA_8888_u(Object base, long addr, float[] dst) {
+        int val = MemoryUtil.memGetInt(addr);
         if (NATIVE_BIG_ENDIAN) {
             dst[0] = ((val >>> 24)       ) * (1/255.0f);
             dst[1] = ((val >>> 16) & 0xff) * (1/255.0f);
@@ -794,8 +706,8 @@ public class PixelUtils {
         }
     }
 
-    public static void load_BGRA_8888(Object base, long addr, float[] dst) {
-        int val = UNSAFE.getInt(base, addr);
+    public static void load_BGRA_8888_u(Object base, long addr, float[] dst) {
+        int val = MemoryUtil.memGetInt(addr);
         if (NATIVE_BIG_ENDIAN) {
             dst[0] = ((val >>>  8) & 0xff) * (1/255.0f);
             dst[1] = ((val >>> 16) & 0xff) * (1/255.0f);
@@ -809,44 +721,14 @@ public class PixelUtils {
         }
     }
 
-    public static void load_ABGR_8888(Object base, long addr, float[] dst) {
-        int val = UNSAFE.getInt(base, addr);
-        if (NATIVE_BIG_ENDIAN) {
-            dst[0] = ((val       ) & 0xff) * (1/255.0f);
-            dst[1] = ((val >>>  8) & 0xff) * (1/255.0f);
-            dst[2] = ((val >>> 16) & 0xff) * (1/255.0f);
-            dst[3] = ((val >>> 24)       ) * (1/255.0f);
-        } else {
-            dst[0] = ((val >>> 24)       ) * (1/255.0f);
-            dst[1] = ((val >>> 16) & 0xff) * (1/255.0f);
-            dst[2] = ((val >>>  8) & 0xff) * (1/255.0f);
-            dst[3] = ((val       ) & 0xff) * (1/255.0f);
-        }
-    }
-
-    public static void load_ARGB_8888(Object base, long addr, float[] dst) {
-        int val = UNSAFE.getInt(base, addr);
-        if (NATIVE_BIG_ENDIAN) {
-            dst[0] = ((val >>> 16) & 0xff) * (1/255.0f);
-            dst[1] = ((val >>>  8) & 0xff) * (1/255.0f);
-            dst[2] = ((val       ) & 0xff) * (1/255.0f);
-            dst[3] = ((val >>> 24)       ) * (1/255.0f);
-        } else {
-            dst[0] = ((val >>>  8) & 0xff) * (1/255.0f);
-            dst[1] = ((val >>> 16) & 0xff) * (1/255.0f);
-            dst[2] = ((val >>> 24)       ) * (1/255.0f);
-            dst[3] = ((val       ) & 0xff) * (1/255.0f);
-        }
-    }
-
-    public static void load_GRAY_8(Object base, long addr, float[] dst) {
-        float y = (UNSAFE.getByte(base, addr) & 0xff) * (1/255.0f);
+    public static void load_GRAY_8_u(Object base, long addr, float[] dst) {
+        float y = (MemoryUtil.memGetByte(addr) & 0xff) * (1/255.0f);
         dst[0] = dst[1] = dst[2] = y;
         dst[3] = 1.0f;
     }
 
-    public static void load_GRAY_ALPHA_88(Object base, long addr, float[] dst) {
-        int val = UNSAFE.getShort(base, addr);
+    public static void load_GRAY_ALPHA_88_u(Object base, long addr, float[] dst) {
+        int val = MemoryUtil.memGetShort(addr);
         if (NATIVE_BIG_ENDIAN) {
             float y = ((val >>> 8) & 0xff) * (1/255.0f);
             dst[0] = dst[1] = dst[2] = y;
@@ -858,19 +740,19 @@ public class PixelUtils {
         }
     }
 
-    public static void load_ALPHA_8(Object base, long addr, float[] dst) {
+    public static void load_ALPHA_8_u(Object base, long addr, float[] dst) {
         dst[0] = dst[1] = dst[2] = 0.0f;
-        dst[3] = (UNSAFE.getByte(base, addr) & 0xff) * (1/255.0f);
+        dst[3] = (MemoryUtil.memGetByte(addr) & 0xff) * (1/255.0f);
     }
 
-    public static void load_R_16(Object base, long addr, float[] dst) {
-        dst[0] = (UNSAFE.getShort(base, addr) & 0xffff) * (1/65535.0f);
+    public static void load_R_16_u(Object base, long addr, float[] dst) {
+        dst[0] = (MemoryUtil.memGetShort(addr) & 0xffff) * (1/65535.0f);
         dst[1] = dst[2] = 0.0f;
         dst[3] = 1.0f;
     }
 
-    public static void load_RG_1616(Object base, long addr, float[] dst) {
-        int val = UNSAFE.getInt(base, addr);
+    public static void load_RG_1616_u(Object base, long addr, float[] dst) {
+        int val = MemoryUtil.memGetInt(addr);
         if (NATIVE_BIG_ENDIAN) {
             dst[0] = ((val >>> 16)         ) * (1/65535.0f);
             dst[1] = ((val       ) & 0xffff) * (1/65535.0f);
@@ -882,15 +764,15 @@ public class PixelUtils {
         dst[3] = 1.0f;
     }
 
-    public static void load_RGB_161616(Object base, long addr, float[] dst) {
+    public static void load_RGB_161616_u(Object base, long addr, float[] dst) {
         for (int i = 0; i < 3; i++) {
-            dst[i] = (UNSAFE.getShort(base, addr+(i<<1)) & 0xffff) * (1/65535.0f);
+            dst[i] = (MemoryUtil.memGetShort(addr+(i<<1)) & 0xffff) * (1/65535.0f);
         }
         dst[3] = 1.0f;
     }
 
-    public static void load_RGBA_16161616(Object base, long addr, float[] dst) {
-        long val = UNSAFE.getLong(base, addr);
+    public static void load_RGBA_16161616_u(Object base, long addr, float[] dst) {
+        long val = MemoryUtil.memGetLong(addr);
         if (NATIVE_BIG_ENDIAN) {
             dst[0] = ((val >>> 48)         ) * (1/65535.0f);
             dst[1] = ((val >>> 32) & 0xffff) * (1/65535.0f);
@@ -904,74 +786,313 @@ public class PixelUtils {
         }
     }
 
-    public static void load_GRAY_16(Object base, long addr, float[] dst) {
-        float y = (UNSAFE.getShort(base, addr) & 0xffff) * (1/65535.0f);
+    public static void load_GRAY_16_u(Object base, long addr, float[] dst) {
+        float y = (MemoryUtil.memGetShort(addr) & 0xffff) * (1/65535.0f);
         dst[0] = dst[1] = dst[2] = y;
         dst[3] = 1.0f;
     }
 
     @SuppressWarnings("PointlessArithmeticExpression")
-    public static void load_GRAY_ALPHA_1616(Object base, long addr, float[] dst) {
-        float y = (UNSAFE.getShort(base, addr+0) & 0xffff) * (1/65535.0f);
+    public static void load_GRAY_ALPHA_1616_u(Object base, long addr, float[] dst) {
+        float y = (MemoryUtil.memGetShort(addr+0) & 0xffff) * (1/65535.0f);
         dst[0] = dst[1] = dst[2] = y;
-        dst[3] = (UNSAFE.getShort(base, addr+2) & 0xffff) * (1/65535.0f);
+        dst[3] = (MemoryUtil.memGetShort(addr+2) & 0xffff) * (1/65535.0f);
     }
 
-    public static void load_ALPHA_16(Object base, long addr, float[] dst) {
+    public static void load_ALPHA_16_u(Object base, long addr, float[] dst) {
         dst[0] = dst[1] = dst[2] = 0.0f;
-        dst[3] = (UNSAFE.getShort(base, addr) & 0xffff) * (1/65535.0f);
+        dst[3] = (MemoryUtil.memGetShort(addr) & 0xffff) * (1/65535.0f);
     }
 
-    public static void load_R_F16(Object base, long addr, float[] dst) {
-        dst[0] = MathUtil.halfToFloat(UNSAFE.getShort(base, addr));
+    public static void load_R_F16_u(Object base, long addr, float[] dst) {
+        dst[0] = MathUtil.halfToFloat(MemoryUtil.memGetShort(addr));
         dst[1] = dst[2] = 0.0f;
         dst[3] = 1.0f;
     }
 
     @SuppressWarnings("PointlessArithmeticExpression")
-    public static void load_RG_F16(Object base, long addr, float[] dst) {
-        dst[0] = MathUtil.halfToFloat(UNSAFE.getShort(base, addr+0));
-        dst[1] = MathUtil.halfToFloat(UNSAFE.getShort(base, addr+2));
+    public static void load_RG_F16_u(Object base, long addr, float[] dst) {
+        dst[0] = MathUtil.halfToFloat(MemoryUtil.memGetShort(addr+0));
+        dst[1] = MathUtil.halfToFloat(MemoryUtil.memGetShort(addr+2));
         dst[2] = 0.0f;
         dst[3] = 1.0f;
     }
 
-    public static void load_RGBA_F16(Object base, long addr, float[] dst) {
+    public static void load_RGBA_F16_u(Object base, long addr, float[] dst) {
         for (int i = 0; i < 4; i++) {
-            dst[i] = MathUtil.halfToFloat(UNSAFE.getShort(base, addr + (i<<1)));
+            dst[i] = MathUtil.halfToFloat(MemoryUtil.memGetShort(addr + (i<<1)));
         }
     }
 
-    public static void load_ALPHA_F16(Object base, long addr, float[] dst) {
+    public static void load_ALPHA_F16_u(Object base, long addr, float[] dst) {
         dst[0] = dst[1] = dst[2] = 0.0f;
-        dst[3] = MathUtil.halfToFloat(UNSAFE.getShort(base, addr));
+        dst[3] = MathUtil.halfToFloat(MemoryUtil.memGetShort(addr));
     }
 
-    public static void load_R_F32(Object base, long addr, float[] dst) {
-        dst[0] = UNSAFE.getFloat(base, addr);
+    public static void load_R_F32_u(Object base, long addr, float[] dst) {
+        dst[0] = MemoryUtil.memGetFloat(addr);
         dst[1] = dst[2] = 0.0f;
         dst[3] = 1.0f;
     }
 
     @SuppressWarnings("PointlessArithmeticExpression")
-    public static void load_RG_F32(Object base, long addr, float[] dst) {
-        dst[0] = UNSAFE.getFloat(base, addr + 0);
-        dst[1] = UNSAFE.getFloat(base, addr + 4);
+    public static void load_RG_F32_u(Object base, long addr, float[] dst) {
+        dst[0] = MemoryUtil.memGetFloat(addr + 0);
+        dst[1] = MemoryUtil.memGetFloat(addr + 4);
         dst[2] = 0.0f;
         dst[3] = 1.0f;
     }
 
     @SuppressWarnings("PointlessArithmeticExpression")
-    public static void load_RGBA_F32(Object base, long addr, float[] dst) {
-        if (base == null) {
-            dst[0] = MemoryUtil.memGetFloat(addr +  0);
-            dst[1] = MemoryUtil.memGetFloat(addr +  4);
-            dst[2] = MemoryUtil.memGetFloat(addr +  8);
-            dst[3] = MemoryUtil.memGetFloat(addr + 12);
+    public static void load_RGBA_F32_u(Object base, long addr, float[] dst) {
+        dst[0] = MemoryUtil.memGetFloat(addr +  0);
+        dst[1] = MemoryUtil.memGetFloat(addr +  4);
+        dst[2] = MemoryUtil.memGetFloat(addr +  8);
+        dst[3] = MemoryUtil.memGetFloat(addr + 12);
+    }
+
+    //---- heap ----
+
+    public static void load_BGR_565_hb(Object base, long addr, float[] dst) {
+        int val = ((short[]) base)[(int) (addr>>1)];
+        dst[0] = (val & (31<<11)) * (1.0f / (31<<11));
+        dst[1] = (val & (63<< 5)) * (1.0f / (63<< 5));
+        dst[2] = (val & (31    )) * (1.0f / (31    ));
+        dst[3] = 1.0f;
+    }
+
+    public static void load_BGRA_5551_hb(Object base, long addr, float[] dst) {
+        int val = ((short[]) base)[(int) (addr>>1)];
+        dst[0] = (val & (31<<10)) * (1.0f / (31<<10));
+        dst[1] = (val & (31<< 5)) * (1.0f / (31<< 5));
+        dst[2] = (val & (31    )) * (1.0f / (31    ));
+        dst[3] = (val & (1 <<15)) != 0 ? 1.0f : 0.0f;
+    }
+
+    public static void load_RGBA_1010102_hb(Object base, long addr, float[] dst) {
+        int val = ((int[]) base)[(int) (addr>>2)];
+        dst[0] = ((val       ) & 0x3ff) * (1.0f/1023);
+        dst[1] = ((val >>> 10) & 0x3ff) * (1.0f/1023);
+        dst[2] = ((val >>> 20) & 0x3ff) * (1.0f/1023);
+        dst[3] = ((val >>> 30)        ) * (1.0f/   3);
+    }
+
+    public static void load_BGRA_1010102_hb(Object base, long addr, float[] dst) {
+        int val = ((int[]) base)[(int) (addr>>2)];
+        dst[0] = ((val >>> 20) & 0x3ff) * (1.0f/1023);
+        dst[1] = ((val >>> 10) & 0x3ff) * (1.0f/1023);
+        dst[2] = ((val       ) & 0x3ff) * (1.0f/1023);
+        dst[3] = ((val >>> 30)        ) * (1.0f/   3);
+    }
+
+    public static void load_R_8_hb(Object base, long addr, float[] dst) {
+        dst[0] = (((byte[]) base)[(int) addr] & 0xff) * (1/255.0f);
+        dst[1] = dst[2] = 0.0f;
+        dst[3] = 1.0f;
+    }
+
+    public static void load_RG_88_hb(Object base, long addr, float[] dst) {
+        int val = (short) BYTE_ARRAY_AS_SHORT.get((byte[]) base, (int) addr);
+        if (NATIVE_BIG_ENDIAN) {
+            dst[0] = ((val >>> 8) & 0xff) * (1/255.0f);
+            dst[1] = ((val      ) & 0xff) * (1/255.0f);
         } else {
-            float[] hb = (float[]) base;
-            System.arraycopy(hb, (int) (addr>>2), dst, 0, 4);
+            dst[0] = ((val      ) & 0xff) * (1/255.0f);
+            dst[1] = ((val >>> 8) & 0xff) * (1/255.0f);
         }
+        dst[2] = 0.0f;
+        dst[3] = 1.0f;
+    }
+
+    public static void load_RGB_888_hb(Object base, long addr, float[] dst) {
+        byte[] hb = (byte[]) base;
+        int index = (int) (addr);
+        for (int i = 0; i < 3; i++) {
+            dst[i] = (hb[index+i] & 0xff) * (1/255.0f);
+        }
+        dst[3] = 1.0f;
+    }
+
+    public static void load_RGBX_8888_hb(Object base, long addr, float[] dst) {
+        int val;
+        if (base instanceof byte[]) {
+            val = (int) BYTE_ARRAY_AS_INT.get((byte[]) base, (int) addr);
+        } else {
+            val = ((int[]) base)[(int) (addr>>2)];
+        }
+        if (NATIVE_BIG_ENDIAN) {
+            dst[0] = ((val >>> 24)       ) * (1/255.0f);
+            dst[1] = ((val >>> 16) & 0xff) * (1/255.0f);
+            dst[2] = ((val >>>  8) & 0xff) * (1/255.0f);
+        } else {
+            dst[0] = ((val       ) & 0xff) * (1/255.0f);
+            dst[1] = ((val >>>  8) & 0xff) * (1/255.0f);
+            dst[2] = ((val >>> 16) & 0xff) * (1/255.0f);
+        }
+        dst[3] = 1.0f;
+    }
+
+    public static void load_RGBA_8888_hb(Object base, long addr, float[] dst) {
+        int val;
+        if (base instanceof byte[]) {
+            val = (int) BYTE_ARRAY_AS_INT.get((byte[]) base, (int) addr);
+        } else {
+            val = ((int[]) base)[(int) (addr>>2)];
+        }
+        if (NATIVE_BIG_ENDIAN) {
+            dst[0] = ((val >>> 24)       ) * (1/255.0f);
+            dst[1] = ((val >>> 16) & 0xff) * (1/255.0f);
+            dst[2] = ((val >>>  8) & 0xff) * (1/255.0f);
+            dst[3] = ((val       ) & 0xff) * (1/255.0f);
+        } else {
+            dst[0] = ((val       ) & 0xff) * (1/255.0f);
+            dst[1] = ((val >>>  8) & 0xff) * (1/255.0f);
+            dst[2] = ((val >>> 16) & 0xff) * (1/255.0f);
+            dst[3] = ((val >>> 24)       ) * (1/255.0f);
+        }
+    }
+
+    public static void load_BGRA_8888_hb(Object base, long addr, float[] dst) {
+        int val;
+        if (base instanceof byte[]) {
+            val = (int) BYTE_ARRAY_AS_INT.get((byte[]) base, (int) addr);
+        } else {
+            val = ((int[]) base)[(int) (addr>>2)];
+        }
+        if (NATIVE_BIG_ENDIAN) {
+            dst[0] = ((val >>>  8) & 0xff) * (1/255.0f);
+            dst[1] = ((val >>> 16) & 0xff) * (1/255.0f);
+            dst[2] = ((val >>> 24)       ) * (1/255.0f);
+            dst[3] = ((val       ) & 0xff) * (1/255.0f);
+        } else {
+            dst[0] = ((val >>> 16) & 0xff) * (1/255.0f);
+            dst[1] = ((val >>>  8) & 0xff) * (1/255.0f);
+            dst[2] = ((val       ) & 0xff) * (1/255.0f);
+            dst[3] = ((val >>> 24)       ) * (1/255.0f);
+        }
+    }
+
+    public static void load_GRAY_8_hb(Object base, long addr, float[] dst) {
+        float y = (((byte[]) base)[(int) addr] & 0xff) * (1/255.0f);
+        dst[0] = dst[1] = dst[2] = y;
+        dst[3] = 1.0f;
+    }
+
+    public static void load_GRAY_ALPHA_88_hb(Object base, long addr, float[] dst) {
+        int val = (short) BYTE_ARRAY_AS_SHORT.get((byte[]) base, (int) addr);
+        if (NATIVE_BIG_ENDIAN) {
+            float y = ((val >>> 8) & 0xff) * (1/255.0f);
+            dst[0] = dst[1] = dst[2] = y;
+            dst[3] = ((val      ) & 0xff) * (1/255.0f);
+        } else {
+            float y = ((val      ) & 0xff) * (1/255.0f);
+            dst[0] = dst[1] = dst[2] = y;
+            dst[3] = ((val >>> 8) & 0xff) * (1/255.0f);
+        }
+    }
+
+    public static void load_ALPHA_8_hb(Object base, long addr, float[] dst) {
+        dst[0] = dst[1] = dst[2] = 0.0f;
+        dst[3] = (((byte[]) base)[(int) addr] & 0xff) * (1/255.0f);
+    }
+
+    public static void load_R_16_hb(Object base, long addr, float[] dst) {
+        dst[0] = (((short[]) base)[(int) (addr>>1)] & 0xffff) * (1/65535.0f);
+        dst[1] = dst[2] = 0.0f;
+        dst[3] = 1.0f;
+    }
+
+    public static void load_RG_1616_hb(Object base, long addr, float[] dst) {
+        short[] hb = (short[]) base;
+        int index = (int) (addr>>1);
+        dst[0] = (hb[index]   & 0xffff) * (1/65535.0f);
+        dst[1] = (hb[index+1] & 0xffff) * (1/65535.0f);
+        dst[2] = 0.0f;
+        dst[3] = 1.0f;
+    }
+
+    public static void load_RGB_161616_hb(Object base, long addr, float[] dst) {
+        short[] hb = (short[]) base;
+        int index = (int) (addr>>1);
+        for (int i = 0; i < 3; i++) {
+            dst[i] = (hb[index+i] & 0xffff) * (1/65535.0f);
+        }
+        dst[3] = 1.0f;
+    }
+
+    public static void load_RGBA_16161616_hb(Object base, long addr, float[] dst) {
+        short[] hb = (short[]) base;
+        int index = (int) (addr>>1);
+        for (int i = 0; i < 4; i++) {
+            dst[i] = (hb[index+i] & 0xffff) * (1/65535.0f);
+        }
+    }
+
+    public static void load_GRAY_16_hb(Object base, long addr, float[] dst) {
+        float y = (((short[]) base)[(int) (addr>>1)] & 0xffff) * (1/65535.0f);
+        dst[0] = dst[1] = dst[2] = y;
+        dst[3] = 1.0f;
+    }
+
+    public static void load_GRAY_ALPHA_1616_hb(Object base, long addr, float[] dst) {
+        short[] hb = (short[]) base;
+        int index = (int) (addr>>1);
+        float y = (hb[index] & 0xffff) * (1/65535.0f);
+        dst[0] = dst[1] = dst[2] = y;
+        dst[3] = (hb[index+1] & 0xffff) * (1/65535.0f);
+    }
+
+    public static void load_ALPHA_16_hb(Object base, long addr, float[] dst) {
+        dst[0] = dst[1] = dst[2] = 0.0f;
+        dst[3] = (((short[]) base)[(int) (addr>>1)] & 0xffff) * (1/65535.0f);
+    }
+
+    public static void load_R_F16_hb(Object base, long addr, float[] dst) {
+        dst[0] = MathUtil.halfToFloat(((short[]) base)[(int) (addr>>1)]);
+        dst[1] = dst[2] = 0.0f;
+        dst[3] = 1.0f;
+    }
+
+    public static void load_RG_F16_hb(Object base, long addr, float[] dst) {
+        short[] hb = (short[]) base;
+        int index = (int) (addr>>1);
+        dst[0] = MathUtil.halfToFloat(hb[index]);
+        dst[1] = MathUtil.halfToFloat(hb[index+1]);
+        dst[2] = 0.0f;
+        dst[3] = 1.0f;
+    }
+
+    public static void load_RGBA_F16_hb(Object base, long addr, float[] dst) {
+        short[] hb = (short[]) base;
+        int index = (int) (addr>>1);
+        for (int i = 0; i < 4; i++) {
+            dst[i] = MathUtil.halfToFloat(hb[index+i]);
+        }
+    }
+
+    public static void load_ALPHA_F16_hb(Object base, long addr, float[] dst) {
+        dst[0] = dst[1] = dst[2] = 0.0f;
+        dst[3] = MathUtil.halfToFloat(((short[]) base)[(int) (addr>>1)]);
+    }
+
+    public static void load_R_F32_hb(Object base, long addr, float[] dst) {
+        dst[0] = ((float[]) base)[(int) (addr>>2)];
+        dst[1] = dst[2] = 0.0f;
+        dst[3] = 1.0f;
+    }
+
+    public static void load_RG_F32_hb(Object base, long addr, float[] dst) {
+        float[] hb = (float[]) base;
+        int index = (int) (addr>>2);
+        dst[0] = hb[index];
+        dst[1] = hb[index+1];
+        dst[2] = 0.0f;
+        dst[3] = 1.0f;
+    }
+
+    public static void load_RGBA_F32_hb(Object base, long addr, float[] dst) {
+        float[] hb = (float[]) base;
+        System.arraycopy(hb, (int) (addr>>2), dst, 0, 4);
     }
 
     /**
@@ -979,37 +1100,72 @@ public class PixelUtils {
      */
     @NonNull
     @Contract(pure = true)
-    public static PixelOp loadOp(@ColorInfo.ColorType int ct) {
-        return switch (ct) {
-            case ColorInfo.CT_BGR_565         -> PixelUtils::load_BGR_565;
-            case ColorInfo.CT_BGRA_5551       -> PixelUtils::load_BGRA_5551;
-            case ColorInfo.CT_RGBA_1010102    -> PixelUtils::load_RGBA_1010102;
-            case ColorInfo.CT_BGRA_1010102    -> PixelUtils::load_BGRA_1010102;
-            case ColorInfo.CT_R_8             -> PixelUtils::load_R_8;
-            case ColorInfo.CT_RG_88           -> PixelUtils::load_RG_88;
-            case ColorInfo.CT_RGB_888         -> PixelUtils::load_RGB_888;
-            case ColorInfo.CT_RGBX_8888       -> PixelUtils::load_RGBX_8888;
-            case ColorInfo.CT_RGBA_8888       -> PixelUtils::load_RGBA_8888;
-            case ColorInfo.CT_BGRA_8888       -> PixelUtils::load_BGRA_8888;
-            case ColorInfo.CT_GRAY_8          -> PixelUtils::load_GRAY_8;
-            case ColorInfo.CT_GRAY_ALPHA_88   -> PixelUtils::load_GRAY_ALPHA_88;
-            case ColorInfo.CT_ALPHA_8         -> PixelUtils::load_ALPHA_8;
-            case ColorInfo.CT_R_16            -> PixelUtils::load_R_16;
-            case ColorInfo.CT_RG_1616         -> PixelUtils::load_RG_1616;
-            case ColorInfo.CT_RGB_161616      -> PixelUtils::load_RGB_161616;
-            case ColorInfo.CT_RGBA_16161616   -> PixelUtils::load_RGBA_16161616;
-            case ColorInfo.CT_GRAY_16         -> PixelUtils::load_GRAY_16;
-            case ColorInfo.CT_GRAY_ALPHA_1616 -> PixelUtils::load_GRAY_ALPHA_1616;
-            case ColorInfo.CT_ALPHA_16        -> PixelUtils::load_ALPHA_16;
-            case ColorInfo.CT_R_F16           -> PixelUtils::load_R_F16;
-            case ColorInfo.CT_RG_F16          -> PixelUtils::load_RG_F16;
-            case ColorInfo.CT_RGBA_F16        -> PixelUtils::load_RGBA_F16;
-            case ColorInfo.CT_ALPHA_F16       -> PixelUtils::load_ALPHA_F16;
-            case ColorInfo.CT_R_F32           -> PixelUtils::load_R_F32;
-            case ColorInfo.CT_RG_F32          -> PixelUtils::load_RG_F32;
-            case ColorInfo.CT_RGBA_F32        -> PixelUtils::load_RGBA_F32;
-            default -> throw new AssertionError(ct);
-        };
+    public static PixelOp loadOp(@ColorInfo.ColorType int ct, boolean isU) {
+        if (isU) {
+            // off heap
+            return switch (ct) {
+                case ColorInfo.CT_BGR_565         -> PixelUtils::load_BGR_565_u;
+                case ColorInfo.CT_BGRA_5551       -> PixelUtils::load_BGRA_5551_u;
+                case ColorInfo.CT_RGBA_1010102    -> PixelUtils::load_RGBA_1010102_u;
+                case ColorInfo.CT_BGRA_1010102    -> PixelUtils::load_BGRA_1010102_u;
+                case ColorInfo.CT_R_8             -> PixelUtils::load_R_8_u;
+                case ColorInfo.CT_RG_88           -> PixelUtils::load_RG_88_u;
+                case ColorInfo.CT_RGB_888         -> PixelUtils::load_RGB_888_u;
+                case ColorInfo.CT_RGBX_8888       -> PixelUtils::load_RGBX_8888_u;
+                case ColorInfo.CT_RGBA_8888       -> PixelUtils::load_RGBA_8888_u;
+                case ColorInfo.CT_BGRA_8888       -> PixelUtils::load_BGRA_8888_u;
+                case ColorInfo.CT_GRAY_8          -> PixelUtils::load_GRAY_8_u;
+                case ColorInfo.CT_GRAY_ALPHA_88   -> PixelUtils::load_GRAY_ALPHA_88_u;
+                case ColorInfo.CT_ALPHA_8         -> PixelUtils::load_ALPHA_8_u;
+                case ColorInfo.CT_R_16            -> PixelUtils::load_R_16_u;
+                case ColorInfo.CT_RG_1616         -> PixelUtils::load_RG_1616_u;
+                case ColorInfo.CT_RGB_161616      -> PixelUtils::load_RGB_161616_u;
+                case ColorInfo.CT_RGBA_16161616   -> PixelUtils::load_RGBA_16161616_u;
+                case ColorInfo.CT_GRAY_16         -> PixelUtils::load_GRAY_16_u;
+                case ColorInfo.CT_GRAY_ALPHA_1616 -> PixelUtils::load_GRAY_ALPHA_1616_u;
+                case ColorInfo.CT_ALPHA_16        -> PixelUtils::load_ALPHA_16_u;
+                case ColorInfo.CT_R_F16           -> PixelUtils::load_R_F16_u;
+                case ColorInfo.CT_RG_F16          -> PixelUtils::load_RG_F16_u;
+                case ColorInfo.CT_RGBA_F16        -> PixelUtils::load_RGBA_F16_u;
+                case ColorInfo.CT_ALPHA_F16       -> PixelUtils::load_ALPHA_F16_u;
+                case ColorInfo.CT_R_F32           -> PixelUtils::load_R_F32_u;
+                case ColorInfo.CT_RG_F32          -> PixelUtils::load_RG_F32_u;
+                case ColorInfo.CT_RGBA_F32        -> PixelUtils::load_RGBA_F32_u;
+                default -> throw new AssertionError(ct);
+            };
+        } else {
+            // heap
+            return switch (ct) {
+                case ColorInfo.CT_BGR_565         -> PixelUtils::load_BGR_565_hb;
+                case ColorInfo.CT_BGRA_5551       -> PixelUtils::load_BGRA_5551_hb;
+                case ColorInfo.CT_RGBA_1010102    -> PixelUtils::load_RGBA_1010102_hb;
+                case ColorInfo.CT_BGRA_1010102    -> PixelUtils::load_BGRA_1010102_hb;
+                case ColorInfo.CT_R_8             -> PixelUtils::load_R_8_hb;
+                case ColorInfo.CT_RG_88           -> PixelUtils::load_RG_88_hb;
+                case ColorInfo.CT_RGB_888         -> PixelUtils::load_RGB_888_hb;
+                case ColorInfo.CT_RGBX_8888       -> PixelUtils::load_RGBX_8888_hb;
+                case ColorInfo.CT_RGBA_8888       -> PixelUtils::load_RGBA_8888_hb;
+                case ColorInfo.CT_BGRA_8888       -> PixelUtils::load_BGRA_8888_hb;
+                case ColorInfo.CT_GRAY_8          -> PixelUtils::load_GRAY_8_hb;
+                case ColorInfo.CT_GRAY_ALPHA_88   -> PixelUtils::load_GRAY_ALPHA_88_hb;
+                case ColorInfo.CT_ALPHA_8         -> PixelUtils::load_ALPHA_8_hb;
+                case ColorInfo.CT_R_16            -> PixelUtils::load_R_16_hb;
+                case ColorInfo.CT_RG_1616         -> PixelUtils::load_RG_1616_hb;
+                case ColorInfo.CT_RGB_161616      -> PixelUtils::load_RGB_161616_hb;
+                case ColorInfo.CT_RGBA_16161616   -> PixelUtils::load_RGBA_16161616_hb;
+                case ColorInfo.CT_GRAY_16         -> PixelUtils::load_GRAY_16_hb;
+                case ColorInfo.CT_GRAY_ALPHA_1616 -> PixelUtils::load_GRAY_ALPHA_1616_hb;
+                case ColorInfo.CT_ALPHA_16        -> PixelUtils::load_ALPHA_16_hb;
+                case ColorInfo.CT_R_F16           -> PixelUtils::load_R_F16_hb;
+                case ColorInfo.CT_RG_F16          -> PixelUtils::load_RG_F16_hb;
+                case ColorInfo.CT_RGBA_F16        -> PixelUtils::load_RGBA_F16_hb;
+                case ColorInfo.CT_ALPHA_F16       -> PixelUtils::load_ALPHA_F16_hb;
+                case ColorInfo.CT_R_F32           -> PixelUtils::load_R_F32_hb;
+                case ColorInfo.CT_RG_F32          -> PixelUtils::load_RG_F32_hb;
+                case ColorInfo.CT_RGBA_F32        -> PixelUtils::load_RGBA_F32_hb;
+                default -> throw new AssertionError(ct);
+            };
+        }
     }
     //@formatter:on
 
@@ -1300,7 +1456,7 @@ public class PixelUtils {
             val = (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 255 + .5f)      |
                   (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 255 + .5f) << 8 ;
         }
-        BYTE_ARRAY_AS_SHORT.set((short[]) base, (int) addr, (short) val);
+        BYTE_ARRAY_AS_SHORT.set((byte[]) base, (int) addr, (short) val);
     }
 
     public static void store_RGB_888_hb(Object base, long addr, float[] src) {
@@ -1405,15 +1561,10 @@ public class PixelUtils {
     }
 
     public static void store_RG_1616_hb(Object base, long addr, float[] src) {
-        int val;
-        if (NATIVE_BIG_ENDIAN) {
-            val = (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 65535 + .5f) << 16 |
-                  (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 65535 + .5f)       ;
-        } else {
-            val = (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 65535 + .5f)       |
-                  (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 65535 + .5f) << 16 ;
-        }
-        ((int[]) base)[(int) (addr>>2)] = val;
+        short[] hb = (short[]) base;
+        int index = (int) (addr>>1);
+        hb[index] = (short) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 65535 + .5f);
+        hb[index+1] = (short) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 65535 + .5f);
     }
 
     public static void store_RGB_161616_hb(Object base, long addr, float[] src) {
@@ -1729,7 +1880,7 @@ public class PixelUtils {
             }
         } else {
             // high precision pipeline
-            final PixelOp load = loadOp(srcCT);
+            final PixelOp load = loadOp(srcCT, srcBase == null);
             final boolean unpremul = (flags & kColorSpaceXformFlagUnpremul) != 0;
             final ColorSpace.Connector connector = csXform ? ColorSpace.connect(srcCS, dstCS) : null;
             final boolean premul = (flags & kColorSpaceXformFlagPremul) != 0;

@@ -284,8 +284,9 @@ public class Pixmap {
         assert getAddress() != MemoryUtil.NULL;
         assert x < getWidth();
         assert y < getHeight();
-        PixelUtils.loadOp(getColorType())
-                .op(getBase(), getAddress(x, y), dst);
+        Object base = getBase();
+        PixelUtils.loadOp(getColorType(), base == null)
+                .op(base, getAddress(x, y), dst);
     }
 
     /**
