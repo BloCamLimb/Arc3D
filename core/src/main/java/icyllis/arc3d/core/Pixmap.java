@@ -305,8 +305,9 @@ public class Pixmap {
         assert getAddress() != MemoryUtil.NULL;
         assert x < getWidth();
         assert y < getHeight();
-        PixelUtils.storeOp(getColorType())
-                .op(getBase(), getAddress(x, y), src);
+        Object base = getBase();
+        PixelUtils.storeOp(getColorType(), base == null)
+                .op(base, getAddress(x, y), src);
     }
 
     /**
@@ -449,11 +450,21 @@ public class Pixmap {
                     }
                 }
             } else {
-                for (int y = clip.mTop; y < clip.mBottom; ++y) {
-                    long addr = getAddress(clip.x(), y);
-                    for (int i = 0, e = clip.width(); i < e; ++i) {
-                        PixelUtils.store_RGBA_F32(base, addr, color);
-                        addr += 16;
+                if (base != null) {
+                    for (int y = clip.mTop; y < clip.mBottom; ++y) {
+                        long addr = getAddress(clip.x(), y);
+                        for (int i = 0, e = clip.width(); i < e; ++i) {
+                            PixelUtils.store_RGBA_F32_hb(base, addr, color);
+                            addr += 16;
+                        }
+                    }
+                } else {
+                    for (int y = clip.mTop; y < clip.mBottom; ++y) {
+                        long addr = getAddress(clip.x(), y);
+                        for (int i = 0, e = clip.width(); i < e; ++i) {
+                            PixelUtils.store_RGBA_F32_u(null, addr, color);
+                            addr += 16;
+                        }
                     }
                 }
             }
@@ -465,7 +476,7 @@ public class Pixmap {
         try (var stack = MemoryStack.stackPush()) {
             // convert to ct
             long dst = stack.nmalloc(8, 8);
-            PixelUtils.storeOp(ct)
+            PixelUtils.storeOp(ct, true)
                     .op(null, dst, color);
 
             boolean fast = true;

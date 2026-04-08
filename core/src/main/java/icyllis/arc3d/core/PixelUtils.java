@@ -22,8 +22,11 @@ package icyllis.arc3d.core;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
+import org.lwjgl.system.MemoryUtil;
 import org.lwjgl.system.libc.LibCString;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.nio.ByteOrder;
 
 /**
@@ -77,6 +80,11 @@ public class PixelUtils {
 
         throw new UnsupportedOperationException("No sun.misc.Unsafe");
     }
+
+    public static final VarHandle BYTE_ARRAY_AS_SHORT =
+            MethodHandles.byteArrayViewVarHandle(short[].class, ByteOrder.nativeOrder());
+    public static final VarHandle BYTE_ARRAY_AS_INT =
+            MethodHandles.byteArrayViewVarHandle(int[].class, ByteOrder.nativeOrder());
 
     /**
      * Copy memory row by row.
@@ -669,6 +677,22 @@ public class PixelUtils {
             case ColorInfo.CT_GRAY_8        -> PixelUtils::store_GRAY_8;
             case ColorInfo.CT_GRAY_ALPHA_88 -> PixelUtils::store_GRAY_ALPHA_88;
             case ColorInfo.CT_ALPHA_8       -> PixelUtils::store_ALPHA_8;
+            case ColorInfo.CT_RGBA_1010102,
+                 ColorInfo.CT_BGRA_1010102,
+                 ColorInfo.CT_R_16,
+                 ColorInfo.CT_RG_1616,
+                 ColorInfo.CT_RGB_161616,
+                 ColorInfo.CT_RGBA_16161616,
+                 ColorInfo.CT_GRAY_16,
+                 ColorInfo.CT_GRAY_ALPHA_1616,
+                 ColorInfo.CT_ALPHA_16,
+                 ColorInfo.CT_R_F16,
+                 ColorInfo.CT_RG_F16,
+                 ColorInfo.CT_RGBA_F16,
+                 ColorInfo.CT_ALPHA_F16,
+                 ColorInfo.CT_R_F32,
+                 ColorInfo.CT_RG_F32,
+                 ColorInfo.CT_RGBA_F32 -> throw new UnsupportedOperationException();
             default -> throw new AssertionError(ct);
         };
     }
@@ -679,7 +703,7 @@ public class PixelUtils {
      */
     @FunctionalInterface
     public interface PixelOp {
-        void op(Object base, long addr, /*Color4f*/ float[] col);
+        void op(Object base, long addr, /*Color4f*/ float[/*4*/] col);
     }
 
     //@formatter:off
@@ -939,10 +963,15 @@ public class PixelUtils {
 
     @SuppressWarnings("PointlessArithmeticExpression")
     public static void load_RGBA_F32(Object base, long addr, float[] dst) {
-        dst[0] = UNSAFE.getFloat(base, addr +  0);
-        dst[1] = UNSAFE.getFloat(base, addr +  4);
-        dst[2] = UNSAFE.getFloat(base, addr +  8);
-        dst[3] = UNSAFE.getFloat(base, addr + 12);
+        if (base == null) {
+            dst[0] = MemoryUtil.memGetFloat(addr +  0);
+            dst[1] = MemoryUtil.memGetFloat(addr +  4);
+            dst[2] = MemoryUtil.memGetFloat(addr +  8);
+            dst[3] = MemoryUtil.memGetFloat(addr + 12);
+        } else {
+            float[] hb = (float[]) base;
+            System.arraycopy(hb, (int) (addr>>2), dst, 0, 4);
+        }
     }
 
     /**
@@ -984,44 +1013,49 @@ public class PixelUtils {
     }
     //@formatter:on
 
+    //---- store ops ----
+
     //@formatter:off
-    public static void store_BGR_565(Object base, long addr, float[] src) {
+
+    //---- off heap ----
+
+    public static void store_BGR_565_u(Object base, long addr, float[] src) {
         int val = (int) (MathUtil.clamp(src[2], 0.0f, 1.0f) * 31 + .5f)       |
                   (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 63 + .5f) << 5  |
                   (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 31 + .5f) << 11;
-        UNSAFE.putShort(base, addr, (short) val);
+        MemoryUtil.memPutShort(addr, (short) val);
     }
 
-    public static void store_BGRA_5551(Object base, long addr, float[] src) {
+    public static void store_BGRA_5551_u(Object base, long addr, float[] src) {
         int val = (int) (MathUtil.clamp(src[2], 0.0f, 1.0f) * 31 + .5f)       |
                   (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 31 + .5f) << 5  |
                   (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 31 + .5f) << 10 |
                   (src[3] >= 0.5f ? (1 << 15) : 0); // NaN to 0
-        UNSAFE.putShort(base, addr, (short) val);
+        MemoryUtil.memPutShort(addr, (short) val);
     }
 
-    public static void store_RGBA_1010102(Object base, long addr, float[] src) {
+    public static void store_RGBA_1010102_u(Object base, long addr, float[] src) {
         int val = (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 1023 + .5f)       |
                   (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 1023 + .5f) << 10 |
                   (int) (MathUtil.clamp(src[2], 0.0f, 1.0f) * 1023 + .5f) << 20 |
                   (int) (MathUtil.clamp(src[3], 0.0f, 1.0f) *    3 + .5f) << 30;
-        UNSAFE.putInt(base, addr, val);
+        MemoryUtil.memPutInt(addr, val);
     }
 
-    public static void store_BGRA_1010102(Object base, long addr, float[] src) {
+    public static void store_BGRA_1010102_u(Object base, long addr, float[] src) {
         int val = (int) (MathUtil.clamp(src[2], 0.0f, 1.0f) * 1023 + .5f)       |
                   (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 1023 + .5f) << 10 |
                   (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 1023 + .5f) << 20 |
                   (int) (MathUtil.clamp(src[3], 0.0f, 1.0f) *    3 + .5f) << 30;
-        UNSAFE.putInt(base, addr, val);
+        MemoryUtil.memPutInt(addr, val);
     }
 
-    public static void store_R_8(Object base, long addr, float[] src) {
+    public static void store_R_8_u(Object base, long addr, float[] src) {
         byte val = (byte) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 255 + .5f);
-        UNSAFE.putByte(base, addr, val);
+        MemoryUtil.memPutByte(addr, val);
     }
 
-    public static void store_RG_88(Object base, long addr, float[] src) {
+    public static void store_RG_88_u(Object base, long addr, float[] src) {
         int val;
         if (NATIVE_BIG_ENDIAN) {
             val = (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 255 + .5f) << 8 |
@@ -1030,16 +1064,16 @@ public class PixelUtils {
             val = (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 255 + .5f)      |
                   (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 255 + .5f) << 8 ;
         }
-        UNSAFE.putShort(base, addr, (short) val);
+        MemoryUtil.memPutShort(addr, (short) val);
     }
 
-    public static void store_RGB_888(Object base, long addr, float[] src) {
+    public static void store_RGB_888_u(Object base, long addr, float[] src) {
         for (int i = 0; i < 3; i++) {
-            UNSAFE.putByte(base, addr+i, (byte) (MathUtil.clamp(src[i], 0.0f, 1.0f) * 255 + .5f));
+            MemoryUtil.memPutByte(addr+i, (byte) (MathUtil.clamp(src[i], 0.0f, 1.0f) * 255 + .5f));
         }
     }
 
-    public static void store_RGBX_8888(Object base, long addr, float[] src) {
+    public static void store_RGBX_8888_u(Object base, long addr, float[] src) {
         int val;
         if (NATIVE_BIG_ENDIAN) {
             val = (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 255 + .5f) << 24 |
@@ -1052,10 +1086,10 @@ public class PixelUtils {
                   (int) (MathUtil.clamp(src[2], 0.0f, 1.0f) * 255 + .5f) << 16 |
                   255 << 24;
         }
-        UNSAFE.putInt(base, addr, val);
+        MemoryUtil.memPutInt(addr, val);
     }
 
-    public static void store_RGBA_8888(Object base, long addr, float[] src) {
+    public static void store_RGBA_8888_u(Object base, long addr, float[] src) {
         int val;
         if (NATIVE_BIG_ENDIAN) {
             val = (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 255 + .5f) << 24 |
@@ -1068,10 +1102,10 @@ public class PixelUtils {
                   (int) (MathUtil.clamp(src[2], 0.0f, 1.0f) * 255 + .5f) << 16 |
                   (int) (MathUtil.clamp(src[3], 0.0f, 1.0f) * 255 + .5f) << 24 ;
         }
-        UNSAFE.putInt(base, addr, val);
+        MemoryUtil.memPutInt(addr, val);
     }
 
-    public static void store_BGRA_8888(Object base, long addr, float[] src) {
+    public static void store_BGRA_8888_u(Object base, long addr, float[] src) {
         int val;
         if (NATIVE_BIG_ENDIAN) {
             val = (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 255 + .5f) <<  8 |
@@ -1084,49 +1118,18 @@ public class PixelUtils {
                   (int) (MathUtil.clamp(src[2], 0.0f, 1.0f) * 255 + .5f)       |
                   (int) (MathUtil.clamp(src[3], 0.0f, 1.0f) * 255 + .5f) << 24 ;
         }
-        UNSAFE.putInt(base, addr, val);
+        MemoryUtil.memPutInt(addr, val);
     }
 
-    public static void store_ABGR_8888(Object base, long addr, float[] src) {
-        int val;
-        if (NATIVE_BIG_ENDIAN) {
-            val = (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 255 + .5f)       |
-                  (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 255 + .5f) <<  8 |
-                  (int) (MathUtil.clamp(src[2], 0.0f, 1.0f) * 255 + .5f) << 16 |
-                  (int) (MathUtil.clamp(src[3], 0.0f, 1.0f) * 255 + .5f) << 24 ;
-        } else {
-            val = (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 255 + .5f) << 24 |
-                  (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 255 + .5f) << 16 |
-                  (int) (MathUtil.clamp(src[2], 0.0f, 1.0f) * 255 + .5f) <<  8 |
-                  (int) (MathUtil.clamp(src[3], 0.0f, 1.0f) * 255 + .5f)       ;
-        }
-        UNSAFE.putInt(base, addr, val);
-    }
-
-    public static void store_ARGB_8888(Object base, long addr, float[] src) {
-        int val;
-        if (NATIVE_BIG_ENDIAN) {
-            val = (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 255 + .5f) << 16 |
-                  (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 255 + .5f) <<  8 |
-                  (int) (MathUtil.clamp(src[2], 0.0f, 1.0f) * 255 + .5f)       |
-                  (int) (MathUtil.clamp(src[3], 0.0f, 1.0f) * 255 + .5f) << 24 ;
-        } else {
-            val = (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 255 + .5f) <<  8 |
-                  (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 255 + .5f) << 16 |
-                  (int) (MathUtil.clamp(src[2], 0.0f, 1.0f) * 255 + .5f) << 24 |
-                  (int) (MathUtil.clamp(src[3], 0.0f, 1.0f) * 255 + .5f)       ;
-        }
-        UNSAFE.putInt(base, addr, val);
-    }
-
-    public static void store_GRAY_8(Object base, long addr, float[] src) {
+    public static void store_GRAY_8_u(Object base, long addr, float[] src) {
         float y = MathUtil.clamp(src[0], 0.0f, 1.0f) * 0.2126f +
                   MathUtil.clamp(src[1], 0.0f, 1.0f) * 0.7152f +
                   MathUtil.clamp(src[2], 0.0f, 1.0f) * 0.0722f;
-        UNSAFE.putByte(base, addr, (byte) (y * 255 + .5f));
+        byte val = (byte) (y * 255 + .5f);
+        MemoryUtil.memPutByte(addr, val);
     }
 
-    public static void store_GRAY_ALPHA_88(Object base, long addr, float[] src) {
+    public static void store_GRAY_ALPHA_88_u(Object base, long addr, float[] src) {
         float y = MathUtil.clamp(src[0], 0.0f, 1.0f) * 0.2126f +
                   MathUtil.clamp(src[1], 0.0f, 1.0f) * 0.7152f +
                   MathUtil.clamp(src[2], 0.0f, 1.0f) * 0.0722f;
@@ -1138,20 +1141,20 @@ public class PixelUtils {
             val = (int) (y * 255 + .5f)      |
                   (int) (MathUtil.clamp(src[3], 0.0f, 1.0f) * 255 + .5f) << 8;
         }
-        UNSAFE.putShort(base, addr, (short) val);
+        MemoryUtil.memPutShort(addr, (short) val);
     }
 
-    public static void store_ALPHA_8(Object base, long addr, float[] src) {
+    public static void store_ALPHA_8_u(Object base, long addr, float[] src) {
         byte val = (byte) (MathUtil.clamp(src[3], 0.0f, 1.0f) * 255 + .5f);
-        UNSAFE.putByte(base, addr, val);
+        MemoryUtil.memPutByte(addr, val);
     }
 
-    public static void store_R_16(Object base, long addr, float[] src) {
+    public static void store_R_16_u(Object base, long addr, float[] src) {
         short val = (short) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 65535 + .5f);
-        UNSAFE.putShort(base, addr, val);
+        MemoryUtil.memPutShort(addr, val);
     }
 
-    public static void store_RG_1616(Object base, long addr, float[] src) {
+    public static void store_RG_1616_u(Object base, long addr, float[] src) {
         int val;
         if (NATIVE_BIG_ENDIAN) {
             val = (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 65535 + .5f) << 16 |
@@ -1160,16 +1163,16 @@ public class PixelUtils {
             val = (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 65535 + .5f)       |
                   (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 65535 + .5f) << 16 ;
         }
-        UNSAFE.putInt(base, addr, val);
+        MemoryUtil.memPutInt(addr, val);
     }
 
-    public static void store_RGB_161616(Object base, long addr, float[] src) {
+    public static void store_RGB_161616_u(Object base, long addr, float[] src) {
         for (int i = 0; i < 3; i++) {
-            UNSAFE.putShort(base, addr+(i<<1), (short) (MathUtil.clamp(src[i], 0.0f, 1.0f) * 65535 + .5f));
+            MemoryUtil.memPutShort(addr+(i<<1), (short) (MathUtil.clamp(src[i], 0.0f, 1.0f) * 65535 + .5f));
         }
     }
 
-    public static void store_RGBA_16161616(Object base, long addr, float[] src) {
+    public static void store_RGBA_16161616_u(Object base, long addr, float[] src) {
         long val;
         if (NATIVE_BIG_ENDIAN) {
             val = (long) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 65535 + .5f) << 48 |
@@ -1182,66 +1185,319 @@ public class PixelUtils {
                   (long) (MathUtil.clamp(src[2], 0.0f, 1.0f) * 65535 + .5f) << 32 |
                   (long) (MathUtil.clamp(src[3], 0.0f, 1.0f) * 65535 + .5f) << 48 ;
         }
-        UNSAFE.putLong(base, addr, val);
+        MemoryUtil.memPutLong(addr, val);
     }
 
-    public static void store_GRAY_16(Object base, long addr, float[] src) {
+    public static void store_GRAY_16_u(Object base, long addr, float[] src) {
         float y = MathUtil.clamp(src[0], 0.0f, 1.0f) * 0.2126f +
                   MathUtil.clamp(src[1], 0.0f, 1.0f) * 0.7152f +
                   MathUtil.clamp(src[2], 0.0f, 1.0f) * 0.0722f;
-        UNSAFE.putShort(base, addr, (short) (y * 65535 + .5f));
+        short val = (short) (y * 65535 + .5f);
+        MemoryUtil.memPutShort(addr, val);
     }
 
-    public static void store_GRAY_ALPHA_1616(Object base, long addr, float[] src) {
+    public static void store_GRAY_ALPHA_1616_u(Object base, long addr, float[] src) {
         float y = MathUtil.clamp(src[0], 0.0f, 1.0f) * 0.2126f +
                   MathUtil.clamp(src[1], 0.0f, 1.0f) * 0.7152f +
                   MathUtil.clamp(src[2], 0.0f, 1.0f) * 0.0722f;
-        int val = (int) (y * 65535 + .5f)    |
-                  (int) (MathUtil.clamp(src[3], 0.0f, 1.0f) * 65535 + .5f) << 16;
-        UNSAFE.putInt(base, addr, val);
+        short r = (short) (y * 65535 + .5f);
+        short g = (short) (MathUtil.clamp(src[3], 0.0f, 1.0f) * 65535 + .5f);
+        MemoryUtil.memPutShort(addr, r);
+        MemoryUtil.memPutShort(addr+2, g);
     }
 
-    public static void store_ALPHA_16(Object base, long addr, float[] src) {
+    public static void store_ALPHA_16_u(Object base, long addr, float[] src) {
         short val = (short) (MathUtil.clamp(src[3], 0.0f, 1.0f) * 65535 + .5f);
-        UNSAFE.putShort(base, addr, val);
+        MemoryUtil.memPutShort(addr, val);
     }
 
-    public static void store_R_F16(Object base, long addr, float[] src) {
-        UNSAFE.putShort(base, addr, MathUtil.floatToHalf(src[0]));
+    public static void store_R_F16_u(Object base, long addr, float[] src) {
+        short val = MathUtil.floatToHalf(src[0]);
+        MemoryUtil.memPutShort(addr, val);
     }
 
     @SuppressWarnings("PointlessArithmeticExpression")
-    public static void store_RG_F16(Object base, long addr, float[] src) {
-        UNSAFE.putShort(base, addr+0, MathUtil.floatToHalf(src[0]));
-        UNSAFE.putShort(base, addr+2, MathUtil.floatToHalf(src[1]));
+    public static void store_RG_F16_u(Object base, long addr, float[] src) {
+        short r = MathUtil.floatToHalf(src[0]);
+        short g = MathUtil.floatToHalf(src[1]);
+        MemoryUtil.memPutShort(addr+0, r);
+        MemoryUtil.memPutShort(addr+2, g);
     }
 
-    public static void store_RGBA_F16(Object base, long addr, float[] src) {
+    public static void store_RGBA_F16_u(Object base, long addr, float[] src) {
         for (int i = 0; i < 4; i++) {
-            UNSAFE.putShort(base, addr + (i<<1), MathUtil.floatToHalf(src[i]));
+            MemoryUtil.memPutShort(addr + (i<<1), MathUtil.floatToHalf(src[i]));
         }
     }
 
-    public static void store_ALPHA_F16(Object base, long addr, float[] src) {
-        UNSAFE.putShort(base, addr, MathUtil.floatToHalf(src[3]));
+    public static void store_ALPHA_F16_u(Object base, long addr, float[] src) {
+        short val = MathUtil.floatToHalf(src[3]);
+        MemoryUtil.memPutShort(addr, val);
     }
 
-    public static void store_R_F32(Object base, long addr, float[] src) {
-        UNSAFE.putFloat(base, addr, src[0]);
-    }
-
-    @SuppressWarnings("PointlessArithmeticExpression")
-    public static void store_RG_F32(Object base, long addr, float[] src) {
-        UNSAFE.putFloat(base, addr +  0, src[0]);
-        UNSAFE.putFloat(base, addr +  4, src[1]);
+    public static void store_R_F32_u(Object base, long addr, float[] src) {
+        MemoryUtil.memPutFloat(addr, src[0]);
     }
 
     @SuppressWarnings("PointlessArithmeticExpression")
-    public static void store_RGBA_F32(Object base, long addr, float[] src) {
-        UNSAFE.putFloat(base, addr +  0, src[0]);
-        UNSAFE.putFloat(base, addr +  4, src[1]);
-        UNSAFE.putFloat(base, addr +  8, src[2]);
-        UNSAFE.putFloat(base, addr + 12, src[3]);
+    public static void store_RG_F32_u(Object base, long addr, float[] src) {
+        MemoryUtil.memPutFloat(addr +  0, src[0]);
+        MemoryUtil.memPutFloat(addr +  4, src[1]);
+    }
+
+    @SuppressWarnings("PointlessArithmeticExpression")
+    public static void store_RGBA_F32_u(Object base, long addr, float[] src) {
+        MemoryUtil.memPutFloat(addr +  0, src[0]);
+        MemoryUtil.memPutFloat(addr +  4, src[1]);
+        MemoryUtil.memPutFloat(addr +  8, src[2]);
+        MemoryUtil.memPutFloat(addr + 12, src[3]);
+    }
+
+    //---- heap ----
+
+    public static void store_BGR_565_hb(Object base, long addr, float[] src) {
+        int val = (int) (MathUtil.clamp(src[2], 0.0f, 1.0f) * 31 + .5f)       |
+                  (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 63 + .5f) << 5  |
+                  (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 31 + .5f) << 11;
+        ((short[]) base)[(int) (addr>>1)] = (short) val;
+    }
+
+    public static void store_BGRA_5551_hb(Object base, long addr, float[] src) {
+        int val = (int) (MathUtil.clamp(src[2], 0.0f, 1.0f) * 31 + .5f)       |
+                  (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 31 + .5f) << 5  |
+                  (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 31 + .5f) << 10 |
+                  (src[3] >= 0.5f ? (1 << 15) : 0); // NaN to 0
+        ((short[]) base)[(int) (addr>>1)] = (short) val;
+    }
+
+    public static void store_RGBA_1010102_hb(Object base, long addr, float[] src) {
+        int val = (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 1023 + .5f)       |
+                  (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 1023 + .5f) << 10 |
+                  (int) (MathUtil.clamp(src[2], 0.0f, 1.0f) * 1023 + .5f) << 20 |
+                  (int) (MathUtil.clamp(src[3], 0.0f, 1.0f) *    3 + .5f) << 30;
+        ((int[]) base)[(int) (addr>>2)] = val;
+    }
+
+    public static void store_BGRA_1010102_hb(Object base, long addr, float[] src) {
+        int val = (int) (MathUtil.clamp(src[2], 0.0f, 1.0f) * 1023 + .5f)       |
+                  (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 1023 + .5f) << 10 |
+                  (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 1023 + .5f) << 20 |
+                  (int) (MathUtil.clamp(src[3], 0.0f, 1.0f) *    3 + .5f) << 30;
+        ((int[]) base)[(int) (addr>>2)] = val;
+    }
+
+    public static void store_R_8_hb(Object base, long addr, float[] src) {
+        byte val = (byte) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 255 + .5f);
+        ((byte[]) base)[(int) addr] = val;
+    }
+
+    public static void store_RG_88_hb(Object base, long addr, float[] src) {
+        int val;
+        if (NATIVE_BIG_ENDIAN) {
+            val = (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 255 + .5f) << 8 |
+                  (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 255 + .5f)      ;
+        } else {
+            val = (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 255 + .5f)      |
+                  (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 255 + .5f) << 8 ;
+        }
+        BYTE_ARRAY_AS_SHORT.set((short[]) base, (int) addr, (short) val);
+    }
+
+    public static void store_RGB_888_hb(Object base, long addr, float[] src) {
+        byte[] hb = (byte[]) base;
+        int index = (int) (addr);
+        for (int i = 0; i < 3; i++) {
+            hb[index+i] = (byte) (MathUtil.clamp(src[i], 0.0f, 1.0f) * 255 + .5f);
+        }
+    }
+
+    public static void store_RGBX_8888_hb(Object base, long addr, float[] src) {
+        int val;
+        if (NATIVE_BIG_ENDIAN) {
+            val = (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 255 + .5f) << 24 |
+                  (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 255 + .5f) << 16 |
+                  (int) (MathUtil.clamp(src[2], 0.0f, 1.0f) * 255 + .5f) <<  8 |
+                  255;
+        } else {
+            val = (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 255 + .5f)       |
+                  (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 255 + .5f) <<  8 |
+                  (int) (MathUtil.clamp(src[2], 0.0f, 1.0f) * 255 + .5f) << 16 |
+                  255 << 24;
+        }
+        if (base instanceof byte[]) {
+            BYTE_ARRAY_AS_INT.set((byte[]) base, (int) addr, val);
+        } else {
+            ((int[]) base)[(int) (addr>>2)] = val;
+        }
+    }
+
+    public static void store_RGBA_8888_hb(Object base, long addr, float[] src) {
+        int val;
+        if (NATIVE_BIG_ENDIAN) {
+            val = (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 255 + .5f) << 24 |
+                  (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 255 + .5f) << 16 |
+                  (int) (MathUtil.clamp(src[2], 0.0f, 1.0f) * 255 + .5f) <<  8 |
+                  (int) (MathUtil.clamp(src[3], 0.0f, 1.0f) * 255 + .5f)       ;
+        } else {
+            val = (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 255 + .5f)       |
+                  (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 255 + .5f) <<  8 |
+                  (int) (MathUtil.clamp(src[2], 0.0f, 1.0f) * 255 + .5f) << 16 |
+                  (int) (MathUtil.clamp(src[3], 0.0f, 1.0f) * 255 + .5f) << 24 ;
+        }
+        if (base instanceof byte[]) {
+            BYTE_ARRAY_AS_INT.set((byte[]) base, (int) addr, val);
+        } else {
+            ((int[]) base)[(int) (addr>>2)] = val;
+        }
+    }
+
+    public static void store_BGRA_8888_hb(Object base, long addr, float[] src) {
+        int val;
+        if (NATIVE_BIG_ENDIAN) {
+            val = (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 255 + .5f) <<  8 |
+                  (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 255 + .5f) << 16 |
+                  (int) (MathUtil.clamp(src[2], 0.0f, 1.0f) * 255 + .5f) << 24 |
+                  (int) (MathUtil.clamp(src[3], 0.0f, 1.0f) * 255 + .5f)       ;
+        } else {
+            val = (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 255 + .5f) << 16 |
+                  (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 255 + .5f) <<  8 |
+                  (int) (MathUtil.clamp(src[2], 0.0f, 1.0f) * 255 + .5f)       |
+                  (int) (MathUtil.clamp(src[3], 0.0f, 1.0f) * 255 + .5f) << 24 ;
+        }
+        if (base instanceof byte[]) {
+            BYTE_ARRAY_AS_INT.set((byte[]) base, (int) addr, val);
+        } else {
+            ((int[]) base)[(int) (addr>>2)] = val;
+        }
+    }
+
+    public static void store_GRAY_8_hb(Object base, long addr, float[] src) {
+        float y = MathUtil.clamp(src[0], 0.0f, 1.0f) * 0.2126f +
+                  MathUtil.clamp(src[1], 0.0f, 1.0f) * 0.7152f +
+                  MathUtil.clamp(src[2], 0.0f, 1.0f) * 0.0722f;
+        byte val = (byte) (y * 255 + .5f);
+        ((byte[]) base)[(int) addr] = val;
+    }
+
+    public static void store_GRAY_ALPHA_88_hb(Object base, long addr, float[] src) {
+        float y = MathUtil.clamp(src[0], 0.0f, 1.0f) * 0.2126f +
+                  MathUtil.clamp(src[1], 0.0f, 1.0f) * 0.7152f +
+                  MathUtil.clamp(src[2], 0.0f, 1.0f) * 0.0722f;
+        int val;
+        if (NATIVE_BIG_ENDIAN) {
+            val = (int) (y * 255 + .5f) << 8 |
+                  (int) (MathUtil.clamp(src[3], 0.0f, 1.0f) * 255 + .5f)     ;
+        } else {
+            val = (int) (y * 255 + .5f)      |
+                  (int) (MathUtil.clamp(src[3], 0.0f, 1.0f) * 255 + .5f) << 8;
+        }
+        BYTE_ARRAY_AS_SHORT.set((byte[]) base, (int) addr, (short) val);
+    }
+
+    public static void store_ALPHA_8_hb(Object base, long addr, float[] src) {
+        byte val = (byte) (MathUtil.clamp(src[3], 0.0f, 1.0f) * 255 + .5f);
+        ((byte[]) base)[(int) addr] = val;
+    }
+
+    public static void store_R_16_hb(Object base, long addr, float[] src) {
+        short val = (short) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 65535 + .5f);
+        ((short[]) base)[(int) (addr>>1)] = val;
+    }
+
+    public static void store_RG_1616_hb(Object base, long addr, float[] src) {
+        int val;
+        if (NATIVE_BIG_ENDIAN) {
+            val = (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 65535 + .5f) << 16 |
+                  (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 65535 + .5f)       ;
+        } else {
+            val = (int) (MathUtil.clamp(src[0], 0.0f, 1.0f) * 65535 + .5f)       |
+                  (int) (MathUtil.clamp(src[1], 0.0f, 1.0f) * 65535 + .5f) << 16 ;
+        }
+        ((int[]) base)[(int) (addr>>2)] = val;
+    }
+
+    public static void store_RGB_161616_hb(Object base, long addr, float[] src) {
+        short[] hb = (short[]) base;
+        int index = (int) (addr>>1);
+        for (int i = 0; i < 3; i++) {
+            hb[index+i] = (short) (MathUtil.clamp(src[i], 0.0f, 1.0f) * 65535 + .5f);
+        }
+    }
+
+    public static void store_RGBA_16161616_hb(Object base, long addr, float[] src) {
+        short[] hb = (short[]) base;
+        int index = (int) (addr>>1);
+        for (int i = 0; i < 4; i++) {
+            hb[index+i] = (short) (MathUtil.clamp(src[i], 0.0f, 1.0f) * 65535 + .5f);
+        }
+    }
+
+    public static void store_GRAY_16_hb(Object base, long addr, float[] src) {
+        float y = MathUtil.clamp(src[0], 0.0f, 1.0f) * 0.2126f +
+                  MathUtil.clamp(src[1], 0.0f, 1.0f) * 0.7152f +
+                  MathUtil.clamp(src[2], 0.0f, 1.0f) * 0.0722f;
+        short val = (short) (y * 65535 + .5f);
+        ((short[]) base)[(int) (addr>>1)] = val;
+    }
+
+    public static void store_GRAY_ALPHA_1616_hb(Object base, long addr, float[] src) {
+        float y = MathUtil.clamp(src[0], 0.0f, 1.0f) * 0.2126f +
+                  MathUtil.clamp(src[1], 0.0f, 1.0f) * 0.7152f +
+                  MathUtil.clamp(src[2], 0.0f, 1.0f) * 0.0722f;
+        short r = (short) (y * 65535 + .5f);
+        short g = (short) (MathUtil.clamp(src[3], 0.0f, 1.0f) * 65535 + .5f);
+        short[] hb = (short[]) base;
+        int index = (int) (addr>>1);
+        hb[index] = r;
+        hb[index+1] = g;
+    }
+
+    public static void store_ALPHA_16_hb(Object base, long addr, float[] src) {
+        short val = (short) (MathUtil.clamp(src[3], 0.0f, 1.0f) * 65535 + .5f);
+        ((short[]) base)[(int) (addr>>1)] = val;
+    }
+
+    public static void store_R_F16_hb(Object base, long addr, float[] src) {
+        short val = MathUtil.floatToHalf(src[0]);
+        ((short[]) base)[(int) (addr>>1)] = val;
+    }
+
+    public static void store_RG_F16_hb(Object base, long addr, float[] src) {
+        short r = MathUtil.floatToHalf(src[0]);
+        short g = MathUtil.floatToHalf(src[1]);
+        short[] hb = (short[]) base;
+        int index = (int) (addr>>1);
+        hb[index] = r;
+        hb[index+1] = g;
+    }
+
+    public static void store_RGBA_F16_hb(Object base, long addr, float[] src) {
+        short[] hb = (short[]) base;
+        int index = (int) (addr>>1);
+        for (int i = 0; i < 4; i++) {
+            hb[index+i] = MathUtil.floatToHalf(src[i]);
+        }
+    }
+
+    public static void store_ALPHA_F16_hb(Object base, long addr, float[] src) {
+        short val = MathUtil.floatToHalf(src[3]);
+        ((short[]) base)[(int) (addr>>1)] = val;
+    }
+
+    public static void store_R_F32_hb(Object base, long addr, float[] src) {
+        ((float[]) base)[(int) (addr>>2)] = src[0];
+    }
+
+    public static void store_RG_F32_hb(Object base, long addr, float[] src) {
+        float[] hb = (float[]) base;
+        int index = (int) (addr>>2);
+        hb[index] = src[0];
+        hb[index+1] = src[1];
+    }
+
+    public static void store_RGBA_F32_hb(Object base, long addr, float[] src) {
+        float[] hb = (float[]) base;
+        System.arraycopy(src, 0, hb, (int) (addr>>2), 4);
     }
 
     /**
@@ -1249,37 +1505,72 @@ public class PixelUtils {
      */
     @NonNull
     @Contract(pure = true)
-    public static PixelOp storeOp(@ColorInfo.ColorType int ct) {
-        return switch (ct) {
-            case ColorInfo.CT_BGR_565         -> PixelUtils::store_BGR_565;
-            case ColorInfo.CT_BGRA_5551       -> PixelUtils::store_BGRA_5551;
-            case ColorInfo.CT_RGBA_1010102    -> PixelUtils::store_RGBA_1010102;
-            case ColorInfo.CT_BGRA_1010102    -> PixelUtils::store_BGRA_1010102;
-            case ColorInfo.CT_R_8             -> PixelUtils::store_R_8;
-            case ColorInfo.CT_RG_88           -> PixelUtils::store_RG_88;
-            case ColorInfo.CT_RGB_888         -> PixelUtils::store_RGB_888;
-            case ColorInfo.CT_RGBX_8888       -> PixelUtils::store_RGBX_8888;
-            case ColorInfo.CT_RGBA_8888       -> PixelUtils::store_RGBA_8888;
-            case ColorInfo.CT_BGRA_8888       -> PixelUtils::store_BGRA_8888;
-            case ColorInfo.CT_GRAY_8          -> PixelUtils::store_GRAY_8;
-            case ColorInfo.CT_GRAY_ALPHA_88   -> PixelUtils::store_GRAY_ALPHA_88;
-            case ColorInfo.CT_ALPHA_8         -> PixelUtils::store_ALPHA_8;
-            case ColorInfo.CT_R_16            -> PixelUtils::store_R_16;
-            case ColorInfo.CT_RG_1616         -> PixelUtils::store_RG_1616;
-            case ColorInfo.CT_RGB_161616      -> PixelUtils::store_RGB_161616;
-            case ColorInfo.CT_RGBA_16161616   -> PixelUtils::store_RGBA_16161616;
-            case ColorInfo.CT_GRAY_16         -> PixelUtils::store_GRAY_16;
-            case ColorInfo.CT_GRAY_ALPHA_1616 -> PixelUtils::store_GRAY_ALPHA_1616;
-            case ColorInfo.CT_ALPHA_16        -> PixelUtils::store_ALPHA_16;
-            case ColorInfo.CT_R_F16           -> PixelUtils::store_R_F16;
-            case ColorInfo.CT_RG_F16          -> PixelUtils::store_RG_F16;
-            case ColorInfo.CT_RGBA_F16        -> PixelUtils::store_RGBA_F16;
-            case ColorInfo.CT_ALPHA_F16       -> PixelUtils::store_ALPHA_F16;
-            case ColorInfo.CT_R_F32           -> PixelUtils::store_R_F32;
-            case ColorInfo.CT_RG_F32          -> PixelUtils::store_RG_F32;
-            case ColorInfo.CT_RGBA_F32        -> PixelUtils::store_RGBA_F32;
-            default -> throw new AssertionError(ct);
-        };
+    public static PixelOp storeOp(@ColorInfo.ColorType int ct, boolean isU) {
+        if (isU) {
+            // off heap
+            return switch (ct) {
+                case ColorInfo.CT_BGR_565         -> PixelUtils::store_BGR_565_u;
+                case ColorInfo.CT_BGRA_5551       -> PixelUtils::store_BGRA_5551_u;
+                case ColorInfo.CT_RGBA_1010102    -> PixelUtils::store_RGBA_1010102_u;
+                case ColorInfo.CT_BGRA_1010102    -> PixelUtils::store_BGRA_1010102_u;
+                case ColorInfo.CT_R_8             -> PixelUtils::store_R_8_u;
+                case ColorInfo.CT_RG_88           -> PixelUtils::store_RG_88_u;
+                case ColorInfo.CT_RGB_888         -> PixelUtils::store_RGB_888_u;
+                case ColorInfo.CT_RGBX_8888       -> PixelUtils::store_RGBX_8888_u;
+                case ColorInfo.CT_RGBA_8888       -> PixelUtils::store_RGBA_8888_u;
+                case ColorInfo.CT_BGRA_8888       -> PixelUtils::store_BGRA_8888_u;
+                case ColorInfo.CT_GRAY_8          -> PixelUtils::store_GRAY_8_u;
+                case ColorInfo.CT_GRAY_ALPHA_88   -> PixelUtils::store_GRAY_ALPHA_88_u;
+                case ColorInfo.CT_ALPHA_8         -> PixelUtils::store_ALPHA_8_u;
+                case ColorInfo.CT_R_16            -> PixelUtils::store_R_16_u;
+                case ColorInfo.CT_RG_1616         -> PixelUtils::store_RG_1616_u;
+                case ColorInfo.CT_RGB_161616      -> PixelUtils::store_RGB_161616_u;
+                case ColorInfo.CT_RGBA_16161616   -> PixelUtils::store_RGBA_16161616_u;
+                case ColorInfo.CT_GRAY_16         -> PixelUtils::store_GRAY_16_u;
+                case ColorInfo.CT_GRAY_ALPHA_1616 -> PixelUtils::store_GRAY_ALPHA_1616_u;
+                case ColorInfo.CT_ALPHA_16        -> PixelUtils::store_ALPHA_16_u;
+                case ColorInfo.CT_R_F16           -> PixelUtils::store_R_F16_u;
+                case ColorInfo.CT_RG_F16          -> PixelUtils::store_RG_F16_u;
+                case ColorInfo.CT_RGBA_F16        -> PixelUtils::store_RGBA_F16_u;
+                case ColorInfo.CT_ALPHA_F16       -> PixelUtils::store_ALPHA_F16_u;
+                case ColorInfo.CT_R_F32           -> PixelUtils::store_R_F32_u;
+                case ColorInfo.CT_RG_F32          -> PixelUtils::store_RG_F32_u;
+                case ColorInfo.CT_RGBA_F32        -> PixelUtils::store_RGBA_F32_u;
+                default -> throw new AssertionError(ct);
+            };
+        } else {
+            // heap
+            return switch (ct) {
+                case ColorInfo.CT_BGR_565         -> PixelUtils::store_BGR_565_hb;
+                case ColorInfo.CT_BGRA_5551       -> PixelUtils::store_BGRA_5551_hb;
+                case ColorInfo.CT_RGBA_1010102    -> PixelUtils::store_RGBA_1010102_hb;
+                case ColorInfo.CT_BGRA_1010102    -> PixelUtils::store_BGRA_1010102_hb;
+                case ColorInfo.CT_R_8             -> PixelUtils::store_R_8_hb;
+                case ColorInfo.CT_RG_88           -> PixelUtils::store_RG_88_hb;
+                case ColorInfo.CT_RGB_888         -> PixelUtils::store_RGB_888_hb;
+                case ColorInfo.CT_RGBX_8888       -> PixelUtils::store_RGBX_8888_hb;
+                case ColorInfo.CT_RGBA_8888       -> PixelUtils::store_RGBA_8888_hb;
+                case ColorInfo.CT_BGRA_8888       -> PixelUtils::store_BGRA_8888_hb;
+                case ColorInfo.CT_GRAY_8          -> PixelUtils::store_GRAY_8_hb;
+                case ColorInfo.CT_GRAY_ALPHA_88   -> PixelUtils::store_GRAY_ALPHA_88_hb;
+                case ColorInfo.CT_ALPHA_8         -> PixelUtils::store_ALPHA_8_hb;
+                case ColorInfo.CT_R_16            -> PixelUtils::store_R_16_hb;
+                case ColorInfo.CT_RG_1616         -> PixelUtils::store_RG_1616_hb;
+                case ColorInfo.CT_RGB_161616      -> PixelUtils::store_RGB_161616_hb;
+                case ColorInfo.CT_RGBA_16161616   -> PixelUtils::store_RGBA_16161616_hb;
+                case ColorInfo.CT_GRAY_16         -> PixelUtils::store_GRAY_16_hb;
+                case ColorInfo.CT_GRAY_ALPHA_1616 -> PixelUtils::store_GRAY_ALPHA_1616_hb;
+                case ColorInfo.CT_ALPHA_16        -> PixelUtils::store_ALPHA_16_hb;
+                case ColorInfo.CT_R_F16           -> PixelUtils::store_R_F16_hb;
+                case ColorInfo.CT_RG_F16          -> PixelUtils::store_RG_F16_hb;
+                case ColorInfo.CT_RGBA_F16        -> PixelUtils::store_RGBA_F16_hb;
+                case ColorInfo.CT_ALPHA_F16       -> PixelUtils::store_ALPHA_F16_hb;
+                case ColorInfo.CT_R_F32           -> PixelUtils::store_R_F32_hb;
+                case ColorInfo.CT_RG_F32          -> PixelUtils::store_RG_F32_hb;
+                case ColorInfo.CT_RGBA_F32        -> PixelUtils::store_RGBA_F32_hb;
+                default -> throw new AssertionError(ct);
+            };
+        }
     }
     //@formatter:on
 
@@ -1350,8 +1641,8 @@ public class PixelUtils {
                 srcInfo.height() != dstInfo.height()) {
             return false;
         }
-        if ((srcBase == null && srcAddr == 0) ||
-                (dstBase == null && dstAddr == 0)) {
+        if ((srcBase == null && srcAddr == MemoryUtil.NULL) ||
+                (dstBase == null && dstAddr == MemoryUtil.NULL)) {
             return false;
         }
         if (srcRowBytes < srcInfo.minRowBytes() ||
@@ -1442,7 +1733,7 @@ public class PixelUtils {
             final boolean unpremul = (flags & kColorSpaceXformFlagUnpremul) != 0;
             final ColorSpace.Connector connector = csXform ? ColorSpace.connect(srcCS, dstCS) : null;
             final boolean premul = (flags & kColorSpaceXformFlagPremul) != 0;
-            final PixelOp store = storeOp(dstCT);
+            final PixelOp store = storeOp(dstCT, dstBase == null);
 
             float[] col = new float[4];
             for (int i = 0; i < height; i++) {
