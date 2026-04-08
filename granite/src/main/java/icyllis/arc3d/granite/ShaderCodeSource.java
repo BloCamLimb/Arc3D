@@ -873,7 +873,8 @@ public class ShaderCodeSource {
                 return texture(s, coords * invImageSize);
             }
             """;
-    public static final String ARC_DITHER_SHADER = """
+    public static final boolean USE_BAYER_MATRIX = false;
+    public static final String ARC_DITHER_SHADER = USE_BAYER_MATRIX ? """
             vec4 arc_dither_shader(vec4 color,
                                    float range) {
                 // Unrolled 8x8 Bayer matrix
@@ -887,6 +888,19 @@ public class ShaderCodeSource {
                 vec2 F = floor(E);
                 float W = fract(F.x * 0.5 + F.y * F.y * 0.75);
                 float dithering = ((W * 0.25 + V) * 0.25 + U) - (63.0 / 128.0);
+                // For each color channel, add the random offset to the channel value and then clamp
+                // between 0 and alpha to keep the color premultiplied.
+                return vec4(clamp(color.rgb + dithering * range, 0.0, color.a), color.a);
+            }
+            """ : """
+            vec4 arc_dither_shader(vec4 color,
+                                   float range) {
+                // https://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences/
+                vec2 v = SV_FragCoord.xy;
+                // x^3 = x + 1, find the root
+                // g = 1.324717957244746, alpha = (1/g, 1/g^2)
+                const vec2 alpha = vec2(0.75487766, 0.56984029);
+                float dithering = fract(dot(v, alpha)+0.5)-0.5;
                 // For each color channel, add the random offset to the channel value and then clamp
                 // between 0 and alpha to keep the color premultiplied.
                 return vec4(clamp(color.rgb + dithering * range, 0.0, color.a), color.a);
