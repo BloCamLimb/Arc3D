@@ -19,7 +19,9 @@
 
 package icyllis.arc3d.core;
 
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import org.lwjgl.system.MemoryUtil;
 import org.lwjgl.system.NativeType;
 
 import java.util.function.LongConsumer;
@@ -61,6 +63,58 @@ public class PixelRef extends RefCnt {
         mAddress = address;
         mRowBytes = rowBytes;
         mFreeFn = freeFn;
+    }
+
+    /**
+     * Allocate zero-initialized memory for the given image info and row bytes.
+     * <p>
+     * The allocator interface is {@link org.lwjgl.system.MemoryUtil.MemoryAllocator}.
+     * It's typically jemalloc or system allocator, and you can obtain the allocator via
+     * {@code MemoryUtil.getAllocator(true)}.
+     * <p>
+     * Note that while the total allocation size can exceed 2GB, the rowBytes
+     * (scanline size in bytes) is restricted to within 2GB. This method may
+     * return null if row bytes is invalid for the given image info.
+     *
+     * @param info     target image info, must be valid (known color type, alpha type, non-zero dimensions)
+     * @param rowBytes desired row bytes, must be {@link ImageInfo#minRowBytes()} or greater,
+     *                 or 0 to use the min row bytes equivalently
+     * @return a smart container for allocated pixel memory; null if allocation failed
+     */
+    @Nullable
+    @SharedPtr
+    public static PixelRef makeAllocate(@NonNull ImageInfo info, int rowBytes) {
+        int minRB = info.minRowBytes();
+        if (rowBytes == 0) {
+            rowBytes = minRB;
+        }
+        if (!info.isValid() || minRB == 0 || rowBytes < minRB ||
+                !ColorInfo.validMemoryAddress(info.colorType(), null, rowBytes)) {
+            return null;
+        }
+        long size = info.computeByteSize(rowBytes);
+        if (size <= 0) {
+            return null;
+        }
+        long addr = MemoryUtil.nmemCalloc(size, 1);
+        if (addr == MemoryUtil.NULL) {
+            // execute ref.Cleaner and try again
+            System.gc();
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            addr = MemoryUtil.nmemCalloc(size, 1);
+            if (addr == MemoryUtil.NULL) {
+                return null;
+            }
+        }
+        // the address is aligned to the size of any data type
+        assert ColorInfo.validMemoryAddress(info.colorType(), null, addr);
+
+        return new PixelRef(info.width(), info.height(),
+                null, addr, rowBytes, MemoryUtil::nmemFree);
     }
 
     @Override
