@@ -22,23 +22,30 @@ package icyllis.arc3d.core.test;
 import icyllis.arc3d.core.*;
 import org.lwjgl.system.MemoryUtil;
 
+import java.util.Arrays;
+import java.util.Objects;
 import java.util.Random;
 
 public class TestLowpPixelLoad {
 
+    //-XX:+UnlockDiagnosticVMOptions
+    //-XX:+UnlockExperimentalVMOptions
+    //-XX:CompileCommand="print *PixelUtils::store_*"
+    //-XX:-TieredCompilation
     public static void main(String[] args) {
         int width = 64, height = 64;
         var info = ImageInfo.make(width, height, ColorInfo.CT_RGBA_F32, ColorInfo.AT_UNPREMUL, null);
-        var pixels = MemoryUtil.nmemAlloc(info.computeMinByteSize());
+        var pixels = PixelRef.makeAllocate(info, 0);
+        Objects.requireNonNull(pixels);
         var random = new Random();
-        for (int i = 0, e = (int) info.computeMinByteSize(); i < e; i += 4) {
-            MemoryUtil.memPutFloat(pixels + i, random.nextFloat(1));
+        for (long i = 0, e = info.computeMinByteSize(); i < e; i += 4) {
+            MemoryUtil.memPutFloat(pixels.getAddress() + i, random.nextFloat(1));
         }
         Pixmap originalPixmap = new Pixmap(
                 info,
-                null,
-                pixels,
-                info.minRowBytes()
+                pixels.getBase(),
+                pixels.getAddress(),
+                pixels.getRowBytes()
         );
         int[] colorTypes = {ColorInfo.CT_R_8, ColorInfo.CT_RG_88, ColorInfo.CT_RGB_888, ColorInfo.CT_RGBX_8888,
                 ColorInfo.CT_RGBA_8888, ColorInfo.CT_BGRA_8888, ColorInfo.CT_GRAY_16, ColorInfo.CT_GRAY_ALPHA_1616,
@@ -56,7 +63,7 @@ public class TestLowpPixelLoad {
             pixmap.clear(new float[]{1, 1, 1, 0.49f}, new Rect2i(1, 6, 50, 30));
             pixmap.clear(new float[]{0.2f, 0.4f, 0.6f, 0.7f}, null);
         }
-        MemoryUtil.nmemFree(pixels);
+        pixels.unref();
 
         for (int i = 0; i < 64; i++) {
             int a = (int) (i * (63/255.0f) + .5f);
@@ -65,18 +72,27 @@ public class TestLowpPixelLoad {
                 throw new IllegalStateException();
             }
         }
+
+        float[] col = new float[4];
+        byte[] rgColors = {(byte) 252, 2, (byte) 152, 6};
+        for (int i = 0; i < 100000; i++) {
+            PixelUtils.load_RG_88_hb(rgColors, 2, col);
+        }
+        System.out.println(Arrays.toString(col));
     }
 
     public static void testForColorType(int ct, Pixmap originalPixmap) {
         var newInfo = originalPixmap.getInfo().makeColorType(ct);
-        var newPixels = MemoryUtil.nmemAlloc(newInfo.computeMinByteSize());
+        var newPixels = PixelRef.makeAllocate(newInfo, 0);
+        Objects.requireNonNull(newPixels);
+
         Pixmap convertedPixmap = new Pixmap(
-                newInfo, null, newPixels, newInfo.minRowBytes()
+                newInfo, newPixels.getBase(), newPixels.getAddress(), newPixels.getRowBytes()
         );
         boolean res = PixelUtils.convertPixels(originalPixmap, convertedPixmap);
         assert res;
 
-        PixelUtils.PixelOp load = PixelUtils.loadOp(ct);
+        PixelUtils.PixelOp load = PixelUtils.loadOp(ct, convertedPixmap.getBase() == null);
         float[] color4f = new float[4];
         for (int y = newInfo.height() - 1; y >= 0; y--) {
             for (int x = newInfo.width() - 1; x >= 0; x--) {
@@ -91,6 +107,6 @@ public class TestLowpPixelLoad {
             }
         }
 
-        MemoryUtil.nmemFree(newPixels);
+        newPixels.unref();
     }
 }
