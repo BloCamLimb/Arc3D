@@ -249,22 +249,26 @@ public class Pixmap {
         var ct = getColorType();
         var at = getAlphaType();
         var cs = getColorSpace();
-        if (at == ColorInfo.AT_PREMUL || (cs != null && !cs.isSrgb())) {
-            var srcInfo = new ImageInfo(1, 1, ct, at, cs);
-            var dstInfo = new ImageInfo(1, 1, ColorInfo.CT_BGRA_8888_NATIVE,
-                    ColorInfo.AT_UNPREMUL, ColorSpace.get(ColorSpace.Named.SRGB));
-            int[] col = new int[1];
-            boolean res = PixelUtils.convertPixels(
-                    srcInfo, base, addr, getRowBytes(),
-                    dstInfo, col, Unsafe.ARRAY_INT_BASE_OFFSET, getRowBytes()
-            );
-            assert res;
-            return col[0];
-        } else {
+        if (at != ColorInfo.AT_PREMUL && (cs == null || cs.isSrgb())) {
             // no alpha type and color space conversion
-            return PixelUtils.load(ct)
-                    .load(base, addr);
+            try {
+                return PixelUtils.load(ct, base == null)
+                        .load(base, addr);
+            } catch (UnsupportedOperationException ignored) {
+                // high precision fallback
+            }
         }
+
+        var srcInfo = new ImageInfo(1, 1, ct, at, cs);
+        var dstInfo = new ImageInfo(1, 1, ColorInfo.CT_BGRA_8888_NATIVE,
+                ColorInfo.AT_UNPREMUL, ColorSpace.get(ColorSpace.Named.SRGB));
+        int[] col = new int[1];
+        boolean res = PixelUtils.convertPixels(
+                srcInfo, base, addr, getRowBytes(),
+                dstInfo, col, 0, getRowBytes()
+        );
+        assert res;
+        return col[0];
     }
 
     /**
