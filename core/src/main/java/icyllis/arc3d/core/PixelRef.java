@@ -47,7 +47,7 @@ public class PixelRef extends RefCnt {
      * <var>freeFn</var> is used to free the <var>address</var>.
      *
      * @param base     array if heap buffer; may be null
-     * @param address  address if native buffer, or array base offset; may be NULL
+     * @param address  address if native buffer, or array offset; may be NULL
      * @param rowBytes size of one row of buffer; width times bpp, or larger
      * @param freeFn   free function for native buffer; may be null
      */
@@ -141,7 +141,7 @@ public class PixelRef extends RefCnt {
     }
 
     /**
-     * The address if native buffer, or array base offset; may be NULL.
+     * The address if native buffer, or array offset; may be NULL.
      */
     public long getAddress() {
         return mAddress;

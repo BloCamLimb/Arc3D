@@ -24,7 +24,6 @@ import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
 import org.lwjgl.system.NativeType;
-import sun.misc.Unsafe;
 
 import java.util.Objects;
 
@@ -56,7 +55,7 @@ public class Pixmap {
      *
      * @param info     width, height, AlphaType, ColorType and ColorSpace
      * @param base     array if heap buffer; may be null
-     * @param address  address if native buffer, or array base offset; may be NULL
+     * @param address  address if native buffer, or array offset; may be NULL
      * @param rowBytes size of one row of buffer; width times bpp, or larger
      */
     public Pixmap(@NonNull ImageInfo info,
@@ -136,7 +135,7 @@ public class Pixmap {
 
     /**
      * The address if native buffer, the base address corresponding to the pixel origin,
-     * or array base offset; may be NULL. See {@link sun.misc.Unsafe}.
+     * or array offset; may be NULL.
      */
     public long getAddress() {
         return mAddress;
@@ -166,18 +165,18 @@ public class Pixmap {
     public long getAddress(int x, int y) {
         assert x < getWidth();
         assert y < getHeight();
-        long addr = mAddress;
-        if (addr != MemoryUtil.NULL) {
-            addr += (long) y * mRowBytes + (long) x * mInfo.bytesPerPixel();
+        if (mBase == null && mAddress == MemoryUtil.NULL) {
+            return MemoryUtil.NULL;
         }
-        return addr;
+        return mAddress + (long) y * mRowBytes +
+                (long) x * mInfo.bytesPerPixel();
     }
 
     /**
      * Make a pixmap width, height, pixel address to intersection of this with subset,
      * if intersection is not empty; and return the new pixmap. Otherwise, return null.
      *
-     * @param subset bounds to intersect with SkPixmap
+     * @param subset bounds to intersect
      * @return a pixmap if intersection of this and subset is not empty
      */
     @Nullable
@@ -203,19 +202,15 @@ public class Pixmap {
      * <p>
      * The returned origin added to Pixmap dimensions equals or is smaller than the
      * Pixels dimensions.
-     * <p>
-     * Returns (0, 0) if pixels is NULL.
      */
     public void getPixelOrigin(long pix,
                                @Size(2) int @NonNull [] origin) {
-        long addr = getAddress();
         long rb = getRowBytes();
-        if (pix == MemoryUtil.NULL || rb == 0) {
+        long off = getAddress() - pix;
+        if (off < 0 || rb <= 0) {
             origin[0] = 0;
             origin[1] = 0;
         } else {
-            assert addr >= pix;
-            long off = addr - pix;
             origin[0] = (int) ((off % rb) / getInfo().bytesPerPixel());
             origin[1] = (int) (off / rb);
         }
@@ -241,7 +236,7 @@ public class Pixmap {
      */
     @ColorInt
     public int getColor(int x, int y) {
-        assert getAddress() != MemoryUtil.NULL;
+        assert getBase() != null || getAddress() != MemoryUtil.NULL;
         assert x < getWidth();
         assert y < getHeight();
         Object base = getBase();
@@ -285,7 +280,7 @@ public class Pixmap {
      * @param dst pixel converted to float color
      */
     public void getColor4f(int x, int y, @Size(4) float @NonNull [] dst) {
-        assert getAddress() != MemoryUtil.NULL;
+        assert getBase() != null || getAddress() != MemoryUtil.NULL;
         assert x < getWidth();
         assert y < getHeight();
         Object base = getBase();
@@ -307,7 +302,7 @@ public class Pixmap {
      * @param src float color to set
      */
     public void setColor4f(int x, int y, @Size(4) float @NonNull [] src) {
-        assert getAddress() != MemoryUtil.NULL;
+        assert getBase() != null || getAddress() != MemoryUtil.NULL;
         assert x < getWidth();
         assert y < getHeight();
         Object base = getBase();
@@ -336,15 +331,6 @@ public class Pixmap {
      */
     public boolean readPixels(@NonNull Pixmap dst, int srcX, int srcY) {
         ImageInfo dstInfo = dst.getInfo();
-        if (!getInfo().isValid() || !dstInfo.isValid()) {
-            return false;
-        }
-
-        if (getAddress() == MemoryUtil.NULL ||
-                dst.getAddress() == MemoryUtil.NULL ||
-                dst.getRowBytes() < dstInfo.minRowBytes()) {
-            return false;
-        }
         if (srcX < 0 || srcY < 0 ||
                 srcX + dstInfo.width() > getWidth() ||
                 srcY + dstInfo.height() > getHeight()) {
@@ -383,15 +369,6 @@ public class Pixmap {
      */
     public boolean writePixels(@NonNull Pixmap src, int dstX, int dstY) {
         ImageInfo srcInfo = src.getInfo();
-        if (!getInfo().isValid() || !srcInfo.isValid()) {
-            return false;
-        }
-
-        if (getAddress() == MemoryUtil.NULL ||
-                src.getAddress() == MemoryUtil.NULL ||
-                src.getRowBytes() < srcInfo.minRowBytes()) {
-            return false;
-        }
         if (dstX < 0 || dstY < 0 ||
                 dstX + srcInfo.width() > getWidth() ||
                 dstY + srcInfo.height() > getHeight()) {

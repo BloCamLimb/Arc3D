@@ -337,6 +337,7 @@ public final class ColorInfo {
      * This is not a standalone packed format, it just depends on CPU:
      * on little-endian machine this is {@link #CT_RGBA_8888}.
      */
+    @ColorType
     public static final int
             CT_RGBA_8888_NATIVE = CT_RGBA_8888;
     /**
@@ -346,11 +347,13 @@ public final class ColorInfo {
      * This is not a standalone packed format, it just depends on CPU:
      * on little-endian machine this is {@link #CT_BGRA_8888}.
      */
+    @ColorType
     public static final int
             CT_BGRA_8888_NATIVE = CT_BGRA_8888;
     /**
      * Aliases.
      */
+    @ColorType
     public static final int
             CT_R5G6B5_UNORM       = CT_BGR_565,
             CT_R8G8_UNORM         = CT_RG_88,
