@@ -91,6 +91,9 @@ public class PixelUtils {
     public static final VarHandle BYTE_ARRAY_AS_INT =
             MethodHandles.byteArrayViewVarHandle(int[].class, ByteOrder.nativeOrder());
 
+    // limit of MemorySegment.asByteBuffer()
+    public static final int MAX_BUFFER_SIZE = Integer.MAX_VALUE - 8; // see jdk.internal.util.ArraysSupport.SOFT_MAX_ARRAY_LENGTH
+
     /**
      * Copy memory row by row.
      */
@@ -267,30 +270,36 @@ public class PixelUtils {
         assert (srcRowBytes >= width);
         assert (dstRowBytes >= ((width + 7) >> 3));
 
+        ByteBuffer src = toByteBufferUncapped(srcBase, srcAddr);
+        ByteBuffer dst = toByteBufferUncapped(dstBase, dstAddr);
+
+        int srcOffset = 0;
+        int dstOffset = 0;
+
         for (int y = 0; y < height; ++y) {
-            long nextSrcAddr = srcAddr + srcRowBytes;
-            long nextDstAddr = dstAddr + dstRowBytes;
+            int nextSrcOffset = srcOffset + srcRowBytes;
+            int nextDstOffset = dstOffset + dstRowBytes;
             for (int i = 0; i < octets; ++i) {
                 int bits = 0;
                 for (int j = 0; j < 8; ++j) {
                     bits <<= 1;
-                    int v = (UNSAFE.getByte(srcBase, srcAddr + j) & 0xFF) >> 7;
+                    int v = (src.get(srcOffset + j) & 0xFF) >> 7;
                     bits |= v;
                 }
-                UNSAFE.putByte(dstBase, dstAddr, (byte) bits);
-                srcAddr += 8;
-                dstAddr += 1;
+                dst.put(dstOffset, (byte) bits);
+                srcOffset += 8;
+                dstOffset += 1;
             }
             if (leftover > 0) {
                 int bits = 0;
                 int shift = 7;
                 for (int j = 0; j < leftover; ++j, --shift) {
-                    bits |= (UNSAFE.getByte(srcBase, srcAddr + j) & 0xFF) >> 7 << shift;
+                    bits |= (src.get(srcOffset + j) & 0xFF) >> 7 << shift;
                 }
-                UNSAFE.putByte(dstBase, dstAddr, (byte) bits);
+                dst.put(dstOffset, (byte) bits);
             }
-            srcAddr = nextSrcAddr;
-            dstAddr = nextDstAddr;
+            srcOffset = nextSrcOffset;
+            dstOffset = nextDstOffset;
         }
     }
 
@@ -303,20 +312,37 @@ public class PixelUtils {
         assert (srcRowBytes >= ((width + 7) >> 3));
         assert (dstRowBytes >= width);
 
+        ByteBuffer src = toByteBufferUncapped(srcBase, srcAddr);
+        ByteBuffer dst = toByteBufferUncapped(dstBase, dstAddr);
+
+        int srcOffset = 0;
+        int dstOffset = 0;
+
         for (int y = 0; y < height; ++y) {
-            long nextSrcAddr = srcAddr + srcRowBytes;
-            long nextDstAddr = dstAddr + dstRowBytes;
+            int nextSrcOffset = srcOffset + srcRowBytes;
+            int nextDstOffset = dstOffset + dstRowBytes;
             int x = width;
             while (x > 0) {
-                int mask = UNSAFE.getByte(srcBase, srcAddr) & 0xFF;
+                int mask = src.get(srcOffset) & 0xFF;
                 for (int shift = 7; shift >= 0 && x != 0; --shift, --x) {
-                    UNSAFE.putByte(dstBase, dstAddr, (mask & (1 << shift)) != 0 ? (byte) ~0 : 0);
-                    dstAddr += 1;
+                    dst.put(dstOffset, (mask & (1 << shift)) != 0 ? (byte) ~0 : 0);
+                    dstOffset += 1;
                 }
-                srcAddr += 1;
+                srcOffset += 1;
             }
-            srcAddr = nextSrcAddr;
-            dstAddr = nextDstAddr;
+            srcOffset = nextSrcOffset;
+            dstOffset = nextDstOffset;
+        }
+    }
+
+    public static ByteBuffer toByteBufferUncapped(Object base, long addr) {
+        if (base == null) {
+            return MemoryUtil.memByteBuffer(addr, MAX_BUFFER_SIZE);
+        } else {
+            byte[] hb = (byte[]) base;
+            int index = (int) addr;
+            return ByteBuffer.wrap(hb, index, hb.length - index)
+                    .order(ByteOrder.nativeOrder());
         }
     }
 
