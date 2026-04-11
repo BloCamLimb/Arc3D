@@ -26,7 +26,6 @@ import icyllis.arc3d.sketch.PathBuilder;
 import icyllis.arc3d.sketch.ScalerContext;
 import icyllis.arc3d.sketch.StrikeDesc;
 import org.jspecify.annotations.NonNull;
-import sun.misc.Unsafe;
 
 import java.awt.Color;
 import java.awt.Font;
@@ -134,7 +133,7 @@ public class ScalerContext_JDK extends ScalerContext {
             case Mask.kBW_Format -> {
                 PixelUtils.packA8ToBW(
                         data,
-                        Unsafe.ARRAY_BYTE_BASE_OFFSET,
+                        0,
                         glyph.getWidth(),
                         imageBase,
                         imageAddress,
@@ -146,7 +145,7 @@ public class ScalerContext_JDK extends ScalerContext {
             case Mask.kA8_Format -> {
                 PixelUtils.copyImage(
                         data,
-                        Unsafe.ARRAY_BYTE_BASE_OFFSET,
+                        0,
                         glyph.getWidth(),
                         imageBase,
                         imageAddress,

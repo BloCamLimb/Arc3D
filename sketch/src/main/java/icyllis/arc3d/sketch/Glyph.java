@@ -23,7 +23,6 @@ import icyllis.arc3d.core.MathUtil;
 import icyllis.arc3d.core.Rect2f;
 import icyllis.arc3d.core.Rect2i;
 import org.jspecify.annotations.NonNull;
-import sun.misc.Unsafe;
 
 /**
  * Represents a CPU glyph + digest information for GPU drawing,
@@ -266,20 +265,16 @@ public final class Glyph {
         return mImage != null || isEmpty() || imageIsTooLarge();
     }
 
-    // Return a pointer to the path if the image exists, otherwise return null.
+    // Return a reference to the array if the image exists, otherwise return null.
     public Object getImageBase() {
         assert setImageHasBeenCalled();
         return mImage;
     }
 
-    // Return a pointer to the path if the image exists, otherwise return null.
+    // Return an address to the array if the image exists, otherwise return null.
     public long getImageAddress() {
         assert setImageHasBeenCalled();
-        if (mImage instanceof byte[]) {
-            return Unsafe.ARRAY_BYTE_BASE_OFFSET;
-        } else if (mImage instanceof int[]) {
-            return Unsafe.ARRAY_INT_BASE_OFFSET;
-        } else {
+        {
             return 0;
         }
     }

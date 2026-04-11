@@ -27,7 +27,12 @@ import org.lwjgl.system.libc.LibCString;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
+import java.nio.Buffer;
+import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
+import java.nio.ShortBuffer;
 
 /**
  * Utilities to access and convert pixels, heap and native.
@@ -103,7 +108,7 @@ public class PixelUtils {
     public static void copyImage(long srcAddr, long srcRowBytes,
                                  long dstAddr, long dstRowBytes,
                                  long trimRowBytes, int rowCount, boolean flipY) {
-        if (srcRowBytes < trimRowBytes || dstRowBytes < trimRowBytes || trimRowBytes < 0) {
+        if (srcRowBytes < trimRowBytes || dstRowBytes < trimRowBytes || trimRowBytes < 0 || trimRowBytes > Integer.MAX_VALUE) {
             throw new IllegalArgumentException();
         }
         // benchmark shows that memcpy is faster than Unsafe.copyMemory at bigger size, on OpenJDK 21
@@ -140,24 +145,113 @@ public class PixelUtils {
                                  Object dstBase, long dstAddr, long dstRowBytes,
                                  long trimRowBytes, int rowCount, boolean flipY) {
         if (srcBase == null && dstBase == null) {
+            // off-heap only
             copyImage(srcAddr, srcRowBytes, dstAddr, dstRowBytes, trimRowBytes, rowCount, flipY);
+            return;
+        }
+        if (srcRowBytes < trimRowBytes || dstRowBytes < trimRowBytes || trimRowBytes < 0 || trimRowBytes > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException();
+        }
+        // mixed heap/off-heap or heap to heap
+        if (srcRowBytes == trimRowBytes && dstRowBytes == trimRowBytes && !flipY) {
+            mixedMemCopy(srcBase, srcAddr, dstBase, dstAddr, trimRowBytes * rowCount);
         } else {
-            if (srcRowBytes < trimRowBytes || dstRowBytes < trimRowBytes || trimRowBytes < 0) {
-                throw new IllegalArgumentException();
+            if (flipY) {
+                dstAddr += dstRowBytes * (rowCount - 1);
+                dstRowBytes = -dstRowBytes;
             }
-            if (srcRowBytes == trimRowBytes && dstRowBytes == trimRowBytes && !flipY) {
-                UNSAFE.copyMemory(srcBase, srcAddr, dstBase, dstAddr, trimRowBytes * rowCount);
+            for (int i = 0; i < rowCount; ++i) {
+                mixedMemCopy(srcBase, srcAddr, dstBase, dstAddr, trimRowBytes);
+                srcAddr += srcRowBytes;
+                dstAddr += dstRowBytes;
+            }
+        }
+    }
+
+    public static void mixedMemCopy(Object srcBase, long srcAddr,
+                                    Object dstBase, long dstAddr,
+                                    long bytes) {
+        //TODO lwjgl 3.4.1 provides faster copy methods for mixed offheap and heap, and it can
+        // switch to FFM backend on Java 25+, the FFM backend is faster than Unsafe.
+        if (srcBase != null && dstBase != null) {
+            // heap to heap, arraycopy is faster than Unsafe at small sizes, unless
+            // we do type conversion (byte[] <-> int[])
+            Buffer dst = bufferFromArray(dstBase, dstAddr, bytes);
+            if (dst instanceof ByteBuffer) {
+                if (srcBase instanceof byte[]) {
+                    // arraycopy
+                    ((ByteBuffer) dst).put((byte[]) srcBase, (int) srcAddr, (int) bytes);
+                } else {
+                    // unsafe
+                    ((ByteBuffer) dst).asIntBuffer().put((int[]) srcBase, (int) (srcAddr>>2), (int) (bytes>>2));
+                }
+            } else if (dst instanceof ShortBuffer) {
+                // arraycopy
+                ((ShortBuffer) dst).put((short[]) srcBase, (int) (srcAddr>>1), (int) (bytes>>1));
+            } else if (dst instanceof IntBuffer) {
+                if (srcBase instanceof byte[]) {
+                    // unsafe
+                    ByteBuffer src = ByteBuffer.wrap((byte[]) srcBase, (int) srcAddr, (int) bytes)
+                            .order(ByteOrder.nativeOrder());
+                    ((IntBuffer) dst).put(src.asIntBuffer());
+                } else {
+                    // arraycopy
+                    ((IntBuffer) dst).put((int[]) srcBase, (int) (srcAddr>>2), (int) (bytes>>2));
+                }
+            } else if (dst instanceof FloatBuffer) {
+                // arraycopy
+                ((FloatBuffer) dst).put((float[]) srcBase, (int) (srcAddr>>2), (int) (bytes>>2));
             } else {
-                if (flipY) {
-                    dstAddr += dstRowBytes * (rowCount - 1);
-                    dstRowBytes = -dstRowBytes;
-                }
-                for (int i = 0; i < rowCount; ++i) {
-                    UNSAFE.copyMemory(srcBase, srcAddr, dstBase, dstAddr, trimRowBytes);
-                    srcAddr += srcRowBytes;
-                    dstAddr += dstRowBytes;
-                }
+                throw new IllegalStateException();
             }
+        } else if (srcBase != null) {
+            // heap to off-heap
+            Buffer src = bufferFromArray(srcBase, srcAddr, bytes);
+            ByteBuffer dst = MemoryUtil.memByteBuffer(dstAddr, (int) bytes);
+            if (src instanceof ByteBuffer) {
+                dst.put((ByteBuffer) src);
+            } else if (src instanceof ShortBuffer) {
+                dst.asShortBuffer().put((ShortBuffer) src);
+            } else if (src instanceof IntBuffer) {
+                dst.asIntBuffer().put((IntBuffer) src);
+            } else if (src instanceof FloatBuffer) {
+                dst.asFloatBuffer().put((FloatBuffer) src);
+            } else {
+                throw new IllegalStateException();
+            }
+        } else if (dstBase != null) {
+            // off-heap to heap
+            ByteBuffer src = MemoryUtil.memByteBuffer(srcAddr, (int) bytes);
+            Buffer dst = bufferFromArray(dstBase, dstAddr, bytes);
+            if (dst instanceof ByteBuffer) {
+                ((ByteBuffer) dst).put(src);
+            } else if (dst instanceof ShortBuffer) {
+                ((ShortBuffer) dst).put(src.asShortBuffer());
+            } else if (dst instanceof IntBuffer) {
+                ((IntBuffer) dst).put(src.asIntBuffer());
+            } else if (dst instanceof FloatBuffer) {
+                ((FloatBuffer) dst).put(src.asFloatBuffer());
+            } else {
+                throw new IllegalStateException();
+            }
+        } else {
+            throw new IllegalStateException();
+        }
+    }
+
+    // params same as MemorySegment
+    public static Buffer bufferFromArray(Object base, long addr, long bytes) {
+        if (base instanceof byte[]) {
+            return ByteBuffer.wrap((byte[]) base, (int) addr, (int) bytes)
+                    .order(ByteOrder.nativeOrder());
+        } else if (base instanceof short[]) {
+            return ShortBuffer.wrap((short[]) base, (int) (addr>>1), (int) (bytes>>1));
+        } else if (base instanceof int[]) {
+            return IntBuffer.wrap((int[]) base, (int) (addr>>2), (int) (bytes>>2));
+        } else if (base instanceof float[]) {
+            return FloatBuffer.wrap((float[]) base, (int) (addr>>2), (int) (bytes>>2));
+        } else {
+            throw new IllegalArgumentException();
         }
     }
 
@@ -310,17 +404,17 @@ public class PixelUtils {
     }
     public static int load_RGBA_1010102_u(Object base, long addr) {
         int val = MemoryUtil.memGetInt(addr);
-        int r = (((val       ) & 0x3ff) * 255+511)/1023;
-        int g = (((val >>> 10) & 0x3ff) * 255+511)/1023;
-        int b = (((val >>> 20) & 0x3ff) * 255+511)/1023;
+        int r = (((val       ) & 0x3ff) * 255 + 511) / 1023;
+        int g = (((val >>> 10) & 0x3ff) * 255 + 511) / 1023;
+        int b = (((val >>> 20) & 0x3ff) * 255 + 511) / 1023;
         int a = (val >>> 30) * 85;
         return b | g << 8 | r << 16 | a << 24;
     }
     public static int load_BGRA_1010102_u(Object base, long addr) {
         int val = MemoryUtil.memGetInt(addr);
-        int r = (((val >>> 20) & 0x3ff) * 255+511)/1023;
-        int g = (((val >>> 10) & 0x3ff) * 255+511)/1023;
-        int b = (((val       ) & 0x3ff) * 255+511)/1023;
+        int r = (((val >>> 20) & 0x3ff) * 255 + 511) / 1023;
+        int g = (((val >>> 10) & 0x3ff) * 255 + 511) / 1023;
+        int b = (((val       ) & 0x3ff) * 255 + 511) / 1023;
         int a = (val >>> 30) * 85;
         return b | g << 8 | r << 16 | a << 24;
     }
@@ -405,17 +499,17 @@ public class PixelUtils {
     }
     public static int load_RGBA_1010102_hb(Object base, long addr) {
         int val = ((int[]) base)[(int) (addr>>2)];
-        int r = (((val       ) & 0x3ff) * 255+511)/1023;
-        int g = (((val >>> 10) & 0x3ff) * 255+511)/1023;
-        int b = (((val >>> 20) & 0x3ff) * 255+511)/1023;
+        int r = (((val       ) & 0x3ff) * 255 + 511) / 1023;
+        int g = (((val >>> 10) & 0x3ff) * 255 + 511) / 1023;
+        int b = (((val >>> 20) & 0x3ff) * 255 + 511) / 1023;
         int a = (val>>> 30) * 85;
         return b | g << 8 | r << 16 | a << 24;
     }
     public static int load_BGRA_1010102_hb(Object base, long addr) {
         int val = ((int[]) base)[(int) (addr>>2)];
-        int r = (((val >>> 20) & 0x3ff) * 255+511)/1023;
-        int g = (((val >>> 10) & 0x3ff) * 255+511)/1023;
-        int b = (((val       ) & 0x3ff) * 255+511)/1023;
+        int r = (((val >>> 20) & 0x3ff) * 255 + 511) / 1023;
+        int g = (((val >>> 10) & 0x3ff) * 255 + 511) / 1023;
+        int b = (((val       ) & 0x3ff) * 255 + 511) / 1023;
         int a = (val>>> 30) * 85;
         return b | g << 8 | r << 16 | a << 24;
     }

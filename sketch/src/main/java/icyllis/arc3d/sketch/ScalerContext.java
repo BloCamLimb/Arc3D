@@ -24,7 +24,6 @@ import icyllis.arc3d.core.PixelUtils;
 import icyllis.arc3d.core.Rect2f;
 import icyllis.arc3d.sketch.j2d.RasterDraw;
 import org.jspecify.annotations.NonNull;
-import sun.misc.Unsafe;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
@@ -178,7 +177,7 @@ public abstract class ScalerContext {
             case Mask.kBW_Format -> {
                 PixelUtils.packA8ToBW(
                         data,
-                        Unsafe.ARRAY_BYTE_BASE_OFFSET,
+                        0,
                         glyph.getWidth(),
                         glyph.getImageBase(),
                         glyph.getImageAddress(),
@@ -190,7 +189,7 @@ public abstract class ScalerContext {
             case Mask.kA8_Format -> {
                 PixelUtils.copyImage(
                         data,
-                        Unsafe.ARRAY_BYTE_BASE_OFFSET,
+                        0,
                         glyph.getWidth(),
                         glyph.getImageBase(),
                         glyph.getImageAddress(),
