@@ -25,9 +25,8 @@ import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
 import org.lwjgl.system.NativeType;
 
+import java.util.Arrays;
 import java.util.Objects;
-
-import static icyllis.arc3d.core.PixelUtils.UNSAFE;
 
 /**
  * Immutable structure that pairs ImageInfo with pixels and row bytes.
@@ -154,7 +153,8 @@ public class Pixmap {
     }
 
     /**
-     * Returns address/offset at (x, y). Returns NULL if {@link #getAddress()} is NULL.
+     * Returns address/offset at (x, y). Returns NULL if {@link #getAddress()} is NULL
+     * and {@link #getBase()} is null.
      * <p>
      * Input is not validated, and return value is undefined if ColorType is unknown.
      *
@@ -165,10 +165,11 @@ public class Pixmap {
     public long getAddress(int x, int y) {
         assert x < getWidth();
         assert y < getHeight();
-        if (mBase == null && mAddress == MemoryUtil.NULL) {
+        long addr = mAddress;
+        if (addr == MemoryUtil.NULL && mBase == null) {
             return MemoryUtil.NULL;
         }
-        return mAddress + (long) y * mRowBytes +
+        return addr + (long) y * mRowBytes +
                 (long) x * mInfo.bytesPerPixel();
     }
 
@@ -419,13 +420,15 @@ public class Pixmap {
                     Float.floatToRawIntBits(color[2]) == 0 &&
                     Float.floatToRawIntBits(color[3]) == 0) {
                 // fill with zeros
-                long rowBytes = (long) clip.width() * 16;
                 if (base != null) {
+                    float[] hb = (float[]) base;
+                    int elements = clip.width() * 4;
                     for (int y = clip.mTop; y < clip.mBottom; ++y) {
-                        UNSAFE.setMemory(base,
-                                getAddress(clip.x(), y), rowBytes, (byte) 0);
+                        int index = (int) (getAddress(clip.x(), y)>>2);
+                        Arrays.fill(hb, index, index + elements, 0);
                     }
                 } else {
+                    long rowBytes = (long) clip.width() * 16;
                     for (int y = clip.mTop; y < clip.mBottom; ++y) {
                         MemoryUtil.memSet(
                                 getAddress(clip.x(), y), 0, rowBytes);
@@ -462,9 +465,9 @@ public class Pixmap {
                     .op(null, dst, color);
 
             boolean fast = true;
-            byte v0 = UNSAFE.getByte(dst);
+            byte v0 = MemoryUtil.memGetByte(dst);
             for (int i = 1; i < bpp; ++i) {
-                byte v = UNSAFE.getByte(dst + i);
+                byte v = MemoryUtil.memGetByte(dst + i);
                 if (v != v0) {
                     fast = false;
                     break;
@@ -473,69 +476,204 @@ public class Pixmap {
             if (fast) {
                 // fill with value
                 long rowBytes = (long) clip.width() * bpp;
-                if (base != null) {
-                    for (int y = clip.mTop; y < clip.mBottom; ++y) {
-                        UNSAFE.setMemory(base,
-                                getAddress(clip.x(), y), rowBytes, v0);
-                    }
-                } else {
+                if (base == null) {
                     for (int y = clip.mTop; y < clip.mBottom; ++y) {
                         MemoryUtil.memSet(
                                 getAddress(clip.x(), y), v0 & 0xff, rowBytes);
                     }
-                }
-            } else if (bpp == 2) {
-                short value = UNSAFE.getShort(dst);
-                for (int y = clip.mTop; y < clip.mBottom; ++y) {
-                    long addr = getAddress(clip.x(), y);
-                    PixelUtils.setPixel16(base, addr, value, clip.width());
-                }
-            } else if (bpp == 4) {
-                int value = UNSAFE.getInt(dst);
-                for (int y = clip.mTop; y < clip.mBottom; ++y) {
-                    long addr = getAddress(clip.x(), y);
-                    PixelUtils.setPixel32(base, addr, value, clip.width());
-                }
-            } else if (bpp == 8) {
-                long value = UNSAFE.getLong(dst);
-                for (int y = clip.mTop; y < clip.mBottom; ++y) {
-                    long addr = getAddress(clip.x(), y);
-                    PixelUtils.setPixel64(base, addr, value, clip.width());
-                }
-            } else if (ct == ColorInfo.CT_RGB_888) {
-                // RGB_888 is a type where bpp is not a power of 2
-                assert bpp == 3;
-                byte v1 = UNSAFE.getByte(dst + 1);
-                byte v2 = UNSAFE.getByte(dst + 2);
-                for (int y = clip.mTop; y < clip.mBottom; ++y) {
-                    long addr = getAddress(clip.x(), y);
-                    for (int i = 0, e = clip.width(); i < e; ++i) {
-                        UNSAFE.putByte(base, addr, v0);
-                        UNSAFE.putByte(base, addr + 1, v1);
-                        UNSAFE.putByte(base, addr + 2, v2);
-                        addr += 3;
+                } else if (base instanceof byte[] hb) {
+                    for (int y = clip.mTop; y < clip.mBottom; ++y) {
+                        long addr = getAddress(clip.x(), y);
+                        Arrays.fill(hb, (int) addr, (int) (addr+rowBytes), v0);
                     }
-                }
-            } else if (ct == ColorInfo.CT_RGB_161616) {
-                // RGB_161616 is a type where bpp is not a power of 2
-                assert bpp == 6;
-                short vv = UNSAFE.getShort(dst);
-                short v1 = UNSAFE.getShort(dst + 2);
-                short v2 = UNSAFE.getShort(dst + 4);
-                for (int y = clip.mTop; y < clip.mBottom; ++y) {
-                    long addr = getAddress(clip.x(), y);
-                    for (int i = 0, e = clip.width(); i < e; ++i) {
-                        UNSAFE.putShort(base, addr, vv);
-                        UNSAFE.putShort(base, addr + 2, v1);
-                        UNSAFE.putShort(base, addr + 4, v2);
-                        addr += 6;
+                } else if (base instanceof short[] hb) {
+                    short wideValue = (short) ((v0 & 0xFF) * 0x0101);
+                    for (int y = clip.mTop; y < clip.mBottom; ++y) {
+                        long addr = getAddress(clip.x(), y);
+                        Arrays.fill(hb, (int) (addr>>1), (int) ((addr+rowBytes)>>1), wideValue);
                     }
+                } else if (base instanceof int[] hb) {
+                    int wideValue = (v0 & 0xFF) * 0x01010101;
+                    for (int y = clip.mTop; y < clip.mBottom; ++y) {
+                        long addr = getAddress(clip.x(), y);
+                        Arrays.fill(hb, (int) (addr>>2), (int) ((addr+rowBytes)>>2), wideValue);
+                    }
+                } else if (base instanceof float[] hb) {
+                    float wideValue = Float.intBitsToFloat((v0 & 0xFF) * 0x01010101);
+                    for (int y = clip.mTop; y < clip.mBottom; ++y) {
+                        long addr = getAddress(clip.x(), y);
+                        Arrays.fill(hb, (int) (addr>>2), (int) ((addr+rowBytes)>>2), wideValue);
+                    }
+                } else {
+                    assert false;
                 }
-            } else {
-                assert false;
+
+                return true;
+            }
+
+            vectorized: {
+                if (bpp == 2) {
+                    short value = MemoryUtil.memGetShort(dst);
+                    if (base == null) {
+                        for (int y = clip.mTop; y < clip.mBottom; ++y) {
+                            long addr = getAddress(clip.x(), y);
+                            setPixel16(addr, value, clip.width());
+                        }
+                    } else if (base instanceof short[] hb) {
+                        // packed or single channel
+                        for (int y = clip.mTop; y < clip.mBottom; ++y) {
+                            int index = (int) (getAddress(clip.x(), y) >> 1);
+                            Arrays.fill(hb, index, index + clip.width(), value);
+                        }
+                    } else {
+                        break vectorized;
+                    }
+                } else if (bpp == 4) {
+                    int value = MemoryUtil.memGetInt(dst);
+                    if (base == null) {
+                        for (int y = clip.mTop; y < clip.mBottom; ++y) {
+                            long addr = getAddress(clip.x(), y);
+                            setPixel32(addr, value, clip.width());
+                        }
+                    } else if (base instanceof int[] hb) {
+                        // packed or single channel
+                        for (int y = clip.mTop; y < clip.mBottom; ++y) {
+                            int index = (int) (getAddress(clip.x(), y) >> 2);
+                            Arrays.fill(hb, index, index + clip.width(), value);
+                        }
+                    } else if (base instanceof float[] hb) {
+                        // single channel
+                        float fValue = Float.intBitsToFloat(value);
+                        for (int y = clip.mTop; y < clip.mBottom; ++y) {
+                            int index = (int) (getAddress(clip.x(), y) >> 2);
+                            Arrays.fill(hb, index, index + clip.width(), fValue);
+                        }
+                    } else {
+                        break vectorized;
+                    }
+                } else if (bpp == 8) {
+                    long value = MemoryUtil.memGetLong(dst);
+                    if (base == null) {
+                        for (int y = clip.mTop; y < clip.mBottom; ++y) {
+                            long addr = getAddress(clip.x(), y);
+                            setPixel64(addr, value, clip.width());
+                        }
+                    } else {
+                        break vectorized;
+                    }
+                } else if (ct == ColorInfo.CT_RGB_888) {
+                    // RGB_888 is a type where bpp is not a power of 2
+                    assert bpp == 3;
+                    if (base != null) {
+                        break vectorized;
+                    }
+                    byte v1 = MemoryUtil.memGetByte(dst + 1);
+                    byte v2 = MemoryUtil.memGetByte(dst + 2);
+                    for (int y = clip.mTop; y < clip.mBottom; ++y) {
+                        long addr = getAddress(clip.x(), y);
+                        for (int i = 0, e = clip.width(); i < e; ++i) {
+                            MemoryUtil.memPutByte(addr, v0);
+                            MemoryUtil.memPutByte(addr + 1, v1);
+                            MemoryUtil.memPutByte(addr + 2, v2);
+                            addr += 3;
+                        }
+                    }
+                } else if (ct == ColorInfo.CT_RGB_161616) {
+                    // RGB_161616 is a type where bpp is not a power of 2
+                    assert bpp == 6;
+                    if (base != null) {
+                        break vectorized;
+                    }
+                    short vv = MemoryUtil.memGetShort(dst);
+                    short v1 = MemoryUtil.memGetShort(dst + 2);
+                    short v2 = MemoryUtil.memGetShort(dst + 4);
+                    for (int y = clip.mTop; y < clip.mBottom; ++y) {
+                        long addr = getAddress(clip.x(), y);
+                        for (int i = 0, e = clip.width(); i < e; ++i) {
+                            MemoryUtil.memPutShort(addr, vv);
+                            MemoryUtil.memPutShort(addr + 2, v1);
+                            MemoryUtil.memPutShort(addr + 4, v2);
+                            addr += 6;
+                        }
+                    }
+                } else {
+                    assert false;
+                }
+
+                return true;
+            }
+
+            // heap slow path
+            assert base != null;
+            var store = PixelUtils.storeOp(ct, base == null);
+            for (int y = clip.mTop; y < clip.mBottom; ++y) {
+                long addr = getAddress(clip.x(), y);
+                for (int i = 0, e = clip.width(); i < e; ++i) {
+                    store.op(base, addr, color);
+                    addr += bpp;
+                }
             }
 
             return true;
+        }
+    }
+
+    // vectorized memory fill
+
+    private static void setPixel16(long addr,
+                                   short value, int count) {
+        assert count > 0;
+        long wideValue = (long) value << 16 | value;
+        wideValue |= wideValue << 32;
+        assert MathUtil.isAlign2(addr);
+        long pad = (-addr) & 7;
+        while (pad > 0 && count != 0) {
+            MemoryUtil.memPutShort(addr, value);
+            addr += 2;
+            count--;
+            pad -= 2;
+        }
+        assert count == 0 || pad == 0;
+        assert count == 0 || MathUtil.isAlign8(addr);
+        while (count >= 4) {
+            MemoryUtil.memPutLong(addr, wideValue);
+            addr += 8;
+            count -= 4;
+        }
+        while (count-- != 0) {
+            MemoryUtil.memPutShort(addr, value);
+            addr += 2;
+        }
+    }
+
+    private static void setPixel32(long addr,
+                                   int value, int count) {
+        assert count > 0;
+        long wideValue = (long) value << 32 | value;
+        assert MathUtil.isAlign4(addr);
+        if (!MathUtil.isAlign8(addr)) {
+            MemoryUtil.memPutInt(addr, value);
+            addr += 4;
+            count--;
+        }
+        assert MathUtil.isAlign8(addr);
+        while (count >= 2) {
+            MemoryUtil.memPutLong(addr, wideValue);
+            addr += 8;
+            count -= 2;
+        }
+        if (count != 0) {
+            assert count == 1;
+            MemoryUtil.memPutInt(addr, value);
+        }
+    }
+
+    private static void setPixel64(long addr,
+                                   long value, int count) {
+        assert MathUtil.isAlign8(addr);
+        for (int i = 0; i < count; i++) {
+            MemoryUtil.memPutLong(addr, value);
+            addr += 8;
         }
     }
 
