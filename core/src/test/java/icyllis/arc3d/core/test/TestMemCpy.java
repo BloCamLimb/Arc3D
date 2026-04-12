@@ -38,7 +38,31 @@ import static org.lwjgl.system.libc.LibCString.*;
 @State(Scope.Benchmark)
 public class TestMemCpy {
 
-    private static final Unsafe UNSAFE = PixelUtils.UNSAFE;
+    private static final Unsafe UNSAFE = getUnsafe();
+
+    private static sun.misc.Unsafe getUnsafe() {
+        java.lang.reflect.Field[] fields = sun.misc.Unsafe.class.getDeclaredFields();
+
+        for (java.lang.reflect.Field field : fields) {
+            if (!field.getType().equals(sun.misc.Unsafe.class)) {
+                continue;
+            }
+
+            int modifiers = field.getModifiers();
+            if (!(java.lang.reflect.Modifier.isStatic(modifiers) && java.lang.reflect.Modifier.isFinal(modifiers))) {
+                continue;
+            }
+
+            try {
+                field.setAccessible(true);
+                return (sun.misc.Unsafe) field.get(null);
+            } catch (Exception e) {
+                throw new UnsupportedOperationException("No sun.misc.Unsafe", e);
+            }
+        }
+
+        throw new UnsupportedOperationException("No sun.misc.Unsafe");
+    }
 
     //                                                              lower is better
     // Benchmark                                (length)  Mode  Cnt   Score    Error  Units
@@ -124,8 +148,8 @@ public class TestMemCpy {
     private static final long f = nmemAlloc(BUFFER_SIZE);
     private static final long t = nmemAlloc(BUFFER_SIZE);
 
-    private static final byte[] a = new byte[BUFFER_SIZE];
-    private static final byte[] b = new byte[BUFFER_SIZE];
+    private static final Object a = new byte[BUFFER_SIZE];
+    private static final Object b = new byte[BUFFER_SIZE];
 
     @Param({"32", "160", "256", "1024"})
     public int length;
@@ -140,7 +164,7 @@ public class TestMemCpy {
         UNSAFE.copyMemory(null, f, null, t, length);
     }*/
 
-    @Benchmark
+    /*@Benchmark
     public void array_to_offheap_baseline() {
         UNSAFE.copyMemory(a, Unsafe.ARRAY_BYTE_BASE_OFFSET, null, t, length);
     }
@@ -163,7 +187,7 @@ public class TestMemCpy {
         MemoryUtil.memCopy(a, t, 0, length);
     }
 
-    /*@Benchmark
+    @Benchmark
     public void offheap_java() {
         memCopyAligned(f, t, length);
     }
@@ -176,6 +200,11 @@ public class TestMemCpy {
     @Benchmark
     public void array_baseline() {
         System.arraycopy(a, 0, b, 0, length);
+    }
+
+    @Benchmark
+    public void array_unsafe_baseline() {
+        UNSAFE.copyMemory(a, Unsafe.ARRAY_BYTE_BASE_OFFSET, b, Unsafe.ARRAY_BYTE_BASE_OFFSET, length);
     }
 
     private static void memCopyAligned(long src, long dst, int bytes) {

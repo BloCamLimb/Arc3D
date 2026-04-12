@@ -19,7 +19,6 @@
 
 package icyllis.arc3d.core;
 
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
 import org.lwjgl.system.MemoryUtil;
@@ -39,17 +38,6 @@ import java.nio.ShortBuffer;
  */
 public class PixelUtils {
 
-    // We know that memory access methods in Unsafe are deprecated for removal since Java 23,
-    // but we observed severe performance regressions with MemorySegment in many scenarios.
-    // We'll continue using Unsafe for now until it's completely removed, and then
-    // switch to MemorySegment, or nio.Buffer (slower than Unsafe, but does not degrade excessively).
-    /**
-     * @hide
-     * @hidden
-     */
-    @ApiStatus.Internal
-    public static final sun.misc.Unsafe UNSAFE = getUnsafe();
-
     // we assume little-endian and do conversion if we're on big-endian machines
     public static final boolean NATIVE_BIG_ENDIAN =
             (false);
@@ -60,30 +48,6 @@ public class PixelUtils {
         if ((ByteOrder.nativeOrder() == ByteOrder.BIG_ENDIAN)) {
             throw new UnsupportedOperationException("Not built for BIG_ENDIAN");
         }
-    }
-
-    private static sun.misc.Unsafe getUnsafe() {
-        java.lang.reflect.Field[] fields = sun.misc.Unsafe.class.getDeclaredFields();
-
-        for (java.lang.reflect.Field field : fields) {
-            if (!field.getType().equals(sun.misc.Unsafe.class)) {
-                continue;
-            }
-
-            int modifiers = field.getModifiers();
-            if (!(java.lang.reflect.Modifier.isStatic(modifiers) && java.lang.reflect.Modifier.isFinal(modifiers))) {
-                continue;
-            }
-
-            try {
-                field.setAccessible(true);
-                return (sun.misc.Unsafe) field.get(null);
-            } catch (Exception e) {
-                throw new UnsupportedOperationException("No sun.misc.Unsafe", e);
-            }
-        }
-
-        throw new UnsupportedOperationException("No sun.misc.Unsafe");
     }
 
     public static final VarHandle BYTE_ARRAY_AS_SHORT =
@@ -343,63 +307,6 @@ public class PixelUtils {
             int index = (int) addr;
             return ByteBuffer.wrap(hb, index, hb.length - index)
                     .order(ByteOrder.nativeOrder());
-        }
-    }
-
-    public static void setPixel16(Object base, long addr,
-                                  short value, int count) {
-        assert count > 0;
-        long wideValue = (long) value << 16 | value;
-        wideValue |= wideValue << 32;
-        assert MathUtil.isAlign2(addr);
-        long pad = (-addr) & 7;
-        while (pad > 0 && count != 0) {
-            UNSAFE.putShort(base, addr, value);
-            addr += 2;
-            count--;
-            pad -= 2;
-        }
-        assert count == 0 || pad == 0;
-        assert count == 0 || MathUtil.isAlign8(addr);
-        while (count >= 4) {
-            UNSAFE.putLong(base, addr, wideValue);
-            addr += 8;
-            count -= 4;
-        }
-        while (count-- != 0) {
-            UNSAFE.putShort(base, addr, value);
-            addr += 2;
-        }
-    }
-
-    public static void setPixel32(Object base, long addr,
-                                  int value, int count) {
-        assert count > 0;
-        long wideValue = (long) value << 32 | value;
-        assert MathUtil.isAlign4(addr);
-        if (!MathUtil.isAlign8(addr)) {
-            UNSAFE.putInt(base, addr, value);
-            addr += 4;
-            count--;
-        }
-        assert MathUtil.isAlign8(addr);
-        while (count >= 2) {
-            UNSAFE.putLong(base, addr, wideValue);
-            addr += 8;
-            count -= 2;
-        }
-        if (count != 0) {
-            assert count == 1;
-            UNSAFE.putInt(base, addr, value);
-        }
-    }
-
-    public static void setPixel64(Object base, long addr,
-                                  long value, int count) {
-        assert MathUtil.isAlign8(addr);
-        for (int i = 0; i < count; i++) {
-            UNSAFE.putLong(base, addr, value);
-            addr += 8;
         }
     }
 
