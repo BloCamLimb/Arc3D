@@ -61,6 +61,9 @@ public class TestColorSpace {
         testColor(displayP3, sRGB, col);
         testColor(ColorSpace.get(ColorSpace.Named.BT2020), sRGB, col);
         testColor(ColorSpace.get(ColorSpace.Named.SRGB), ColorSpace.get(ColorSpace.Named.LINEAR_EXTENDED_SRGB), col);
+        testColor(ColorSpace.get(ColorSpace.Named.CIE_LAB), displayP3, new float[]{55, 90, 70, 1});
+        testColor(ColorSpace.get(ColorSpace.Named.OK_LAB), displayP3, new float[]{0.733f, 0.265f, 0.088f, 1});
+        testColor(ColorSpace.get(ColorSpace.Named.OK_LAB), ColorSpace.get(ColorSpace.Named.CIE_XYZ), new float[]{0.733f, 0.265f, 0.088f, 1});
 
         testRgbTransform(ColorSpace.get(ColorSpace.Named.DCI_P3), sRGB);
         testRgbTransform(ColorSpace.get(ColorSpace.Named.ADOBE_RGB), sRGB);

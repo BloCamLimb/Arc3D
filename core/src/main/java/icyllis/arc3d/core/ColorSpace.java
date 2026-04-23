@@ -164,7 +164,7 @@ public abstract class ColorSpace {
     /**
      * Standard CIE 1931 2° illuminant D65, encoded in xyY.
      * This illuminant has a color temperature of 6504K. This illuminant
-     * is commonly used in RGB color spaces such as sRGB, BT.209, etc.
+     * is commonly used in RGB color spaces such as sRGB, BT.709, etc.
      */
     public static final float[] ILLUMINANT_D65 = {0.31271f, 0.32902f};
     /**
@@ -193,6 +193,10 @@ public abstract class ColorSpace {
 
     private static final float[] SRGB_PRIMARIES = {0.640f, 0.330f, 0.300f, 0.600f, 0.150f, 0.060f};
     private static final float[] NTSC_1953_PRIMARIES = {0.67f, 0.33f, 0.21f, 0.71f, 0.14f, 0.08f};
+    private static final float[] DCI_P3_PRIMARIES =
+            { 0.680f, 0.320f, 0.265f, 0.690f, 0.150f, 0.060f };
+    private static final float[] BT2020_PRIMARIES =
+            { 0.708f, 0.292f, 0.170f, 0.797f, 0.131f, 0.046f };
     /**
      * A gray color space does not have meaningful primaries, so we use this arbitrary set.
      */
@@ -202,6 +206,9 @@ public abstract class ColorSpace {
 
     private static final Rgb.TransferParameters SRGB_TRANSFER_PARAMETERS =
             new Rgb.TransferParameters(1 / 1.055, 0.055 / 1.055, 1 / 12.92, 0.04045, 2.4);
+
+    private static final Rgb.TransferParameters SMPTE_170M_TRANSFER_PARAMETERS =
+            new Rgb.TransferParameters(1 / 1.099, 0.099 / 1.099, 1 / 4.5, 0.081, 1 / 0.45);
 
     @NonNull
     private final String mName;
@@ -709,7 +716,21 @@ public abstract class ColorSpace {
          *     <tr><td>Range</td><td colspan="4">\(L: [0.0, 100.0], a: [-128, 128], b: [-128, 128]\)</td></tr>
          * </table>
          */
-        CIE_LAB;
+        CIE_LAB,
+        /**
+         * <p>{@link ColorSpace.Lab Lab} color space OkLab standardized as
+         * OkLab</p>
+         * <table summary="Color space definition">
+         *     <tr><th>Property</th><th colspan="4">Value</th></tr>
+         *     <tr><td>Name</td><td colspan="4">Oklab</td></tr>
+         *     <tr><td>CIE standard illuminant</td><td colspan="4">D65</td></tr>
+         *     <tr>
+         *         <td>Range</td>
+         *         <td colspan="4">\(L: `[0.0, 1.0]`, a: `[-2, 2]`, b: `[-2, 2]`\)</td>
+         *     </tr>
+         * </table>
+         */
+        OK_LAB;
         // Update the initialization block next to #get(Named) when adding new values
 
         // See static initialization block next to #get(Named)
@@ -753,15 +774,15 @@ public abstract class ColorSpace {
             );
             sNamedColorSpaces[Named.BT709.ordinal()] = new ColorSpace.Rgb(
                     "Rec. ITU-R BT.709-5",
-                    new float[]{0.640f, 0.330f, 0.300f, 0.600f, 0.150f, 0.060f},
+                    SRGB_PRIMARIES,
                     ILLUMINANT_D65,
                     null,
-                    new Rgb.TransferParameters(1 / 1.099, 0.099 / 1.099, 1 / 4.5, 0.081, 1 / 0.45),
+                    SMPTE_170M_TRANSFER_PARAMETERS,
                     Named.BT709.ordinal()
             );
             sNamedColorSpaces[Named.BT2020.ordinal()] = new ColorSpace.Rgb(
                     "Rec. ITU-R BT.2020-1",
-                    new float[]{0.708f, 0.292f, 0.170f, 0.797f, 0.131f, 0.046f},
+                    BT2020_PRIMARIES,
                     ILLUMINANT_D65,
                     null,
                     new Rgb.TransferParameters(1 / 1.0993, 0.0993 / 1.0993, 1 / 4.5, 0.08145, 1 / 0.45),
@@ -769,7 +790,7 @@ public abstract class ColorSpace {
             );
             sNamedColorSpaces[Named.DCI_P3.ordinal()] = new ColorSpace.Rgb(
                     "SMPTE RP 431-2-2007 DCI (P3)",
-                    new float[]{0.680f, 0.320f, 0.265f, 0.690f, 0.150f, 0.060f},
+                    DCI_P3_PRIMARIES,
                     new float[]{0.314f, 0.351f},
                     2.6,
                     0.0f, 1.0f,
@@ -777,7 +798,7 @@ public abstract class ColorSpace {
             );
             sNamedColorSpaces[Named.DISPLAY_P3.ordinal()] = new ColorSpace.Rgb(
                     "Display P3",
-                    new float[]{0.680f, 0.320f, 0.265f, 0.690f, 0.150f, 0.060f},
+                    DCI_P3_PRIMARIES,
                     ILLUMINANT_D65,
                     null,
                     SRGB_TRANSFER_PARAMETERS,
@@ -788,7 +809,7 @@ public abstract class ColorSpace {
                     NTSC_1953_PRIMARIES,
                     ILLUMINANT_C,
                     null,
-                    new Rgb.TransferParameters(1 / 1.099, 0.099 / 1.099, 1 / 4.5, 0.081, 1 / 0.45),
+                    SMPTE_170M_TRANSFER_PARAMETERS,
                     Named.NTSC_1953.ordinal()
             );
             sNamedColorSpaces[Named.SMPTE_C.ordinal()] = new ColorSpace.Rgb(
@@ -796,7 +817,7 @@ public abstract class ColorSpace {
                     new float[]{0.630f, 0.340f, 0.310f, 0.595f, 0.155f, 0.070f},
                     ILLUMINANT_D65,
                     null,
-                    new Rgb.TransferParameters(1 / 1.099, 0.099 / 1.099, 1 / 4.5, 0.081, 1 / 0.45),
+                    SMPTE_170M_TRANSFER_PARAMETERS,
                     Named.SMPTE_C.ordinal()
             );
             sNamedColorSpaces[Named.ADOBE_RGB.ordinal()] = new ColorSpace.Rgb(
@@ -838,6 +859,10 @@ public abstract class ColorSpace {
             sNamedColorSpaces[Named.CIE_LAB.ordinal()] = new ColorSpace.Lab(
                     "Generic L*a*b*",
                     Named.CIE_LAB.ordinal()
+            );
+            sNamedColorSpaces[Named.OK_LAB.ordinal()] = new ColorSpace.OkLab(
+                    "Oklab",
+                    Named.OK_LAB.ordinal()
             );
         }
     }
@@ -1189,10 +1214,7 @@ public abstract class ColorSpace {
 
     /**
      * <p>Converts a color value from this color space's model to
-     * tristimulus CIE XYZ values. If the color model of this color
-     * space is not {@link Model#RGB RGB}, it is assumed that the
-     * target CIE XYZ space uses a {@link #ILLUMINANT_D50 D50}
-     * standard illuminant.</p>
+     * tristimulus CIE XYZ values.</p>
      *
      * <p>This method is a convenience for color spaces with a model
      * of 3 components ({@link Model#RGB RGB} or {@link Model#LAB}
@@ -1214,10 +1236,7 @@ public abstract class ColorSpace {
 
     /**
      * <p>Converts a color value from this color space's model to
-     * tristimulus CIE XYZ values. If the color model of this color
-     * space is not {@link Model#RGB RGB}, it is assumed that the
-     * target CIE XYZ space uses a {@link #ILLUMINANT_D50 D50}
-     * standard illuminant.</p>
+     * tristimulus CIE XYZ values.</p>
      *
      * <p class="note">The specified array's length  must be at least
      * equal to to the number of color components as returned by
@@ -1346,9 +1365,8 @@ public abstract class ColorSpace {
     /**
      * <p>Connects two color spaces to allow conversion from the source color
      * space to the destination color space. If the source and destination
-     * color spaces do not have the same profile connection space (CIE XYZ
-     * with the same white point), they are chromatically adapted to use the
-     * CIE standard illuminant {@link #ILLUMINANT_D50 D50} as needed.</p>
+     * color spaces do not have the same white point, they are chromatically
+     * adapted from source to destination.</p>
      *
      * <p>If the source and destination are the same, an optimized connector
      * is returned to avoid unnecessary computations and loss of precision.</p>
@@ -1371,9 +1389,8 @@ public abstract class ColorSpace {
     /**
      * <p>Connects two color spaces to allow conversion from the source color
      * space to the destination color space. If the source and destination
-     * color spaces do not have the same profile connection space (CIE XYZ
-     * with the same white point), they are chromatically adapted to use the
-     * CIE standard illuminant {@link #ILLUMINANT_D50 D50} as needed.</p>
+     * color spaces do not have the same white point, they are chromatically
+     * adapted from source to destination.</p>
      *
      * <p>If the source and destination are the same, an optimized connector
      * is returned to avoid unnecessary computations and loss of precision.</p>
@@ -1402,9 +1419,9 @@ public abstract class ColorSpace {
 
     /**
      * <p>Connects the specified color spaces to sRGB.
-     * If the source color space does not use CIE XYZ D65 as its profile
-     * connection space, the two spaces are chromatically adapted to use the
-     * CIE standard illuminant {@link #ILLUMINANT_D50 D50} as needed.</p>
+     * If the source color space does not use D65 as its white point,
+     * the source space is chromatically adapted to use the
+     * CIE standard illuminant {@link #ILLUMINANT_D65 D65} as needed.</p>
      *
      * <p>If the source is the sRGB color space, an optimized connector
      * is returned to avoid unnecessary computations and loss of precision.</p>
@@ -1425,9 +1442,9 @@ public abstract class ColorSpace {
 
     /**
      * <p>Connects the specified color spaces to sRGB.
-     * If the source color space does not use CIE XYZ D65 as its profile
-     * connection space, the two spaces are chromatically adapted to use the
-     * CIE standard illuminant {@link #ILLUMINANT_D50 D50} as needed.</p>
+     * If the source color space does not use D65 as its white point,
+     * the source space is chromatically adapted to use the
+     * CIE standard illuminant {@link #ILLUMINANT_D65 D65} as needed.</p>
      *
      * <p>If the source is the sRGB color space, an optimized connector
      * is returned to avoid unnecessary computations and loss of precision.</p>
@@ -2117,6 +2134,128 @@ public abstract class ColorSpace {
     }
 
     /**
+     * Implementation of the Oklab color space. Oklab uses a D65 white point.
+     */
+    private static final class OkLab extends ColorSpace {
+
+        /**
+         * Matrix applied before the nonlinear transform.
+         */
+        private static final float[] M1 = {
+                0.8189330101f, 0.0329845436f, 0.0482003018f,
+                0.3618667424f, 0.9293118715f, 0.2643662691f,
+                -0.1288597137f, 0.0361456387f, 0.6338517070f
+        };
+
+        /**
+         * Matrix applied after the nonlinear transform.
+         */
+        private static final float[] M2 = {
+                0.2104542553f, 1.9779984951f, 0.0259040371f,
+                0.7936177850f, -2.4285922050f, 0.7827717662f,
+                -0.0040720468f, 0.4505937099f, -0.8086757660f
+        };
+
+        /**
+         * The inverse of the [M1] matrix, transforming back to XYZ (D65)
+         */
+        private static final float[] INVERSE_M1 = inverse3x3(M1);
+
+        /**
+         * The inverse of the [M2] matrix, doing the first linear transform in the
+         * Oklab-to-XYZ before doing the nonlinear transform.
+         */
+        private static final float[] INVERSE_M2 = inverse3x3(M2);
+
+        private OkLab(@NonNull String name,
+                      @Range(from = MIN_ID, to = MAX_ID) int id) {
+            super(name, Model.LAB, id);
+        }
+
+        @Override
+        public boolean isWideGamut() {
+            return true;
+        }
+
+        @Override
+        public float getMinValue(@Range(from = 0, to = 3) int component) {
+            return component == 0 ? 0.0f : -0.5f;
+        }
+
+        @Override
+        public float getMaxValue(@Range(from = 0, to = 3) int component) {
+            return component == 0 ? 1.0f : 0.5f;
+        }
+
+        @Override
+        @Size(min = 2)
+        public float @NonNull[] getWhitePoint(@Size(min = 2) float @NonNull[] whitePoint) {
+            whitePoint[0] = ILLUMINANT_D65[0];
+            whitePoint[1] = ILLUMINANT_D65[1];
+            return whitePoint;
+        }
+
+        @Override
+        @Size(2)
+        public float @NonNull[] getWhitePoint() {
+            return ILLUMINANT_D65.clone();
+        }
+
+        @Override
+        public float @NonNull[] toXyz(@Size(min = 3) float @NonNull[] v) {
+            v[0] = MathUtil.clamp(v[0], 0.0f, 1.0f);
+            v[1] = MathUtil.clamp(v[1], -0.5f, 0.5f);
+            v[2] = MathUtil.clamp(v[2], -0.5f, 0.5f);
+
+            mul3x3Float3(INVERSE_M2, v);
+            v[0] = v[0] * v[0] * v[0];
+            v[1] = v[1] * v[1] * v[1];
+            v[2] = v[2] * v[2] * v[2];
+
+            mul3x3Float3(INVERSE_M1, v);
+
+            return v;
+        }
+
+        @Override
+        public float @NonNull[] toXyzUnclamped(@Size(min = 3) float @NonNull[] v) {
+            mul3x3Float3(INVERSE_M2, v);
+            v[0] = v[0] * v[0] * v[0];
+            v[1] = v[1] * v[1] * v[1];
+            v[2] = v[2] * v[2] * v[2];
+            mul3x3Float3(INVERSE_M1, v);
+            return v;
+        }
+
+        @Override
+        public float @NonNull[] fromXyz(@Size(min = 3) float @NonNull[] v) {
+            mul3x3Float3(M1, v);
+
+            v[0] = (float) Math.cbrt(v[0]);
+            v[1] = (float) Math.cbrt(v[1]);
+            v[2] = (float) Math.cbrt(v[2]);
+
+            mul3x3Float3(M2, v);
+
+            v[0] = MathUtil.clamp(v[0], 0.0f, 1.0f);
+            v[1] = MathUtil.clamp(v[1], -0.5f, 0.5f);
+            v[2] = MathUtil.clamp(v[2], -0.5f, 0.5f);
+
+            return v;
+        }
+
+        @Override
+        public float @NonNull[] fromXyzUnclamped(@Size(min = 3) float @NonNull[] v) {
+            mul3x3Float3(M1, v);
+            v[0] = (float) Math.cbrt(v[0]);
+            v[1] = (float) Math.cbrt(v[1]);
+            v[2] = (float) Math.cbrt(v[2]);
+            mul3x3Float3(M2, v);
+            return v;
+        }
+    }
+
+    /**
      * {@usesMathJax}
      *
      * <p>An RGB color space is an additive color space using the
@@ -2489,7 +2628,7 @@ public abstract class ColorSpace {
          * does not need to be specified and is assumed to be 1.0. Only the xy components
          * are required.</p>
          *
-         * <p class="note">The ID, areturned by {@link #getId()}, of an object created by
+         * <p class="note">The ID, as returned by {@link #getId()}, of an object created by
          * this constructor is always {@link #MIN_ID}.</p>
          *
          * @param name       Name of the color space, cannot be null, its length must be >= 1
@@ -3006,7 +3145,7 @@ public abstract class ColorSpace {
          * primaries for such a ColorSpace does not make sense, so we use a special
          * set of primaries that are all 1s.</p>
          *
-         * @return A new non-null array of 2 floats
+         * @return A new non-null array of 6 floats
          * @see #getPrimaries(float[])
          */
         @Size(6)
@@ -3796,7 +3935,7 @@ public abstract class ColorSpace {
         private final RenderIntent mIntent;
 
         @Size(9)
-        final float @Nullable[] mTransform;
+        private final float @Nullable[] mTransform;
 
         /**
          * Creates a new connector between a source and a destination color space.
@@ -4012,14 +4151,14 @@ public abstract class ColorSpace {
              *
              * <p>We can only connect color spaces if they use the same profile
              * connection space. We assume the connection space is always
-             * CIE XYZ but we maye need to perform a chromatic adaptation to
+             * CIE XYZ but we maybe need to perform a chromatic adaptation to
              * match the white points. If an adaptation is needed, we use the
              * CIE standard illuminant D50. The unmatched color space is adapted
              * using the von Kries transform and the {@link Adaptation#BRADFORD}
              * matrix.</p>
              *
-             * @param source      The source color space, cannot be null
-             * @param destination The destination color space, cannot be null
+             * @param source      The source color space, null means XYZ D50
+             * @param destination The destination color space, null means XYZ D50
              * @param intent      The render intent to use when compressing gamuts
              * @return An array of 9 floats containing the 3x3 matrix transform
              */
