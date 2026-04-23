@@ -1160,6 +1160,34 @@ public abstract class ColorSpace {
 
 
     /**
+     * Copies the non-adapted CIE xyY white point of this color space in
+     * specified array. The Y component is assumed to be 1 and is therefore
+     * not copied into the destination. The x and y components are written
+     * in the array at positions 0 and 1 respectively.
+     *
+     * @param whitePoint The destination array, cannot be null, its length
+     *                   must be >= 2
+     * @return The destination array passed as a parameter
+     * @see #getWhitePoint()
+     */
+    @Size(min = 2)
+    public abstract float @NonNull[] getWhitePoint(@Size(min = 2) float @NonNull[] whitePoint);
+
+
+    /**
+     * Returns the non-adapted CIE xyY white point of this color space as
+     * a new array of 2 floats. The Y component is assumed to be 1 and is
+     * therefore not copied into the destination. The x and y components
+     * are written in the array at positions 0 and 1 respectively.
+     *
+     * @return A new non-null array of 2 floats
+     * @see #getWhitePoint(float[])
+     */
+    @Size(2)
+    public abstract float @NonNull[] getWhitePoint();
+
+
+    /**
      * <p>Converts a color value from this color space's model to
      * tristimulus CIE XYZ values. If the color model of this color
      * space is not {@link Model#RGB RGB}, it is assumed that the
@@ -1362,10 +1390,11 @@ public abstract class ColorSpace {
     @SuppressWarnings("ConstantConditions")
     public static Connector connect(@NonNull ColorSpace source, @NonNull ColorSpace destination,
                                     @NonNull RenderIntent intent) {
-        if (source.equals(destination)) return Connector.identity(source);
+        if (source.equals(destination)) return Connector.identity(source, intent);
 
-        if (source.getModel() == Model.RGB && destination.getModel() == Model.RGB) {
-            return new Connector.Rgb((Rgb) source, (Rgb) destination, intent);
+        if ((source.getModel() == Model.RGB || source.getModel() == Model.XYZ) &&
+                (destination.getModel() == Model.RGB || destination.getModel() == Model.XYZ)) {
+            return new Connector.Rgb(source, destination, intent);
         }
 
         return new Connector(source, destination, intent);
@@ -1412,10 +1441,10 @@ public abstract class ColorSpace {
      */
     @NonNull
     public static Connector connect(@NonNull ColorSpace source, @NonNull RenderIntent intent) {
-        if (source.isSrgb()) return Connector.identity(source);
+        if (source.isSrgb()) return Connector.identity(source, intent);
 
-        if (source.getModel() == Model.RGB) {
-            return new Connector.Rgb((Rgb) source, (Rgb) get(Named.SRGB), intent);
+        if (source.getModel() == Model.RGB || source.getModel() == Model.XYZ) {
+            return new Connector.Rgb(source, get(Named.SRGB), intent);
         }
 
         return new Connector(source, get(Named.SRGB), intent);
@@ -1577,39 +1606,63 @@ public abstract class ColorSpace {
     }
 
     // Reciprocal piecewise gamma response
-    private static double rcpResponse(double x, double a, double b, double c, double d, double g) {
+    public static double rcpResponse(double x, double a, double b, double c, double d, double g) {
         return x >= d * c ? (Math.pow(x, 1.0 / g) - b) / a : x / c;
     }
 
     // Piecewise gamma response
-    private static double response(double x, double a, double b, double c, double d, double g) {
+    public static double response(double x, double a, double b, double c, double d, double g) {
         return x >= d ? Math.pow(a * x + b, g) : c * x;
     }
 
     // Reciprocal piecewise gamma response
-    private static double rcpResponse(double x, double a, double b, double c, double d,
+    public static double rcpResponse(double x, double a, double b, double c, double d,
                                       double e, double f, double g) {
         return x >= d * c ? (Math.pow(x - e, 1.0 / g) - b) / a : (x - f) / c;
     }
 
     // Piecewise gamma response
-    private static double response(double x, double a, double b, double c, double d,
+    public static double response(double x, double a, double b, double c, double d,
                                    double e, double f, double g) {
         return x >= d ? Math.pow(a * x + b, g) + e : c * x + f;
     }
 
     // Reciprocal piecewise gamma response, encoded as sign(x).f(abs(x)) for color
     // spaces that allow negative values
-    @SuppressWarnings("SameParameterValue")
-    private static double absRcpResponse(double x, double a, double b, double c, double d, double g) {
+    public static double absRcpResponse(double x, double g) {
+        return Math.copySign(Math.pow(x < 0.0 ? -x : x, 1.0 / g), x);
+    }
+
+    // Piecewise gamma response, encoded as sign(x).f(abs(x)) for color spaces that
+    // allow negative values
+    public static double absResponse(double x, double g) {
+        return Math.copySign(Math.pow(x < 0.0 ? -x : x, g), x);
+    }
+
+    // Reciprocal piecewise gamma response, encoded as sign(x).f(abs(x)) for color
+    // spaces that allow negative values
+    public static double absRcpResponse(double x, double a, double b, double c, double d, double g) {
         return Math.copySign(rcpResponse(x < 0.0 ? -x : x, a, b, c, d, g), x);
     }
 
     // Piecewise gamma response, encoded as sign(x).f(abs(x)) for color spaces that
     // allow negative values
-    @SuppressWarnings("SameParameterValue")
-    private static double absResponse(double x, double a, double b, double c, double d, double g) {
+    public static double absResponse(double x, double a, double b, double c, double d, double g) {
         return Math.copySign(response(x < 0.0 ? -x : x, a, b, c, d, g), x);
+    }
+
+    // Reciprocal piecewise gamma response, encoded as sign(x).f(abs(x)) for color
+    // spaces that allow negative values
+    public static double absRcpResponse(double x, double a, double b, double c, double d,
+                                         double e, double f, double g) {
+        return Math.copySign(rcpResponse(x < 0.0 ? -x : x, a, b, c, d, e, f, g), x);
+    }
+
+    // Piecewise gamma response, encoded as sign(x).f(abs(x)) for color spaces that
+    // allow negative values
+    public static double absResponse(double x, double a, double b, double c, double d,
+                                      double e, double f, double g) {
+        return Math.copySign(response(x < 0.0 ? -x : x, a, b, c, d, e, f, g), x);
     }
 
     /**
@@ -1697,7 +1750,7 @@ public abstract class ColorSpace {
      * of rhs by lhs
      */
     @Size(9)
-    private static float @NonNull[] mul3x3(
+    public static float @NonNull[] mul3x3(
             @Size(9) float @NonNull[] lhs, @Size(9) float @NonNull[] rhs) {
         float[] r = new float[9];
         r[0] = lhs[0] * rhs[0] + lhs[3] * rhs[1] + lhs[6] * rhs[2];
@@ -1722,7 +1775,7 @@ public abstract class ColorSpace {
      * @return The array of 3 passed as the rhs parameter
      */
     @Size(min = 3)
-    private static float @NonNull[] mul3x3Float3(
+    public static float @NonNull[] mul3x3Float3(
             @Size(9) float @NonNull[] lhs, @Size(min = 3) float @NonNull[] rhs) {
         float r0 = rhs[0];
         float r1 = rhs[1];
@@ -1893,6 +1946,22 @@ public abstract class ColorSpace {
 
 
         @Override
+        @Size(min = 2)
+        public float @NonNull[] getWhitePoint(@Size(min = 2) float @NonNull[] whitePoint) {
+            whitePoint[0] = ILLUMINANT_D50[0];
+            whitePoint[1] = ILLUMINANT_D50[1];
+            return whitePoint;
+        }
+
+
+        @Override
+        @Size(2)
+        public float @NonNull[] getWhitePoint() {
+            return ILLUMINANT_D50.clone();
+        }
+
+
+        @Override
         public float @NonNull[] toXyz(@Size(min = 3) float @NonNull[] v) {
             v[0] = MathUtil.clamp(v[0], -2.0f, 2.0f);
             v[1] = MathUtil.clamp(v[1], -2.0f, 2.0f);
@@ -1949,6 +2018,22 @@ public abstract class ColorSpace {
         @Override
         public float getMaxValue(@Range(from = 0, to = 3) int component) {
             return component == 0 ? 100.0f : 128.0f;
+        }
+
+
+        @Override
+        @Size(min = 2)
+        public float @NonNull[] getWhitePoint(@Size(min = 2) float @NonNull[] whitePoint) {
+            whitePoint[0] = ILLUMINANT_D50[0];
+            whitePoint[1] = ILLUMINANT_D50[1];
+            return whitePoint;
+        }
+
+
+        @Override
+        @Size(2)
+        public float @NonNull[] getWhitePoint() {
+            return ILLUMINANT_D50.clone();
         }
 
 
@@ -2551,14 +2636,14 @@ public abstract class ColorSpace {
                 @Range(from = MIN_ID, to = MAX_ID) int id) {
             this(name, primaries, whitePoint, transform,
                     function.e == 0.0 && function.f == 0.0 ?
-                            x -> rcpResponse(x, function.a, function.b,
+                            x -> absRcpResponse(x, function.a, function.b,
                                     function.c, function.d, function.g) :
-                            x -> rcpResponse(x, function.a, function.b, function.c,
+                            x -> absRcpResponse(x, function.a, function.b, function.c,
                                     function.d, function.e, function.f, function.g),
                     function.e == 0.0 && function.f == 0.0 ?
-                            x -> response(x, function.a, function.b,
+                            x -> absResponse(x, function.a, function.b,
                                     function.c, function.d, function.g) :
-                            x -> response(x, function.a, function.b, function.c,
+                            x -> absResponse(x, function.a, function.b, function.c,
                                     function.d, function.e, function.f, function.g),
                     0.0f, 1.0f, function, id);
         }
@@ -2675,9 +2760,9 @@ public abstract class ColorSpace {
                 @Range(from = MIN_ID, to = MAX_ID) int id) {
             this(name, primaries, whitePoint, null,
                     gamma == 1.0 ? DoubleUnaryOperator.identity() :
-                            x -> Math.pow(Math.max(x, 0.0), 1 / gamma),
+                            x -> absRcpResponse(x, gamma),
                     gamma == 1.0 ? DoubleUnaryOperator.identity() :
-                            x -> Math.pow(Math.max(x, 0.0), gamma),
+                            x -> absResponse(x, gamma),
                     min, max, new TransferParameters(1.0, 0.0, 0.0, 0.0, gamma), id);
         }
 
@@ -2864,6 +2949,7 @@ public abstract class ColorSpace {
          * @return The destination array passed as a parameter
          * @see #getWhitePoint()
          */
+        @Override
         @Size(min = 2)
         public float @NonNull[] getWhitePoint(@Size(min = 2) float @NonNull[] whitePoint) {
             whitePoint[0] = mWhitePoint[0];
@@ -2881,6 +2967,7 @@ public abstract class ColorSpace {
          * @return A new non-null array of 2 floats
          * @see #getWhitePoint(float[])
          */
+        @Override
         @Size(2)
         public float @NonNull[] getWhitePoint() {
             return mWhitePoint.clone();
@@ -3706,14 +3793,10 @@ public abstract class ColorSpace {
         @NonNull
         private final ColorSpace mDestination;
         @NonNull
-        private final ColorSpace mTransformSource;
-        @NonNull
-        private final ColorSpace mTransformDestination;
-        @NonNull
         private final RenderIntent mIntent;
 
-        @Size(3)
-        private final float @Nullable[] mTransform;
+        @Size(9)
+        final float @Nullable[] mTransform;
 
         /**
          * Creates a new connector between a source and a destination color space.
@@ -3725,10 +3808,6 @@ public abstract class ColorSpace {
         Connector(@NonNull ColorSpace source, @NonNull ColorSpace destination,
                   @NonNull RenderIntent intent) {
             this(source, destination,
-                    source.getModel() == Model.RGB ?
-                            adapt(source, ILLUMINANT_D50_XYZ) : source,
-                    destination.getModel() == Model.RGB ?
-                            adapt(destination, ILLUMINANT_D50_XYZ) : destination,
                     intent, computeTransform(source, destination, intent));
         }
 
@@ -3740,43 +3819,31 @@ public abstract class ColorSpace {
          */
         private Connector(
                 @NonNull ColorSpace source, @NonNull ColorSpace destination,
-                @NonNull ColorSpace transformSource, @NonNull ColorSpace transformDestination,
-                @NonNull RenderIntent intent,  @Size(3) float @Nullable[] transform) {
+                @NonNull RenderIntent intent, @Size(9) float @Nullable[] transform) {
             mSource = source;
             mDestination = destination;
-            mTransformSource = transformSource;
-            mTransformDestination = transformDestination;
             mIntent = intent;
             mTransform = transform;
         }
-
 
         /**
          * Computes an extra transform to apply in XYZ space depending on the
          * selected rendering intent.
          */
         private static float @Nullable[] computeTransform(@NonNull ColorSpace source,
-                                                @NonNull ColorSpace destination,
-                                                @NonNull RenderIntent intent) {
-            if (intent != RenderIntent.ABSOLUTE) return null;
+                                                          @NonNull ColorSpace destination,
+                                                          @NonNull RenderIntent intent) {
+            if (intent == RenderIntent.ABSOLUTE) return null;
 
-            boolean srcRGB = source.getModel() == Model.RGB;
-            boolean dstRGB = destination.getModel() == Model.RGB;
+            float[] srcWhitePoint = source.getWhitePoint();
+            float[] dstWhitePoint = destination.getWhitePoint();
 
-            if (srcRGB && dstRGB) return null;
-
-            if (srcRGB || dstRGB) {
-                ColorSpace.Rgb rgb = (ColorSpace.Rgb) (srcRGB ? source : destination);
-                float[] srcXYZ = srcRGB ? xyYToXyz(rgb.mWhitePoint) : ILLUMINANT_D50_XYZ;
-                float[] dstXYZ = dstRGB ? xyYToXyz(rgb.mWhitePoint) : ILLUMINANT_D50_XYZ;
-                return new float[]{
-                        srcXYZ[0] / dstXYZ[0],
-                        srcXYZ[1] / dstXYZ[1],
-                        srcXYZ[2] / dstXYZ[2],
-                };
+            if (compare(srcWhitePoint, dstWhitePoint)) {
+                return null;
             }
 
-            return null;
+            return chromaticAdaptation(Adaptation.BRADFORD.mTransform,
+                    xyYToXyz(srcWhitePoint), xyYToXyz(dstWhitePoint));
         }
 
         /**
@@ -3808,6 +3875,7 @@ public abstract class ColorSpace {
          * @return A non-null {@link RenderIntent}
          * @see RenderIntent
          */
+        @NonNull
         public RenderIntent getRenderIntent() {
             return mIntent;
         }
@@ -3846,13 +3914,11 @@ public abstract class ColorSpace {
          */
         @Size(min = 3)
         public float @NonNull[] transform(@Size(min = 3) float @NonNull[] v) {
-            float[] xyz = mTransformSource.toXyz(v);
+            float[] xyz = mSource.toXyz(v);
             if (mTransform != null) {
-                xyz[0] *= mTransform[0];
-                xyz[1] *= mTransform[1];
-                xyz[2] *= mTransform[2];
+                mul3x3Float3(mTransform, xyz);
             }
-            return mTransformDestination.fromXyz(xyz);
+            return mDestination.fromXyz(xyz);
         }
 
         /**
@@ -3866,13 +3932,11 @@ public abstract class ColorSpace {
          */
         @Size(min = 3)
         public float @NonNull[] transformUnclamped(@Size(min = 3) float @NonNull[] v) {
-            float[] xyz = mTransformSource.toXyzUnclamped(v);
+            float[] xyz = mSource.toXyzUnclamped(v);
             if (mTransform != null) {
-                xyz[0] *= mTransform[0];
-                xyz[1] *= mTransform[1];
-                xyz[2] *= mTransform[2];
+                mul3x3Float3(mTransform, xyz);
             }
-            return mTransformDestination.fromXyzUnclamped(xyz);
+            return mDestination.fromXyzUnclamped(xyz);
         }
 
         /**
@@ -3884,42 +3948,62 @@ public abstract class ColorSpace {
         @ApiStatus.Internal
         public static final class Rgb extends Connector {
 
-            private final ColorSpace.@NonNull Rgb mSource;
+            private final ColorSpace.@Nullable Rgb mSource;
 
-            private final ColorSpace.@NonNull Rgb mDestination;
+            private final ColorSpace.@Nullable Rgb mDestination;
 
-            private final float @NonNull[] mTransform;
+            private final float @Nullable[] mTransform;
 
-            Rgb(ColorSpace.@NonNull Rgb source, ColorSpace.@NonNull Rgb destination,
+            Rgb(@NonNull ColorSpace source, @NonNull ColorSpace destination,
                 @NonNull RenderIntent intent) {
-                super(source, destination, source, destination, intent, null);
-                mSource = source;
-                mDestination = destination;
-                mTransform = computeTransform(source, destination, intent);
+                super(source, destination, intent, null);
+                mSource = source.getModel() == Model.RGB ? (ColorSpace.Rgb) source : null;
+                mDestination = destination.getModel() == Model.RGB ? (ColorSpace.Rgb) destination : null;
+                mTransform = computeTransform(mSource, mDestination, intent);
             }
 
 
             @Override
             public float @NonNull[] transform(@Size(min = 3) float @NonNull[] rgb) {
-                rgb[0] = (float) mSource.mClampedEotf.applyAsDouble(rgb[0]);
-                rgb[1] = (float) mSource.mClampedEotf.applyAsDouble(rgb[1]);
-                rgb[2] = (float) mSource.mClampedEotf.applyAsDouble(rgb[2]);
-                mul3x3Float3(mTransform, rgb);
-                rgb[0] = (float) mDestination.mClampedOetf.applyAsDouble(rgb[0]);
-                rgb[1] = (float) mDestination.mClampedOetf.applyAsDouble(rgb[1]);
-                rgb[2] = (float) mDestination.mClampedOetf.applyAsDouble(rgb[2]);
+                if (mSource != null) {
+                    rgb[0] = (float) mSource.mClampedEotf.applyAsDouble(rgb[0]);
+                    rgb[1] = (float) mSource.mClampedEotf.applyAsDouble(rgb[1]);
+                    rgb[2] = (float) mSource.mClampedEotf.applyAsDouble(rgb[2]);
+                } else {
+                    rgb[0] = MathUtil.clamp(rgb[0], -2.0f, 2.0f);
+                    rgb[1] = MathUtil.clamp(rgb[1], -2.0f, 2.0f);
+                    rgb[2] = MathUtil.clamp(rgb[2], -2.0f, 2.0f);
+                }
+                if (mTransform != null) {
+                    mul3x3Float3(mTransform, rgb);
+                }
+                if (mDestination != null) {
+                    rgb[0] = (float) mDestination.mClampedOetf.applyAsDouble(rgb[0]);
+                    rgb[1] = (float) mDestination.mClampedOetf.applyAsDouble(rgb[1]);
+                    rgb[2] = (float) mDestination.mClampedOetf.applyAsDouble(rgb[2]);
+                } else {
+                    rgb[0] = MathUtil.clamp(rgb[0], -2.0f, 2.0f);
+                    rgb[1] = MathUtil.clamp(rgb[1], -2.0f, 2.0f);
+                    rgb[2] = MathUtil.clamp(rgb[2], -2.0f, 2.0f);
+                }
                 return rgb;
             }
 
             @Override
             public float @NonNull[] transformUnclamped(@Size(min = 3) float @NonNull[] rgb) {
-                rgb[0] = (float) mSource.mEotf.applyAsDouble(rgb[0]);
-                rgb[1] = (float) mSource.mEotf.applyAsDouble(rgb[1]);
-                rgb[2] = (float) mSource.mEotf.applyAsDouble(rgb[2]);
-                mul3x3Float3(mTransform, rgb);
-                rgb[0] = (float) mDestination.mOetf.applyAsDouble(rgb[0]);
-                rgb[1] = (float) mDestination.mOetf.applyAsDouble(rgb[1]);
-                rgb[2] = (float) mDestination.mOetf.applyAsDouble(rgb[2]);
+                if (mSource != null) {
+                    rgb[0] = (float) mSource.mEotf.applyAsDouble(rgb[0]);
+                    rgb[1] = (float) mSource.mEotf.applyAsDouble(rgb[1]);
+                    rgb[2] = (float) mSource.mEotf.applyAsDouble(rgb[2]);
+                }
+                if (mTransform != null) {
+                    mul3x3Float3(mTransform, rgb);
+                }
+                if (mDestination != null) {
+                    rgb[0] = (float) mDestination.mOetf.applyAsDouble(rgb[0]);
+                    rgb[1] = (float) mDestination.mOetf.applyAsDouble(rgb[1]);
+                    rgb[2] = (float) mDestination.mOetf.applyAsDouble(rgb[2]);
+                }
                 return rgb;
             }
 
@@ -3940,84 +4024,58 @@ public abstract class ColorSpace {
              * @return An array of 9 floats containing the 3x3 matrix transform
              */
             @Size(9)
-            private static float @NonNull[] computeTransform(
-                    ColorSpace.@NonNull Rgb source,
-                    ColorSpace.@NonNull Rgb destination,
+            public static float @Nullable[] computeTransform(
+                    ColorSpace.@Nullable Rgb source,
+                    ColorSpace.@Nullable Rgb destination,
                     @NonNull RenderIntent intent) {
-                if (compare(source.mWhitePoint, destination.mWhitePoint)) {
-                    // RGB->RGB using the PCS of both color spaces since they have the same
-                    return mul3x3(destination.mInverseTransform, source.mTransform);
-                } else {
-                    // RGB->RGB using CIE XYZ D50 as the PCS
-                    float[] transform = source.mTransform;
-                    float[] inverseTransform = destination.mInverseTransform;
+                if (source != null && destination != null) {
+                    // RGB->RGB
+                    boolean whitePointMatch = compare(source.mWhitePoint, destination.mWhitePoint);
+                    if (whitePointMatch || intent == RenderIntent.ABSOLUTE) {
+                        if (whitePointMatch && compare(source.mPrimaries, destination.mPrimaries)) {
+                            return null;
+                        } else {
+                            return mul3x3(destination.mInverseTransform, source.mTransform);
+                        }
+                    } else {
+                        float[] transform = source.mTransform;
+                        float[] inverseTransform = destination.mInverseTransform;
 
-                    float[] srcXYZ = xyYToXyz(source.mWhitePoint);
+                        float[] srcXYZ = xyYToXyz(source.mWhitePoint);
+                        float[] dstXYZ = xyYToXyz(destination.mWhitePoint);
+
+                        float[] adaptation = chromaticAdaptation(
+                                Adaptation.BRADFORD.mTransform, srcXYZ, dstXYZ
+                        );
+
+                        return mul3x3(inverseTransform, mul3x3(adaptation, transform));
+                    }
+                } else if (source == null && destination != null) {
+                    // XYZD50->RGB
+                    if (intent == RenderIntent.ABSOLUTE ||
+                            compare(destination.mWhitePoint, ILLUMINANT_D50)) {
+                        return destination.getInverseTransform();
+                    }
                     float[] dstXYZ = xyYToXyz(destination.mWhitePoint);
-
-                    if (!compare(source.mWhitePoint, ILLUMINANT_D50)) {
-                        float[] srcAdaptation = chromaticAdaptation(
-                                Adaptation.BRADFORD.mTransform, srcXYZ,
-                                Arrays.copyOf(ILLUMINANT_D50_XYZ, 3));
-                        transform = mul3x3(srcAdaptation, source.mTransform);
+                    float[] adaptation = chromaticAdaptation(
+                            Adaptation.BRADFORD.mTransform,
+                            Arrays.copyOf(ILLUMINANT_D50_XYZ, 3),
+                            dstXYZ);
+                    return mul3x3(destination.mInverseTransform, adaptation);
+                } else if (source != null) {
+                    // RGB->XYZD50
+                    if (intent == RenderIntent.ABSOLUTE ||
+                            compare(source.mWhitePoint, ILLUMINANT_D50)) {
+                        return source.getTransform();
                     }
-
-                    if (!compare(destination.mWhitePoint, ILLUMINANT_D50)) {
-                        float[] dstAdaptation = chromaticAdaptation(
-                                Adaptation.BRADFORD.mTransform, dstXYZ,
-                                Arrays.copyOf(ILLUMINANT_D50_XYZ, 3));
-                        inverseTransform = inverse3x3(mul3x3(dstAdaptation, destination.mTransform));
-                    }
-
-                    if (intent == RenderIntent.ABSOLUTE) {
-                        transform = mul3x3Diag(
-                                new float[]{
-                                        srcXYZ[0] / dstXYZ[0],
-                                        srcXYZ[1] / dstXYZ[1],
-                                        srcXYZ[2] / dstXYZ[2],
-                                }, transform);
-                    }
-
-                    return mul3x3(inverseTransform, transform);
-                }
-            }
-
-            /**
-             * Extends {@link #computeTransform(ColorSpace.Rgb, ColorSpace.Rgb, RenderIntent)},
-             * allowing XYZ->RGB and RGB->XYZ conversions.
-             */
-            @ApiStatus.Internal
-            @Size(9)
-            public static float @NonNull[] computeTransform(
-                    boolean srcIsXYZ,
-                    ColorSpace.@Nullable Rgb srcRGB,
-                    boolean dstIsXYZ,
-                    ColorSpace.@Nullable Rgb dstRGB) {
-                if (srcRGB != null && dstRGB != null) {
-                    assert !srcIsXYZ && !dstIsXYZ;
-                    return computeTransform(
-                            srcRGB, dstRGB, ColorSpace.RenderIntent.RELATIVE
-                    );
-                } else if (srcRGB == null) {
-                    assert srcIsXYZ && !dstIsXYZ && dstRGB != null;
-                    if (compare(dstRGB.mWhitePoint, ILLUMINANT_D50)) {
-                        return dstRGB.getInverseTransform();
-                    }
-                    float[] dstXYZ = xyYToXyz(dstRGB.mWhitePoint);
-                    float[] dstAdaptation = chromaticAdaptation(
-                            Adaptation.BRADFORD.mTransform, dstXYZ,
+                    float[] srcXYZ = xyYToXyz(source.mWhitePoint);
+                    float[] adaptation = chromaticAdaptation(
+                            Adaptation.BRADFORD.mTransform,
+                            srcXYZ,
                             Arrays.copyOf(ILLUMINANT_D50_XYZ, 3));
-                    return inverse3x3(mul3x3(dstAdaptation, dstRGB.mTransform));
+                    return mul3x3(adaptation, source.mTransform);
                 } else {
-                    assert dstIsXYZ && !srcIsXYZ;
-                    if (compare(srcRGB.mWhitePoint, ILLUMINANT_D50)) {
-                        return srcRGB.getTransform();
-                    }
-                    float[] srcXYZ = xyYToXyz(srcRGB.mWhitePoint);
-                    float[] srcAdaptation = chromaticAdaptation(
-                            Adaptation.BRADFORD.mTransform, srcXYZ,
-                            Arrays.copyOf(ILLUMINANT_D50_XYZ, 3));
-                    return mul3x3(srcAdaptation, srcRGB.mTransform);
+                    return null;
                 }
             }
         }
@@ -4030,14 +4088,14 @@ public abstract class ColorSpace {
          * @see ColorSpace#connect(ColorSpace, ColorSpace)
          */
         @NonNull
-        static Connector identity(@NonNull ColorSpace source) {
-            return new Identity(source);
+        static Connector identity(@NonNull ColorSpace source, @NonNull RenderIntent intent) {
+            return new Identity(source, intent);
         }
 
         private static final class Identity extends Connector {
 
-            public Identity(@NonNull ColorSpace source) {
-                super(source, source, source, source, RenderIntent.RELATIVE, null);
+            public Identity(@NonNull ColorSpace source, @NonNull RenderIntent intent) {
+                super(source, source, intent, null);
             }
 
             @Override

@@ -99,7 +99,12 @@ public class FragmentHelpers {
         }
 
         if (csXform) {
-            flags |= PixelUtils.kColorSpaceXformFlagGamutTransform;
+            float[] transform = ColorSpace.Connector.Rgb.computeTransform(
+                    srcRGB, dstRGB, ColorSpace.RenderIntent.RELATIVE
+            );
+            if (transform != null) {
+                flags |= PixelUtils.kColorSpaceXformFlagGamutTransform;
+            }
 
             if (srcRGB != null && !LINEAR_TRANSFER_PARAMETERS.equals(srcRGB.getTransferParameters())) {
                 flags |= PixelUtils.kColorSpaceXformFlagLinearize;
@@ -108,14 +113,14 @@ public class FragmentHelpers {
                 flags |= PixelUtils.kColorSpaceXformFlagEncode;
             }
 
-            float[] transform = ColorSpace.Connector.Rgb.computeTransform(
-                    srcXYZ, srcRGB, dstXYZ, dstRGB
-            );
-
             uniformDataGatherer.write1i(flags);
             append_transfer_function_uniform(srcRGB == null ? LINEAR_TRANSFER_PARAMETERS
                     : srcRGB.getTransferParameters(), uniformDataGatherer);
-            uniformDataGatherer.writeMatrix3f(0, transform);
+            if (transform != null) {
+                uniformDataGatherer.writeMatrix3f(0, transform);
+            } else {
+                uniformDataGatherer.writeMatrix3f(Matrix.identity());
+            }
             append_transfer_function_uniform(dstRGB == null ? LINEAR_TRANSFER_PARAMETERS
                     : dstRGB.getTransferParameters(), uniformDataGatherer);
         } else {
