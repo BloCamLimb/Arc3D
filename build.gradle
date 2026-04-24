@@ -48,6 +48,7 @@ subprojects {
 
     repositories {
         mavenCentral()
+        maven { url "https://central.sonatype.com/repository/maven-snapshots" }
         mavenLocal()
     }
 
@@ -64,6 +65,8 @@ subprojects {
         testAnnotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.35'
 
         testImplementation 'org.openjdk.jol:jol-core:0.10'
+
+        testCompileOnly 'org.jspecify:jspecify:1.0.0'
     }
 
     tasks.withType(JavaCompile).configureEach {
