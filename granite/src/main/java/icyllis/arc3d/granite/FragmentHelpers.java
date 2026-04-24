@@ -100,7 +100,7 @@ public class FragmentHelpers {
 
         if (csXform) {
             float[] transform = ColorSpace.Connector.Rgb.computeTransform(
-                    srcRGB, dstRGB, ColorSpace.RenderIntent.RELATIVE
+                    srcCS, dstCS, ColorSpace.RenderIntent.RELATIVE
             );
             if (transform != null) {
                 flags |= PixelUtils.kColorSpaceXformFlagGamutTransform;

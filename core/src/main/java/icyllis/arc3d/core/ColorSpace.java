@@ -66,9 +66,8 @@ import java.util.function.DoubleUnaryOperator;
  * XYZ profile connection space (PCS). Color values can be converted to and from
  * this PCS using {@link #toXyz(float[])} and {@link #fromXyz(float[])}.</p>
  *
- * <p>For color space with a non-RGB color model, the white point of the PCS
- * <em>must be</em> the CIE standard illuminant D50. RGB color spaces use their
- * native white point (D65 for {@link Named#SRGB sRGB} for instance and must
+ * <p>Color spaces use their
+ * native white point (D65 for {@link Named#SRGB sRGB} for instance) and must
  * undergo {@link Adaptation chromatic adaptation} as necessary.</p>
  *
  * <p>Since the white point of the PCS is not defined for RGB color space, it is
@@ -128,7 +127,7 @@ import java.util.function.DoubleUnaryOperator;
  */
 // modified from Android
 @SuppressWarnings("unused")
-public abstract class ColorSpace {
+public abstract sealed class ColorSpace {
 
     /**
      * Standard CIE 1931 2° illuminant A, encoded in xyY.
@@ -216,6 +215,9 @@ public abstract class ColorSpace {
     private final Model mModel;
     @Range(from = MIN_ID, to = MAX_ID)
     private final int mId;
+
+    @Size(2)
+    final float @NonNull[] mWhitePoint;
 
     /**
      * <p>List of common, named color spaces. A corresponding instance of
@@ -700,12 +702,23 @@ public abstract class ColorSpace {
          * illuminant D50 as its white point.</p>
          * <table summary="Color space definition">
          *     <tr><th>Property</th><th colspan="4">Value</th></tr>
-         *     <tr><td>Name</td><td colspan="4">Generic XYZ</td></tr>
+         *     <tr><td>Name</td><td colspan="4">CIE 1931 XYZ (D50)</td></tr>
          *     <tr><td>CIE standard illuminant</td><td colspan="4">D50</td></tr>
          *     <tr><td>Range</td><td colspan="4">\([-2.0, 2.0]\)</td></tr>
          * </table>
          */
-        CIE_XYZ,
+        CIE_XYZ_D50,
+        /**
+         * <p>{@link Model#XYZ XYZ} color space CIE XYZ. This color space assumes standard
+         * illuminant D65 as its white point.</p>
+         * <table summary="Color space definition">
+         *     <tr><th>Property</th><th colspan="4">Value</th></tr>
+         *     <tr><td>Name</td><td colspan="4">CIE 1931 XYZ (D65)</td></tr>
+         *     <tr><td>CIE standard illuminant</td><td colspan="4">D65</td></tr>
+         *     <tr><td>Range</td><td colspan="4">\([-2.0, 2.0]\)</td></tr>
+         * </table>
+         */
+        CIE_XYZ_D65,
         /**
          * <p>{@link Model#LAB Lab} color space CIE L*a*b*. This color space uses CIE XYZ D50
          * as a profile conversion space.</p>
@@ -852,9 +865,15 @@ public abstract class ColorSpace {
                     -65504.0f, 65504.0f,
                     Named.ACESCG.ordinal()
             );
-            sNamedColorSpaces[Named.CIE_XYZ.ordinal()] = new ColorSpace.Xyz(
-                    "Generic XYZ",
-                    Named.CIE_XYZ.ordinal()
+            sNamedColorSpaces[Named.CIE_XYZ_D50.ordinal()] = new ColorSpace.Xyz(
+                    "CIE 1931 XYZ (D50)",
+                    ILLUMINANT_D50,
+                    Named.CIE_XYZ_D50.ordinal()
+            );
+            sNamedColorSpaces[Named.CIE_XYZ_D65.ordinal()] = new ColorSpace.Xyz(
+                    "CIE 1931 XYZ (D65)",
+                    ILLUMINANT_D65,
+                    Named.CIE_XYZ_D65.ordinal()
             );
             sNamedColorSpaces[Named.CIE_LAB.ordinal()] = new ColorSpace.Lab(
                     "Generic L*a*b*",
@@ -1034,10 +1053,15 @@ public abstract class ColorSpace {
 
     ColorSpace(@NonNull @Size(min = 1) String name,
                @NonNull Model model,
+               float @NonNull[] whitePoint,
                @Range(from = MIN_ID, to = MAX_ID) int id) {
         if (name.isEmpty()) {
             throw new IllegalArgumentException("The name of a color space cannot be null and " +
                     "must contain at least 1 character");
+        }
+        if (whitePoint.length != 2 && whitePoint.length != 3) {
+            throw new IllegalArgumentException("The color space's white point must be " +
+                    "defined as an array of 2 floats in xyY or 3 float in XYZ");
         }
         if (id < MIN_ID || id > MAX_ID) {
             throw new IllegalArgumentException("The id must be between " +
@@ -1046,6 +1070,7 @@ public abstract class ColorSpace {
         mName = name;
         mModel = model;
         mId = id;
+        mWhitePoint = xyWhitePoint(whitePoint);
     }
 
     /**
@@ -1196,7 +1221,11 @@ public abstract class ColorSpace {
      * @see #getWhitePoint()
      */
     @Size(min = 2)
-    public abstract float @NonNull[] getWhitePoint(@Size(min = 2) float @NonNull[] whitePoint);
+    public final float @NonNull[] getWhitePoint(@Size(min = 2) float @NonNull[] whitePoint) {
+        whitePoint[0] = mWhitePoint[0];
+        whitePoint[1] = mWhitePoint[1];
+        return whitePoint;
+    }
 
 
     /**
@@ -1209,7 +1238,9 @@ public abstract class ColorSpace {
      * @see #getWhitePoint(float[])
      */
     @Size(2)
-    public abstract float @NonNull[] getWhitePoint();
+    public final float @NonNull[] getWhitePoint() {
+        return mWhitePoint.clone();
+    }
 
 
     /**
@@ -1938,12 +1969,41 @@ public abstract class ColorSpace {
     }
 
     /**
-     * Implementation of the CIE XYZ color space. Assumes the white point is D50.
+     * Converts the specified white point to xyY if needed. The white point
+     * can be specified as an array of 2 floats (in CIE xyY) or 3 floats
+     * (in CIE XYZ). If no conversion is needed, the input array is copied.
+     *
+     * @param whitePoint The white point in xyY or XYZ
+     * @return A new array of 2 floats containing the white point in xyY
      */
-    private static final class Xyz extends ColorSpace {
+    @Size(2)
+    public static float @NonNull[] xyWhitePoint(@Size(min = 2, max = 3) float @NonNull[] whitePoint) {
+        float[] xyWhitePoint = new float[2];
 
-        private Xyz(@NonNull String name, @Range(from = MIN_ID, to = MAX_ID) int id) {
-            super(name, Model.XYZ, id);
+        // XYZ to xyY
+        if (whitePoint.length == 3) {
+            float sum = whitePoint[0] + whitePoint[1] + whitePoint[2];
+            xyWhitePoint[0] = whitePoint[0] / sum;
+            xyWhitePoint[1] = whitePoint[1] / sum;
+        } else {
+            System.arraycopy(whitePoint, 0, xyWhitePoint, 0, 2);
+        }
+
+        return xyWhitePoint;
+    }
+
+    /**
+     * Implementation of the CIE XYZ color space.
+     */
+    public static final class Xyz extends ColorSpace {
+
+        public Xyz(@NonNull String name, float @NonNull[] whitePoint) {
+            this(name, whitePoint, MIN_ID);
+        }
+
+        private Xyz(@NonNull String name, float @NonNull[] whitePoint,
+                    @Range(from = MIN_ID, to = MAX_ID) int id) {
+            super(name, Model.XYZ, whitePoint, id);
         }
 
         @Override
@@ -1959,22 +2019,6 @@ public abstract class ColorSpace {
         @Override
         public float getMaxValue(@Range(from = 0, to = 3) int component) {
             return 2.0f;
-        }
-
-
-        @Override
-        @Size(min = 2)
-        public float @NonNull[] getWhitePoint(@Size(min = 2) float @NonNull[] whitePoint) {
-            whitePoint[0] = ILLUMINANT_D50[0];
-            whitePoint[1] = ILLUMINANT_D50[1];
-            return whitePoint;
-        }
-
-
-        @Override
-        @Size(2)
-        public float @NonNull[] getWhitePoint() {
-            return ILLUMINANT_D50.clone();
         }
 
 
@@ -2019,7 +2063,7 @@ public abstract class ColorSpace {
 
         private Lab(@NonNull String name,
                     @Range(from = MIN_ID, to = MAX_ID) int id) {
-            super(name, Model.LAB, id);
+            super(name, Model.LAB, ILLUMINANT_D50, id);
         }
 
         @Override
@@ -2035,22 +2079,6 @@ public abstract class ColorSpace {
         @Override
         public float getMaxValue(@Range(from = 0, to = 3) int component) {
             return component == 0 ? 100.0f : 128.0f;
-        }
-
-
-        @Override
-        @Size(min = 2)
-        public float @NonNull[] getWhitePoint(@Size(min = 2) float @NonNull[] whitePoint) {
-            whitePoint[0] = ILLUMINANT_D50[0];
-            whitePoint[1] = ILLUMINANT_D50[1];
-            return whitePoint;
-        }
-
-
-        @Override
-        @Size(2)
-        public float @NonNull[] getWhitePoint() {
-            return ILLUMINANT_D50.clone();
         }
 
 
@@ -2169,7 +2197,7 @@ public abstract class ColorSpace {
 
         private OkLab(@NonNull String name,
                       @Range(from = MIN_ID, to = MAX_ID) int id) {
-            super(name, Model.LAB, id);
+            super(name, Model.LAB, ILLUMINANT_D65, id);
         }
 
         @Override
@@ -2188,26 +2216,13 @@ public abstract class ColorSpace {
         }
 
         @Override
-        @Size(min = 2)
-        public float @NonNull[] getWhitePoint(@Size(min = 2) float @NonNull[] whitePoint) {
-            whitePoint[0] = ILLUMINANT_D65[0];
-            whitePoint[1] = ILLUMINANT_D65[1];
-            return whitePoint;
-        }
-
-        @Override
-        @Size(2)
-        public float @NonNull[] getWhitePoint() {
-            return ILLUMINANT_D65.clone();
-        }
-
-        @Override
         public float @NonNull[] toXyz(@Size(min = 3) float @NonNull[] v) {
             v[0] = MathUtil.clamp(v[0], 0.0f, 1.0f);
             v[1] = MathUtil.clamp(v[1], -0.5f, 0.5f);
             v[2] = MathUtil.clamp(v[2], -0.5f, 0.5f);
 
             mul3x3Float3(INVERSE_M2, v);
+
             v[0] = v[0] * v[0] * v[0];
             v[1] = v[1] * v[1] * v[1];
             v[2] = v[2] * v[2] * v[2];
@@ -2375,7 +2390,7 @@ public abstract class ColorSpace {
      * <p>To learn more about the white point adaptation process, refer to the
      * documentation of {@link Adaptation}.</p>
      */
-    public static class Rgb extends ColorSpace {
+    public static non-sealed class Rgb extends ColorSpace {
         /**
          * {@usesMathJax}
          *
@@ -2555,8 +2570,6 @@ public abstract class ColorSpace {
             }
         }
 
-
-        private final float @NonNull[] mWhitePoint;
 
         private final float @NonNull[] mPrimaries;
 
@@ -3011,16 +3024,11 @@ public abstract class ColorSpace {
                 @Nullable TransferParameters transferParameters,
                 @Range(from = MIN_ID, to = MAX_ID) int id) {
 
-            super(name, Model.RGB, id);
+            super(name, Model.RGB, whitePoint, id);
 
             if (primaries.length != 6 && primaries.length != 9) {
                 throw new IllegalArgumentException("The color space's primaries must be " +
                         "defined as an array of 6 floats in xyY or 9 floats in XYZ");
-            }
-
-            if (whitePoint.length != 2 && whitePoint.length != 3) {
-                throw new IllegalArgumentException("The color space's white point must be " +
-                        "defined as an array of 2 floats in xyY or 3 float in XYZ");
             }
 
             Objects.requireNonNull(oetf, "The transfer functions of a color space cannot be null");
@@ -3031,7 +3039,6 @@ public abstract class ColorSpace {
                         "; min must be strictly < max");
             }
 
-            mWhitePoint = xyWhitePoint(whitePoint);
             mPrimaries = xyPrimaries(primaries);
 
             if (transform == null) {
@@ -3074,42 +3081,6 @@ public abstract class ColorSpace {
             this(colorSpace.getName(), colorSpace.mPrimaries, whitePoint, transform,
                     colorSpace.mOetf, colorSpace.mEotf, colorSpace.mMin, colorSpace.mMax,
                     colorSpace.mTransferParameters, MIN_ID);
-        }
-
-
-        /**
-         * Copies the non-adapted CIE xyY white point of this color space in
-         * specified array. The Y component is assumed to be 1 and is therefore
-         * not copied into the destination. The x and y components are written
-         * in the array at positions 0 and 1 respectively.
-         *
-         * @param whitePoint The destination array, cannot be null, its length
-         *                   must be >= 2
-         * @return The destination array passed as a parameter
-         * @see #getWhitePoint()
-         */
-        @Override
-        @Size(min = 2)
-        public float @NonNull[] getWhitePoint(@Size(min = 2) float @NonNull[] whitePoint) {
-            whitePoint[0] = mWhitePoint[0];
-            whitePoint[1] = mWhitePoint[1];
-            return whitePoint;
-        }
-
-
-        /**
-         * Returns the non-adapted CIE xyY white point of this color space as
-         * a new array of 2 floats. The Y component is assumed to be 1 and is
-         * therefore not copied into the destination. The x and y components
-         * are written in the array at positions 0 and 1 respectively.
-         *
-         * @return A new non-null array of 2 floats
-         * @see #getWhitePoint(float[])
-         */
-        @Override
-        @Size(2)
-        public float @NonNull[] getWhitePoint() {
-            return mWhitePoint.clone();
         }
 
 
@@ -3812,31 +3783,6 @@ public abstract class ColorSpace {
 
 
         /**
-         * Converts the specified white point to xyY if needed. The white point
-         * can be specified as an array of 2 floats (in CIE xyY) or 3 floats
-         * (in CIE XYZ). If no conversion is needed, the input array is copied.
-         *
-         * @param whitePoint The white point in xyY or XYZ
-         * @return A new array of 2 floats containing the white point in xyY
-         */
-        @Size(2)
-        public static float @NonNull[] xyWhitePoint(@Size(min = 2, max = 3) float @NonNull[] whitePoint) {
-            float[] xyWhitePoint = new float[2];
-
-            // XYZ to xyY
-            if (whitePoint.length == 3) {
-                float sum = whitePoint[0] + whitePoint[1] + whitePoint[2];
-                xyWhitePoint[0] = whitePoint[0] / sum;
-                xyWhitePoint[1] = whitePoint[1] / sum;
-            } else {
-                System.arraycopy(whitePoint, 0, xyWhitePoint, 0, 2);
-            }
-
-            return xyWhitePoint;
-        }
-
-
-        /**
          * Computes the matrix that converts from RGB to XYZ based on RGB
          * primaries and a white point, both specified in the CIE xyY space.
          * The Y component of the primaries and white point is implied to be 1.
@@ -3974,8 +3920,8 @@ public abstract class ColorSpace {
                                                           @NonNull RenderIntent intent) {
             if (intent == RenderIntent.ABSOLUTE) return null;
 
-            float[] srcWhitePoint = source.getWhitePoint();
-            float[] dstWhitePoint = destination.getWhitePoint();
+            float[] srcWhitePoint = source.mWhitePoint;
+            float[] dstWhitePoint = destination.mWhitePoint;
 
             if (compare(srcWhitePoint, dstWhitePoint)) {
                 return null;
@@ -4098,7 +4044,7 @@ public abstract class ColorSpace {
                 super(source, destination, intent, null);
                 mSource = source.getModel() == Model.RGB ? (ColorSpace.Rgb) source : null;
                 mDestination = destination.getModel() == Model.RGB ? (ColorSpace.Rgb) destination : null;
-                mTransform = computeTransform(mSource, mDestination, intent);
+                mTransform = computeTransform(source, destination, intent);
             }
 
 
@@ -4147,38 +4093,40 @@ public abstract class ColorSpace {
             }
 
             /**
-             * <p>Computes the color transform that connects two RGB color spaces.</p>
+             * <p>Computes the color transform that connects two RGB color spaces,
+             * XYZ to RGB spaces, RGB to XYZ spaces.</p>
              *
              * <p>We can only connect color spaces if they use the same profile
              * connection space. We assume the connection space is always
              * CIE XYZ but we maybe need to perform a chromatic adaptation to
-             * match the white points. If an adaptation is needed, we use the
-             * CIE standard illuminant D50. The unmatched color space is adapted
+             * match the white points. The unmatched color space is adapted
              * using the von Kries transform and the {@link Adaptation#BRADFORD}
              * matrix.</p>
              *
-             * @param source      The source color space, null means XYZ D50
-             * @param destination The destination color space, null means XYZ D50
+             * @param source      The source color space
+             * @param destination The destination color space
              * @param intent      The render intent to use when compressing gamuts
              * @return An array of 9 floats containing the 3x3 matrix transform
              */
             @Size(9)
             public static float @Nullable[] computeTransform(
-                    ColorSpace.@Nullable Rgb source,
-                    ColorSpace.@Nullable Rgb destination,
+                    @NonNull ColorSpace source,
+                    @NonNull ColorSpace destination,
                     @NonNull RenderIntent intent) {
-                if (source != null && destination != null) {
+                var srcRGB = source.getModel() == Model.RGB ? (ColorSpace.Rgb) source : null;
+                var dstRGB = destination.getModel() == Model.RGB ? (ColorSpace.Rgb) destination : null;
+                if (srcRGB != null && dstRGB != null) {
                     // RGB->RGB
                     boolean whitePointMatch = compare(source.mWhitePoint, destination.mWhitePoint);
                     if (whitePointMatch || intent == RenderIntent.ABSOLUTE) {
-                        if (whitePointMatch && compare(source.mPrimaries, destination.mPrimaries)) {
+                        if (whitePointMatch && compare(srcRGB.mPrimaries, dstRGB.mPrimaries)) {
                             return null;
                         } else {
-                            return mul3x3(destination.mInverseTransform, source.mTransform);
+                            return mul3x3(dstRGB.mInverseTransform, srcRGB.mTransform);
                         }
                     } else {
-                        float[] transform = source.mTransform;
-                        float[] inverseTransform = destination.mInverseTransform;
+                        float[] transform = srcRGB.mTransform;
+                        float[] inverseTransform = dstRGB.mInverseTransform;
 
                         float[] srcXYZ = xyYToXyz(source.mWhitePoint);
                         float[] dstXYZ = xyYToXyz(destination.mWhitePoint);
@@ -4189,32 +4137,37 @@ public abstract class ColorSpace {
 
                         return mul3x3(inverseTransform, mul3x3(adaptation, transform));
                     }
-                } else if (source == null && destination != null) {
-                    // XYZD50->RGB
+                } else if (srcRGB == null && dstRGB != null) {
+                    // XYZ->RGB
                     if (intent == RenderIntent.ABSOLUTE ||
-                            compare(destination.mWhitePoint, ILLUMINANT_D50)) {
-                        return destination.getInverseTransform();
+                            compare(destination.mWhitePoint, source.mWhitePoint)) {
+                        return dstRGB.getInverseTransform();
                     }
-                    float[] dstXYZ = xyYToXyz(destination.mWhitePoint);
                     float[] adaptation = chromaticAdaptation(
                             Adaptation.BRADFORD.mTransform,
-                            Arrays.copyOf(ILLUMINANT_D50_XYZ, 3),
-                            dstXYZ);
-                    return mul3x3(destination.mInverseTransform, adaptation);
-                } else if (source != null) {
-                    // RGB->XYZD50
+                            xyYToXyz(source.mWhitePoint),
+                            xyYToXyz(destination.mWhitePoint));
+                    return mul3x3(dstRGB.mInverseTransform, adaptation);
+                } else if (srcRGB != null) {
+                    // RGB->XYZ
                     if (intent == RenderIntent.ABSOLUTE ||
-                            compare(source.mWhitePoint, ILLUMINANT_D50)) {
-                        return source.getTransform();
+                            compare(source.mWhitePoint, destination.mWhitePoint)) {
+                        return srcRGB.getTransform();
                     }
-                    float[] srcXYZ = xyYToXyz(source.mWhitePoint);
                     float[] adaptation = chromaticAdaptation(
                             Adaptation.BRADFORD.mTransform,
-                            srcXYZ,
-                            Arrays.copyOf(ILLUMINANT_D50_XYZ, 3));
-                    return mul3x3(adaptation, source.mTransform);
+                            xyYToXyz(source.mWhitePoint),
+                            xyYToXyz(destination.mWhitePoint));
+                    return mul3x3(adaptation, srcRGB.mTransform);
                 } else {
-                    return null;
+                    if (intent == RenderIntent.ABSOLUTE ||
+                            compare(source.mWhitePoint, destination.mWhitePoint)) {
+                        return null;
+                    }
+                    return chromaticAdaptation(
+                            Adaptation.BRADFORD.mTransform,
+                            xyYToXyz(source.mWhitePoint),
+                            xyYToXyz(destination.mWhitePoint));
                 }
             }
         }

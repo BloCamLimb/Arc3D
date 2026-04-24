@@ -580,7 +580,7 @@ public abstract sealed class Gradient1DShader extends GradientShader
                 case Interpolation.kLab_ColorSpace,
                         Interpolation.kLCH_ColorSpace ->
                     // Conversion to Lab (and LCH) starts with XYZD50
-                        ColorSpace.get(ColorSpace.Named.CIE_XYZ);
+                        ColorSpace.get(ColorSpace.Named.CIE_XYZ_D50);
                 case Interpolation.kOKLab_ColorSpace,
                         Interpolation.kOKLabGamutMap_ColorSpace,
                         Interpolation.kOKLCH_ColorSpace,
