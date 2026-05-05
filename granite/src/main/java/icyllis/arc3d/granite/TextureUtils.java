@@ -38,6 +38,17 @@ public class TextureUtils {
         if (!pixmap.getInfo().isValid()) {
             return null;
         }
+
+        ColorSpace colorSpace = pixmap.getColorSpace();
+        if (colorSpace != null) {
+            if (colorSpace.getModel() != ColorSpace.Model.RGB && colorSpace.getModel() != ColorSpace.Model.XYZ) {
+                return null;
+            }
+            if (colorSpace instanceof ColorSpace.Rgb rgbColorSpace && rgbColorSpace.getTransferParameters() == null) {
+                return null;
+            }
+        }
+
         Caps caps = context.getCaps();
         @ColorInfo.ColorType
         int srcCT = pixmap.getColorType();
