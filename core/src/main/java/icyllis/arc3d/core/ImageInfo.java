@@ -258,7 +258,7 @@ public final class ImageInfo {
      * Returns storage required by pixel array, given ImageInfo dimensions, ColorType,
      * and rowBytes. rowBytes is assumed to be at least as large as minRowBytes().
      * <p>
-     * Returns zero if height is zero. Returns LongMax if minRowBytes() is greater than
+     * Returns zero if height is zero. Returns zero if minRowBytes() is greater than
      * IntMax.
      *
      * @param rowBytes size of pixel row or larger
@@ -270,7 +270,7 @@ public final class ImageInfo {
         }
         long minRowBytes = width * (long) bytesPerPixel();
         if (minRowBytes > Integer.MAX_VALUE) {
-            return Long.MAX_VALUE;
+            return 0;
         }
         assert rowBytes >= minRowBytes;
         return (height - 1) * (long) rowBytes + minRowBytes;
