@@ -43,6 +43,7 @@ public final class ColorShader implements Shader {
     private final float mG;
     private final float mB;
     private final float mA;
+    private final ColorSpace mColorSpace;
 
     /**
      * Create a ColorShader wrapping the given sRGB color.
@@ -52,17 +53,20 @@ public final class ColorShader implements Shader {
         mG = ((color >> 8) & 0xff) / 255.0f;
         mB = (color & 0xff) / 255.0f;
         mA = (color >>> 24) / 255.0f;
+        mColorSpace = ColorSpace.get(ColorSpace.Named.SRGB);
     }
 
     /**
      * Create a ColorShader wrapping the given sRGB color.
      */
     @VisibleForTesting
-    public ColorShader(float r, float g, float b, float a) {
+    public ColorShader(float r, float g, float b, float a,
+                       @Nullable ColorSpace colorSpace) {
         mR = r;
         mG = g;
         mB = b;
         mA = MathUtil.pin(a, 0.0f, 1.0f);
+        mColorSpace = colorSpace != null ? colorSpace : ColorSpace.get(ColorSpace.Named.SRGB);
     }
 
     @SharedPtr
@@ -71,12 +75,13 @@ public final class ColorShader implements Shader {
         if (!MathUtil.isFinite(color, 0, color.length)) {
             return null;
         }
-        if (colorSpace != null && !colorSpace.isSrgb()) {
+        if (colorSpace != null && colorSpace.getModel() != ColorSpace.Model.RGB &&
+                colorSpace.getModel() != ColorSpace.Model.XYZ) {
             float[] srgb = ColorSpace.connect(colorSpace)
                     .transformUnclamped(Arrays.copyOfRange(color, 0, color.length - 1));
-            return new ColorShader(srgb[0], srgb[1], srgb[2], color[color.length - 1]);
+            return new ColorShader(srgb[0], srgb[1], srgb[2], color[color.length - 1], null);
         }
-        return new ColorShader(color[0], color[1], color[2], color[3]);
+        return new ColorShader(color[0], color[1], color[2], color[3], colorSpace);
     }
 
     @SharedPtr
@@ -85,12 +90,13 @@ public final class ColorShader implements Shader {
         if (!MathUtil.isFinite(r, g, b, a)) {
             return null;
         }
-        if (colorSpace != null && !colorSpace.isSrgb()) {
+        if (colorSpace != null && colorSpace.getModel() != ColorSpace.Model.RGB &&
+                colorSpace.getModel() != ColorSpace.Model.XYZ) {
             float[] srgb = ColorSpace.connect(colorSpace)
                     .transformUnclamped(new float[]{r, g, b});
-            return new ColorShader(srgb[0], srgb[1], srgb[2], a);
+            return new ColorShader(srgb[0], srgb[1], srgb[2], a, null);
         }
-        return new ColorShader(r, g, b, a);
+        return new ColorShader(r, g, b, a, colorSpace);
     }
 
     @Override
@@ -105,6 +111,10 @@ public final class ColorShader implements Shader {
 
     @Override
     public float @Nullable [] getConstantColor(float @Nullable [] dst) {
+        if (!mColorSpace.isSrgb() &&
+                mColorSpace != ColorSpace.get(ColorSpace.Named.EXTENDED_SRGB)) {
+            return null;
+        }
         if (dst == null) {
             return getColor();
         }
@@ -121,5 +131,10 @@ public final class ColorShader implements Shader {
     @Contract(value = " -> new", pure = true)
     public float @NonNull [] getColor() {
         return new float[]{mR, mG, mB, mA};
+    }
+
+    @NonNull
+    public ColorSpace getColorSpace() {
+        return mColorSpace;
     }
 }

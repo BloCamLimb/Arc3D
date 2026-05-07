@@ -392,8 +392,9 @@ public class Paint implements AutoCloseable {
      */
     public final void setColor( @Size(min = 4) float @NonNull[] color,
                                 @Nullable ColorSpace colorSpace) {
-        if (colorSpace != null && !colorSpace.isSrgb()) {
-            float[] srgb = ColorSpace.connect(colorSpace)
+        if (colorSpace != null && !colorSpace.isSrgb() &&
+                colorSpace != ColorSpace.get(ColorSpace.Named.EXTENDED_SRGB)) {
+            float[] srgb = ColorSpace.connect(colorSpace, ColorSpace.RenderIntent.RELATIVE)
                     .transformUnclamped(Arrays.copyOfRange(color, 0, color.length - 1));
             setColor4f(srgb[0], srgb[1], srgb[2], color[color.length - 1]);
         } else {
@@ -422,9 +423,9 @@ public class Paint implements AutoCloseable {
      * point values, un-premultiplied. The color values are interpreted as being in
      * the sRGB color space.
      *
-     * @param r the new red component (0..1) of the paint's color.
-     * @param g the new green component (0..1) of the paint's color.
-     * @param b the new blue component (0..1) of the paint's color.
+     * @param r the new red component of the paint's color.
+     * @param g the new green component of the paint's color.
+     * @param b the new blue component of the paint's color.
      * @param a the new alpha component (0..1) of the paint's color.
      */
     public final void setColor4f(float r, float g, float b, float a) {
@@ -448,8 +449,9 @@ public class Paint implements AutoCloseable {
      */
     public final void setColor4f(float r, float g, float b, float a,
                                  @Nullable ColorSpace colorSpace) {
-        if (colorSpace != null && !colorSpace.isSrgb()) {
-            float[] srgb = ColorSpace.connect(colorSpace)
+        if (colorSpace != null && !colorSpace.isSrgb() &&
+                colorSpace != ColorSpace.get(ColorSpace.Named.EXTENDED_SRGB)) {
+            float[] srgb = ColorSpace.connect(colorSpace, ColorSpace.RenderIntent.RELATIVE)
                     .transformUnclamped(new float[]{r, g, b});
             setColor4f(srgb[0], srgb[1], srgb[2], a);
         } else {
