@@ -74,10 +74,10 @@ public class TestVulkanInit implements AutoCloseable {
         }
 
         if (!GLFWVulkan.glfwVulkanSupported()) {
-            TinyFileDialogs.tinyfd_messageBox("Failed to launch ModernUI",
+            /*TinyFileDialogs.tinyfd_messageBox("Failed to launch ModernUI",
                     "Vulkan is not supported on your current platform. " +
                             "Make sure your operating system and graphics card drivers are up-to-date.",
-                    "ok", "error", true);
+                    "ok", "error", true);*/
             throw new RuntimeException("Vulkan is not supported");
         }
 
@@ -87,10 +87,10 @@ public class TestVulkanInit implements AutoCloseable {
                 VK_VERSION_MAJOR(version), VK_VERSION_MINOR(version), VK_VERSION_PATCH(version));
 
         if (version < VK_API_VERSION_1_1) {
-            TinyFileDialogs.tinyfd_messageBox("Failed to launch ModernUI",
+            /*TinyFileDialogs.tinyfd_messageBox("Failed to launch ModernUI",
                     "Vulkan 1.1 is not supported on your current platform. " +
                             "Make sure your operating system and graphics card drivers are up-to-date.",
-                    "ok", "error", true);
+                    "ok", "error", true);*/
             throw new RuntimeException("Vulkan 1.1 is not supported");
         }
 
@@ -141,18 +141,17 @@ public class TestVulkanInit implements AutoCloseable {
             }
             final PointerBuffer pPhysicalDevices = stack.mallocPointer(deviceCount);
             VKUtil._CHECK_(vkEnumeratePhysicalDevices(mInstance, pCount, pPhysicalDevices));
+            boolean found = false;
             for (int i = 0; i < deviceCount; i++) {
                 final var physicalDevice = new VkPhysicalDevice(pPhysicalDevices.get(i), mInstance);
-                if (choosePhysicalDeviceLocked(physicalDevice)) {
-                    break;
-                }
+                found = choosePhysicalDeviceLocked(physicalDevice, found);
             }
         }
 
         if (mPhysicalDevice == null) {
-            TinyFileDialogs.tinyfd_messageBox("Failed to launch ModernUI",
+            /*TinyFileDialogs.tinyfd_messageBox("Failed to launch ModernUI",
                     "You don't have a device with a Vulkan queue family that supports both graphics and compute.",
-                    "ok", "error", true);
+                    "ok", "error", true);*/
             throw new RuntimeException("No suitable physical device was found");
         }
 
@@ -166,8 +165,9 @@ public class TestVulkanInit implements AutoCloseable {
                     properties));
             extensionNames = memAllocPointer(count);
             for (var prop : properties) {
+                String name = prop.extensionNameString();
                 extensionNames.put(prop.extensionName());
-                mDeviceExtensions.putIfAbsent(prop.extensionNameString(), prop.specVersion());
+                mDeviceExtensions.putIfAbsent(name, prop.specVersion());
             }
             extensionNames.flip();
         }
@@ -216,16 +216,23 @@ public class TestVulkanInit implements AutoCloseable {
         mLogger.info("Created Vulkan device, Queue index: {}", mGraphicsQueueIndex);
     }
 
-    private boolean choosePhysicalDeviceLocked(VkPhysicalDevice physicalDevice) {
+    private boolean choosePhysicalDeviceLocked(VkPhysicalDevice physicalDevice, boolean printOnly) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             final VkPhysicalDeviceProperties2 properties2 = VkPhysicalDeviceProperties2
                     .calloc(stack)
                     .sType$Default();
             vkGetPhysicalDeviceProperties2(physicalDevice, properties2);
             final VkPhysicalDeviceProperties properties = properties2.properties();
+            int apiVersion = properties.apiVersion();
 
-            mLogger.info("List device ID {}, Name: {}, Type: {}", properties.deviceID(),
-                    properties.deviceNameString(), VKUtil.getPhysicalDeviceTypeName(properties.deviceType()));
+            mLogger.info("List device ID {}, Name: {}, API Version: {}.{}.{}, Type: {}", properties.deviceID(),
+                    properties.deviceNameString(),
+                    VK_VERSION_MAJOR(apiVersion), VK_VERSION_MINOR(apiVersion), VK_VERSION_PATCH(apiVersion),
+                    VKUtil.getPhysicalDeviceTypeName(properties.deviceType()));
+
+            if (printOnly) {
+                return true;
+            }
 
             if (properties.apiVersion() < VK_API_VERSION_1_1) {
                 mLogger.info("Skip device ID {} because it does not support Vulkan 1.1",
@@ -309,6 +316,22 @@ public class TestVulkanInit implements AutoCloseable {
             backendContext.mQueue = new VkQueue(pQueue.get(0), mDevice);
         }
         return VKUtil.makeVulkan(backendContext, options);
+    }
+
+    public VkInstance getInstance() {
+        return mInstance;
+    }
+
+    public VkPhysicalDevice getPhysicalDevice() {
+        return mPhysicalDevice;
+    }
+
+    public VkDevice getDevice() {
+        return mDevice;
+    }
+
+    public int getGraphicsQueueIndex() {
+        return mGraphicsQueueIndex;
     }
 
     @Override

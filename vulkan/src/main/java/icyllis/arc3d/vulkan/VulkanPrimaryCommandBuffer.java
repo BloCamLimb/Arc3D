@@ -22,6 +22,7 @@ package icyllis.arc3d.vulkan;
 import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.Rect2ic;
 import icyllis.arc3d.core.SharedPtr;
+import icyllis.arc3d.engine.BackendSemaphore;
 import icyllis.arc3d.engine.Engine.LoadOp;
 import icyllis.arc3d.engine.FramebufferDesc;
 import icyllis.arc3d.engine.Image;
@@ -30,14 +31,11 @@ import icyllis.arc3d.engine.RenderPassDesc;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryStack;
-import org.lwjgl.vulkan.VkClearColorValue;
-import org.lwjgl.vulkan.VkClearDepthStencilValue;
-import org.lwjgl.vulkan.VkClearValue;
-import org.lwjgl.vulkan.VkCommandPoolCreateInfo;
-import org.lwjgl.vulkan.VkFenceCreateInfo;
-import org.lwjgl.vulkan.VkRect2D;
-import org.lwjgl.vulkan.VkRenderPassBeginInfo;
+import org.lwjgl.system.MemoryUtil;
+import org.lwjgl.vulkan.*;
 
+import java.nio.IntBuffer;
+import java.nio.LongBuffer;
 import java.util.List;
 import java.util.function.Function;
 
@@ -56,6 +54,9 @@ public final class VulkanPrimaryCommandBuffer extends VulkanCommandBuffer {
     private final long mCommandPool;
 
     private long mSubmitFence = VK_NULL_HANDLE;
+
+    private LongBuffer mWaitSemaphores = MemoryUtil.memAllocLong(1);
+    private LongBuffer mSignalSemaphores = MemoryUtil.memAllocLong(1);
 
     private VulkanPrimaryCommandBuffer(VulkanDevice device,
                                        VulkanResourceProvider resourceProvider,
@@ -379,6 +380,8 @@ public final class VulkanPrimaryCommandBuffer extends VulkanCommandBuffer {
         trackResource(renderPass);
         trackResource(framebuffer);
 
+        renderPassSet.unref();
+
         return true;
     }
 
@@ -389,12 +392,44 @@ public final class VulkanPrimaryCommandBuffer extends VulkanCommandBuffer {
     }
 
     @Override
+    public void waitSemaphore(@Nullable BackendSemaphore waitSemaphore) {
+        if (waitSemaphore == null) {
+            return;
+        }
+
+        if (waitSemaphore instanceof VulkanBackendSemaphore semaphore) {
+            if (!mWaitSemaphores.hasRemaining()) {
+                mWaitSemaphores = MemoryUtil.memRealloc(mWaitSemaphores, mWaitSemaphores.capacity() * 2);
+            }
+            mWaitSemaphores.put(semaphore.vkSemaphore());
+        }
+    }
+
+    @Override
+    public void signalSemaphore(@Nullable BackendSemaphore signalSemaphore) {
+        if (signalSemaphore == null) {
+            return;
+        }
+
+        if (signalSemaphore instanceof VulkanBackendSemaphore semaphore) {
+            if (!mSignalSemaphores.hasRemaining()) {
+                mSignalSemaphores = MemoryUtil.memRealloc(mSignalSemaphores, mSignalSemaphores.capacity() * 2);
+            }
+            mSignalSemaphores.put(semaphore.vkSemaphore());
+        }
+    }
+
+    @Override
     protected boolean submit(QueueManager queueManager) {
         if (mIsRecording) {
             end();
         }
 
+        mDevice.flushRenderCalls();
         mDevice.purgeStaleResourcesIfNeeded();
+        // next time we reset pool, causing command buffer states to be invalidated,
+        // we just do this earlier
+        resetStates();
 
         if (mSubmitFence == VK_NULL_HANDLE) {
             try (var stack = MemoryStack.stackPush()) {
@@ -425,9 +460,80 @@ public final class VulkanPrimaryCommandBuffer extends VulkanCommandBuffer {
             mDevice.checkResult(result);
         }
 
-        //TODO submit here
+        try (var stack = MemoryStack.stackPush()) {
+            var pCommandBuffers = stack.pointers(mCommandBuffer.address());
 
-        return true;
+            VkSubmitInfo submitInfo = VkSubmitInfo.calloc(stack)
+                    .sType$Default();
+
+            mWaitSemaphores.flip();
+            mSignalSemaphores.flip();
+
+            int waitCount = mWaitSemaphores.remaining();
+            if (waitCount > 0) {
+                IntBuffer waitStages = stack.mallocInt(waitCount);
+                for (int i = 0; i < waitCount; i++) {
+                    // We only block the fragment stage since client provided resources are not used
+                    // before the fragment stage. This allows the driver to begin vertex work while
+                    // waiting on the semaphore. We also add in the transfer stage for uses of clients
+                    // calling read or write pixels.
+                    waitStages.put(i, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+                            VK_PIPELINE_STAGE_TRANSFER_BIT);
+                }
+                submitInfo
+                        .waitSemaphoreCount(mWaitSemaphores.remaining())
+                        .pWaitSemaphores(mWaitSemaphores)
+                        .pWaitDstStageMask(waitStages);
+            }
+
+            submitInfo.pSignalSemaphores(mSignalSemaphores);
+
+            mWaitSemaphores.clear();
+            mSignalSemaphores.clear();
+
+            //TODO VkFrameBoundaryEXT
+            /*submitInfo.pNext(VkFrameBoundaryEXT.calloc(stack)
+                    .sType$Default()
+                    .frameID()
+            );*/
+
+            submitInfo.pCommandBuffers(pCommandBuffers);
+
+            VkQueue queue = ((VulkanQueueManager) queueManager).getQueue();
+            var result = vkQueueSubmit(
+                    queue,
+                    submitInfo,
+                    mSubmitFence
+            );
+            mDevice.checkResult(result);
+
+            if (result == VK_SUCCESS) {
+                return true;
+            }
+
+            // If we failed to submit because of a device lost, we still need to wait for the fence to
+            // signal before deleting.
+            if (result == VK_ERROR_DEVICE_LOST) {
+                vkQueueWaitIdle(queue);
+            } else {
+                assert (result == VK_ERROR_OUT_OF_HOST_MEMORY ||
+                        result == VK_ERROR_OUT_OF_DEVICE_MEMORY);
+            }
+
+            vkDestroyFence(mDevice.vkDevice(), mSubmitFence, null);
+            mSubmitFence = VK_NULL_HANDLE;
+
+            vkResetCommandPool(
+                    mDevice.vkDevice(),
+                    mCommandPool,
+                    0
+            );
+
+            callFinishedCallbacks(false);
+            releaseResources();
+
+            return false;
+        }
     }
 
     @Override
@@ -437,12 +543,13 @@ public final class VulkanPrimaryCommandBuffer extends VulkanCommandBuffer {
         }
 
         var result = vkGetFenceStatus(mDevice.vkDevice(), mSubmitFence);
-
-        //TODO OOM should be handled carefully
+        mDevice.checkResult(result);
 
         switch (result) {
             case VK_SUCCESS:
             case VK_ERROR_DEVICE_LOST:
+            case VK_ERROR_OUT_OF_DEVICE_MEMORY:
+            case VK_ERROR_OUT_OF_HOST_MEMORY:
 
                 vkResetCommandPool(
                         mDevice.vkDevice(),
@@ -456,8 +563,6 @@ public final class VulkanPrimaryCommandBuffer extends VulkanCommandBuffer {
                 return true;
 
             case VK_NOT_READY:
-            case VK_ERROR_OUT_OF_DEVICE_MEMORY:
-            case VK_ERROR_OUT_OF_HOST_MEMORY:
             default:
                 return false;
         }
@@ -473,17 +578,27 @@ public final class VulkanPrimaryCommandBuffer extends VulkanCommandBuffer {
                 mDevice.vkDevice(),
                 mSubmitFence,
                 true,
-                0xffffffffffffffffL
+                VKUtil.UINT64_MAX
         );
         mDevice.checkResult(result);
     }
 
-    private void destroy() {
-        //TODO call this in some way
+    @Override
+    protected void destroy() {
+        if (mSubmitFence != VK_NULL_HANDLE) {
+            vkDestroyFence(
+                    mDevice.vkDevice(),
+                    mSubmitFence,
+                    null
+            );
+        }
         vkDestroyCommandPool(
                 mDevice.vkDevice(),
                 mCommandPool,
                 null
         );
+        MemoryUtil.memFree(mWaitSemaphores);
+        MemoryUtil.memFree(mSignalSemaphores);
+        super.destroy();
     }
 }

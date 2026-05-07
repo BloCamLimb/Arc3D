@@ -24,6 +24,8 @@ import icyllis.arc3d.engine.*;
 import icyllis.arc3d.engine.Image;
 import icyllis.arc3d.core.ColorInfo;
 import org.lwjgl.glfw.GLFW;
+import org.lwjgl.glfw.GLFWVulkan;
+import org.lwjgl.vulkan.VK;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,10 +33,11 @@ public class TestVulkanImageCreate {
 
     public static final Logger LOGGER = LoggerFactory.getLogger("Arc3D");
 
+    // VK_ICD_FILENAMES = F:\mesa3d-22.1.2-release-mingw\x64\lvp_icd.x86_64.json
     public static void main(String[] args) {
         System.setProperty("java.awt.headless", "true");
         GLFW.glfwInit();
-        //GLFWVulkan.setPath(VK.getFunctionProvider());
+        GLFWVulkan.setPath(VK.getFunctionProvider());
         try (var init = new TestVulkanInit(LOGGER)) {
             init.initialize();
             ContextOptions options = new ContextOptions();

@@ -61,6 +61,9 @@ public final class VKUtil {
 
     public static final Marker MARKER = MarkerFactory.getMarker("Vulkan");
 
+    // same as GL_TIMEOUT_IGNORED
+    public static final long UINT64_MAX = 0xffffffffffffffffL;
+
     /**
      * Creates a DirectContext for a backend context, using default context options.
      *

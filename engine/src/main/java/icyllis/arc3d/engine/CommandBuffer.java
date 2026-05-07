@@ -271,6 +271,11 @@ public abstract class CommandBuffer {
     public void signalSemaphore(@Nullable BackendSemaphore signalSemaphore) {
     }
 
+    public void prepareSurfaceForStateUpdate(@NonNull Image surfaceImage,
+                                             @Nullable ImageMutableState newState,
+                                             boolean present) {
+    }
+
     /**
      * Takes a Usage ref on the Resource that will be released when the command buffer
      * has finished execution.

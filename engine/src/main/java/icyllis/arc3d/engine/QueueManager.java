@@ -69,7 +69,10 @@ public abstract class QueueManager {
         return task.execute(mContext, mCurrentCommandBuffer) != Task.RESULT_FAILURE;
     }
 
-    public CommandBuffer getCurrentCommandBuffer() {
+    public CommandBuffer getCurrentCommandBuffer(boolean prepare) {
+        if (prepare) {
+            prepareCommandBuffer(mContext.getResourceProvider());
+        }
         return mCurrentCommandBuffer;
     }
 

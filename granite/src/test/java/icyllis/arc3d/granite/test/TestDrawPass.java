@@ -51,13 +51,13 @@ public class TestDrawPass {
     // -Dorg.slf4j.simpleLogger.logFile=System.out -Dorg.slf4j.simpleLogger.defaultLogLevel=debug -ea
     public static void main(String[] args) {
         GLFW.glfwInit();
-        TinyFileDialogs.tinyfd_messageBox(
+        /*TinyFileDialogs.tinyfd_messageBox(
                 "Arc3D Test",
                 "Arc3D starting with pid: " + ProcessHandle.current().pid(),
                 "ok",
                 "info",
                 true
-        );
+        );*/
         Objects.requireNonNull(GL.getFunctionProvider());
         GLFW.glfwDefaultWindowHints();
         GLFW.glfwWindowHint(GLFW.GLFW_OPENGL_PROFILE, GLFW.GLFW_OPENGL_CORE_PROFILE);

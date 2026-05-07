@@ -20,16 +20,15 @@
 package icyllis.arc3d.vulkan;
 
 import icyllis.arc3d.compiler.*;
-import icyllis.arc3d.compiler.ShaderCaps;
 import icyllis.arc3d.core.ColorInfo;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.engine.Engine.ImageFormat;
+import icyllis.arc3d.engine.ShaderCaps;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntArrays;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryStack;
-import org.lwjgl.system.NativeType;
 import org.lwjgl.vulkan.*;
 import org.slf4j.Logger;
 import org.slf4j.helpers.NOPLogger;
@@ -41,6 +40,7 @@ import static org.lwjgl.vulkan.VK11.*;
 
 public class VulkanCaps extends Caps {
 
+    // the minimum value of 'maxBoundDescriptorSets' required by VkSpec
     public static final int MAX_BOUND_SETS = 4;
 
     /**
@@ -49,8 +49,11 @@ public class VulkanCaps extends Caps {
     final FormatInfo[] mFormatTable =
             new FormatInfo[ImageFormat.kLastColor + 1];
 
-    // may contain VK_FORMAT_UNDEFINED(0) values that representing unsupported
-    private final int[] mColorTypeToBackendFormat =
+    /**
+     * Map {@link ColorInfo}.CT_XXX to {@link ImageFormat}.
+     * May contain {@link ImageFormat#kUnsupported}.
+     */
+    private final int[] mColorTypeToFormat =
             new int[ColorInfo.CT_COUNT];
 
     public VulkanCaps(ContextOptions options,
@@ -68,6 +71,11 @@ public class VulkanCaps extends Caps {
         ShaderCaps shaderCaps = mShaderCaps;
         shaderCaps.mTargetApi = TargetApi.VULKAN_1_0;
         shaderCaps.mGLSLVersion = GLSLVersion.GLSL_450;
+
+        logger.info("Physical device version: {}.{}.{}",
+                VK_VERSION_MAJOR(physicalDeviceVersion),
+                VK_VERSION_MINOR(physicalDeviceVersion),
+                VK_VERSION_PATCH(physicalDeviceVersion));
 
         try (var stack = MemoryStack.stackPush()) {
             VkPhysicalDeviceProperties physProps = VkPhysicalDeviceProperties.malloc(stack);
@@ -87,10 +95,31 @@ public class VulkanCaps extends Caps {
                 shaderCaps.mSPIRVVersion = SPIRVVersion.SPIRV_1_0;
             }
 
+            mMaxVertexAttributes = limits.maxVertexInputAttributes();
+            mMaxVertexBindings = limits.maxVertexInputBindings();
+
             mMaxTextureSize = (int) Math.min(
                     Integer.toUnsignedLong(limits.maxImageDimension2D()), Integer.MAX_VALUE);
+            assert mMaxTextureSize >= 4096;
+
+            mMaxPushConstantsSize = limits.maxPushConstantsSize();
+            // our attachment points are consistent with draw buffers
+            mMaxColorAttachments = Math.min(Math.min(
+                            limits.maxFragmentOutputAttachments(),
+                            limits.maxColorAttachments()),
+                    MAX_COLOR_TARGETS);
+            assert mMaxColorAttachments >= 4;
+
+            mMinUniformBufferOffsetAlignment = (int) limits.minUniformBufferOffsetAlignment();
+            mMinStorageBufferOffsetAlignment = (int) limits.minStorageBufferOffsetAlignment();
+            // many drivers report 1 but actually trigger slow path, use 4 at least.
+            // actually used alignment is generally aligned up to a higher value.
+            mOptimalBufferCopyOffsetAlignment = Math.max((int) limits.optimalBufferCopyOffsetAlignment(), 4);
+            mOptimalBufferCopyRowBytesAlignment = Math.max((int) limits.optimalBufferCopyRowPitchAlignment(), 4);
 
             initFormatTable(logger, physDev, physProps, stack);
+
+            initGLSL();
         }
     }
 
@@ -98,15 +127,48 @@ public class VulkanCaps extends Caps {
                          VkPhysicalDevice physDev,
                          VkPhysicalDeviceProperties physProps,
                          MemoryStack stack) {
-        for (int i = 1; i < mFormatTable.length; i++) {
+        for (int i = 0; i < mFormatTable.length; i++) {
             mFormatTable[i] = new FormatInfo();
+        }
+
+        {
+            FormatInfo info = getFormatInfo(ImageFormat.kR8);
+            info.init(logger, physDev, physProps, VK_FORMAT_R8_UNORM, stack);
+            if (info.isSampled(VK_IMAGE_TILING_OPTIMAL)) {
+                info.mColorTypeInfos = new ColorTypeInfo[3];
+                // Format: R8, Surface: kR_8
+                {
+                    ColorTypeInfo ctInfo = info.mColorTypeInfos[0] = new ColorTypeInfo();
+                    ctInfo.mColorType = ColorInfo.CT_R_8;
+                    ctInfo.mTransferColorType = ColorInfo.CT_R_8;
+                    ctInfo.mFlags = ColorTypeInfo.kUploadData_Flag | ColorTypeInfo.kRenderable_Flag;
+                }
+
+                // Format: R8, Surface: kAlpha_8
+                {
+                    ColorTypeInfo ctInfo = info.mColorTypeInfos[1] = new ColorTypeInfo();
+                    ctInfo.mColorType = ColorInfo.CT_ALPHA_8;
+                    ctInfo.mTransferColorType = ColorInfo.CT_ALPHA_8;
+                    ctInfo.mFlags = ColorTypeInfo.kUploadData_Flag | ColorTypeInfo.kRenderable_Flag;
+                    ctInfo.mReadSwizzle = Swizzle.make("000r");
+                    ctInfo.mWriteSwizzle = Swizzle.make("a000");
+                }
+
+                // Format: R8, Surface: kGray_8
+                {
+                    ColorTypeInfo ctInfo = info.mColorTypeInfos[2] = new ColorTypeInfo();
+                    ctInfo.mColorType = ColorInfo.CT_GRAY_8;
+                    ctInfo.mTransferColorType = ColorInfo.CT_GRAY_8;
+                    ctInfo.mFlags = ColorTypeInfo.kUploadData_Flag;
+                    ctInfo.mReadSwizzle = Swizzle.make("rrr1");
+                }
+            }
         }
 
         // Format: VK_FORMAT_R8G8B8A8_UNORM
         {
-            final int format = VK_FORMAT_R8G8B8A8_UNORM;
-            FormatInfo info = getFormatInfo(format);
-            info.init(logger, physDev, physProps, format, stack);
+            FormatInfo info = getFormatInfo(ImageFormat.kRGBA8);
+            info.init(logger, physDev, physProps, VK_FORMAT_R8G8B8A8_UNORM, stack);
             if (info.isSampled(VK_IMAGE_TILING_OPTIMAL)) {
                 info.mColorTypeInfos = new ColorTypeInfo[2];
                 // Format: VK_FORMAT_R8G8B8A8_UNORM, Surface: kRGBA_8888
@@ -127,24 +189,54 @@ public class VulkanCaps extends Caps {
             }
         }
 
-        // Reserved for undefined
-        mFormatTable[0] = new FormatInfo();
+        // Format: VK_FORMAT_R16G16B16A16_SFLOAT
+        {
+            FormatInfo info = getFormatInfo(ImageFormat.kRGBA16F);
+            info.init(logger, physDev, physProps, VK_FORMAT_R16G16B16A16_SFLOAT, stack);
+            if (info.isSampled(VK_IMAGE_TILING_OPTIMAL)) {
+                info.mColorTypeInfos = new ColorTypeInfo[1];
+                // Format: VK_FORMAT_R8G8B8A8_UNORM, Surface: kRGBA_8888
+                {
+                    ColorTypeInfo ctInfo = info.mColorTypeInfos[0] = new ColorTypeInfo();
+                    ctInfo.mColorType = ColorInfo.CT_RGBA_F16;
+                    ctInfo.mTransferColorType = ColorInfo.CT_RGBA_F16;
+                    ctInfo.mFlags = ColorTypeInfo.kUploadData_Flag | ColorTypeInfo.kRenderable_Flag;
+                }
+            }
+        }
 
-        setColorTypeFormat(ColorInfo.CT_RGBA_8888, VK_FORMAT_R8G8B8A8_UNORM);
+        setColorTypeFormat(ColorInfo.CT_R_8, ImageFormat.kR8);
+        setColorTypeFormat(ColorInfo.CT_RGBA_8888, ImageFormat.kRGBA8);
+        setColorTypeFormat(ColorInfo.CT_RGBA_F16, ImageFormat.kRGBA16F);
     }
 
-    FormatInfo getFormatInfo(@NativeType("VkFormat") int format) {
-        return mFormatTable[VKUtil.vkFormatToImageFormat(format)];
+    private void initGLSL() {
+        ShaderCaps shaderCaps = mShaderCaps;
+
+        shaderCaps.mPreferFlatInterpolation = true;
+        shaderCaps.mNoPerspectiveInterpolationSupport = true;
+        shaderCaps.mVertexIDSupport = true;
+        shaderCaps.mInfinitySupport = true;
+        shaderCaps.mNonConstantArrayIndexSupport = true;
+        shaderCaps.mBitManipulationSupport = true;
+        shaderCaps.mFMASupport = true;
+        shaderCaps.mTextureQueryLod = true;
+        shaderCaps.mVaryingLocationSupport = true;
+        shaderCaps.mUniformBindingSupport = true;
+        shaderCaps.mUseBlockMemberOffset = true;
+        shaderCaps.mUsePrecisionModifiers = true;
     }
 
-    // Map ColorType to VkFormat with fallback list
+    FormatInfo getFormatInfo(int format) {
+        return mFormatTable[format];
+    }
+
     private void setColorTypeFormat(int colorType, int... formats) {
         for (int format : formats) {
-            assert VKUtil.vkFormatIsSupported(format);
             var info = getFormatInfo(format);
             for (var ctInfo : info.mColorTypeInfos) {
                 if (ctInfo.mColorType == colorType) {
-                    mColorTypeToBackendFormat[colorType] = format;
+                    mColorTypeToFormat[colorType] = format;
                     return;
                 }
             }
@@ -156,43 +248,39 @@ public class VulkanCaps extends Caps {
     }
 
     @Override
-    public boolean isFormatTexturable(BackendFormat format) {
+    public boolean isFormatTexturable(int format) {
         return false;
     }
 
     @Override
-    public int getMaxRenderTargetSampleCount(BackendFormat format) {
+    public int getMaxRenderTargetSampleCount(int format, boolean sampled) {
         return 0;
     }
 
     @Override
-    public boolean isFormatRenderable(int colorType, BackendFormat format, int sampleCount) {
+    public boolean isRenderableFormat(int format, int sampleCount, boolean sampled) {
+        var info = getFormatInfo(format);
+        for (var count : info.mColorSampleCounts) {
+            if (count == sampleCount) {
+                return true;
+            }
+        }
         return false;
     }
 
     @Override
-    public boolean isFormatRenderable(BackendFormat format, int sampleCount) {
-        return false;
-    }
-
-    @Override
-    public int getRenderTargetSampleCount(int sampleCount, BackendFormat format) {
+    public int getRenderTargetSampleCount(int sampleCount, int format, boolean sampled) {
         return 0;
     }
 
     @Override
-    public long getSupportedWriteColorType(int dstColorType, ImageDesc dstDesc, int srcColorType) {
-        return 0;
+    public int getSupportedWriteColorType(int surfaceColorType, ImageDesc dstDesc) {
+        return surfaceColorType;
     }
 
     @Override
     protected long onSupportedReadColorType(int srcColorType, BackendFormat srcFormat, int dstColorType) {
         return 0;
-    }
-
-    @Override
-    protected boolean onFormatCompatible(int colorType, BackendFormat format) {
-        return false;
     }
 
     @Nullable
@@ -206,7 +294,7 @@ public class VulkanCaps extends Caps {
             return null;
         }
         sampleCount = Math.max(1, sampleCount);
-        int format = mColorTypeToBackendFormat[colorType];
+        int format = mColorTypeToFormat[colorType];
         FormatInfo formatInfo = getFormatInfo(format);
         if ((imageFlags & ISurface.FLAG_SAMPLED_IMAGE) != 0 &&
                 !formatInfo.isSampled(VK_IMAGE_TILING_OPTIMAL)) {
@@ -220,6 +308,7 @@ public class VulkanCaps extends Caps {
                 !formatInfo.isRenderable(VK_IMAGE_TILING_OPTIMAL, sampleCount)) {
             return null;
         }
+        int vkFormat = VKUtil.toVkFormat(format);
 
         //TODO
 
@@ -275,13 +364,77 @@ public class VulkanCaps extends Caps {
         return new VulkanImageDesc(
                 0,
                 VK_IMAGE_TYPE_2D,
-                format,
+                vkFormat,
                 VK_IMAGE_TILING_OPTIMAL,
                 usage,
                 VK_SHARING_MODE_EXCLUSIVE,
-                imageType,
+                imageType, format,
                 width, height, depth, arraySize,
                 mipLevelCount, sampleCount, imageFlags
+        );
+    }
+
+    //TODO validation
+    @Override
+    public @Nullable ImageDesc getDefaultDepthStencilImageDesc(int depthBits, int stencilBits,
+                                                               int width, int height,
+                                                               int sampleCount, int imageFlags) {
+        if (depthBits < 0 || depthBits > 32) {
+            return null;
+        }
+        if (stencilBits < 0 || stencilBits > 8) {
+            return null;
+        }
+        if (depthBits == 0 && stencilBits == 0) {
+            return null;
+        }
+        int depthStencilFormat;
+        int viewFormat;
+        if (stencilBits > 0) {
+            if (depthBits <= 24) {
+                depthStencilFormat = VK_FORMAT_D24_UNORM_S8_UINT;
+                viewFormat = ImageFormat.kD24_S8;
+            } else {
+                depthStencilFormat = VK_FORMAT_D32_SFLOAT_S8_UINT;
+                viewFormat = ImageFormat.kD32F_S8;
+            }
+        } else {
+            if (depthBits <= 16) {
+                depthStencilFormat = VK_FORMAT_D16_UNORM;
+                viewFormat = ImageFormat.kD16;
+            } else if (depthBits <= 24) {
+                depthStencilFormat = VK_FORMAT_X8_D24_UNORM_PACK32;
+                viewFormat = ImageFormat.kD24;
+            } else {
+                depthStencilFormat = VK_FORMAT_D32_SFLOAT;
+                viewFormat = ImageFormat.kD32F;
+            }
+        }
+
+        int usage = 0;
+        if ((imageFlags & ISurface.FLAG_SAMPLED_IMAGE) != 0) {
+            usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
+        }
+        if ((imageFlags & ISurface.FLAG_STORAGE_IMAGE) != 0) {
+            usage |= VK_IMAGE_USAGE_STORAGE_BIT;
+        }
+        if ((imageFlags & ISurface.FLAG_RENDERABLE) != 0) {
+            usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+            /*if ((imageFlags & ISurface.FLAG_MEMORYLESS) != 0) {
+                usage |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
+            }*/
+        }
+
+        return new VulkanImageDesc(
+                0,
+                VK_IMAGE_TYPE_2D,
+                depthStencilFormat,
+                VK_IMAGE_TILING_OPTIMAL,
+                usage,
+                VK_SHARING_MODE_EXCLUSIVE,
+                Engine.ImageType.k2D, viewFormat,
+                width, height, 1, 1,
+                1, sampleCount, imageFlags
         );
     }
 
@@ -312,13 +465,19 @@ public class VulkanCaps extends Caps {
     }
 
     @Override
-    protected short onGetReadSwizzle(ImageDesc desc, int colorType) {
-        return 0;
+    public @Nullable ColorTypeInfo getColorTypeInfo(int colorType, @NonNull ImageDesc desc) {
+        return getColorTypeInfo(colorType, desc.getViewFormat());
     }
 
     @Override
-    public short getWriteSwizzle(ImageDesc desc, int colorType) {
-        return 0;
+    public @Nullable ColorTypeInfo getColorTypeInfo(int colorType, int format) {
+        final FormatInfo formatInfo = getFormatInfo(format);
+        for (final ColorTypeInfo ctInfo : formatInfo.mColorTypeInfos) {
+            if (ctInfo.mColorType == colorType) {
+                return ctInfo;
+            }
+        }
+        return null;
     }
 
     @Override
@@ -373,32 +532,6 @@ public class VulkanCaps extends Caps {
             return sampleCounts.toIntArray();
         } finally {
             stack.pop();
-        }
-    }
-
-    static class ColorTypeInfo {
-        @ColorInfo.ColorType
-        int mColorType = ColorInfo.CT_UNKNOWN;
-        @ColorInfo.ColorType
-        int mTransferColorType = ColorInfo.CT_UNKNOWN;
-
-        static final int
-                kUploadData_Flag = 0x1,
-                kRenderable_Flag = 0x2;
-        int mFlags = 0;
-
-        short mReadSwizzle = Swizzle.RGBA;
-        short mWriteSwizzle = Swizzle.RGBA;
-
-        @Override
-        public String toString() {
-            return "ColorTypeInfo{" +
-                    "colorType=" + ColorInfo.colorTypeToString(mColorType) +
-                    ", transferColorType=" + ColorInfo.colorTypeToString(mTransferColorType) +
-                    ", flags=0x" + Integer.toHexString(mFlags) +
-                    ", readSwizzle=" + Swizzle.toString(mReadSwizzle) +
-                    ", writeSwizzle=" + Swizzle.toString(mWriteSwizzle) +
-                    '}';
         }
     }
 
