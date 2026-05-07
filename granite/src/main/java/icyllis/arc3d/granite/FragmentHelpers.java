@@ -633,8 +633,8 @@ public class FragmentHelpers {
                                       @RawPtr ColorShader shader) {
         float[] color = shader.getColor();
         ColorSpace dstCS = keyContext.dstInfo.colorSpace();
-        if (dstCS != null && !dstCS.isSrgb()) {
-            ColorSpace.connect(ColorSpace.get(ColorSpace.Named.SRGB), dstCS)
+        if (dstCS != null && shader.getColorSpace() != dstCS) {
+            ColorSpace.connect(shader.getColorSpace(), dstCS)
                     .transformUnclamped(color);
         }
         // premul

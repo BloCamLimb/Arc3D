@@ -43,6 +43,8 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+
 /**
  * The device that is backed by GPU.
  */
@@ -550,6 +552,16 @@ public final class GraniteDevice extends Device {
         drawGeometry(getLocalToDevice33(), quad, false,
                 mPaintParams.set(paint, null, false, false), null,
                 mRendererProvider.getPerEdgeAAQuad());
+    }
+
+    @Override
+    public void drawEdgeAAImageSet(@NonNull List<Canvas.ImageSetEntry> imageSet, float[] dstClips, int dstClipsOffset,
+                                   List<Matrix> preViewMatrices, @NonNull SamplingOptions sampling,
+                                   @Nullable Paint paint, int constraint) {
+        int count = imageSet.size();
+        assert count > 0;
+
+
     }
 
     @Override
