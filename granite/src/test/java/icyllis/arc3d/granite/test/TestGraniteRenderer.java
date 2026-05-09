@@ -43,8 +43,10 @@ import icyllis.arc3d.sketch.shaders.ImageShader;
 import icyllis.arc3d.sketch.shaders.LinearGradient;
 import icyllis.arc3d.sketch.shaders.RRectShader;
 import icyllis.arc3d.sketch.shaders.Shader;
+import org.lwjgl.glfw.Callbacks;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11C;
+import org.lwjgl.opengl.GL30C;
 import org.lwjgl.opengl.GL33C;
 import org.lwjgl.opengles.GLES;
 import org.lwjgl.opengles.GLES20;
@@ -88,7 +90,7 @@ public class TestGraniteRenderer {
 
     public static final boolean TEST_OPENGL_ES = false;
 
-    public static final int TEST_SCENE = 1;
+    public static int TEST_SCENE = 1;
     public static final boolean POST_PROCESS = false;
     public static final boolean RECORD_FIRST_FRAME = false;
 
@@ -112,7 +114,10 @@ public class TestGraniteRenderer {
     //-Dorg.slf4j.simpleLogger.defaultLogLevel=debug
     //-XX:+UseZGC
     //-XX:+ZGenerational
-    //-Dorg.lwjgl.opengl.libname=F:\mesa3d-22.1.2-release-mingw\x64\opengl32.dll
+    //-Dorg.lwjgl.opengl.libname=F:\mesa3d-25.3.3-release-mingw\x64\opengl32.dll
+    //-Dorg.lwjgl.util.Debug=true
+    //-XX:StartFlightRecording=dumponexit=true,settings=profile,filename=render_trace.jfr,period=2ms
+    //-Djdk.util.jar.version=21
     public static void main(String[] args) {
         System.setProperty("java.awt.headless", "true");
         glfwInit();
@@ -147,6 +152,7 @@ public class TestGraniteRenderer {
         if (window == 0) {
             throw new RuntimeException("0x" + Integer.toHexString(nglfwGetError(MemoryUtil.NULL)));
         }
+        setKeyCallbacks(window);
         glfwMakeContextCurrent(window);
         glfwSwapInterval(1);
 
@@ -261,35 +267,55 @@ public class TestGraniteRenderer {
             e.printStackTrace();
         }
         {
-            long rowBytes = (long) CANVAS_WIDTH * 4;
-            long srcPixels = MemoryUtil.nmemAlloc(rowBytes * CANVAS_HEIGHT);
-            long dstPixels = MemoryUtil.nmemAlloc(rowBytes * CANVAS_HEIGHT);
-            if (TEST_OPENGL_ES) {
-                GLES20.glReadPixels(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT,
-                        GL33C.GL_RGBA, GL33C.GL_UNSIGNED_BYTE, srcPixels);
-            } else {
-                GL33C.glReadPixels(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT,
-                        GL33C.GL_RGBA, GL33C.GL_UNSIGNED_BYTE, srcPixels);
-            }
-            // premul to unpremul, and flip Y
             ImageInfo srcInfo = ImageInfo.make(CANVAS_WIDTH, CANVAS_HEIGHT,
                     ColorInfo.CT_RGBA_8888, ColorInfo.AT_PREMUL, null);
             ImageInfo dstInfo = srcInfo.makeAlphaType(ColorInfo.AT_UNPREMUL);
+            var srcPixels = PixelRef.makeAllocate(srcInfo, 0);
+            var dstPixels = PixelRef.makeAllocate(dstInfo, 0);
+            Objects.requireNonNull(srcPixels);
+            Objects.requireNonNull(dstPixels);
+
+            int[] boundFramebuffer = {0};
+            gl.glGetIntegerv(GL30C.GL_READ_FRAMEBUFFER_BINDING, boundFramebuffer);
+            LOGGER.info("Bound read framebuffer {}", boundFramebuffer[0]);
+
+            if (TEST_OPENGL_ES) {
+                GLES20.glReadPixels(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT,
+                        GL33C.GL_RGBA, GL33C.GL_UNSIGNED_BYTE, srcPixels.getAddress());
+            } else {
+                GL33C.glReadPixels(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT,
+                        GL33C.GL_RGBA, GL33C.GL_UNSIGNED_BYTE, srcPixels.getAddress());
+            }
+
+            // premul to unpremul, and flip Y
             boolean res = PixelUtils.convertPixels(
-                    srcInfo, null, srcPixels, rowBytes,
-                    dstInfo, null, dstPixels, rowBytes,
-                    true
+                    srcInfo, srcPixels.getBase(), srcPixels.getAddress(), srcPixels.getRowBytes(),
+                    dstInfo, dstPixels.getBase(), dstPixels.getAddress(), dstPixels.getRowBytes(),
+                    false
             );
             assert res;
-            MemoryUtil.nmemFree(srcPixels);
+            srcPixels.unref();
             STBImageWrite.stbi_write_png_compression_level.put(0, 15);
             STBImageWrite.stbi_write_png("run/test_granite.png", CANVAS_WIDTH, CANVAS_HEIGHT, 4,
-                    MemoryUtil.memByteBuffer(dstPixels, CANVAS_WIDTH * CANVAS_HEIGHT * 4), (int) rowBytes);
-            MemoryUtil.nmemFree(dstPixels);
+                    MemoryUtil.memByteBuffer(dstPixels.getAddress(), CANVAS_WIDTH * CANVAS_HEIGHT * 4), dstPixels.getRowBytes());
+            dstPixels.unref();
         }
         immediateContext.unref();
+        Callbacks.glfwFreeCallbacks(window);
         glfwDestroyWindow(window);
         glfwTerminate();
+    }
+
+    public static void setKeyCallbacks(long window) {
+        var oldKeyCallback = glfwSetKeyCallback(window, (window1, key, scancode, action, mods) -> {
+            if (action == GLFW_PRESS) {
+                switch (key) {
+                    case GLFW_KEY_LEFT -> TEST_SCENE = TEST_SCENE == 0 ? 3 : TEST_SCENE - 1;
+                    case GLFW_KEY_RIGHT -> TEST_SCENE = (TEST_SCENE + 1) & 3;
+                }
+            }
+        });
+        assert oldKeyCallback == null;
     }
 
     public static String formatMicroseconds(double e, double st) {
@@ -310,6 +336,7 @@ public class TestGraniteRenderer {
 
         @SharedPtr
         Image mTestImage = null;
+        Image mTestImage2 = null;
         @SharedPtr
         Shader mTestShader1;
         @SharedPtr
@@ -321,6 +348,8 @@ public class TestGraniteRenderer {
         Shader mGradShader1;
         @SharedPtr
         Shader mGradShader2;
+        @SharedPtr
+        Shader mGradShader3;
 
         @SharedPtr
         Shader mRRectShader;
@@ -342,12 +371,12 @@ public class TestGraniteRenderer {
             mRC = RecordingContext.makeRecordingContext(
                     immediateContext, new RecordingContext.Options()
             );
-            {
+            if (true) {
                 @SharedPtr
                 var device = GraniteDevice.make(
                         mRC,
-                        ImageInfo.make(CANVAS_WIDTH, CANVAS_HEIGHT, ColorInfo.CT_RGBA_8888,
-                                ColorInfo.AT_PREMUL, ColorSpace.get(ColorSpace.Named.SRGB)),
+                        ImageInfo.make(CANVAS_WIDTH, CANVAS_HEIGHT, ColorInfo.CT_RGBA_F16,
+                                ColorInfo.AT_PREMUL, ColorSpace.get(ColorSpace.Named.EXTENDED_SRGB)),
                         true,
                         false,
                         true,
@@ -371,7 +400,28 @@ public class TestGraniteRenderer {
                 Objects.requireNonNull(mPostSurface);
             }
 
-            {
+            if (false) {
+                int[] x = {0}, y = {0}, channels = {0};
+                var imgData = STBImage.stbi_load_16(
+                        "",
+                        x, y, channels, 4
+                );
+                if (imgData != null) {
+                    Pixmap testPixmap = new Pixmap(
+                            ImageInfo.make(x[0], y[0], ColorInfo.CT_RGBA_16161616, ColorInfo.AT_UNPREMUL, ColorSpace.get(ColorSpace.Named.DISPLAY_P3)),
+                            null,
+                            MemoryUtil.memAddress(imgData),
+                            8 * x[0]
+                    );
+                    mTestImage = TextureUtils.makeFromPixmap(mRC,
+                            testPixmap,
+                            false,
+                            true,
+                            "TestLocalImage");
+                    LOGGER.info("Loaded texture image {}", mTestImage);
+                    STBImage.stbi_image_free(imgData);
+                }
+            } else {
                 int[] x = {0}, y = {0}, channels = {0};
                 var imgData = STBImage.stbi_load(
                         "F:/G3B3WiVbAAAwE1C.jpg",
@@ -379,26 +429,26 @@ public class TestGraniteRenderer {
                 );
                 if (imgData != null) {
                     Pixmap testPixmap = new Pixmap(
-                            ImageInfo.make(x[0], y[0], ColorInfo.CT_RGBA_8888, ColorInfo.AT_UNPREMUL, null),
+                            ImageInfo.make(x[0], y[0], ColorInfo.CT_RGBA_8888, ColorInfo.AT_UNPREMUL, ColorSpace.get(ColorSpace.Named.SRGB)),
                             null,
                             MemoryUtil.memAddress(imgData),
                             4 * x[0]
                     );
-                    var newInfo = ImageInfo.make(x[0], y[0], ColorInfo.CT_RGB_888, ColorInfo.AT_OPAQUE, null);
-                    long newPixels = MemoryUtil.nmemAlloc(newInfo.computeMinByteSize());
+                    var newInfo = ImageInfo.make(x[0], y[0], ColorInfo.CT_RGB_888, ColorInfo.AT_OPAQUE, ColorSpace.get(ColorSpace.Named.SRGB));
+                    var newPixels = PixelRef.makeAllocate(newInfo, 0);
                     Pixmap convertedPixmap = new Pixmap(
-                            newInfo, null, newPixels, newInfo.minRowBytes()
+                            newInfo, newPixels.getBase(), newPixels.getAddress(), newPixels.getRowBytes()
                     );
                     boolean res = PixelUtils.convertPixels(testPixmap, convertedPixmap);
                     assert res;
                     mTestImage = TextureUtils.makeFromPixmap(mRC,
-                            convertedPixmap,
+                            testPixmap,
                             false,
                             true,
                             "TestLocalImage");
                     LOGGER.info("Loaded texture image {}", mTestImage);
                     STBImage.stbi_image_free(imgData);
-                    MemoryUtil.nmemFree(newPixels);
+                    newPixels.unref();
                 }
             }
 
@@ -412,13 +462,13 @@ public class TestGraniteRenderer {
                         SamplingOptions.LINEAR,
                         scalingMatrix);
                 mTestShader2 = ImageShader.make(
-                        RefCnt.create(mTestImage),
+                        RefCnt.create(mTestImage2),
                         Shader.TILE_MODE_CLAMP,
                         Shader.TILE_MODE_CLAMP,
                         SamplingOptions.MITCHELL,
                         scalingMatrix);
                 mTestShader3 = ImageShader.make(
-                        RefCnt.create(mTestImage),
+                        RefCnt.create(mTestImage2),
                         Shader.TILE_MODE_CLAMP,
                         Shader.TILE_MODE_CLAMP,
                         SamplingOptions.CUBIC_BSPLINE,
@@ -448,28 +498,42 @@ public class TestGraniteRenderer {
             mGradShader1 = LinearGradient.make(
                     400, 350, 800, 350,
                     new float[]{
-                            255 / 255f, 0 / 255f, 0 / 255f, 1,
-                            0 / 255f, 255 / 255f, 0 / 255f, 1},
+                            30 / 255f, 255 / 255f, 128 / 255f, 1,
+                            230 / 255f, 128 / 255f, 255 / 255f, 1},
                     ColorSpace.get(ColorSpace.Named.SRGB),
                     null,
                     2,
                     Shader.TILE_MODE_MIRROR,
                     GradientShader.Interpolation.make(false,
-                            GradientShader.Interpolation.kHSL_ColorSpace,
+                            GradientShader.Interpolation.kOKLab_ColorSpace,
                             GradientShader.Interpolation.kIncreasing_HueMethod),
                     null
             );
             mGradShader2 = LinearGradient.make(
                     400, 350, 800, 350,
                     new float[]{
-                            255 / 255f, 0 / 255f, 0 / 255f, 1,
-                            0 / 255f, 255 / 255f, 0 / 255f, 1},
+                            30 / 255f, 255 / 255f, 128 / 255f, 1,
+                            230 / 255f, 128 / 255f, 255 / 255f, 1},
                     ColorSpace.get(ColorSpace.Named.SRGB),
                     null,
                     2,
                     Shader.TILE_MODE_MIRROR,
                     GradientShader.Interpolation.make(false,
-                            GradientShader.Interpolation.kHSL_ColorSpace,
+                            GradientShader.Interpolation.kSRGBLinear_ColorSpace,
+                            GradientShader.Interpolation.kDecreasing_HueMethod),
+                    null
+            );
+            mGradShader3 = LinearGradient.make(
+                    400, 350, 800, 350,
+                    new float[]{
+                            30 / 255f, 255 / 255f, 128 / 255f, 1,
+                            230 / 255f, 128 / 255f, 255 / 255f, 1},
+                    ColorSpace.get(ColorSpace.Named.SRGB),
+                    null,
+                    2,
+                    Shader.TILE_MODE_MIRROR,
+                    GradientShader.Interpolation.make(false,
+                            GradientShader.Interpolation.kSRGB_ColorSpace,
                             GradientShader.Interpolation.kDecreasing_HueMethod),
                     null
             );
@@ -743,6 +807,12 @@ public class TestGraniteRenderer {
                 rrect.setRectXY(100, 750, 1500, 850, 30, 30);
                 canvas.drawRRect(rrect, paint);
 
+                paint.setShader(RefCnt.create(mGradShader3));
+                rrect.setRectXY(100, 850, 1500, 950, 30, 30);
+                canvas.drawRRect(rrect, paint);
+
+                paint.setShader(RefCnt.create(mGradShader1));
+
                 Matrix4 perspectiveMatrix = new Matrix4();
                 perspectiveMatrix.setIdentity();
                 perspectiveMatrix.m34 = -1.0f / 1920f;
@@ -806,7 +876,7 @@ public class TestGraniteRenderer {
                 if (z > 0.001f) {
                     DrawShadowUtils.drawShadow(canvas,
                             rrect, 0, 0, z,
-                            mSurface.getWidth() / 2f, 0, 600, 800,
+                            CANVAS_WIDTH / 2f, 0, 600, 800,
                             0x1E000000, 0x30000000);
                     // 0x5A000000, 0x90000000
                 }
@@ -876,18 +946,32 @@ public class TestGraniteRenderer {
                 /*paint.setStyle(Paint.STROKE);
                 paint.setStrokeJoin(Paint.JOIN_MITER);
                 paint.setStrokeWidth(2);*/
-                float scale = glfwGetTime() > 6.0 ? 1.5f : 1.0f;
+                /*float scale = glfwGetTime() > 6.0 ? 1.5f : 1.0f;
                 canvas.scale(scale, scale);
                 canvas.drawTextBlob(mTextBlob1 != null ? mTextBlob1 : mTextBlob2,
-                        400 + (System.currentTimeMillis() % 1000) / 100f, 400, paint);
+                        400 + (System.currentTimeMillis() % 1000) / 100f, 400, paint);*/
                 //canvas.drawTextBlob(mTextBlob1 != null ? mTextBlob1 : mTextBlob2, 800, 620, paint);
+                paint.setColor4f(0, 1, 1, 1);
+                int wid = canvas.getBaseLayerWidth() / 2;
+                int h = canvas.getBaseLayerHeight();
+                canvas.drawRect(0, 0, wid, h, paint);
+                paint.setColor4f(0, 1, 1, 1, ColorSpace.get(ColorSpace.Named.DISPLAY_P3));
+                canvas.drawRect(wid+1, 0, wid+wid, h, paint);
             }
             paint.close();
             canvas.restore();
         }
 
         public Recording paint() {
+            return paint(null);
+        }
+
+        public Recording paint(@RawPtr Surface drawingSurface) {
             double time1 = glfwGetTime();
+
+            if (drawingSurface == null) {
+                drawingSurface = mSurface;
+            }
 
             if (RECORD_FIRST_FRAME) {
                 if (mBigRecord == null) {
@@ -897,15 +981,15 @@ public class TestGraniteRenderer {
                     drawScene(canvas);
                     canvas.close();
                 }
-                Canvas canvas = mSurface.getCanvas();
+                Canvas canvas = drawingSurface.getCanvas();
                 mBigRecord.draw(canvas, null);
             } else if (POST_PROCESS) {
                 @SharedPtr
                 Image snapshot;
                 {
-                    Canvas canvas = mSurface.getCanvas();
+                    Canvas canvas = drawingSurface.getCanvas();
                     drawScene(canvas);
-                    snapshot = mSurface.makeImageSnapshot();
+                    snapshot = drawingSurface.makeImageSnapshot();
                 }
                 if (snapshot != null) {
                     Canvas canvas = mPostSurface.getCanvas();
@@ -920,9 +1004,12 @@ public class TestGraniteRenderer {
                     LOGGER.error("Failed to create image snapshot");
                 }
             } else {
-                Canvas canvas = mSurface.getCanvas();
+                Canvas canvas = drawingSurface.getCanvas();
                 drawScene(canvas);
             }
+
+            // avoid atlas management issue
+            ((GraniteSurface) drawingSurface).flush();
 
             Recording recording = mRC.snap();
 
@@ -941,6 +1028,7 @@ public class TestGraniteRenderer {
             mGradShader1 = RefCnt.move(mGradShader1);
             mRRectShader = RefCnt.move(mRRectShader);
             mTestImage = RefCnt.move(mTestImage);
+            mTestImage2 = RefCnt.move(mTestImage2);
             Arrays.fill(mBlendModeColorFilters, null);
 
             mPostSurface = RefCnt.move(mPostSurface);

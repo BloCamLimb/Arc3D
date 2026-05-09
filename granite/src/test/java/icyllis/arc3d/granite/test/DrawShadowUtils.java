@@ -73,7 +73,7 @@ public class DrawShadowUtils {
                     rrect.getSimpleRadiusX()+strokeWidth, rrect.getSimpleRadiusY()+strokeWidth);
             paint.setColor(ambientColor);
             if (blurRadius > 0) {
-                blurRadius = blurRadius * 1.73205080f + 1.0f;
+                blurRadius = blurRadius * 3;
             }
             canvas.drawBlurredRRect(r2, paint, blurRadius, 0.1f);
         }
@@ -96,7 +96,7 @@ public class DrawShadowUtils {
 
             paint.setColor(spotColor);
             if (blurRadius > 0) {
-                blurRadius = blurRadius * 1.73205080f + 1.0f;
+                blurRadius = blurRadius * 3;
             }
             canvas.drawBlurredRRect(rrect, paint, blurRadius, 0.1f);
 
