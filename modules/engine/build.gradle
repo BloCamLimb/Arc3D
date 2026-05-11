@@ -16,25 +16,21 @@ test {
 publishing {
     def lwjglVersion = getProperty('lwjgl_version')
     publications {
-        mavenEngine(MavenPublication) {
-            artifact tasks.named('jar')
-            artifact tasks.named('sourcesJar')
-            artifactId = project.name
-            groupId = project.group
-            version = project.version
+        mavenJava(MavenPublication) {
+            from components.java
 
             pom {
-                artifactId = project.name
-                groupId = project.group
-                version = project.version
                 name = 'Arc3D Engine'
-                packaging = 'pom'
+                description = 'The graphics engine of Arc3D, which provides API-agnostic GPU rendering infrastructure.'
+                url = project.arc3d_url
                 scm {
-                    url = 'https://github.com/BloCamLimb/Arc3D.git'
+                    connection = project.arc3d_scm_connection
+                    developerConnection = project.arc3d_scm_developerConnection
+                    url = project.arc3d_scm_url
                 }
                 issueManagement {
-                    system = 'github'
-                    url = 'https://github.com/BloCamLimb/Arc3D/issues'
+                    system = project.arc3d_issueManagement_system
+                    url = project.arc3d_issueManagement_url
                 }
                 licenses {
                     license {
@@ -43,8 +39,19 @@ publishing {
                         distribution = 'repo'
                     }
                 }
+                developers {
+                    developer {
+                        id = project.arc3d_developer_id
+                        name = project.arc3d_developer_name
+                        email = project.arc3d_developer_email
+                        url = project.arc3d_developer_url
+                    }
+                }
                 withXml {
-                    def dependenciesNode = asNode().appendNode('dependencies')
+                    def root = asNode()
+                    root.dependencyManagement.each { root.remove(it) }
+                    root.dependencies.each { root.remove(it) }
+                    def dependenciesNode = root.appendNode('dependencies')
                     configurations.implementation.allDependencies.each {
                         if (it.group == 'org.lwjgl') return
                         def dependencyNode = dependenciesNode.appendNode('dependency')
@@ -73,4 +80,9 @@ publishing {
             }
         }
     }
+}
+
+signing {
+    useGpgCmd()
+    sign(publishing.publications["mavenJava"])
 }

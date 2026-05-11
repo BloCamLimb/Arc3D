@@ -26,3 +26,4 @@ classes
 *.psd
 *.log
 logs
+docs/javadoc
