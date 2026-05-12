@@ -78,7 +78,7 @@ import java.util.function.DoubleUnaryOperator;
  *
  * <p>Color spaces use their
  * native white point (D65 for {@link Named#SRGB sRGB} for instance) and must
- * undergo {@link Adaptation chromatic adaptation} as necessary.</p>
+ * undergo {@link ChromaticAdaptation chromatic adaptation} as necessary.</p>
  *
  * <p>Since the white point of the PCS is not defined for RGB color space, it is
  * highly recommended to use the variants of the {@link #connect(ColorSpace, ColorSpace)}
@@ -132,7 +132,7 @@ import java.util.function.DoubleUnaryOperator;
  * @see #get(Named)
  * @see Named
  * @see Connector
- * @see Adaptation
+ * @see ChromaticAdaptation
  */
 // modified from Android
 @SuppressWarnings("unused")
@@ -968,79 +968,6 @@ public abstract sealed class ColorSpace {
     }
 
     /**
-     * {@usesMathJax}
-     *
-     * <p>List of adaptation matrices that can be used for chromatic adaptation
-     * using the von Kries transform. These matrices are used to convert values
-     * in the CIE XYZ space to values in the LMS space (Long Medium Short).</p>
-     *
-     * <p>Given an adaptation matrix \(A\), the conversion from XYZ to
-     * LMS is straightforward:</p>
-     * <p>
-     * $$\left[ \begin{array}{c} L\\ M\\ S \end{array} \right] =
-     * A \left[ \begin{array}{c} X\\ Y\\ Z \end{array} \right]$$
-     *
-     * <p>The complete von Kries transform \(T\) uses a diagonal matrix
-     * noted \(D\) to perform the adaptation in LMS space. In addition
-     * to \(A\) and \(D\), the source white point \(W1\) and the destination
-     * white point \(W2\) must be specified:</p>
-     * <p>
-     * $$\begin{align*}
-     * \left[ \begin{array}{c} L_1\\ M_1\\ S_1 \end{array} \right] &=
-     * A \left[ \begin{array}{c} W1_X\\ W1_Y\\ W1_Z \end{array} \right] \\\
-     * \left[ \begin{array}{c} L_2\\ M_2\\ S_2 \end{array} \right] &=
-     * A \left[ \begin{array}{c} W2_X\\ W2_Y\\ W2_Z \end{array} \right] \\\
-     * D &= \left[ \begin{matrix} \frac{L_2}{L_1} & 0 & 0 \\\
-     * 0 & \frac{M_2}{M_1} & 0 \\\
-     * 0 & 0 & \frac{S_2}{S_1} \end{matrix} \right] \\\
-     * T &= A^{-1}.D.A
-     * \end{align*}$$
-     *
-     * <p>As an example, the resulting matrix \(T\) can then be used to
-     * perform the chromatic adaptation of sRGB XYZ transform from D65
-     * to D50:</p>
-     * <p>
-     * $$sRGB_{D50} = T.sRGB_{D65}$$
-     *
-     * @see ColorSpace.Connector
-     * @see ColorSpace#connect(ColorSpace, ColorSpace)
-     */
-    public enum Adaptation {
-        /**
-         * Bradford chromatic adaptation transform, as defined in the
-         * CIECAM97s color appearance model.
-         */
-        BRADFORD(new float[]{
-                0.8951f, -0.7502f, 0.0389f,
-                0.2664f, 1.7135f, -0.0685f,
-                -0.1614f, 0.0367f, 1.0296f
-        }),
-        /**
-         * von Kries chromatic adaptation transform.
-         */
-        VON_KRIES(new float[]{
-                0.40024f, -0.22630f, 0.00000f,
-                0.70760f, 1.16532f, 0.00000f,
-                -0.08081f, 0.04570f, 0.91822f
-        }),
-        /**
-         * CIECAT02 chromatic adaption transform, as defined in the
-         * CIECAM02 color appearance model.
-         */
-        CIECAT02(new float[]{
-                0.7328f, -0.7036f, 0.0030f,
-                0.4296f, 1.6975f, 0.0136f,
-                -0.1624f, 0.0061f, 0.9834f
-        });
-
-        final float[] mTransform;
-
-        Adaptation( @Size(9) float @NonNull[] transform) {
-            mTransform = transform;
-        }
-    }
-
-    /**
      * Returns the number of components for this color model.
      *
      * @return An integer between 1 and 4
@@ -1505,7 +1432,7 @@ public abstract sealed class ColorSpace {
      * white point to the specified white point.</p>
      *
      * <p>The chromatic adaptation is performed using the
-     * {@link Adaptation#BRADFORD} matrix.</p>
+     * {@link ChromaticAdaptation#BRADFORD} matrix.</p>
      *
      * <p class="note">The color space returned by this method always has
      * an ID of {@link #MIN_ID}.</p>
@@ -1514,13 +1441,13 @@ public abstract sealed class ColorSpace {
      * @param whitePoint The new white point
      * @return A {@link ColorSpace} instance with the same name, primaries,
      * transfer functions and range as the specified color space
-     * @see Adaptation
-     * @see #adapt(ColorSpace, float[], Adaptation)
+     * @see ChromaticAdaptation
+     * @see #adapt(ColorSpace, float[], ChromaticAdaptation)
      */
     @NonNull
     public static ColorSpace adapt(@NonNull ColorSpace colorSpace,
             @Size(min = 2, max = 3) float @NonNull[] whitePoint) {
-        return adapt(colorSpace, whitePoint, Adaptation.BRADFORD);
+        return adapt(colorSpace, whitePoint, ChromaticAdaptation.BRADFORD);
     }
 
     /**
@@ -1531,7 +1458,7 @@ public abstract sealed class ColorSpace {
      * unmodified.</p>
      *
      * <p>The chromatic adaptation is performed using the von Kries method
-     * described in the documentation of {@link Adaptation}.</p>
+     * described in the documentation of {@link ChromaticAdaptation}.</p>
      *
      * <p class="note">The color space returned by this method always has
      * an ID of {@link #MIN_ID}.</p>
@@ -1542,20 +1469,20 @@ public abstract sealed class ColorSpace {
      * @return A new color space if the specified color space has an RGB
      * model and a white point different from the specified white
      * point; the specified color space otherwise
-     * @see Adaptation
+     * @see ChromaticAdaptation
      * @see #adapt(ColorSpace, float[])
      */
     @NonNull
     public static ColorSpace adapt(@NonNull ColorSpace colorSpace,
             @Size(min = 2, max = 3) float @NonNull[] whitePoint,
-                                   @NonNull Adaptation adaptation) {
+                                   @NonNull ChromaticAdaptation adaptation) {
         if (colorSpace.getModel() == MODEL_RGB) {
             ColorSpace.Rgb rgb = (ColorSpace.Rgb) colorSpace;
             if (compare(rgb.mWhitePoint, whitePoint)) return colorSpace;
 
             float[] xyz = whitePoint.length == 3 ?
                     Arrays.copyOf(whitePoint, 3) : xyYToXyz(whitePoint);
-            float[] adaptationTransform = chromaticAdaptation(adaptation.mTransform,
+            float[] adaptationTransform = adaptation.computeTransform(
                     xyYToXyz(rgb.mWhitePoint), xyz);
             float[] transform = mul3x3(adaptationTransform, rgb.mTransform);
 
@@ -1650,7 +1577,7 @@ public abstract sealed class ColorSpace {
         if (compare(origWhitePoint, desired)) return origTransform;
 
         float[] xyz = xyYToXyz(desired);
-        float[] adaptationTransform = chromaticAdaptation(Adaptation.BRADFORD.mTransform,
+        float[] adaptationTransform = ChromaticAdaptation.BRADFORD.computeTransform(
                 xyYToXyz(origWhitePoint), xyz);
         return mul3x3(adaptationTransform, origTransform);
     }
@@ -1744,7 +1671,7 @@ public abstract sealed class ColorSpace {
      * @param b The second array to compare
      * @return True if the two arrays are equal, false otherwise
      */
-    private static boolean compare(float @NonNull[] a, float @NonNull[] b) {
+    static boolean compare(float @NonNull[] a, float @NonNull[] b) {
         if (a == b) return true;
         for (int i = 0; i < a.length; i++) {
             if (Float.compare(a[i], b[i]) != 0 && Math.abs(a[i] - b[i]) > 1e-3f) return false;
@@ -1760,7 +1687,7 @@ public abstract sealed class ColorSpace {
      * @return A new array of 9 floats containing the inverse of the input matrix
      */
     @Size(9)
-    private static float @NonNull[] inverse3x3(@Size(9) float @NonNull[] m) {
+    static float @NonNull[] inverse3x3(@Size(9) float @NonNull[] m) {
         float a = m[0];
         float b = m[3];
         float c = m[6];
@@ -1847,7 +1774,7 @@ public abstract sealed class ColorSpace {
      * of rhs by lhs
      */
     @Size(9)
-    private static float @NonNull[] mul3x3Diag(
+    static float @NonNull[] mul3x3Diag(
             @Size(3) float @NonNull[] lhs, @Size(9) float @NonNull[] rhs) {
         return new float[]{
                 lhs[0] * rhs[0], lhs[1] * rhs[1], lhs[2] * rhs[2],
@@ -1865,35 +1792,12 @@ public abstract sealed class ColorSpace {
      * @return A new float array of length 3 containing XYZ values
      */
     @Size(3)
-    private static float @NonNull[] xyYToXyz(@Size(2) float @NonNull[] xyY) {
+    static float @NonNull[] xyYToXyz(@Size(2) float @NonNull[] xyY) {
         return new float[]{xyY[0] / xyY[1], 1.0f, (1 - xyY[0] - xyY[1]) / xyY[1]};
     }
 
 
-    /**
-     * <p>Computes the chromatic adaptation transform from the specified
-     * source white point to the specified destination white point.</p>
-     *
-     * <p>The transform is computed using the von Kries method, described
-     * in more details in the documentation of {@link Adaptation}. The
-     * {@link Adaptation} enum provides different matrices that can be
-     * used to perform the adaptation.</p>
-     *
-     * @param matrix        The adaptation matrix
-     * @param srcWhitePoint The white point to adapt from, *will be modified*
-     * @param dstWhitePoint The white point to adapt to, *will be modified*
-     * @return A 3x3 matrix as a non-null array of 9 floats
-     */
-    @Size(9)
-    private static float @NonNull[] chromaticAdaptation(@Size(9) float @NonNull[] matrix,
-            @Size(3) float @NonNull[] srcWhitePoint,
-            @Size(3) float @NonNull[] dstWhitePoint) {
-        float[] srcLMS = mul3x3Float3(matrix, srcWhitePoint);
-        float[] dstLMS = mul3x3Float3(matrix, dstWhitePoint);
-        // LMS is a diagonal matrix stored as a float[3]
-        float[] LMS = {dstLMS[0] / srcLMS[0], dstLMS[1] / srcLMS[1], dstLMS[2] / srcLMS[2]};
-        return mul3x3(inverse3x3(matrix), mul3x3Diag(LMS, matrix));
-    }
+
 
 
     /**
@@ -1930,44 +1834,6 @@ public abstract sealed class ColorSpace {
                         -0.37001483f + 3.75112997f * x - 5.8733867f * x2 + 3.0817580f * x2 * x;
 
         return xyYToXyz(new float[]{x, y});
-    }
-
-
-    /**
-     * <p>Computes the chromatic adaptation transform from the specified
-     * source white point to the specified destination white point.</p>
-     *
-     * <p>The transform is computed using the von Kries method, described
-     * in more details in the documentation of {@link Adaptation}. The
-     * {@link Adaptation} enum provides different matrices that can be
-     * used to perform the adaptation.</p>
-     *
-     * @param adaptation    The adaptation method
-     * @param srcWhitePoint The white point to adapt from
-     * @param dstWhitePoint The white point to adapt to
-     * @return A 3x3 matrix as a non-null array of 9 floats
-     */
-    @Size(9)
-    public static float @NonNull[] chromaticAdaptation(@NonNull Adaptation adaptation,
-            @Size(min = 2, max = 3) float @NonNull[] srcWhitePoint,
-            @Size(min = 2, max = 3) float @NonNull[] dstWhitePoint) {
-        if ((srcWhitePoint.length != 2 && srcWhitePoint.length != 3)
-                || (dstWhitePoint.length != 2 && dstWhitePoint.length != 3)) {
-            throw new IllegalArgumentException("A white point array must have 2 or 3 floats");
-        }
-        float[] srcXyz = srcWhitePoint.length == 3 ?
-                Arrays.copyOf(srcWhitePoint, 3) : xyYToXyz(srcWhitePoint);
-        float[] dstXyz = dstWhitePoint.length == 3 ?
-                Arrays.copyOf(dstWhitePoint, 3) : xyYToXyz(dstWhitePoint);
-
-        if (compare(srcXyz, dstXyz)) {
-            return new float[]{
-                    1.0f, 0.0f, 0.0f,
-                    0.0f, 1.0f, 0.0f,
-                    0.0f, 0.0f, 1.0f
-            };
-        }
-        return chromaticAdaptation(adaptation.mTransform, srcXyz, dstXyz);
     }
 
     /**
@@ -2390,7 +2256,7 @@ public abstract sealed class ColorSpace {
      * {@link ColorSpace#connect(ColorSpace, ColorSpace)}, which also handles
      * non-RGB color spaces.</p>
      * <p>To learn more about the white point adaptation process, refer to the
-     * documentation of {@link Adaptation}.</p>
+     * documentation of {@link ChromaticAdaptation}.</p>
      */
     public static non-sealed class Rgb extends ColorSpace {
         /**
@@ -3851,7 +3717,7 @@ public abstract sealed class ColorSpace {
      * We know that instances of {@link ColorSpace} always use CIE XYZ as their
      * PCS but their white points might differ. When they do, we must perform
      * a chromatic adaptation of the color spaces' transforms. To do so, we
-     * use the von Kries method described in the documentation of {@link Adaptation},
+     * use the von Kries method described in the documentation of {@link ChromaticAdaptation},
      * using the CIE standard illuminant {@link ColorSpace#ILLUMINANT_D50 D50}
      * as the target white point.</p>
      *
@@ -3866,8 +3732,8 @@ public abstract sealed class ColorSpace {
      * // p3 contains { 0.9473, 0.2740, 0.2076 }
      * </pre>
      *
-     * @see Adaptation
-     * @see ColorSpace#adapt(ColorSpace, float[], Adaptation)
+     * @see ChromaticAdaptation
+     * @see ColorSpace#adapt(ColorSpace, float[], ChromaticAdaptation)
      * @see ColorSpace#adapt(ColorSpace, float[])
      * @see ColorSpace#connect(ColorSpace, ColorSpace, RenderIntent)
      * @see ColorSpace#connect(ColorSpace, ColorSpace)
@@ -3929,7 +3795,7 @@ public abstract sealed class ColorSpace {
                 return null;
             }
 
-            return chromaticAdaptation(Adaptation.BRADFORD.mTransform,
+            return ChromaticAdaptation.BRADFORD.computeTransform(
                     xyYToXyz(srcWhitePoint), xyYToXyz(dstWhitePoint));
         }
 
@@ -4102,7 +3968,7 @@ public abstract sealed class ColorSpace {
              * connection space. We assume the connection space is always
              * CIE XYZ but we maybe need to perform a chromatic adaptation to
              * match the white points. The unmatched color space is adapted
-             * using the von Kries transform and the {@link Adaptation#BRADFORD}
+             * using the von Kries transform and the {@link ChromaticAdaptation#BRADFORD}
              * matrix.</p>
              *
              * @param source      The source color space
@@ -4133,8 +3999,8 @@ public abstract sealed class ColorSpace {
                         float[] srcXYZ = xyYToXyz(source.mWhitePoint);
                         float[] dstXYZ = xyYToXyz(destination.mWhitePoint);
 
-                        float[] adaptation = chromaticAdaptation(
-                                Adaptation.BRADFORD.mTransform, srcXYZ, dstXYZ
+                        float[] adaptation = ChromaticAdaptation.BRADFORD.computeTransform(
+                                srcXYZ, dstXYZ
                         );
 
                         return mul3x3(inverseTransform, mul3x3(adaptation, transform));
@@ -4145,8 +4011,7 @@ public abstract sealed class ColorSpace {
                             compare(destination.mWhitePoint, source.mWhitePoint)) {
                         return dstRGB.getInverseTransform();
                     }
-                    float[] adaptation = chromaticAdaptation(
-                            Adaptation.BRADFORD.mTransform,
+                    float[] adaptation = ChromaticAdaptation.BRADFORD.computeTransform(
                             xyYToXyz(source.mWhitePoint),
                             xyYToXyz(destination.mWhitePoint));
                     return mul3x3(dstRGB.mInverseTransform, adaptation);
@@ -4156,8 +4021,7 @@ public abstract sealed class ColorSpace {
                             compare(source.mWhitePoint, destination.mWhitePoint)) {
                         return srcRGB.getTransform();
                     }
-                    float[] adaptation = chromaticAdaptation(
-                            Adaptation.BRADFORD.mTransform,
+                    float[] adaptation = ChromaticAdaptation.BRADFORD.computeTransform(
                             xyYToXyz(source.mWhitePoint),
                             xyYToXyz(destination.mWhitePoint));
                     return mul3x3(adaptation, srcRGB.mTransform);
@@ -4166,8 +4030,7 @@ public abstract sealed class ColorSpace {
                             compare(source.mWhitePoint, destination.mWhitePoint)) {
                         return null;
                     }
-                    return chromaticAdaptation(
-                            Adaptation.BRADFORD.mTransform,
+                    return ChromaticAdaptation.BRADFORD.computeTransform(
                             xyYToXyz(source.mWhitePoint),
                             xyYToXyz(destination.mWhitePoint));
                 }

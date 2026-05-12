@@ -19,6 +19,7 @@
 
 package icyllis.arc3d.core.test;
 
+import icyllis.arc3d.core.ChromaticAdaptation;
 import icyllis.arc3d.core.Color;
 import icyllis.arc3d.core.ColorSpace;
 import icyllis.arc3d.core.MathUtil;
@@ -62,8 +63,8 @@ public class TestColorSpace {
         testColor(ColorSpace.get(ColorSpace.Named.BT2020), sRGB, col);
         testColor(ColorSpace.get(ColorSpace.Named.SRGB), ColorSpace.get(ColorSpace.Named.LINEAR_EXTENDED_SRGB), col);
         testColor(ColorSpace.get(ColorSpace.Named.CIE_LAB), displayP3, new float[]{55, 90, 70, 1});
-        testColor(ColorSpace.get(ColorSpace.Named.OK_LAB), displayP3, new float[]{0.733f, 0.265f, 0.088f, 1});
-        testColor(ColorSpace.get(ColorSpace.Named.OK_LAB), ColorSpace.get(ColorSpace.Named.CIE_XYZ_D50), new float[]{0.733f, 0.265f, 0.088f, 1});
+        testColor(ColorSpace.get(ColorSpace.Named.OK_LAB), displayP3, new float[]{0.733f, -0.265f, 0.088f, 1});
+        testColor(ColorSpace.get(ColorSpace.Named.OK_LAB), ColorSpace.get(ColorSpace.Named.ACESCG), new float[]{0.733f, -0.265f, 0.088f, 1});
 
         testRgbTransform(ColorSpace.get(ColorSpace.Named.DCI_P3), sRGB);
         testRgbTransform(ColorSpace.get(ColorSpace.Named.ADOBE_RGB), sRGB);
@@ -72,8 +73,12 @@ public class TestColorSpace {
 
         LOGGER.info("{}", ((ColorSpace.Rgb) ColorSpace.get(ColorSpace.Named.DCI_P3)).getTransform());
         LOGGER.info("{}", ((ColorSpace.Rgb) sRGB).getTransform());
-        LOGGER.info("{}", ColorSpace.chromaticAdaptation(ColorSpace.Adaptation.BRADFORD,
+        LOGGER.info("{}", ChromaticAdaptation.BRADFORD.computeTransform(
                 new float[]{0.314f, 0.351f}, ColorSpace.ILLUMINANT_D65));
+
+        ColorSpace.Rgb adaptedP3 = (ColorSpace.Rgb) ColorSpace.adapt(ColorSpace.get(ColorSpace.Named.ADOBE_RGB), ColorSpace.ILLUMINANT_D50,
+                ChromaticAdaptation.BRADFORD);
+        LOGGER.info("adapted P3 {}", adaptedP3.getTransform());
     }
 
     public static void testColor(ColorSpace src, ColorSpace dst,
