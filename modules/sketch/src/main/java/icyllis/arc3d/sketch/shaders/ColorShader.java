@@ -20,6 +20,7 @@
 package icyllis.arc3d.sketch.shaders;
 
 import icyllis.arc3d.core.ColorSpace;
+import icyllis.arc3d.core.ColorSpaces;
 import icyllis.arc3d.core.ColorTransform;
 import icyllis.arc3d.core.MathUtil;
 import icyllis.arc3d.core.SharedPtr;
@@ -54,7 +55,7 @@ public final class ColorShader implements Shader {
         mG = ((color >> 8) & 0xff) / 255.0f;
         mB = (color & 0xff) / 255.0f;
         mA = (color >>> 24) / 255.0f;
-        mColorSpace = ColorSpace.get(ColorSpace.Named.SRGB);
+        mColorSpace = ColorSpaces.SRGB;
     }
 
     /**
@@ -67,7 +68,7 @@ public final class ColorShader implements Shader {
         mG = g;
         mB = b;
         mA = MathUtil.pin(a, 0.0f, 1.0f);
-        mColorSpace = colorSpace != null ? colorSpace : ColorSpace.get(ColorSpace.Named.SRGB);
+        mColorSpace = colorSpace != null ? colorSpace : ColorSpaces.SRGB;
     }
 
     @SharedPtr
@@ -78,7 +79,7 @@ public final class ColorShader implements Shader {
         }
         if (colorSpace != null && colorSpace.getModel() != ColorSpace.MODEL_RGB &&
                 colorSpace.getModel() != ColorSpace.MODEL_XYZ) {
-            float[] srgb = new ColorTransform(colorSpace, ColorSpace.get(ColorSpace.Named.SRGB))
+            float[] srgb = new ColorTransform(colorSpace, ColorSpaces.EXTENDED_SRGB)
                     .transformExtended(Arrays.copyOfRange(color, 0, color.length - 1));
             return new ColorShader(srgb[0], srgb[1], srgb[2], color[color.length - 1], null);
         }
@@ -93,7 +94,7 @@ public final class ColorShader implements Shader {
         }
         if (colorSpace != null && colorSpace.getModel() != ColorSpace.MODEL_RGB &&
                 colorSpace.getModel() != ColorSpace.MODEL_XYZ) {
-            float[] srgb = new ColorTransform(colorSpace, ColorSpace.get(ColorSpace.Named.SRGB))
+            float[] srgb = new ColorTransform(colorSpace, ColorSpaces.EXTENDED_SRGB)
                     .transformExtended(new float[]{r, g, b});
             return new ColorShader(srgb[0], srgb[1], srgb[2], a, null);
         }

@@ -40,12 +40,6 @@ public class SimpleGLFW {
     public static void main(String[] args) {
         System.setProperty("java.awt.headless", "true");
 
-        float[] c = {251/255f,191/255f,36/255f};
-        System.out.println(Arrays.toString(c));
-        new ColorTransform(
-                ColorSpace.get(ColorSpace.Named.DISPLAY_P3), ColorSpace.get(ColorSpace.Named.SRGB)
-        ).transformExtended(c);
-        System.out.println(Arrays.toString(c));
         GLFW.glfwInit();
         GLFW.glfwDefaultWindowHints();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);

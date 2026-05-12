@@ -21,6 +21,7 @@ package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.ColorInfo;
 import icyllis.arc3d.core.ColorSpace;
+import icyllis.arc3d.core.ColorSpaces;
 import icyllis.arc3d.core.ColorTransform;
 import icyllis.arc3d.core.ImageInfo;
 import icyllis.arc3d.core.Rect2fc;
@@ -171,7 +172,7 @@ public final class PaintParams {
                                           ImageInfo dstInfo) {
         ColorSpace dstCS = dstInfo.colorSpace();
         if (dstCS != null && !dstCS.isExtendedSRGB()) {
-            new ColorTransform(ColorSpace.get(ColorSpace.Named.EXTENDED_SRGB), dstCS)
+            new ColorTransform(ColorSpaces.EXTENDED_SRGB, dstCS)
                     .transformExtended(color);
         }
     }

@@ -47,7 +47,7 @@ import java.util.function.DoubleUnaryOperator;
  *     <li>A range of valid RGB values (most commonly \([0..1]\)).</li>
  * </ul>
  *
- * <p>The most commonly used RGB color space is {@link Named#SRGB sRGB}.</p>
+ * <p>The most commonly used RGB color space is {@link ColorSpaces#SRGB sRGB}.</p>
  *
  * <h3>Primaries and white point chromaticities</h3>
  * <p>In this implementation, the chromaticity of the primaries and the white
@@ -82,7 +82,7 @@ import java.util.function.DoubleUnaryOperator;
  * <p>Transfer functions are used as a compression scheme. For instance,
  * linear sRGB values would normally require 11 to 12 bits of precision to
  * store all values that can be perceived by the human eye. When encoding
- * sRGB values using the appropriate OETF (see {@link Named#SRGB sRGB} for
+ * sRGB values using the appropriate OETF (see {@link ColorSpaces#SRGB sRGB} for
  * an exact mathematical description of that OETF), the values can be
  * compressed to only 8 bits precision.</p>
  * <p>When manipulating RGB values, particularly sRGB values, it is safe
@@ -106,8 +106,8 @@ import java.util.function.DoubleUnaryOperator;
  * can be retrieved by calling {@link #getTransferParameters()}. This can
  * be useful to match color spaces for instance.</p>
  *
- * <p class="note">Some RGB color spaces, such as {@link Named#ACES} and
- * {@link Named#LINEAR_EXTENDED_SRGB scRGB}, are said to be linear because
+ * <p class="note">Some RGB color spaces, such as {@link ColorSpaces#ACES} and
+ * {@link ColorSpaces#LINEAR_EXTENDED_SRGB scRGB}, are said to be linear because
  * their transfer functions are the identity function: \(f(x) = x\).
  * If the source and/or destination are known to be linear, it is not
  * necessary to invoke the transfer functions.</p>
@@ -115,8 +115,8 @@ import java.util.function.DoubleUnaryOperator;
  * <h3>Range</h3>
  * <p>Most RGB color spaces allow RGB values in the range \([0..1]\). There
  * are however a few RGB color spaces that allow much larger ranges. For
- * instance, {@link Named#EXTENDED_SRGB scRGB} is used to manipulate the
- * range \([-0.5..7.5]\) while {@link Named#ACES ACES} can be used throughout
+ * instance, {@link ColorSpaces#EXTENDED_SRGB scRGB} is used to manipulate the
+ * range \([-0.5..7.5]\) while {@link ColorSpaces#ACES ACES} can be used throughout
  * the range \([-65504, 65504]\).</p>
  *
  * <p>
@@ -137,10 +137,10 @@ import java.util.function.DoubleUnaryOperator;
  * of the source color space and \(T_{dst}^{-1}\) the {@link #getInverseTransform()
  * XYZ to RGB transform} of the destination color space.</p>
  * <p>Many RGB color spaces commonly used with electronic devices use the
- * standard illuminant {@link #ILLUMINANT_D65 D65}. Care must be take however
+ * standard illuminant {@link #ILLUMINANT_D65 D65}. Care must be taken however
  * when converting between two RGB color spaces if their white points do not
  * match. This can be achieved by either calling
- * {@link #adapt(ColorSpace, float[])} to adapt one or both color spaces to
+ * {@link #adapt(ColorSpaceRGB, float[])} to adapt one or both color spaces to
  * a single common white point. This can be achieved automatically by calling
  * {@link ColorTransform}, which also handles
  * non-RGB color spaces.</p>
@@ -177,6 +177,8 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
                 new TransferParameters(1 / 1.055, 0.055 / 1.055, 1 / 12.92, 0.04045, 2.4);
         public static final TransferParameters SMPTE_170M_TRANSFER_PARAMETERS =
                 new TransferParameters(1 / 1.099, 0.099 / 1.099, 1 / 4.5, 0.081, 1 / 0.45);
+        public static final TransferParameters LINEAR_TRANSFER_PARAMETERS =
+                new TransferParameters(1.0, 0.0, 0.0, 0.0, 1.0);
         /**
          * Variable \(a\) in the equation of the EOTF described above.
          */
@@ -365,7 +367,6 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      *                                      <li>The OETF is null or the EOTF is null.</li>
      *                                      <li>The minimum valid value is >= the maximum valid value.</li>
      *                                  </ul>
-     * @see #get(Named)
      */
     public ColorSpaceRGB(
             @NonNull @Size(min = 1) String name,
@@ -413,7 +414,6 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      *                                      <li>The OETF is null or the EOTF is null.</li>
      *                                      <li>The minimum valid value is >= the maximum valid value.</li>
      *                                  </ul>
-     * @see #get(Named)
      */
     public ColorSpaceRGB(
             @NonNull @Size(min = 1) String name,
@@ -442,7 +442,6 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      *                                      <li>The name is null or has a length of 0.</li>
      *                                      <li>Gamma is negative.</li>
      *                                  </ul>
-     * @see #get(Named)
      */
     public ColorSpaceRGB(
             @NonNull @Size(min = 1) String name,
@@ -485,7 +484,6 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      *                                      or 3.</li>
      *                                      <li>The transfer parameters are invalid.</li>
      *                                  </ul>
-     * @see #get(Named)
      */
     public ColorSpaceRGB(
             @NonNull @Size(min = 1) String name,
@@ -529,7 +527,6 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      *                                      <li>The ID is not between {@link #MIN_ID} and {@link #MAX_ID}.</li>
      *                                      <li>The transfer parameters are invalid.</li>
      *                                  </ul>
-     * @see #get(Named)
      */
     ColorSpaceRGB(
             @NonNull @Size(min = 1) String name,
@@ -568,7 +565,6 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      *                                      <li>The name is null or has a length of 0.</li>
      *                                      <li>Gamma is negative.</li>
      *                                  </ul>
-     * @see #get(Named)
      */
     public ColorSpaceRGB(
             @NonNull @Size(min = 1) String name,
@@ -607,7 +603,6 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      *                                      or 3.</li>
      *                                      <li>Gamma is negative.</li>
      *                                  </ul>
-     * @see #get(Named)
      */
     public ColorSpaceRGB(
             @NonNull @Size(min = 1) String name,
@@ -652,7 +647,6 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      *                                      <li>The ID is not between {@link #MIN_ID} and {@link #MAX_ID}.</li>
      *                                      <li>Gamma is negative.</li>
      *                                  </ul>
-     * @see #get(Named)
      */
     ColorSpaceRGB(
             @NonNull @Size(min = 1) String name,
@@ -667,7 +661,11 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
                         x -> absRcpResponse(x, gamma),
                 gamma == 1.0 ? DoubleUnaryOperator.identity() :
                         x -> absResponse(x, gamma),
-                min, max, new TransferParameters(1.0, 0.0, 0.0, 0.0, gamma), id);
+                min, max,
+                gamma == 1.0
+                        ? TransferParameters.LINEAR_TRANSFER_PARAMETERS
+                        : new TransferParameters(1.0, 0.0, 0.0, 0.0, gamma),
+                id);
     }
 
     /**
@@ -707,7 +705,6 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      *                                      <li>The OETF is null or the EOTF is null.</li>
      *                                      <li>The minimum valid value is >= the maximum valid value.</li>
      *                                  </ul>
-     * @see #get(Named)
      */
     public ColorSpaceRGB(
             @NonNull @Size(min = 1) String name,
@@ -762,7 +759,6 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      *                                      <li>The minimum valid value is >= the maximum valid value.</li>
      *                                      <li>The ID is not between {@link #MIN_ID} and {@link #MAX_ID}.</li>
      *                                  </ul>
-     * @see #get(Named)
      */
     ColorSpaceRGB(
             @NonNull @Size(min = 1) String name,
@@ -858,7 +854,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
     }
 
     /**
-     * <p>Returns a {@link Named} instance of {@link ColorSpaceRGB} that matches
+     * <p>Returns a named instance of {@link ColorSpaceRGB} that matches
      * the specified RGB to CIE XYZ transform and transfer functions. If no
      * instance can be found, this method returns null.</p>
      *
@@ -875,9 +871,9 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
             @Size(9) float @NonNull[] toXYZD50,
             @NonNull TransferParameters function) {
 
-        for (ColorSpace colorSpace : Named.sNamedColorSpaces) {
+        for (ColorSpace colorSpace : ColorSpaces.sNamedColorSpaces) {
             if (colorSpace.getModel() == MODEL_RGB) {
-                ColorSpaceRGB rgb = (ColorSpaceRGB) adapt(colorSpace, ILLUMINANT_D50_XYZ);
+                ColorSpaceRGB rgb = adapt((ColorSpaceRGB) colorSpace, ILLUMINANT_D50_XYZ);
                 if (compare(toXYZD50, rgb.mTransform) &&
                         compare(function, rgb.mTransferParameters)) {
                     return (ColorSpaceRGB) colorSpace;
@@ -889,7 +885,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
     }
 
     /**
-     * <p>Returns a {@link Named} instance of {@link ColorSpaceRGB} that matches
+     * <p>Returns a named instance of {@link ColorSpaceRGB} that matches
      * the specified RGB to CIE XYZ transform and transfer functions. If no
      * instance can be found, this method returns null.</p>
      *
@@ -907,7 +903,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
 
         float[] whitePoint = xyWhitePoint(unadaptedWhitePoint);
 
-        for (ColorSpace colorSpace : Named.sNamedColorSpaces) {
+        for (ColorSpace colorSpace : ColorSpaces.sNamedColorSpaces) {
             if (colorSpace.getModel() == MODEL_RGB) {
                 ColorSpaceRGB rgb = (ColorSpaceRGB) colorSpace;
                 if (compare(unadaptedToXYZ, rgb.mTransform) &&
@@ -919,6 +915,65 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
         }
 
         return null;
+    }
+
+    /**
+     * <p>Performs the chromatic adaptation of a color space from its native
+     * white point to the specified white point.</p>
+     *
+     * <p>The chromatic adaptation is performed using the
+     * {@link ChromaticAdaptation#BRADFORD} matrix.</p>
+     *
+     * <p class="note">The color space returned by this method always has
+     * an ID of {@link #MIN_ID}.</p>
+     *
+     * @param colorSpace The color space to chromatically adapt
+     * @param whitePoint The new white point
+     * @return A {@link ColorSpace} instance with the same name, primaries,
+     * transfer functions and range as the specified color space
+     * @see ChromaticAdaptation
+     * @see #adapt(ColorSpaceRGB, float[], ChromaticAdaptation)
+     */
+    @NonNull
+    public static ColorSpaceRGB adapt(@NonNull ColorSpaceRGB colorSpace,
+                                   @Size(min = 2, max = 3) float @NonNull[] whitePoint) {
+        return adapt(colorSpace, whitePoint, ChromaticAdaptation.BRADFORD);
+    }
+
+    /**
+     * <p>Performs the chromatic adaptation of a color space from its native
+     * white point to the specified white point. If the specified color space
+     * does not have an {@link #MODEL_RGB RGB} color model, or if the color
+     * space already has the target white point, the color space is returned
+     * unmodified.</p>
+     *
+     * <p>The chromatic adaptation is performed using the von Kries method
+     * described in the documentation of {@link ChromaticAdaptation}.</p>
+     *
+     * <p class="note">The color space returned by this method always has
+     * an ID of {@link #MIN_ID}.</p>
+     *
+     * @param colorSpace The color space to chromatically adapt
+     * @param whitePoint The new white point
+     * @param adaptation The adaptation matrix
+     * @return A new color space if the specified color space has an RGB
+     * model and a white point different from the specified white
+     * point; the specified color space otherwise
+     * @see ChromaticAdaptation
+     */
+    @NonNull
+    public static ColorSpaceRGB adapt(@NonNull ColorSpaceRGB colorSpace,
+                                   @Size(min = 2, max = 3) float @NonNull[] whitePoint,
+                                   @NonNull ChromaticAdaptation adaptation) {
+        if (compare(colorSpace.mWhitePoint, whitePoint)) return colorSpace;
+
+        float[] xyz = whitePoint.length == 3 ?
+                Arrays.copyOf(whitePoint, 3) : xyYToXYZ(whitePoint);
+        float[] adaptationTransform = adaptation.computeTransform(
+                xyYToXYZ(colorSpace.mWhitePoint), xyz);
+        float[] transform = mul3x3(adaptationTransform, colorSpace.mTransform);
+
+        return new ColorSpaceRGB(colorSpace, transform, whitePoint);
     }
 
 
@@ -967,7 +1022,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      * <p>Copies the transform of this color space in specified array. The
      * transform is used to convert from RGB to XYZ (with the same white
      * point as this color space). To connect color spaces, you must first
-     * {@link ColorSpace#adapt(ColorSpace, float[]) adapt} them to the
+     * {@link #adapt(ColorSpaceRGB, float[]) adapt} them to the
      * same white point.</p>
      *
      * @param transform The destination array, cannot be null, its length
@@ -986,7 +1041,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      * <p>Returns the transform of this color space as a new array. The
      * transform is used to convert from RGB to XYZ (with the same white
      * point as this color space). To connect color spaces, you must first
-     * {@link ColorSpace#adapt(ColorSpace, float[]) adapt} them to the
+     * {@link #adapt(ColorSpaceRGB, float[]) adapt} them to the
      * same white point.</p>
      *
      * @return A new array of 9 floats
@@ -1002,7 +1057,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      * <p>Copies the inverse transform of this color space in specified array.
      * The inverse transform is used to convert from XYZ to RGB (with the
      * same white point as this color space). To connect color spaces, you
-     * must first {@link ColorSpace#adapt(ColorSpace, float[]) adapt} them
+     * must first {@link #adapt(ColorSpaceRGB, float[]) adapt} them
      * to the same white point.</p>
      *
      * @param inverseTransform The destination array, cannot be null, its length
@@ -1021,7 +1076,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      * <p>Returns the inverse transform of this color space as a new array.
      * The inverse transform is used to convert from XYZ to RGB (with the
      * same white point as this color space). To connect color spaces, you
-     * must first {@link ColorSpace#adapt(ColorSpace, float[]) adapt} them
+     * must first {@link #adapt(ColorSpaceRGB, float[]) adapt} them
      * to the same white point.</p>
      *
      * @return A new array of 9 floats
@@ -1044,7 +1099,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      * to "gamma space" (gamma encoded). The terms gamma space and gamma encoded
      * are frequently used because many OETFs can be closely approximated using
      * a simple power function of the form \(x^{\frac{1}{\gamma}}\) (the
-     * approximation of the {@link Named#SRGB sRGB} OETF uses \(\gamma=2.2\)
+     * approximation of the {@link ColorSpaces#SRGB sRGB} OETF uses \(\gamma=2.2\)
      * for instance).</p>
      *
      * @return A transfer function that converts from linear space to "gamma space"
@@ -1079,7 +1134,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      * (gamma encoded) to linear space. The terms gamma space and gamma encoded
      * are frequently used because many EOTFs can be closely approximated using
      * a simple power function of the form \(x^\gamma\) (the approximation of the
-     * {@link Named#SRGB sRGB} EOTF uses \(\gamma=2.2\) for instance).</p>
+     * {@link ColorSpaces#SRGB sRGB} EOTF uses \(\gamma=2.2\) for instance).</p>
      *
      * @return A transfer function that converts from "gamma space" to linear space
      * @see #getOETF()
@@ -1367,7 +1422,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
 
         // We would have already returned true if this was SRGB itself, so
         // it is safe to reference it here.
-        ColorSpaceRGB srgb = (ColorSpaceRGB) get(Named.SRGB);
+        ColorSpaceRGB srgb = ColorSpaces.SRGB;
 
         for (double x = 0.0; x <= 1.0; x += 1 / 255.0) {
             if (!compare(x, oetf, srgb.mOETF)) return false;

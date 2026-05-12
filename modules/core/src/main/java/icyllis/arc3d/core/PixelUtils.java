@@ -2107,7 +2107,7 @@ public class PixelUtils {
         }
 
         if (srcCS == null) {
-            srcCS = ColorSpace.get(ColorSpace.Named.SRGB);
+            srcCS = ColorSpaces.SRGB;
         }
         if (dstCS == null) {
             dstCS = srcCS;

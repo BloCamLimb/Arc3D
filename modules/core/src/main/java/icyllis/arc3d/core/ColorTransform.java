@@ -42,13 +42,13 @@ import org.jspecify.annotations.Nullable;
  * use the von Kries method described in the documentation of
  * {@link ChromaticAdaptation}.</p>
  *
- * <p>Example of conversion from {@link ColorSpace.Named#SRGB sRGB} to
- * {@link ColorSpace.Named#DCI_P3 DCI-P3}:</p>
+ * <p>Example of conversion from {@link ColorSpaces#SRGB sRGB} to
+ * {@link ColorSpaces#DCI_P3 DCI-P3}:</p>
  *
  * <pre class="prettyprint">
  * ColorTransform transform = new ColorTransform(
- *         ColorSpace.get(ColorSpace.Named.SRGB),
- *         ColorSpace.get(ColorSpace.Named.DCI_P3));
+ *         ColorSpaces.SRGB,
+ *         ColorSpaces.DCI_P3);
  * float[] p3 = transform.transform(1.0f, 0.0f, 0.0f);
  * // p3 contains { 0.9473, 0.2740, 0.2076 }
  * </pre>
@@ -59,8 +59,8 @@ import org.jspecify.annotations.Nullable;
  * destination color space.</p>
  *
  * @see ChromaticAdaptation
- * @see ColorSpace#adapt(ColorSpace, float[], ChromaticAdaptation)
- * @see ColorSpace#adapt(ColorSpace, float[])
+ * @see ColorSpaceRGB#adapt(ColorSpaceRGB, float[], ChromaticAdaptation)
+ * @see ColorSpaceRGB#adapt(ColorSpaceRGB, float[])
  */
 public final class ColorTransform {
 
@@ -363,7 +363,7 @@ public final class ColorTransform {
         if (mDestinationRGB != null) {
             mDestinationRGB.fromLinearExtended(v);
         } else {
-            mDestination.toXYZExtended(v);
+            mDestination.fromXYZExtended(v);
         }
         return v;
     }

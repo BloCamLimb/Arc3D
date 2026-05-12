@@ -376,7 +376,7 @@ public class TestGraniteRenderer {
                 var device = GraniteDevice.make(
                         mRC,
                         ImageInfo.make(CANVAS_WIDTH, CANVAS_HEIGHT, ColorInfo.CT_RGBA_F16,
-                                ColorInfo.AT_PREMUL, ColorSpace.get(ColorSpace.Named.EXTENDED_SRGB)),
+                                ColorInfo.AT_PREMUL, ColorSpaces.EXTENDED_SRGB),
                         true,
                         false,
                         true,
@@ -392,7 +392,7 @@ public class TestGraniteRenderer {
                 mPostSurface = GraniteSurface.makeRenderTarget(
                         mRC,
                         ImageInfo.make(CANVAS_WIDTH, CANVAS_HEIGHT, ColorInfo.CT_RGBA_8888,
-                                ColorInfo.AT_PREMUL, ColorSpace.get(ColorSpace.Named.SRGB)),
+                                ColorInfo.AT_PREMUL, ColorSpaces.SRGB),
                         false,
                         Engine.SurfaceOrigin.kLowerLeft,
                         "TestDevice2"
@@ -408,7 +408,7 @@ public class TestGraniteRenderer {
                 );
                 if (imgData != null) {
                     Pixmap testPixmap = new Pixmap(
-                            ImageInfo.make(x[0], y[0], ColorInfo.CT_RGBA_16161616, ColorInfo.AT_UNPREMUL, ColorSpace.get(ColorSpace.Named.DISPLAY_P3)),
+                            ImageInfo.make(x[0], y[0], ColorInfo.CT_RGBA_16161616, ColorInfo.AT_UNPREMUL, ColorSpaces.DISPLAY_P3),
                             null,
                             MemoryUtil.memAddress(imgData),
                             8 * x[0]
@@ -429,12 +429,12 @@ public class TestGraniteRenderer {
                 );
                 if (imgData != null) {
                     Pixmap testPixmap = new Pixmap(
-                            ImageInfo.make(x[0], y[0], ColorInfo.CT_RGBA_8888, ColorInfo.AT_UNPREMUL, ColorSpace.get(ColorSpace.Named.SRGB)),
+                            ImageInfo.make(x[0], y[0], ColorInfo.CT_RGBA_8888, ColorInfo.AT_UNPREMUL, ColorSpaces.SRGB),
                             null,
                             MemoryUtil.memAddress(imgData),
                             4 * x[0]
                     );
-                    var newInfo = ImageInfo.make(x[0], y[0], ColorInfo.CT_RGB_888, ColorInfo.AT_OPAQUE, ColorSpace.get(ColorSpace.Named.SRGB));
+                    var newInfo = ImageInfo.make(x[0], y[0], ColorInfo.CT_RGB_888, ColorInfo.AT_OPAQUE, ColorSpaces.SRGB);
                     var newPixels = PixelRef.makeAllocate(newInfo, 0);
                     Pixmap convertedPixmap = new Pixmap(
                             newInfo, newPixels.getBase(), newPixels.getAddress(), newPixels.getRowBytes()
@@ -500,7 +500,7 @@ public class TestGraniteRenderer {
                     new float[]{
                             30 / 255f, 255 / 255f, 128 / 255f, 1,
                             230 / 255f, 128 / 255f, 255 / 255f, 1},
-                    ColorSpace.get(ColorSpace.Named.SRGB),
+                    ColorSpaces.SRGB,
                     null,
                     2,
                     Shader.TILE_MODE_MIRROR,
@@ -514,7 +514,7 @@ public class TestGraniteRenderer {
                     new float[]{
                             30 / 255f, 255 / 255f, 128 / 255f, 1,
                             230 / 255f, 128 / 255f, 255 / 255f, 1},
-                    ColorSpace.get(ColorSpace.Named.SRGB),
+                    ColorSpaces.SRGB,
                     null,
                     2,
                     Shader.TILE_MODE_MIRROR,
@@ -528,7 +528,7 @@ public class TestGraniteRenderer {
                     new float[]{
                             30 / 255f, 255 / 255f, 128 / 255f, 1,
                             230 / 255f, 128 / 255f, 255 / 255f, 1},
-                    ColorSpace.get(ColorSpace.Named.SRGB),
+                    ColorSpaces.SRGB,
                     null,
                     2,
                     Shader.TILE_MODE_MIRROR,
@@ -676,7 +676,7 @@ public class TestGraniteRenderer {
             final int nRects = 10000;
             //canvas.clear(0);
             canvas.save();
-            canvas.clear(0xFFF8F1F6); // 0xFF37393E
+            canvas.clear(false ? 0xFFF8F1F6 : 0xFF37393E); // 0xFF37393E
             Paint paint = new Paint();
             if (TEST_SCENE == 0) {
                 Matrix4 mat = new Matrix4();
@@ -877,8 +877,11 @@ public class TestGraniteRenderer {
                     DrawShadowUtils.drawShadow(canvas,
                             rrect, 0, 0, z,
                             CANVAS_WIDTH / 2f, 0, 600, 800,
-                            0x1E000000, 0x30000000);
-                    // 0x5A000000, 0x90000000
+                            0x8b000000, 0xc3000000);
+                    // o l 0x1E000000, 0x30000000
+                    // n l 0x41000000, 0x63000000
+                    // o d 0x5A000000, 0x90000000
+                    // n d 0x8B000000, 0xC3000000
                 }
                 paint.setColor4f(0.5f, 0.5f, 0.5f, 1);
                 paint.setShader(RefCnt.create(mTestShader1));
@@ -955,7 +958,7 @@ public class TestGraniteRenderer {
                 int wid = canvas.getBaseLayerWidth() / 2;
                 int h = canvas.getBaseLayerHeight();
                 canvas.drawRect(0, 0, wid, h, paint);
-                paint.setColor4f(0, 1, 1, 1, ColorSpace.get(ColorSpace.Named.DISPLAY_P3));
+                paint.setColor4f(0, 1, 1, 1, ColorSpaces.DISPLAY_P3);
                 canvas.drawRect(wid+1, 0, wid+wid, h, paint);
             }
             paint.close();

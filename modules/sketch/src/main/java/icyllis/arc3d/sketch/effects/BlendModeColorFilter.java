@@ -19,6 +19,7 @@
 
 package icyllis.arc3d.sketch.effects;
 
+import icyllis.arc3d.core.ColorSpaces;
 import icyllis.arc3d.core.ColorTransform;
 import icyllis.arc3d.sketch.BlendMode;
 import icyllis.arc3d.core.ColorSpace;
@@ -58,7 +59,7 @@ public final class BlendModeColorFilter extends ColorFilter {
         // until the final dst color space is known when actually filtering.
         float[] srgb = Arrays.copyOfRange(color, 0, 4);
         if (colorSpace != null && !colorSpace.isExtendedSRGB()) {
-            new ColorTransform(colorSpace, ColorSpace.get(ColorSpace.Named.EXTENDED_SRGB))
+            new ColorTransform(colorSpace, ColorSpaces.EXTENDED_SRGB)
                     .transformExtended(srgb);
         }
 
@@ -129,7 +130,7 @@ public final class BlendModeColorFilter extends ColorFilter {
     public void filterColor4f(float[] col, float[] out, ColorSpace dstCS) {
         float[] blendColor = getColor();
         if (dstCS != null && !dstCS.isExtendedSRGB()) {
-            new ColorTransform(ColorSpace.get(ColorSpace.Named.EXTENDED_SRGB), dstCS)
+            new ColorTransform(ColorSpaces.EXTENDED_SRGB, dstCS)
                     .transformExtended(blendColor);
         }
         for (int i = 0; i < 3; i++) {

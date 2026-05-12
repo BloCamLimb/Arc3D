@@ -23,6 +23,7 @@ import icyllis.arc3d.core.ChromaticAdaptation;
 import icyllis.arc3d.core.Color;
 import icyllis.arc3d.core.ColorSpace;
 import icyllis.arc3d.core.ColorSpaceRGB;
+import icyllis.arc3d.core.ColorSpaces;
 import icyllis.arc3d.core.ColorTransform;
 import icyllis.arc3d.core.MathUtil;
 import org.slf4j.Logger;
@@ -35,7 +36,19 @@ public class TestColorSpace {
     public static final Logger LOGGER = LoggerFactory.getLogger(TestColorSpace.class);
 
     public static void main(String[] args) {
-        var cs = (ColorSpaceRGB) ColorSpace.get(ColorSpace.Named.SRGB);
+
+        for (int i = 0; i < 1000; i++) {
+            int finalI = i;
+            new Thread(() -> {
+                    new ColorSpaceRGB("A", new float[]{
+                            1, 0, 0, 0, 1, 0, 0, 0, 1
+                    }, 1);
+
+            }).start();
+            var cs = ColorSpaces.EXTENDED_SRGB;
+        }
+
+        var cs = ColorSpaces.SRGB;
         float[] v = {0.4f, 0.8f, 0.7f};
         {
             float[] linear = v.clone();
@@ -55,32 +68,46 @@ public class TestColorSpace {
             System.out.println(lum);
         }
 
-        var sRGB = (ColorSpaceRGB) ColorSpace.get(ColorSpace.Named.EXTENDED_SRGB);
-        var displayP3 = (ColorSpaceRGB) ColorSpace.get(ColorSpace.Named.DISPLAY_P3);
+        var sRGB = ColorSpaces.EXTENDED_SRGB;
+        var displayP3 = ColorSpaces.DISPLAY_P3;
 
 
         float[] col = new float[]{1, 0, 1, 1};
-        testColor(ColorSpace.get(ColorSpace.Named.DCI_P3), sRGB, col);
+        testColor(ColorSpaces.DCI_P3, sRGB, col);
         testColor(displayP3, sRGB, col);
-        testColor(ColorSpace.get(ColorSpace.Named.BT2020), sRGB, col);
-        testColor(ColorSpace.get(ColorSpace.Named.SRGB), ColorSpace.get(ColorSpace.Named.LINEAR_EXTENDED_SRGB), col);
-        testColor(ColorSpace.get(ColorSpace.Named.CIE_LAB), displayP3, new float[]{55, 90, 70, 1});
-        testColor(ColorSpace.get(ColorSpace.Named.OK_LAB), displayP3, new float[]{0.733f, -0.265f, 0.088f, 1});
-        testColor(ColorSpace.get(ColorSpace.Named.OK_LAB), ColorSpace.get(ColorSpace.Named.ACESCG), new float[]{0.733f, -0.265f, 0.088f, 1});
+        testColor(ColorSpaces.BT2020, sRGB, col);
+        testColor(ColorSpaces.SRGB, ColorSpaces.LINEAR_EXTENDED_SRGB, col);
+        testColor(ColorSpaces.CIE_LAB, displayP3, new float[]{55, 90, 70, 1});
+        testColor(ColorSpaces.OK_LAB, displayP3, new float[]{0.733f, -0.265f, 0.088f, 1});
+        testColor(ColorSpaces.OK_LAB, ColorSpaces.ACESCG, new float[]{0.733f, -0.265f, 0.088f, 1});
 
-        testRgbTransform(ColorSpace.get(ColorSpace.Named.DCI_P3), sRGB);
-        testRgbTransform(ColorSpace.get(ColorSpace.Named.ADOBE_RGB), sRGB);
+        testRgbTransform(ColorSpaces.DCI_P3, sRGB);
+        testRgbTransform(ColorSpaces.ADOBE_RGB, sRGB);
         testRgbTransform(displayP3, sRGB);
-        testRgbTransform(ColorSpace.get(ColorSpace.Named.ACESCG), sRGB);
+        testRgbTransform(ColorSpaces.ACESCG, sRGB);
 
-        LOGGER.info("{}", ((ColorSpaceRGB) ColorSpace.get(ColorSpace.Named.DCI_P3)).getTransform());
-        LOGGER.info("{}", ((ColorSpaceRGB) sRGB).getTransform());
+        LOGGER.info("{}", ColorSpaces.DCI_P3.getTransform());
+        LOGGER.info("{}", sRGB.getTransform());
         LOGGER.info("{}", ChromaticAdaptation.BRADFORD.computeTransform(
                 new float[]{0.314f, 0.351f}, ColorSpace.ILLUMINANT_D65));
 
-        ColorSpaceRGB adaptedP3 = (ColorSpaceRGB) ColorSpace.adapt(ColorSpace.get(ColorSpace.Named.ADOBE_RGB), ColorSpace.ILLUMINANT_D50,
-                ChromaticAdaptation.BRADFORD);
+        ColorSpaceRGB adaptedP3 = ColorSpaceRGB.adapt(ColorSpaces.ADOBE_RGB,
+                ColorSpace.ILLUMINANT_D50, ChromaticAdaptation.BRADFORD);
         LOGGER.info("adapted P3 {}", adaptedP3.getTransform());
+
+        assert ColorSpaces.SRGB.isSRGB();
+        assert ColorSpaces.SRGB.isExtendedSRGB();
+        assert !ColorSpaces.EXTENDED_SRGB.isSRGB();
+        assert ColorSpaces.EXTENDED_SRGB.isExtendedSRGB();
+        assert !ColorSpaces.LINEAR_EXTENDED_SRGB.isSRGB();
+        assert !ColorSpaces.LINEAR_EXTENDED_SRGB.isExtendedSRGB();
+        assert !ColorSpaces.BT709.isSRGB();
+        assert !ColorSpaces.SRGB.equals(ColorSpaces.EXTENDED_SRGB);
+        assert ColorSpaces.SRGB.equals(ColorSpaces.EXTENDED_SRGB, true);
+
+        for (var that : ColorSpaces.getNamedColorSpaces()) {
+            LOGGER.info("{} isWideGamut {}", that, that.isWideGamut());
+        }
     }
 
     public static void testColor(ColorSpace src, ColorSpace dst,

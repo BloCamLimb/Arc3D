@@ -33,6 +33,8 @@ import icyllis.arc3d.sketch.effects.ComposeColorFilter;
 import icyllis.arc3d.sketch.shaders.*;
 import org.jspecify.annotations.Nullable;
 
+import static icyllis.arc3d.core.ColorSpaceRGB.TransferParameters.LINEAR_TRANSFER_PARAMETERS;
+
 /**
  * Build {@link icyllis.arc3d.engine.Key PaintParamsKey} and collect
  * uniform data and texture sampler desc.
@@ -41,9 +43,6 @@ import org.jspecify.annotations.Nullable;
  * @see FragmentStage
  */
 public class FragmentHelpers {
-
-    public static final ColorSpaceRGB.TransferParameters LINEAR_TRANSFER_PARAMETERS =
-            new ColorSpaceRGB.TransferParameters(1.0, 0.0, 0.0, 0.0, 1.0);
 
     private static void append_transfer_function_uniform(
             ColorSpaceRGB.TransferParameters tf,
@@ -69,7 +68,7 @@ public class FragmentHelpers {
         }
 
         if (srcCS == null) {
-            srcCS = ColorSpace.get(ColorSpace.Named.SRGB);
+            srcCS = ColorSpaces.SRGB;
         }
         if (dstCS == null) {
             dstCS = srcCS;
@@ -444,7 +443,7 @@ public class FragmentHelpers {
         //    destination as sRGB.
         ColorSpace dstColorSpace = keyContext.dstInfo.colorSpace();
         if (dstColorSpace == null) {
-            dstColorSpace = ColorSpace.get(ColorSpace.Named.SRGB);
+            dstColorSpace = ColorSpaces.SRGB;
         }
 
         // 2) Alpha type: We already tweaked our idea of "inputPremul" above -- if we interpolated in a
@@ -562,7 +561,7 @@ public class FragmentHelpers {
     public static void appendPrimitiveColorBlock(
             KeyContext keyContext
     ) {
-        appendColorSpaceUniforms(ColorSpace.get(ColorSpace.Named.SRGB), ColorInfo.AT_PREMUL,
+        appendColorSpaceUniforms(ColorSpaces.EXTENDED_SRGB, ColorInfo.AT_PREMUL,
                 keyContext.dstInfo.colorSpace(), ColorInfo.AT_PREMUL,
                 keyContext.uniformDataGatherer);
 

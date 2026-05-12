@@ -62,7 +62,7 @@ public abstract sealed class Gradient1DShader extends GradientShader
 
         assert inColorCount > 1;
 
-        mColorSpace = colorSpace != null ? colorSpace : ColorSpace.get(ColorSpace.Named.SRGB);
+        mColorSpace = colorSpace != null ? colorSpace : ColorSpaces.SRGB;
         mInterpolation = interpolation;
 
         assert tileMode >= 0 && tileMode <= LAST_TILE_MODE;
@@ -364,7 +364,7 @@ public abstract sealed class Gradient1DShader extends GradientShader
             mIntermediateColorSpace = intermediate_color_space(cs, dstCS);
             if (mIntermediateColorSpace == null) {
                 // keep consistent with FragmentUtils when dstCS is null
-                mIntermediateColorSpace = ColorSpace.get(ColorSpace.Named.SRGB);
+                mIntermediateColorSpace = ColorSpaces.SRGB;
             }
 
             // 2) Convert all colors to the intermediate color space
@@ -398,7 +398,7 @@ public abstract sealed class Gradient1DShader extends GradientShader
                 case Interpolation.kLab_ColorSpace, Interpolation.kLCH_ColorSpace -> {
                     // xyz_to_lab
                     float[] col = new float[4];
-                    ColorSpace labCS = ColorSpace.get(ColorSpace.Named.CIE_LAB);
+                    ColorSpace labCS = ColorSpaces.CIE_LAB;
                     for (int i = 0; i < colorCount; i++) {
                         System.arraycopy(mColors, i * 4, col, 0, 4);
                         System.arraycopy(labCS.fromXYZ(col), 0, mColors, i * 4, 4);
@@ -572,15 +572,15 @@ public abstract sealed class Gradient1DShader extends GradientShader
                 case Interpolation.kDestination_ColorSpace -> dst;
                 case Interpolation.kSRGB_ColorSpace,
                         Interpolation.kHSL_ColorSpace,
-                        Interpolation.kHWB_ColorSpace -> ColorSpace.get(ColorSpace.Named.SRGB);
+                        Interpolation.kHWB_ColorSpace -> ColorSpaces.SRGB;
                 case Interpolation.kSRGBLinear_ColorSpace ->
                     // css-color-4 allows XYZD50 and XYZD65. For gradients, those are redundant. Interpolating
                     // in any linear RGB space, (regardless of white point), gives the same answer.
-                        ColorSpace.get(ColorSpace.Named.LINEAR_SRGB);
+                        ColorSpaces.LINEAR_SRGB;
                 case Interpolation.kLab_ColorSpace,
                         Interpolation.kLCH_ColorSpace ->
                     // Conversion to Lab (and LCH) starts with XYZD50
-                        ColorSpace.get(ColorSpace.Named.CIE_XYZ_D50);
+                        ColorSpaces.CIE_XYZ_D50;
                 case Interpolation.kOKLab_ColorSpace,
                         Interpolation.kOKLabGamutMap_ColorSpace,
                         Interpolation.kOKLCH_ColorSpace,
@@ -588,7 +588,7 @@ public abstract sealed class Gradient1DShader extends GradientShader
                     // The "standard" conversion to these spaces starts with XYZD65. That requires extra
                     // effort to conjure. The author also has reference code for going directly from linear
                     // sRGB, so we use that.
-                        ColorSpace.get(ColorSpace.Named.LINEAR_SRGB);
+                        ColorSpaces.LINEAR_SRGB;
                 default -> throw new AssertionError(cs);
             };
         }

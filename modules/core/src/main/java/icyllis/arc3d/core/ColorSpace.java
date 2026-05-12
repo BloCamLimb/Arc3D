@@ -49,21 +49,21 @@ import java.util.Arrays;
  * <h3>Using color spaces</h3>
  *
  * <p>This implementation provides a pre-defined set of common color spaces
- * described in the {@link Named} enum. To obtain an instance of one of the
- * pre-defined color spaces, simply invoke {@link #get(Named)}:</p>
+ * described in the {@link ColorSpaces} enum. To obtain an instance of one of the
+ * pre-defined color spaces, simply invoke {@link ColorSpaces}:</p>
  *
  * <pre>{@code
- * ColorSpace sRgb = ColorSpace.get(ColorSpace.Named.SRGB);
+ * ColorSpaceRGB srgb = ColorSpaces.SRGB;
  * }</pre>
  *
- * <p>The {@link #get(Named)} method always returns the same instance for a given
+ * <p>The {@link ColorSpaces} method always returns the same instance for a given
  * name. Color spaces with an {@link #MODEL_RGB RGB} color model can be safely
  * cast to {@link ColorSpaceRGB}. Doing so gives you access to more APIs to query various
  * properties of RGB color models: color gamut primaries, transfer functions,
  * conversions to and from linear space, etc. Please refer to {@link ColorSpaceRGB} for
  * more information.</p>
  *
- * <p>The documentation of {@link Named} provides a detailed description of the
+ * <p>The documentation of {@link ColorSpaces} provides a detailed description of the
  * various characteristics of each available color space.</p>
  *
  * <h3>Color space conversions</h3>
@@ -73,13 +73,13 @@ import java.util.Arrays;
  * this PCS using {@link #toXYZ(float[])} and {@link #fromXYZ(float[])}.</p>
  *
  * <p>Color spaces use their
- * native white point (D65 for {@link Named#SRGB sRGB} for instance) and must
+ * native white point (D65 for {@link ColorSpaces#SRGB sRGB} for instance) and must
  * undergo {@link ChromaticAdaptation chromatic adaptation} as necessary.</p>
  *
  * <p>Since the white point of the PCS is not defined for RGB color space, it is
  * highly recommended to use the variants of the {@link ColorTransform}
  * method to perform conversions between color spaces. A color space can be
- * manually adapted to a specific white point using {@link #adapt(ColorSpace, float[])}.
+ * manually adapted to a specific white point using {@link ColorSpaceRGB#adapt(ColorSpaceRGB, float[])}.
  * Please refer to the documentation of {@link ColorSpaceRGB RGB color spaces} for more
  * information. Several common CIE standard illuminants are provided in this
  * class as reference (see {@link #ILLUMINANT_D65} or {@link #ILLUMINANT_D50}
@@ -90,8 +90,8 @@ import java.util.Arrays;
  * <pre>{@code
  * // Convert from DCI-P3 to Rec.2020
  * ColorTransform transform = new ColorTransform(
- *         ColorSpace.get(ColorSpace.Named.DCI_P3),
- *         ColorSpace.get(ColorSpace.Named.BT2020));
+ *         ColorSpaces.DCI_P3,
+ *         ColorSpaces.BT2020);
  *
  * float[] bt2020 = transform.transform(p3r, p3g, p3b);
  * }</pre>
@@ -101,8 +101,8 @@ import java.util.Arrays;
  * <pre class="prettyprint">
  * // Convert from CIE L*a*b* (color model Lab) to Rec.709 (color model RGB)
  * ColorTransform transform = new ColorTransform(
- *         ColorSpace.get(ColorSpace.Named.CIE_LAB),
- *         ColorSpace.get(ColorSpace.Named.BT709));
+ *         ColorSpaces.CIE_LAB,
+ *         ColorSpaces.BT709);
  * </pre>
  *
  * <h3>Color spaces and multi-threading</h3>
@@ -111,11 +111,7 @@ import java.util.Arrays;
  * are immutable and stateless. They can be safely used from multiple concurrent
  * threads.</p>
  *
- * <p>Static factory methods provided by this class, such as {@link #get(Named)},
- * are also guaranteed to be thread-safe.</p>
- *
- * @see #get(Named)
- * @see Named
+ * @see ColorSpaces
  * @see ColorTransform
  * @see ChromaticAdaptation
  * @see ColorSpaceXYZ
@@ -124,7 +120,7 @@ import java.util.Arrays;
 // modified from Android
 @SuppressWarnings("unused")
 public abstract sealed class ColorSpace permits ColorSpaceXYZ, ColorSpaceRGB,
-        ColorSpace.Lab, ColorSpace.OkLab {
+        ColorSpaceLab, ColorSpaceOklab {
 
     /**
      * Standard CIE 1931 2° illuminant A, encoded in xyY.
@@ -218,9 +214,9 @@ public abstract sealed class ColorSpace permits ColorSpaceXYZ, ColorSpaceRGB,
 
     static final float[] SRGB_PRIMARIES = {0.640f, 0.330f, 0.300f, 0.600f, 0.150f, 0.060f};
     static final float[] NTSC_1953_PRIMARIES = {0.67f, 0.33f, 0.21f, 0.71f, 0.14f, 0.08f};
-    private static final float[] DCI_P3_PRIMARIES =
+    static final float[] DCI_P3_PRIMARIES =
             { 0.680f, 0.320f, 0.265f, 0.690f, 0.150f, 0.060f };
-    private static final float[] BT2020_PRIMARIES =
+    static final float[] BT2020_PRIMARIES =
             { 0.708f, 0.292f, 0.170f, 0.797f, 0.131f, 0.046f };
     /**
      * A gray color space does not have meaningful primaries, so we use this arbitrary set.
@@ -238,673 +234,6 @@ public abstract sealed class ColorSpace permits ColorSpaceXYZ, ColorSpaceRGB,
 
     @Size(2)
     final float @NonNull[] mWhitePoint;
-
-    /**
-     * <p>List of common, named color spaces. A corresponding instance of
-     * {@link ColorSpace} can be obtained by calling {@link ColorSpace#get(Named)}:</p>
-     *
-     * <pre>{@code
-     * ColorSpace cs = ColorSpace.get(ColorSpace.Named.DCI_P3);
-     * }</pre>
-     *
-     * <p>The properties of each color space are described below (see {@link #SRGB sRGB}
-     * for instance). When applicable, the color gamut of each color space is compared
-     * to the color gamut of sRGB using a CIE 1931 xy chromaticity diagram. This diagram
-     * shows the location of the color space's primaries and white point.</p>
-     *
-     * @see ColorSpace#get(Named)
-     */
-    public enum Named {
-        // NOTE: Do NOT change the order of the enum
-        /**
-         * <p>{@link ColorSpaceRGB RGB} color space sRGB standardized as IEC 61966-2.1:1999.</p>
-         * <table summary="Color space definition">
-         *     <tr>
-         *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
-         *     </tr>
-         *     <tr><td>x</td><td>0.640</td><td>0.300</td><td>0.150</td><td>0.3127</td></tr>
-         *     <tr><td>y</td><td>0.330</td><td>0.600</td><td>0.060</td><td>0.3290</td></tr>
-         *     <tr><th>Property</th><th colspan="4">Value</th></tr>
-         *     <tr><td>Name</td><td colspan="4">sRGB IEC61966-2.1</td></tr>
-         *     <tr><td>CIE standard illuminant</td><td colspan="4">D65</td></tr>
-         *     <tr>
-         *         <td>Opto-electronic transfer function (OETF)</td>
-         *         <td colspan="4">\(\begin{equation}
-         *             C_{sRGB} = \begin{cases} 12.92 \times C_{linear} & C_{linear} \lt 0.0031308 \\\
-         *             1.055 \times C_{linear}^{\frac{1}{2.4}} - 0.055 & C_{linear} \ge 0.0031308 \end{cases}
-         *             \end{equation}\)
-         *         </td>
-         *     </tr>
-         *     <tr>
-         *         <td>Electro-optical transfer function (EOTF)</td>
-         *         <td colspan="4">\(\begin{equation}
-         *             C_{linear} = \begin{cases}\frac{C_{sRGB}}{12.92} & C_{sRGB} \lt 0.04045 \\\
-         *             \left( \frac{C_{sRGB} + 0.055}{1.055} \right) ^{2.4} & C_{sRGB} \ge 0.04045 \end{cases}
-         *             \end{equation}\)
-         *         </td>
-         *     </tr>
-         *     <tr><td>Range</td><td colspan="4">\([0..1]\)</td></tr>
-         * </table>
-         * <p>
-         *     <img style="display: block; margin: 0 auto;" src="https://developer.android
-         *     .com/reference/android/images/graphics/colorspace_srgb.png" />
-         *     <figcaption style="text-align: center;">sRGB</figcaption>
-         * </p>
-         */
-        SRGB,
-        /**
-         * <p>{@link ColorSpaceRGB RGB} color space sRGB standardized as IEC 61966-2.1:1999.</p>
-         * <table summary="Color space definition">
-         *     <tr>
-         *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
-         *     </tr>
-         *     <tr><td>x</td><td>0.640</td><td>0.300</td><td>0.150</td><td>0.3127</td></tr>
-         *     <tr><td>y</td><td>0.330</td><td>0.600</td><td>0.060</td><td>0.3290</td></tr>
-         *     <tr><th>Property</th><th colspan="4">Value</th></tr>
-         *     <tr><td>Name</td><td colspan="4">sRGB IEC61966-2.1 (Linear)</td></tr>
-         *     <tr><td>CIE standard illuminant</td><td colspan="4">D65</td></tr>
-         *     <tr>
-         *         <td>Opto-electronic transfer function (OETF)</td>
-         *         <td colspan="4">\(C_{sRGB} = C_{linear}\)</td>
-         *     </tr>
-         *     <tr>
-         *         <td>Electro-optical transfer function (EOTF)</td>
-         *         <td colspan="4">\(C_{linear} = C_{sRGB}\)</td>
-         *     </tr>
-         *     <tr><td>Range</td><td colspan="4">\([0..1]\)</td></tr>
-         * </table>
-         * <p>
-         *     <img style="display: block; margin: 0 auto;" src="https://developer.android
-         *     .com/reference/android/images/graphics/colorspace_srgb.png" />
-         *     <figcaption style="text-align: center;">sRGB</figcaption>
-         * </p>
-         */
-        LINEAR_SRGB,
-        /**
-         * <p>{@link ColorSpaceRGB RGB} color space scRGB-nl standardized as IEC 61966-2-2:2003.</p>
-         * <table summary="Color space definition">
-         *     <tr>
-         *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
-         *     </tr>
-         *     <tr><td>x</td><td>0.640</td><td>0.300</td><td>0.150</td><td>0.3127</td></tr>
-         *     <tr><td>y</td><td>0.330</td><td>0.600</td><td>0.060</td><td>0.3290</td></tr>
-         *     <tr><th>Property</th><th colspan="4">Value</th></tr>
-         *     <tr><td>Name</td><td colspan="4">scRGB-nl IEC 61966-2-2:2003</td></tr>
-         *     <tr><td>CIE standard illuminant</td><td colspan="4">D65</td></tr>
-         *     <tr>
-         *         <td>Opto-electronic transfer function (OETF)</td>
-         *         <td colspan="4">\(\begin{equation}
-         *             C_{scRGB} = \begin{cases} sign(C_{linear}) 12.92 \times \left| C_{linear} \right| &
-         *                      \left| C_{linear} \right| \lt 0.0031308 \\\
-         *             sign(C_{linear}) 1.055 \times \left| C_{linear} \right| ^{\frac{1}{2.4}} - 0.055 &
-         *                      \left| C_{linear} \right| \ge 0.0031308 \end{cases}
-         *             \end{equation}\)
-         *         </td>
-         *     </tr>
-         *     <tr>
-         *         <td>Electro-optical transfer function (EOTF)</td>
-         *         <td colspan="4">\(\begin{equation}
-         *             C_{linear} = \begin{cases}sign(C_{scRGB}) \frac{\left| C_{scRGB} \right|}{12.92} &
-         *                  \left| C_{scRGB} \right| \lt 0.04045 \\\
-         *             sign(C_{scRGB}) \left( \frac{\left| C_{scRGB} \right| + 0.055}{1.055} \right) ^{2.4} &
-         *                  \left| C_{scRGB} \right| \ge 0.04045 \end{cases}
-         *             \end{equation}\)
-         *         </td>
-         *     </tr>
-         *     <tr><td>Range</td><td colspan="4">\([-0.799..2.399[\)</td></tr>
-         * </table>
-         * <p>
-         *     <img style="display: block; margin: 0 auto;" src="https://developer.android
-         *     .com/reference/android/images/graphics/colorspace_scrgb.png" />
-         *     <figcaption style="text-align: center;">Extended sRGB (orange) vs sRGB (white)</figcaption>
-         * </p>
-         */
-        EXTENDED_SRGB,
-        /**
-         * <p>{@link ColorSpaceRGB RGB} color space scRGB standardized as IEC 61966-2-2:2003.</p>
-         * <table summary="Color space definition">
-         *     <tr>
-         *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
-         *     </tr>
-         *     <tr><td>x</td><td>0.640</td><td>0.300</td><td>0.150</td><td>0.3127</td></tr>
-         *     <tr><td>y</td><td>0.330</td><td>0.600</td><td>0.060</td><td>0.3290</td></tr>
-         *     <tr><th>Property</th><th colspan="4">Value</th></tr>
-         *     <tr><td>Name</td><td colspan="4">scRGB IEC 61966-2-2:2003</td></tr>
-         *     <tr><td>CIE standard illuminant</td><td colspan="4">D65</td></tr>
-         *     <tr>
-         *         <td>Opto-electronic transfer function (OETF)</td>
-         *         <td colspan="4">\(C_{scRGB} = C_{linear}\)</td>
-         *     </tr>
-         *     <tr>
-         *         <td>Electro-optical transfer function (EOTF)</td>
-         *         <td colspan="4">\(C_{linear} = C_{scRGB}\)</td>
-         *     </tr>
-         *     <tr><td>Range</td><td colspan="4">\([-0.5..7.499[\)</td></tr>
-         * </table>
-         * <p>
-         *     <img style="display: block; margin: 0 auto;" src="https://developer.android
-         *     .com/reference/android/images/graphics/colorspace_scrgb.png" />
-         *     <figcaption style="text-align: center;">Extended sRGB (orange) vs sRGB (white)</figcaption>
-         * </p>
-         */
-        LINEAR_EXTENDED_SRGB,
-        /**
-         * <p>{@link ColorSpaceRGB RGB} color space BT.709 standardized as Rec. ITU-R BT.709-5.</p>
-         * <table summary="Color space definition">
-         *     <tr>
-         *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
-         *     </tr>
-         *     <tr><td>x</td><td>0.640</td><td>0.300</td><td>0.150</td><td>0.3127</td></tr>
-         *     <tr><td>y</td><td>0.330</td><td>0.600</td><td>0.060</td><td>0.3290</td></tr>
-         *     <tr><th>Property</th><th colspan="4">Value</th></tr>
-         *     <tr><td>Name</td><td colspan="4">Rec. ITU-R BT.709-5</td></tr>
-         *     <tr><td>CIE standard illuminant</td><td colspan="4">D65</td></tr>
-         *     <tr>
-         *         <td>Opto-electronic transfer function (OETF)</td>
-         *         <td colspan="4">\(\begin{equation}
-         *             C_{BT709} = \begin{cases} 4.5 \times C_{linear} & C_{linear} \lt 0.018 \\\
-         *             1.099 \times C_{linear}^{\frac{1}{2.2}} - 0.099 & C_{linear} \ge 0.018 \end{cases}
-         *             \end{equation}\)
-         *         </td>
-         *     </tr>
-         *     <tr>
-         *         <td>Electro-optical transfer function (EOTF)</td>
-         *         <td colspan="4">\(\begin{equation}
-         *             C_{linear} = \begin{cases}\frac{C_{BT709}}{4.5} & C_{BT709} \lt 0.081 \\\
-         *             \left( \frac{C_{BT709} + 0.099}{1.099} \right) ^{2.2} & C_{BT709} \ge 0.081 \end{cases}
-         *             \end{equation}\)
-         *         </td>
-         *     </tr>
-         *     <tr><td>Range</td><td colspan="4">\([0..1]\)</td></tr>
-         * </table>
-         * <p>
-         *     <img style="display: block; margin: 0 auto;" src="https://developer.android
-         *     .com/reference/android/images/graphics/colorspace_bt709.png" />
-         *     <figcaption style="text-align: center;">BT.709</figcaption>
-         * </p>
-         */
-        BT709,
-        /**
-         * <p>{@link ColorSpaceRGB RGB} color space BT.2020 standardized as Rec. ITU-R BT.2020-1.</p>
-         * <table summary="Color space definition">
-         *     <tr>
-         *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
-         *     </tr>
-         *     <tr><td>x</td><td>0.708</td><td>0.170</td><td>0.131</td><td>0.3127</td></tr>
-         *     <tr><td>y</td><td>0.292</td><td>0.797</td><td>0.046</td><td>0.3290</td></tr>
-         *     <tr><th>Property</th><th colspan="4">Value</th></tr>
-         *     <tr><td>Name</td><td colspan="4">Rec. ITU-R BT.2020-1</td></tr>
-         *     <tr><td>CIE standard illuminant</td><td colspan="4">D65</td></tr>
-         *     <tr>
-         *         <td>Opto-electronic transfer function (OETF)</td>
-         *         <td colspan="4">\(\begin{equation}
-         *             C_{BT2020} = \begin{cases} 4.5 \times C_{linear} & C_{linear} \lt 0.0181 \\\
-         *             1.0993 \times C_{linear}^{\frac{1}{2.2}} - 0.0993 & C_{linear} \ge 0.0181 \end{cases}
-         *             \end{equation}\)
-         *         </td>
-         *     </tr>
-         *     <tr>
-         *         <td>Electro-optical transfer function (EOTF)</td>
-         *         <td colspan="4">\(\begin{equation}
-         *             C_{linear} = \begin{cases}\frac{C_{BT2020}}{4.5} & C_{BT2020} \lt 0.08145 \\\
-         *             \left( \frac{C_{BT2020} + 0.0993}{1.0993} \right) ^{2.2} & C_{BT2020} \ge 0.08145 \end{cases}
-         *             \end{equation}\)
-         *         </td>
-         *     </tr>
-         *     <tr><td>Range</td><td colspan="4">\([0..1]\)</td></tr>
-         * </table>
-         * <p>
-         *     <img style="display: block; margin: 0 auto;" src="https://developer.android
-         *     .com/reference/android/images/graphics/colorspace_bt2020.png" />
-         *     <figcaption style="text-align: center;">BT.2020 (orange) vs sRGB (white)</figcaption>
-         * </p>
-         */
-        BT2020,
-        /**
-         * <p>{@link ColorSpaceRGB RGB} color space DCI-P3 standardized as SMPTE RP 431-2-2007.</p>
-         * <table summary="Color space definition">
-         *     <tr>
-         *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
-         *     </tr>
-         *     <tr><td>x</td><td>0.680</td><td>0.265</td><td>0.150</td><td>0.314</td></tr>
-         *     <tr><td>y</td><td>0.320</td><td>0.690</td><td>0.060</td><td>0.351</td></tr>
-         *     <tr><th>Property</th><th colspan="4">Value</th></tr>
-         *     <tr><td>Name</td><td colspan="4">SMPTE RP 431-2-2007 DCI (P3)</td></tr>
-         *     <tr><td>CIE standard illuminant</td><td colspan="4">N/A</td></tr>
-         *     <tr>
-         *         <td>Opto-electronic transfer function (OETF)</td>
-         *         <td colspan="4">\(C_{P3} = C_{linear}^{\frac{1}{2.6}}\)</td>
-         *     </tr>
-         *     <tr>
-         *         <td>Electro-optical transfer function (EOTF)</td>
-         *         <td colspan="4">\(C_{linear} = C_{P3}^{2.6}\)</td>
-         *     </tr>
-         *     <tr><td>Range</td><td colspan="4">\([0..1]\)</td></tr>
-         * </table>
-         * <p>
-         *     <img style="display: block; margin: 0 auto;" src="https://developer.android
-         *     .com/reference/android/images/graphics/colorspace_dci_p3.png" />
-         *     <figcaption style="text-align: center;">DCI-P3 (orange) vs sRGB (white)</figcaption>
-         * </p>
-         */
-        DCI_P3,
-        /**
-         * <p>{@link ColorSpaceRGB RGB} color space Display P3 based on SMPTE RP 431-2-2007 and IEC
-         * 61966-2.1:1999.</p>
-         * <table summary="Color space definition">
-         *     <tr>
-         *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
-         *     </tr>
-         *     <tr><td>x</td><td>0.680</td><td>0.265</td><td>0.150</td><td>0.3127</td></tr>
-         *     <tr><td>y</td><td>0.320</td><td>0.690</td><td>0.060</td><td>0.3290</td></tr>
-         *     <tr><th>Property</th><th colspan="4">Value</th></tr>
-         *     <tr><td>Name</td><td colspan="4">Display P3</td></tr>
-         *     <tr><td>CIE standard illuminant</td><td colspan="4">D65</td></tr>
-         *     <tr>
-         *         <td>Opto-electronic transfer function (OETF)</td>
-         *         <td colspan="4">\(\begin{equation}
-         *             C_{DisplayP3} = \begin{cases} 12.92 \times C_{linear} & C_{linear} \lt 0.0030186 \\\
-         *             1.055 \times C_{linear}^{\frac{1}{2.4}} - 0.055 & C_{linear} \ge 0.0030186 \end{cases}
-         *             \end{equation}\)
-         *         </td>
-         *     </tr>
-         *     <tr>
-         *         <td>Electro-optical transfer function (EOTF)</td>
-         *         <td colspan="4">\(\begin{equation}
-         *             C_{linear} = \begin{cases}\frac{C_{DisplayP3}}{12.92} & C_{sRGB} \lt 0.04045 \\\
-         *             \left( \frac{C_{DisplayP3} + 0.055}{1.055} \right) ^{2.4} & C_{sRGB} \ge 0.04045 \end{cases}
-         *             \end{equation}\)
-         *         </td>
-         *     </tr>
-         *     <tr><td>Range</td><td colspan="4">\([0..1]\)</td></tr>
-         * </table>
-         * <p>
-         *     <img style="display: block; margin: 0 auto;" src="https://developer.android
-         *     .com/reference/android/images/graphics/colorspace_display_p3.png" />
-         *     <figcaption style="text-align: center;">Display P3 (orange) vs sRGB (white)</figcaption>
-         * </p>
-         */
-        DISPLAY_P3,
-        /**
-         * <p>{@link ColorSpaceRGB RGB} color space NTSC, 1953 standard.</p>
-         * <table summary="Color space definition">
-         *     <tr>
-         *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
-         *     </tr>
-         *     <tr><td>x</td><td>0.67</td><td>0.21</td><td>0.14</td><td>0.310</td></tr>
-         *     <tr><td>y</td><td>0.33</td><td>0.71</td><td>0.08</td><td>0.316</td></tr>
-         *     <tr><th>Property</th><th colspan="4">Value</th></tr>
-         *     <tr><td>Name</td><td colspan="4">NTSC (1953)</td></tr>
-         *     <tr><td>CIE standard illuminant</td><td colspan="4">C</td></tr>
-         *     <tr>
-         *         <td>Opto-electronic transfer function (OETF)</td>
-         *         <td colspan="4">\(\begin{equation}
-         *             C_{BT709} = \begin{cases} 4.5 \times C_{linear} & C_{linear} \lt 0.018 \\\
-         *             1.099 \times C_{linear}^{\frac{1}{2.2}} - 0.099 & C_{linear} \ge 0.018 \end{cases}
-         *             \end{equation}\)
-         *         </td>
-         *     </tr>
-         *     <tr>
-         *         <td>Electro-optical transfer function (EOTF)</td>
-         *         <td colspan="4">\(\begin{equation}
-         *             C_{linear} = \begin{cases}\frac{C_{BT709}}{4.5} & C_{BT709} \lt 0.081 \\\
-         *             \left( \frac{C_{BT709} + 0.099}{1.099} \right) ^{2.2} & C_{BT709} \ge 0.081 \end{cases}
-         *             \end{equation}\)
-         *         </td>
-         *     </tr>
-         *     <tr><td>Range</td><td colspan="4">\([0..1]\)</td></tr>
-         * </table>
-         * <p>
-         *     <img style="display: block; margin: 0 auto;" src="https://developer.android
-         *     .com/reference/android/images/graphics/colorspace_ntsc_1953.png" />
-         *     <figcaption style="text-align: center;">NTSC 1953 (orange) vs sRGB (white)</figcaption>
-         * </p>
-         */
-        NTSC_1953,
-        /**
-         * <p>{@link ColorSpaceRGB RGB} color space SMPTE C.</p>
-         * <table summary="Color space definition">
-         *     <tr>
-         *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
-         *     </tr>
-         *     <tr><td>x</td><td>0.630</td><td>0.310</td><td>0.155</td><td>0.3127</td></tr>
-         *     <tr><td>y</td><td>0.340</td><td>0.595</td><td>0.070</td><td>0.3290</td></tr>
-         *     <tr><th>Property</th><th colspan="4">Value</th></tr>
-         *     <tr><td>Name</td><td colspan="4">SMPTE-C RGB</td></tr>
-         *     <tr><td>CIE standard illuminant</td><td colspan="4">D65</td></tr>
-         *     <tr>
-         *         <td>Opto-electronic transfer function (OETF)</td>
-         *         <td colspan="4">\(\begin{equation}
-         *             C_{BT709} = \begin{cases} 4.5 \times C_{linear} & C_{linear} \lt 0.018 \\\
-         *             1.099 \times C_{linear}^{\frac{1}{2.2}} - 0.099 & C_{linear} \ge 0.018 \end{cases}
-         *             \end{equation}\)
-         *         </td>
-         *     </tr>
-         *     <tr>
-         *         <td>Electro-optical transfer function (EOTF)</td>
-         *         <td colspan="4">\(\begin{equation}
-         *             C_{linear} = \begin{cases}\frac{C_{BT709}}{4.5} & C_{BT709} \lt 0.081 \\\
-         *             \left( \frac{C_{BT709} + 0.099}{1.099} \right) ^{2.2} & C_{BT709} \ge 0.081 \end{cases}
-         *             \end{equation}\)
-         *         </td>
-         *     </tr>
-         *     <tr><td>Range</td><td colspan="4">\([0..1]\)</td></tr>
-         * </table>
-         * <p>
-         *     <img style="display: block; margin: 0 auto;" src="https://developer.android
-         *     .com/reference/android/images/graphics/colorspace_smpte_c.png" />
-         *     <figcaption style="text-align: center;">SMPTE-C (orange) vs sRGB (white)</figcaption>
-         * </p>
-         */
-        SMPTE_C,
-        /**
-         * <p>{@link ColorSpaceRGB RGB} color space Adobe RGB (1998).</p>
-         * <table summary="Color space definition">
-         *     <tr>
-         *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
-         *     </tr>
-         *     <tr><td>x</td><td>0.64</td><td>0.21</td><td>0.15</td><td>0.3127</td></tr>
-         *     <tr><td>y</td><td>0.33</td><td>0.71</td><td>0.06</td><td>0.3290</td></tr>
-         *     <tr><th>Property</th><th colspan="4">Value</th></tr>
-         *     <tr><td>Name</td><td colspan="4">Adobe RGB (1998)</td></tr>
-         *     <tr><td>CIE standard illuminant</td><td colspan="4">D65</td></tr>
-         *     <tr>
-         *         <td>Opto-electronic transfer function (OETF)</td>
-         *         <td colspan="4">\(C_{RGB} = C_{linear}^{\frac{1}{2.2}}\)</td>
-         *     </tr>
-         *     <tr>
-         *         <td>Electro-optical transfer function (EOTF)</td>
-         *         <td colspan="4">\(C_{linear} = C_{RGB}^{2.2}\)</td>
-         *     </tr>
-         *     <tr><td>Range</td><td colspan="4">\([0..1]\)</td></tr>
-         * </table>
-         * <p>
-         *     <img style="display: block; margin: 0 auto;" src="https://developer.android
-         *     .com/reference/android/images/graphics/colorspace_adobe_rgb.png" />
-         *     <figcaption style="text-align: center;">Adobe RGB (orange) vs sRGB (white)</figcaption>
-         * </p>
-         */
-        ADOBE_RGB,
-        /**
-         * <p>{@link ColorSpaceRGB RGB} color space ProPhoto RGB standardized as ROMM RGB ISO 22028-2:2013.</p>
-         * <table summary="Color space definition">
-         *     <tr>
-         *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
-         *     </tr>
-         *     <tr><td>x</td><td>0.7347</td><td>0.1596</td><td>0.0366</td><td>0.3457</td></tr>
-         *     <tr><td>y</td><td>0.2653</td><td>0.8404</td><td>0.0001</td><td>0.3585</td></tr>
-         *     <tr><th>Property</th><th colspan="4">Value</th></tr>
-         *     <tr><td>Name</td><td colspan="4">ROMM RGB ISO 22028-2:2013</td></tr>
-         *     <tr><td>CIE standard illuminant</td><td colspan="4">D50</td></tr>
-         *     <tr>
-         *         <td>Opto-electronic transfer function (OETF)</td>
-         *         <td colspan="4">\(\begin{equation}
-         *             C_{ROMM} = \begin{cases} 16 \times C_{linear} & C_{linear} \lt 0.001953 \\\
-         *             C_{linear}^{\frac{1}{1.8}} & C_{linear} \ge 0.001953 \end{cases}
-         *             \end{equation}\)
-         *         </td>
-         *     </tr>
-         *     <tr>
-         *         <td>Electro-optical transfer function (EOTF)</td>
-         *         <td colspan="4">\(\begin{equation}
-         *             C_{linear} = \begin{cases}\frac{C_{ROMM}}{16} & C_{ROMM} \lt 0.031248 \\\
-         *             C_{ROMM}^{1.8} & C_{ROMM} \ge 0.031248 \end{cases}
-         *             \end{equation}\)
-         *         </td>
-         *     </tr>
-         *     <tr><td>Range</td><td colspan="4">\([0..1]\)</td></tr>
-         * </table>
-         * <p>
-         *     <img style="display: block; margin: 0 auto;" src="https://developer.android
-         *     .com/reference/android/images/graphics/colorspace_pro_photo_rgb.png" />
-         *     <figcaption style="text-align: center;">ProPhoto RGB (orange) vs sRGB (white)</figcaption>
-         * </p>
-         */
-        PRO_PHOTO_RGB,
-        /**
-         * <p>{@link ColorSpaceRGB RGB} color space ACES standardized as SMPTE ST 2065-1:2012.</p>
-         * <table summary="Color space definition">
-         *     <tr>
-         *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
-         *     </tr>
-         *     <tr><td>x</td><td>0.73470</td><td>0.00000</td><td>0.00010</td><td>0.32168</td></tr>
-         *     <tr><td>y</td><td>0.26530</td><td>1.00000</td><td>-0.07700</td><td>0.33767</td></tr>
-         *     <tr><th>Property</th><th colspan="4">Value</th></tr>
-         *     <tr><td>Name</td><td colspan="4">SMPTE ST 2065-1:2012 ACES</td></tr>
-         *     <tr><td>CIE standard illuminant</td><td colspan="4">D60</td></tr>
-         *     <tr>
-         *         <td>Opto-electronic transfer function (OETF)</td>
-         *         <td colspan="4">\(C_{ACES} = C_{linear}\)</td>
-         *     </tr>
-         *     <tr>
-         *         <td>Electro-optical transfer function (EOTF)</td>
-         *         <td colspan="4">\(C_{linear} = C_{ACES}\)</td>
-         *     </tr>
-         *     <tr><td>Range</td><td colspan="4">\([-65504.0, 65504.0]\)</td></tr>
-         * </table>
-         * <p>
-         *     <img style="display: block; margin: 0 auto;" src="https://developer.android
-         *     .com/reference/android/images/graphics/colorspace_aces.png" />
-         *     <figcaption style="text-align: center;">ACES (orange) vs sRGB (white)</figcaption>
-         * </p>
-         */
-        ACES,
-        /**
-         * <p>{@link ColorSpaceRGB RGB} color space ACEScg standardized as Academy S-2014-004.</p>
-         * <table summary="Color space definition">
-         *     <tr>
-         *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
-         *     </tr>
-         *     <tr><td>x</td><td>0.713</td><td>0.165</td><td>0.128</td><td>0.32168</td></tr>
-         *     <tr><td>y</td><td>0.293</td><td>0.830</td><td>0.044</td><td>0.33767</td></tr>
-         *     <tr><th>Property</th><th colspan="4">Value</th></tr>
-         *     <tr><td>Name</td><td colspan="4">Academy S-2014-004 ACEScg</td></tr>
-         *     <tr><td>CIE standard illuminant</td><td colspan="4">D60</td></tr>
-         *     <tr>
-         *         <td>Opto-electronic transfer function (OETF)</td>
-         *         <td colspan="4">\(C_{ACEScg} = C_{linear}\)</td>
-         *     </tr>
-         *     <tr>
-         *         <td>Electro-optical transfer function (EOTF)</td>
-         *         <td colspan="4">\(C_{linear} = C_{ACEScg}\)</td>
-         *     </tr>
-         *     <tr><td>Range</td><td colspan="4">\([-65504.0, 65504.0]\)</td></tr>
-         * </table>
-         * <p>
-         *     <img style="display: block; margin: 0 auto;" src="https://developer.android
-         *     .com/reference/android/images/graphics/colorspace_acescg.png" />
-         *     <figcaption style="text-align: center;">ACEScg (orange) vs sRGB (white)</figcaption>
-         * </p>
-         */
-        ACESCG,
-        /**
-         * <p>{@link #MODEL_XYZ XYZ} color space CIE XYZ. This color space assumes standard
-         * illuminant D50 as its white point.</p>
-         * <table summary="Color space definition">
-         *     <tr><th>Property</th><th colspan="4">Value</th></tr>
-         *     <tr><td>Name</td><td colspan="4">CIE 1931 XYZ (D50)</td></tr>
-         *     <tr><td>CIE standard illuminant</td><td colspan="4">D50</td></tr>
-         *     <tr><td>Range</td><td colspan="4">\([-2.0, 2.0]\)</td></tr>
-         * </table>
-         */
-        CIE_XYZ_D50,
-        /**
-         * <p>{@link #MODEL_XYZ XYZ} color space CIE XYZ. This color space assumes standard
-         * illuminant D65 as its white point.</p>
-         * <table summary="Color space definition">
-         *     <tr><th>Property</th><th colspan="4">Value</th></tr>
-         *     <tr><td>Name</td><td colspan="4">CIE 1931 XYZ (D65)</td></tr>
-         *     <tr><td>CIE standard illuminant</td><td colspan="4">D65</td></tr>
-         *     <tr><td>Range</td><td colspan="4">\([-2.0, 2.0]\)</td></tr>
-         * </table>
-         */
-        CIE_XYZ_D65,
-        /**
-         * <p>{@link #MODEL_LAB Lab} color space CIE L*a*b*. This color space uses CIE XYZ D50
-         * as a profile conversion space.</p>
-         * <table summary="Color space definition">
-         *     <tr><th>Property</th><th colspan="4">Value</th></tr>
-         *     <tr><td>Name</td><td colspan="4">Generic L*a*b*</td></tr>
-         *     <tr><td>CIE standard illuminant</td><td colspan="4">D50</td></tr>
-         *     <tr><td>Range</td><td colspan="4">\(L: [0.0, 100.0], a: [-128, 128], b: [-128, 128]\)</td></tr>
-         * </table>
-         */
-        CIE_LAB,
-        /**
-         * <p>{@link ColorSpace.Lab Lab} color space OkLab standardized as
-         * OkLab</p>
-         * <table summary="Color space definition">
-         *     <tr><th>Property</th><th colspan="4">Value</th></tr>
-         *     <tr><td>Name</td><td colspan="4">Oklab</td></tr>
-         *     <tr><td>CIE standard illuminant</td><td colspan="4">D65</td></tr>
-         *     <tr>
-         *         <td>Range</td>
-         *         <td colspan="4">\(L: `[0.0, 1.0]`, a: `[-2, 2]`, b: `[-2, 2]`\)</td>
-         *     </tr>
-         * </table>
-         */
-        OK_LAB;
-        // Update the initialization block next to #get(Named) when adding new values
-
-        // See static initialization block next to #get(Named)
-        static final ColorSpace[] sNamedColorSpaces = new ColorSpace[Named.values().length];
-
-        static {
-            sNamedColorSpaces[Named.SRGB.ordinal()] = new ColorSpaceRGB(
-                    "sRGB IEC61966-2.1",
-                    SRGB_PRIMARIES,
-                    ILLUMINANT_D65,
-                    null,
-                    ColorSpaceRGB.TransferParameters.SRGB_TRANSFER_PARAMETERS,
-                    Named.SRGB.ordinal()
-            );
-            sNamedColorSpaces[Named.LINEAR_SRGB.ordinal()] = new ColorSpaceRGB(
-                    "sRGB IEC61966-2.1 (Linear)",
-                    SRGB_PRIMARIES,
-                    ILLUMINANT_D65,
-                    1.0,
-                    0.0f, 1.0f,
-                    Named.LINEAR_SRGB.ordinal()
-            );
-            sNamedColorSpaces[Named.EXTENDED_SRGB.ordinal()] = new ColorSpaceRGB(
-                    "scRGB-nl IEC 61966-2-2:2003",
-                    SRGB_PRIMARIES,
-                    ILLUMINANT_D65,
-                    null,
-                    x -> absRcpResponse(x, 1 / 1.055, 0.055 / 1.055, 1 / 12.92, 0.04045, 2.4),
-                    x -> absResponse(x, 1 / 1.055, 0.055 / 1.055, 1 / 12.92, 0.04045, 2.4),
-                    -0.799f, 2.399f,
-                    ColorSpaceRGB.TransferParameters.SRGB_TRANSFER_PARAMETERS,
-                    Named.EXTENDED_SRGB.ordinal()
-            );
-            sNamedColorSpaces[Named.LINEAR_EXTENDED_SRGB.ordinal()] = new ColorSpaceRGB(
-                    "scRGB IEC 61966-2-2:2003",
-                    SRGB_PRIMARIES,
-                    ILLUMINANT_D65,
-                    1.0,
-                    -0.5f, 7.499f,
-                    Named.LINEAR_EXTENDED_SRGB.ordinal()
-            );
-            sNamedColorSpaces[Named.BT709.ordinal()] = new ColorSpaceRGB(
-                    "Rec. ITU-R BT.709-5",
-                    SRGB_PRIMARIES,
-                    ILLUMINANT_D65,
-                    null,
-                    ColorSpaceRGB.TransferParameters.SMPTE_170M_TRANSFER_PARAMETERS,
-                    Named.BT709.ordinal()
-            );
-            sNamedColorSpaces[Named.BT2020.ordinal()] = new ColorSpaceRGB(
-                    "Rec. ITU-R BT.2020-1",
-                    BT2020_PRIMARIES,
-                    ILLUMINANT_D65,
-                    null,
-                    new ColorSpaceRGB.TransferParameters(1 / 1.0993, 0.0993 / 1.0993, 1 / 4.5, 0.08145, 1 / 0.45),
-                    Named.BT2020.ordinal()
-            );
-            sNamedColorSpaces[Named.DCI_P3.ordinal()] = new ColorSpaceRGB(
-                    "SMPTE RP 431-2-2007 DCI (P3)",
-                    DCI_P3_PRIMARIES,
-                    new float[]{0.314f, 0.351f},
-                    2.6,
-                    0.0f, 1.0f,
-                    Named.DCI_P3.ordinal()
-            );
-            sNamedColorSpaces[Named.DISPLAY_P3.ordinal()] = new ColorSpaceRGB(
-                    "Display P3",
-                    DCI_P3_PRIMARIES,
-                    ILLUMINANT_D65,
-                    null,
-                    ColorSpaceRGB.TransferParameters.SRGB_TRANSFER_PARAMETERS,
-                    Named.DISPLAY_P3.ordinal()
-            );
-            sNamedColorSpaces[Named.NTSC_1953.ordinal()] = new ColorSpaceRGB(
-                    "NTSC (1953)",
-                    NTSC_1953_PRIMARIES,
-                    ILLUMINANT_C,
-                    null,
-                    ColorSpaceRGB.TransferParameters.SMPTE_170M_TRANSFER_PARAMETERS,
-                    Named.NTSC_1953.ordinal()
-            );
-            sNamedColorSpaces[Named.SMPTE_C.ordinal()] = new ColorSpaceRGB(
-                    "SMPTE-C RGB",
-                    new float[]{0.630f, 0.340f, 0.310f, 0.595f, 0.155f, 0.070f},
-                    ILLUMINANT_D65,
-                    null,
-                    ColorSpaceRGB.TransferParameters.SMPTE_170M_TRANSFER_PARAMETERS,
-                    Named.SMPTE_C.ordinal()
-            );
-            sNamedColorSpaces[Named.ADOBE_RGB.ordinal()] = new ColorSpaceRGB(
-                    "Adobe RGB (1998)",
-                    new float[]{0.64f, 0.33f, 0.21f, 0.71f, 0.15f, 0.06f},
-                    ILLUMINANT_D65,
-                    2.2,
-                    0.0f, 1.0f,
-                    Named.ADOBE_RGB.ordinal()
-            );
-            sNamedColorSpaces[Named.PRO_PHOTO_RGB.ordinal()] = new ColorSpaceRGB(
-                    "ROMM RGB ISO 22028-2:2013",
-                    new float[]{0.7347f, 0.2653f, 0.1596f, 0.8404f, 0.0366f, 0.0001f},
-                    ILLUMINANT_D50,
-                    null,
-                    new ColorSpaceRGB.TransferParameters(1.0, 0.0, 1 / 16.0, 0.031248, 1.8),
-                    Named.PRO_PHOTO_RGB.ordinal()
-            );
-            sNamedColorSpaces[Named.ACES.ordinal()] = new ColorSpaceRGB(
-                    "SMPTE ST 2065-1:2012 ACES",
-                    new float[]{0.73470f, 0.26530f, 0.0f, 1.0f, 0.00010f, -0.0770f},
-                    ILLUMINANT_D60,
-                    1.0,
-                    -65504.0f, 65504.0f,
-                    Named.ACES.ordinal()
-            );
-            sNamedColorSpaces[Named.ACESCG.ordinal()] = new ColorSpaceRGB(
-                    "Academy S-2014-004 ACEScg",
-                    new float[]{0.713f, 0.293f, 0.165f, 0.830f, 0.128f, 0.044f},
-                    ILLUMINANT_D60,
-                    1.0,
-                    -65504.0f, 65504.0f,
-                    Named.ACESCG.ordinal()
-            );
-            sNamedColorSpaces[Named.CIE_XYZ_D50.ordinal()] = new ColorSpaceXYZ(
-                    "CIE 1931 XYZ (D50)",
-                    ILLUMINANT_D50,
-                    Named.CIE_XYZ_D50.ordinal()
-            );
-            sNamedColorSpaces[Named.CIE_XYZ_D65.ordinal()] = new ColorSpaceXYZ(
-                    "CIE 1931 XYZ (D65)",
-                    ILLUMINANT_D65,
-                    Named.CIE_XYZ_D65.ordinal()
-            );
-            sNamedColorSpaces[Named.CIE_LAB.ordinal()] = new ColorSpace.Lab(
-                    "Generic L*a*b*",
-                    Named.CIE_LAB.ordinal()
-            );
-            sNamedColorSpaces[Named.OK_LAB.ordinal()] = new ColorSpace.OkLab(
-                    "Oklab",
-                    Named.OK_LAB.ordinal()
-            );
-        }
-    }
 
     /**
      * Returns the number of components for this color model.
@@ -952,10 +281,10 @@ public abstract sealed class ColorSpace permits ColorSpaceXYZ, ColorSpaceRGB,
      * falls in one of the following categories:</p>
      * <ul>
      *     <li>Generic names used to identify color spaces in non-RGB
-     *     color models. For instance: {@link Named#CIE_LAB Generic L*a*b*}.</li>
+     *     color models. For instance: {@link ColorSpaces#CIE_LAB Generic L*a*b*}.</li>
      *     <li>Names tied to a particular specification. For instance:
-     *     {@link Named#SRGB sRGB IEC61966-2.1} or
-     *     {@link Named#ACES SMPTE ST 2065-1:2012 ACES}.</li>
+     *     {@link ColorSpaces#SRGB sRGB IEC61966-2.1} or
+     *     {@link ColorSpaces#ACES SMPTE ST 2065-1:2012 ACES}.</li>
      *     <li>Ad-hoc names, often generated procedurally or by the user
      *     during a calibration workflow. These names often contain the
      *     make and model of the display.</li>
@@ -979,8 +308,8 @@ public abstract sealed class ColorSpace permits ColorSpaceXYZ, ColorSpaceRGB,
     }
 
     /**
-     * Returns the ID of this color space. Positive IDs match the color
-     * spaces enumerated in {@link Named}. A negative ID indicates a
+     * Returns the ID of this color space. Non-negative IDs match the
+     * built-in color spaces. A negative ID indicates a
      * color space created by calling one of the public constructors.
      *
      * @return An integer between {@link #MIN_ID} and {@link #MAX_ID}
@@ -1016,8 +345,8 @@ public abstract sealed class ColorSpace permits ColorSpaceXYZ, ColorSpaceRGB,
     /**
      * Returns whether this color space is a wide-gamut color space.
      * An RGB color space is wide-gamut if its gamut entirely contains
-     * the {@link Named#SRGB sRGB} gamut and if the area of its gamut is
-     * 90% of greater than the area of the {@link Named#NTSC_1953 NTSC}
+     * the {@link ColorSpaces#SRGB sRGB} gamut and if the area of its gamut is
+     * 90% of greater than the area of the {@link ColorSpaces#NTSC_1953 NTSC}
      * gamut.
      *
      * @return True if this color space is a wide-gamut color space,
@@ -1034,7 +363,7 @@ public abstract sealed class ColorSpace permits ColorSpaceXYZ, ColorSpaceRGB,
      *     <li>Its color model is {@link #MODEL_RGB}.</li>
      *     <li>
      *         Its primaries are within 1e-3 of the true
-     *         {@link Named#SRGB sRGB} primaries.
+     *         {@link ColorSpaces#SRGB sRGB} primaries.
      *     </li>
      *     <li>
      *         Its white point is within 1e-3 of the CIE standard
@@ -1042,10 +371,10 @@ public abstract sealed class ColorSpace permits ColorSpaceXYZ, ColorSpaceRGB,
      *     </li>
      *     <li>Its opto-electronic transfer function is not linear.</li>
      *     <li>Its electro-optical transfer function is not linear.</li>
-     *     <li>Its transfer functions yield values within 1e-3 of {@link Named#SRGB}.</li>
+     *     <li>Its transfer functions yield values within 1e-3 of {@link ColorSpaces#SRGB}.</li>
      *     <li>Its range is \([0..1]\).</li>
      * </ul>
-     * <p>This method always returns true for {@link Named#SRGB}.</p>
+     * <p>This method always returns true for {@link ColorSpaces#SRGB}.</p>
      *
      * @return True if this color space is the sRGB color space (or a
      * close approximation), false otherwise
@@ -1263,7 +592,7 @@ public abstract sealed class ColorSpace permits ColorSpaceXYZ, ColorSpaceRGB,
      * getName() + "(id=" + getId() + ", model=" + getModel() + ")"
      * </pre>
      *
-     * <p>For instance, the string representation of the {@link Named#SRGB sRGB}
+     * <p>For instance, the string representation of the {@link ColorSpaces#SRGB sRGB}
      * color space is equal to the following value:</p>
      *
      * <pre>
@@ -1276,109 +605,6 @@ public abstract sealed class ColorSpace permits ColorSpaceXYZ, ColorSpaceRGB,
     @Override
     public String toString() {
         return mName + " (id=" + mId + ", model=" + mModel + ")";
-    }
-
-    /**
-     * <p>Performs the chromatic adaptation of a color space from its native
-     * white point to the specified white point.</p>
-     *
-     * <p>The chromatic adaptation is performed using the
-     * {@link ChromaticAdaptation#BRADFORD} matrix.</p>
-     *
-     * <p class="note">The color space returned by this method always has
-     * an ID of {@link #MIN_ID}.</p>
-     *
-     * @param colorSpace The color space to chromatically adapt
-     * @param whitePoint The new white point
-     * @return A {@link ColorSpace} instance with the same name, primaries,
-     * transfer functions and range as the specified color space
-     * @see ChromaticAdaptation
-     * @see #adapt(ColorSpace, float[], ChromaticAdaptation)
-     */
-    @NonNull
-    public static ColorSpace adapt(@NonNull ColorSpace colorSpace,
-            @Size(min = 2, max = 3) float @NonNull[] whitePoint) {
-        return adapt(colorSpace, whitePoint, ChromaticAdaptation.BRADFORD);
-    }
-
-    /**
-     * <p>Performs the chromatic adaptation of a color space from its native
-     * white point to the specified white point. If the specified color space
-     * does not have an {@link #MODEL_RGB RGB} color model, or if the color
-     * space already has the target white point, the color space is returned
-     * unmodified.</p>
-     *
-     * <p>The chromatic adaptation is performed using the von Kries method
-     * described in the documentation of {@link ChromaticAdaptation}.</p>
-     *
-     * <p class="note">The color space returned by this method always has
-     * an ID of {@link #MIN_ID}.</p>
-     *
-     * @param colorSpace The color space to chromatically adapt
-     * @param whitePoint The new white point
-     * @param adaptation The adaptation matrix
-     * @return A new color space if the specified color space has an RGB
-     * model and a white point different from the specified white
-     * point; the specified color space otherwise
-     * @see ChromaticAdaptation
-     * @see #adapt(ColorSpace, float[])
-     */
-    @NonNull
-    public static ColorSpace adapt(@NonNull ColorSpace colorSpace,
-            @Size(min = 2, max = 3) float @NonNull[] whitePoint,
-                                   @NonNull ChromaticAdaptation adaptation) {
-        if (colorSpace.getModel() == MODEL_RGB) {
-            ColorSpaceRGB rgb = (ColorSpaceRGB) colorSpace;
-            if (compare(rgb.mWhitePoint, whitePoint)) return colorSpace;
-
-            float[] xyz = whitePoint.length == 3 ?
-                    Arrays.copyOf(whitePoint, 3) : xyYToXYZ(whitePoint);
-            float[] adaptationTransform = adaptation.computeTransform(
-                    xyYToXYZ(rgb.mWhitePoint), xyz);
-            float[] transform = mul3x3(adaptationTransform, rgb.mTransform);
-
-            return new ColorSpaceRGB(rgb, transform, whitePoint);
-        }
-        return colorSpace;
-    }
-
-    /**
-     * <p>Returns an instance of {@link ColorSpace} whose ID matches the
-     * specified ID.</p>
-     *
-     * <p>This method always returns the same instance for a given ID.</p>
-     *
-     * <p>This method is thread-safe.</p>
-     *
-     * @param index An integer ID between {@link #MIN_ID} and {@link #MAX_ID}
-     * @return A non-null {@link ColorSpace} instance
-     * @throws IllegalArgumentException If the ID does not match the ID of one of the
-     *                                  {@link Named named color spaces}
-     */
-    @NonNull
-    static ColorSpace get(@Range(from = MIN_ID, to = MAX_ID) int index) {
-        if (index < 0 || index >= Named.sNamedColorSpaces.length) {
-            throw new IllegalArgumentException("Invalid ID, must be in the range [0.." +
-                    Named.sNamedColorSpaces.length + ")");
-        }
-        return Named.sNamedColorSpaces[index];
-    }
-
-    /**
-     * <p>Returns an instance of {@link ColorSpace} identified by the specified
-     * name. The list of names provided in the {@link Named} enum gives access
-     * to a variety of common RGB color spaces.</p>
-     *
-     * <p>This method always returns the same instance for a given name.</p>
-     *
-     * <p>This method is thread-safe.</p>
-     *
-     * @param name The name of the color space to get an instance of
-     * @return A non-null {@link ColorSpace} instance
-     */
-    @NonNull
-    public static ColorSpace get(@NonNull Named name) {
-        return Named.sNamedColorSpaces[name.ordinal()];
     }
 
 
@@ -1590,7 +816,7 @@ public abstract sealed class ColorSpace permits ColorSpaceXYZ, ColorSpaceRGB,
      * @return A new float array of length 3 containing XYZ values
      */
     @Size(3)
-    static float @NonNull[] xyYToXYZ(@Size(2) float @NonNull[] xyY) {
+    public static float @NonNull[] xyYToXYZ(@Size(2) float @NonNull[] xyY) {
         return new float[]{xyY[0] / xyY[1], 1.0f, (1 - xyY[0] - xyY[1]) / xyY[1]};
     }
 
@@ -1657,225 +883,4 @@ public abstract sealed class ColorSpace permits ColorSpaceXYZ, ColorSpaceRGB,
 
         return xyWhitePoint;
     }
-
-    /**
-     * Implementation of the CIE L*a*b* color space. Its PCS is CIE XYZ
-     * with a white point of D50.
-     */
-    private static final class Lab extends ColorSpace {
-
-        private static final float A = 216.0f / 24389.0f;
-        private static final float B = 841.0f / 108.0f;
-        private static final float C = 4.0f / 29.0f;
-        private static final float D = 6.0f / 29.0f;
-
-        private Lab(@NonNull String name,
-                    @Range(from = MIN_ID, to = MAX_ID) int id) {
-            super(name, MODEL_LAB, ILLUMINANT_D50, id);
-        }
-
-        @Override
-        public boolean isWideGamut() {
-            return true;
-        }
-
-        @Override
-        public float getMinValue(@Range(from = 0, to = 3) int component) {
-            return component == 0 ? 0.0f : -128.0f;
-        }
-
-        @Override
-        public float getMaxValue(@Range(from = 0, to = 3) int component) {
-            return component == 0 ? 100.0f : 128.0f;
-        }
-
-
-        @Override
-        public float @NonNull[] toXYZ(@Size(min = 3) float @NonNull[] v) {
-            v[0] = MathUtil.clamp(v[0], 0.0f, 100.0f);
-            v[1] = MathUtil.clamp(v[1], -128.0f, 128.0f);
-            v[2] = MathUtil.clamp(v[2], -128.0f, 128.0f);
-
-            float fy = (v[0] + 16.0f) / 116.0f;
-            float fx = fy + (v[1] * 0.002f);
-            float fz = fy - (v[2] * 0.005f);
-            float X = fx > D ? fx * fx * fx : (1.0f / B) * (fx - C);
-            float Y = fy > D ? fy * fy * fy : (1.0f / B) * (fy - C);
-            float Z = fz > D ? fz * fz * fz : (1.0f / B) * (fz - C);
-
-            v[0] = X * ILLUMINANT_D50_XYZ[0];
-            v[1] = Y * ILLUMINANT_D50_XYZ[1];
-            v[2] = Z * ILLUMINANT_D50_XYZ[2];
-
-            return v;
-        }
-
-        @Override
-        public float @NonNull[] toXYZExtended(@Size(min = 3) float @NonNull[] v) {
-            float fy = (v[0] + 16.0f) / 116.0f;
-            float fx = fy + (v[1] * 0.002f);
-            float fz = fy - (v[2] * 0.005f);
-            float X = fx > D ? fx * fx * fx : (1.0f / B) * (fx - C);
-            float Y = fy > D ? fy * fy * fy : (1.0f / B) * (fy - C);
-            float Z = fz > D ? fz * fz * fz : (1.0f / B) * (fz - C);
-
-            v[0] = X * ILLUMINANT_D50_XYZ[0];
-            v[1] = Y * ILLUMINANT_D50_XYZ[1];
-            v[2] = Z * ILLUMINANT_D50_XYZ[2];
-
-            return v;
-        }
-
-        @Override
-        public float @NonNull[] fromXYZ(@Size(min = 3) float @NonNull[] v) {
-            float X = v[0] / ILLUMINANT_D50_XYZ[0];
-            float Y = v[1] / ILLUMINANT_D50_XYZ[1];
-            float Z = v[2] / ILLUMINANT_D50_XYZ[2];
-
-            float fx = X > A ? (float) Math.pow(X, 1.0 / 3.0) : B * X + C;
-            float fy = Y > A ? (float) Math.pow(Y, 1.0 / 3.0) : B * Y + C;
-            float fz = Z > A ? (float) Math.pow(Z, 1.0 / 3.0) : B * Z + C;
-
-            float L = 116.0f * fy - 16.0f;
-            float a = 500.0f * (fx - fy);
-            float b = 200.0f * (fy - fz);
-
-            v[0] = MathUtil.clamp(L, 0.0f, 100.0f);
-            v[1] = MathUtil.clamp(a, -128.0f, 128.0f);
-            v[2] = MathUtil.clamp(b, -128.0f, 128.0f);
-
-            return v;
-        }
-
-        @Override
-        public float @NonNull[] fromXYZExtended(@Size(min = 3) float @NonNull[] v) {
-            float X = v[0] / ILLUMINANT_D50_XYZ[0];
-            float Y = v[1] / ILLUMINANT_D50_XYZ[1];
-            float Z = v[2] / ILLUMINANT_D50_XYZ[2];
-
-            float fx = X > A ? (float) Math.pow(X, 1.0 / 3.0) : B * X + C;
-            float fy = Y > A ? (float) Math.pow(Y, 1.0 / 3.0) : B * Y + C;
-            float fz = Z > A ? (float) Math.pow(Z, 1.0 / 3.0) : B * Z + C;
-
-            float L = 116.0f * fy - 16.0f;
-            float a = 500.0f * (fx - fy);
-            float b = 200.0f * (fy - fz);
-
-            v[0] = L;
-            v[1] = a;
-            v[2] = b;
-
-            return v;
-        }
-    }
-
-    /**
-     * Implementation of the Oklab color space. Oklab uses a D65 white point.
-     */
-    private static final class OkLab extends ColorSpace {
-
-        /**
-         * Matrix applied before the nonlinear transform.
-         */
-        private static final float[] M1 = {
-                0.8189330101f, 0.0329845436f, 0.0482003018f,
-                0.3618667424f, 0.9293118715f, 0.2643662691f,
-                -0.1288597137f, 0.0361456387f, 0.6338517070f
-        };
-
-        /**
-         * Matrix applied after the nonlinear transform.
-         */
-        private static final float[] M2 = {
-                0.2104542553f, 1.9779984951f, 0.0259040371f,
-                0.7936177850f, -2.4285922050f, 0.7827717662f,
-                -0.0040720468f, 0.4505937099f, -0.8086757660f
-        };
-
-        /**
-         * The inverse of the [M1] matrix, transforming back to XYZ (D65)
-         */
-        private static final float[] INVERSE_M1 = inverse3x3(M1);
-
-        /**
-         * The inverse of the [M2] matrix, doing the first linear transform in the
-         * Oklab-to-XYZ before doing the nonlinear transform.
-         */
-        private static final float[] INVERSE_M2 = inverse3x3(M2);
-
-        private OkLab(@NonNull String name,
-                      @Range(from = MIN_ID, to = MAX_ID) int id) {
-            super(name, MODEL_LAB, ILLUMINANT_D65, id);
-        }
-
-        @Override
-        public boolean isWideGamut() {
-            return true;
-        }
-
-        @Override
-        public float getMinValue(@Range(from = 0, to = 3) int component) {
-            return component == 0 ? 0.0f : -0.5f;
-        }
-
-        @Override
-        public float getMaxValue(@Range(from = 0, to = 3) int component) {
-            return component == 0 ? 1.0f : 0.5f;
-        }
-
-        @Override
-        public float @NonNull[] toXYZ(@Size(min = 3) float @NonNull[] v) {
-            v[0] = MathUtil.clamp(v[0], 0.0f, 1.0f);
-            v[1] = MathUtil.clamp(v[1], -0.5f, 0.5f);
-            v[2] = MathUtil.clamp(v[2], -0.5f, 0.5f);
-
-            mul3x3Float3(INVERSE_M2, v);
-
-            v[0] = v[0] * v[0] * v[0];
-            v[1] = v[1] * v[1] * v[1];
-            v[2] = v[2] * v[2] * v[2];
-
-            mul3x3Float3(INVERSE_M1, v);
-
-            return v;
-        }
-
-        @Override
-        public float @NonNull[] toXYZExtended(@Size(min = 3) float @NonNull[] v) {
-            mul3x3Float3(INVERSE_M2, v);
-            v[0] = v[0] * v[0] * v[0];
-            v[1] = v[1] * v[1] * v[1];
-            v[2] = v[2] * v[2] * v[2];
-            mul3x3Float3(INVERSE_M1, v);
-            return v;
-        }
-
-        @Override
-        public float @NonNull[] fromXYZ(@Size(min = 3) float @NonNull[] v) {
-            mul3x3Float3(M1, v);
-
-            v[0] = (float) Math.cbrt(v[0]);
-            v[1] = (float) Math.cbrt(v[1]);
-            v[2] = (float) Math.cbrt(v[2]);
-
-            mul3x3Float3(M2, v);
-
-            v[0] = MathUtil.clamp(v[0], 0.0f, 1.0f);
-            v[1] = MathUtil.clamp(v[1], -0.5f, 0.5f);
-            v[2] = MathUtil.clamp(v[2], -0.5f, 0.5f);
-
-            return v;
-        }
-
-        @Override
-        public float @NonNull[] fromXYZExtended(@Size(min = 3) float @NonNull[] v) {
-            mul3x3Float3(M1, v);
-            v[0] = (float) Math.cbrt(v[0]);
-            v[1] = (float) Math.cbrt(v[1]);
-            v[2] = (float) Math.cbrt(v[2]);
-            mul3x3Float3(M2, v);
-            return v;
-        }
-    }
-
 }

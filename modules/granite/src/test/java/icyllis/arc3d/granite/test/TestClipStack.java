@@ -72,7 +72,7 @@ public class TestClipStack {
         var drawDevice = GraniteDevice.make(
                 recordingContext,
                 ImageInfo.make(800, 600, ColorInfo.CT_RGBA_8888,
-                        ColorInfo.AT_PREMUL, ColorSpace.get(ColorSpace.Named.SRGB)),
+                        ColorInfo.AT_PREMUL, ColorSpaces.SRGB),
                 true,
                 false,
                 true,
