@@ -58,8 +58,7 @@ import java.util.Arrays;
  * <p>
  * $$sRGB_{D50} = T.sRGB_{D65}$$
  *
- * @see ColorSpace.Connector
- * @see ColorSpace#connect(ColorSpace, ColorSpace)
+ * @see ColorTransform
  */
 public final class ChromaticAdaptation {
 
@@ -122,19 +121,19 @@ public final class ChromaticAdaptation {
                 || (dstWhitePoint.length != 2 && dstWhitePoint.length != 3)) {
             throw new IllegalArgumentException("A white point array must have 2 or 3 floats");
         }
-        float[] srcXyz = srcWhitePoint.length == 3 ?
-                Arrays.copyOf(srcWhitePoint, 3) : ColorSpace.xyYToXyz(srcWhitePoint);
-        float[] dstXyz = dstWhitePoint.length == 3 ?
-                Arrays.copyOf(dstWhitePoint, 3) : ColorSpace.xyYToXyz(dstWhitePoint);
+        float[] srcXYZ = srcWhitePoint.length == 3 ?
+                Arrays.copyOf(srcWhitePoint, 3) : ColorSpace.xyYToXYZ(srcWhitePoint);
+        float[] dstXYZ = dstWhitePoint.length == 3 ?
+                Arrays.copyOf(dstWhitePoint, 3) : ColorSpace.xyYToXYZ(dstWhitePoint);
 
-        if (ColorSpace.compare(srcXyz, dstXyz)) {
+        if (ColorSpace.compare(srcXYZ, dstXYZ)) {
             return new float[]{
                     1.0f, 0.0f, 0.0f,
                     0.0f, 1.0f, 0.0f,
                     0.0f, 0.0f, 1.0f
             };
         }
-        return chromaticAdaptation(mTransform, mInverseTransform, srcWhitePoint, dstWhitePoint);
+        return computeTransform(mTransform, mInverseTransform, srcXYZ, dstXYZ);
     }
 
     /**
@@ -153,10 +152,10 @@ public final class ChromaticAdaptation {
      * @return A 3x3 matrix as a non-null array of 9 floats
      */
     @Size(9)
-    static float @NonNull [] chromaticAdaptation(@Size(9) float @NonNull [] matrix,
-                                                 @Size(9) float @NonNull [] inverseMatrix,
-                                                 @Size(3) float @NonNull [] srcWhitePoint,
-                                                 @Size(3) float @NonNull [] dstWhitePoint) {
+    static float @NonNull [] computeTransform(@Size(9) float @NonNull [] matrix,
+                                              @Size(9) float @NonNull [] inverseMatrix,
+                                              @Size(3) float @NonNull [] srcWhitePoint,
+                                              @Size(3) float @NonNull [] dstWhitePoint) {
         float[] srcLMS = ColorSpace.mul3x3Float3(matrix, srcWhitePoint);
         float[] dstLMS = ColorSpace.mul3x3Float3(matrix, dstWhitePoint);
         // LMS is a diagonal matrix stored as a float[3]

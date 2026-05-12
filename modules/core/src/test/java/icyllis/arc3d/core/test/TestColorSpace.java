@@ -22,6 +22,8 @@ package icyllis.arc3d.core.test;
 import icyllis.arc3d.core.ChromaticAdaptation;
 import icyllis.arc3d.core.Color;
 import icyllis.arc3d.core.ColorSpace;
+import icyllis.arc3d.core.ColorSpaceRGB;
+import icyllis.arc3d.core.ColorTransform;
 import icyllis.arc3d.core.MathUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,7 +35,7 @@ public class TestColorSpace {
     public static final Logger LOGGER = LoggerFactory.getLogger(TestColorSpace.class);
 
     public static void main(String[] args) {
-        var cs = (ColorSpace.Rgb) ColorSpace.get(ColorSpace.Named.SRGB);
+        var cs = (ColorSpaceRGB) ColorSpace.get(ColorSpace.Named.SRGB);
         float[] v = {0.4f, 0.8f, 0.7f};
         {
             float[] linear = v.clone();
@@ -43,7 +45,7 @@ public class TestColorSpace {
             System.out.println(Color.LinearToGamma(lum));
         }
         {
-            float lum = cs.toXyz(v)[1];
+            float lum = cs.toXYZ(v)[1];
             System.out.println(lum);
             System.out.println(cs.fromLinear(lum, lum, lum)[0]);
         }
@@ -53,8 +55,8 @@ public class TestColorSpace {
             System.out.println(lum);
         }
 
-        var sRGB = (ColorSpace.Rgb) ColorSpace.get(ColorSpace.Named.EXTENDED_SRGB);
-        var displayP3 = (ColorSpace.Rgb) ColorSpace.get(ColorSpace.Named.DISPLAY_P3);
+        var sRGB = (ColorSpaceRGB) ColorSpace.get(ColorSpace.Named.EXTENDED_SRGB);
+        var displayP3 = (ColorSpaceRGB) ColorSpace.get(ColorSpace.Named.DISPLAY_P3);
 
 
         float[] col = new float[]{1, 0, 1, 1};
@@ -71,24 +73,24 @@ public class TestColorSpace {
         testRgbTransform(displayP3, sRGB);
         testRgbTransform(ColorSpace.get(ColorSpace.Named.ACESCG), sRGB);
 
-        LOGGER.info("{}", ((ColorSpace.Rgb) ColorSpace.get(ColorSpace.Named.DCI_P3)).getTransform());
-        LOGGER.info("{}", ((ColorSpace.Rgb) sRGB).getTransform());
+        LOGGER.info("{}", ((ColorSpaceRGB) ColorSpace.get(ColorSpace.Named.DCI_P3)).getTransform());
+        LOGGER.info("{}", ((ColorSpaceRGB) sRGB).getTransform());
         LOGGER.info("{}", ChromaticAdaptation.BRADFORD.computeTransform(
                 new float[]{0.314f, 0.351f}, ColorSpace.ILLUMINANT_D65));
 
-        ColorSpace.Rgb adaptedP3 = (ColorSpace.Rgb) ColorSpace.adapt(ColorSpace.get(ColorSpace.Named.ADOBE_RGB), ColorSpace.ILLUMINANT_D50,
+        ColorSpaceRGB adaptedP3 = (ColorSpaceRGB) ColorSpace.adapt(ColorSpace.get(ColorSpace.Named.ADOBE_RGB), ColorSpace.ILLUMINANT_D50,
                 ChromaticAdaptation.BRADFORD);
         LOGGER.info("adapted P3 {}", adaptedP3.getTransform());
     }
 
     public static void testColor(ColorSpace src, ColorSpace dst,
                                  float[] color) {
-        ColorSpace.Connector connector = ColorSpace.connect(
+        ColorTransform transform = new ColorTransform(
                 src, dst,
-                ColorSpace.RenderIntent.RELATIVE
+                ColorTransform.RELATIVE_COLORIMETRIC
         );
 
-        float[] col = connector.transformUnclamped(color.clone());
+        float[] col = transform.transformExtended(color.clone());
 
         LOGGER.info("{} to {}", src, dst);
         LOGGER.info("{} to {}, packed 0x{}L", color, col,
@@ -96,21 +98,23 @@ public class TestColorSpace {
     }
 
     public static void testRgbTransform(ColorSpace src, ColorSpace dst) {
-        ColorSpace.Rgb
-                srcRGB = (ColorSpace.Rgb) src,
-                dstRGB = (ColorSpace.Rgb) dst;
+        ColorSpaceRGB
+                srcRGB = (ColorSpaceRGB) src,
+                dstRGB = (ColorSpaceRGB) dst;
 
         LOGGER.info("{} to {}", srcRGB, dstRGB);
 
         LOGGER.info("Relative intent");
 
         LOGGER.info("New matrix {}",
-                ColorSpace.Connector.Rgb.computeTransform(srcRGB, dstRGB, ColorSpace.RenderIntent.RELATIVE));
+                ColorTransform.computeTransform(srcRGB, dstRGB,
+                        ColorTransform.RELATIVE_COLORIMETRIC, ChromaticAdaptation.BRADFORD));
 
         LOGGER.info("Absolute intent");
 
         LOGGER.info("New matrix {}",
-                ColorSpace.Connector.Rgb.computeTransform(srcRGB, dstRGB, ColorSpace.RenderIntent.ABSOLUTE));
+                ColorTransform.computeTransform(srcRGB, dstRGB,
+                        ColorTransform.ABSOLUTE_COLORIMETRIC, ChromaticAdaptation.BRADFORD));
     }
 
     public static long pack(float red, float green, float blue, float alpha) {

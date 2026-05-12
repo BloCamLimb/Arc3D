@@ -20,7 +20,7 @@
 package icyllis.arc3d.granite.test;
 
 import icyllis.arc3d.core.ColorSpace;
-import icyllis.arc3d.sketch.Matrix;
+import icyllis.arc3d.core.ColorTransform;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11C;
@@ -30,10 +30,6 @@ import org.lwjgl.opengl.GL42C;
 import org.lwjgl.opengl.GL43C;
 import org.lwjgl.system.MemoryUtil;
 
-import javax.imageio.ImageIO;
-
-import java.io.File;
-import java.io.IOException;
 import java.util.Arrays;
 
 import static icyllis.arc3d.granite.test.TestGraniteRenderer.*;
@@ -46,9 +42,9 @@ public class SimpleGLFW {
 
         float[] c = {251/255f,191/255f,36/255f};
         System.out.println(Arrays.toString(c));
-        ColorSpace.connect(
+        new ColorTransform(
                 ColorSpace.get(ColorSpace.Named.DISPLAY_P3), ColorSpace.get(ColorSpace.Named.SRGB)
-        ).transformUnclamped(c);
+        ).transformExtended(c);
         System.out.println(Arrays.toString(c));
         GLFW.glfwInit();
         GLFW.glfwDefaultWindowHints();

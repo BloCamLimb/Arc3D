@@ -20,6 +20,7 @@
 package icyllis.arc3d.sketch.shaders;
 
 import icyllis.arc3d.core.ColorSpace;
+import icyllis.arc3d.core.ColorTransform;
 import icyllis.arc3d.core.MathUtil;
 import icyllis.arc3d.core.SharedPtr;
 import icyllis.arc3d.core.Size;
@@ -77,8 +78,8 @@ public final class ColorShader implements Shader {
         }
         if (colorSpace != null && colorSpace.getModel() != ColorSpace.MODEL_RGB &&
                 colorSpace.getModel() != ColorSpace.MODEL_XYZ) {
-            float[] srgb = ColorSpace.connect(colorSpace)
-                    .transformUnclamped(Arrays.copyOfRange(color, 0, color.length - 1));
+            float[] srgb = new ColorTransform(colorSpace, ColorSpace.get(ColorSpace.Named.SRGB))
+                    .transformExtended(Arrays.copyOfRange(color, 0, color.length - 1));
             return new ColorShader(srgb[0], srgb[1], srgb[2], color[color.length - 1], null);
         }
         return new ColorShader(color[0], color[1], color[2], color[3], colorSpace);
@@ -92,8 +93,8 @@ public final class ColorShader implements Shader {
         }
         if (colorSpace != null && colorSpace.getModel() != ColorSpace.MODEL_RGB &&
                 colorSpace.getModel() != ColorSpace.MODEL_XYZ) {
-            float[] srgb = ColorSpace.connect(colorSpace)
-                    .transformUnclamped(new float[]{r, g, b});
+            float[] srgb = new ColorTransform(colorSpace, ColorSpace.get(ColorSpace.Named.SRGB))
+                    .transformExtended(new float[]{r, g, b});
             return new ColorShader(srgb[0], srgb[1], srgb[2], a, null);
         }
         return new ColorShader(r, g, b, a, colorSpace);
@@ -111,8 +112,7 @@ public final class ColorShader implements Shader {
 
     @Override
     public float @Nullable [] getConstantColor(float @Nullable [] dst) {
-        if (!mColorSpace.isSrgb() &&
-                mColorSpace != ColorSpace.get(ColorSpace.Named.EXTENDED_SRGB)) {
+        if (!mColorSpace.isExtendedSRGB()) {
             return null;
         }
         if (dst == null) {

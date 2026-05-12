@@ -20,14 +20,10 @@
 package icyllis.arc3d.core;
 
 import org.intellij.lang.annotations.MagicConstant;
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Range;
 import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
-import java.util.Objects;
-import java.util.function.DoubleUnaryOperator;
 
 /**
  * <p>A {@link ColorSpace} is used to identify a specific organization of colors.
@@ -62,9 +58,9 @@ import java.util.function.DoubleUnaryOperator;
  *
  * <p>The {@link #get(Named)} method always returns the same instance for a given
  * name. Color spaces with an {@link #MODEL_RGB RGB} color model can be safely
- * cast to {@link Rgb}. Doing so gives you access to more APIs to query various
+ * cast to {@link ColorSpaceRGB}. Doing so gives you access to more APIs to query various
  * properties of RGB color models: color gamut primaries, transfer functions,
- * conversions to and from linear space, etc. Please refer to {@link Rgb} for
+ * conversions to and from linear space, etc. Please refer to {@link ColorSpaceRGB} for
  * more information.</p>
  *
  * <p>The documentation of {@link Named} provides a detailed description of the
@@ -74,17 +70,17 @@ import java.util.function.DoubleUnaryOperator;
  *
  * <p>To allow conversion between color spaces, this implementation uses the CIE
  * XYZ profile connection space (PCS). Color values can be converted to and from
- * this PCS using {@link #toXyz(float[])} and {@link #fromXyz(float[])}.</p>
+ * this PCS using {@link #toXYZ(float[])} and {@link #fromXYZ(float[])}.</p>
  *
  * <p>Color spaces use their
  * native white point (D65 for {@link Named#SRGB sRGB} for instance) and must
  * undergo {@link ChromaticAdaptation chromatic adaptation} as necessary.</p>
  *
  * <p>Since the white point of the PCS is not defined for RGB color space, it is
- * highly recommended to use the variants of the {@link #connect(ColorSpace, ColorSpace)}
+ * highly recommended to use the variants of the {@link ColorTransform}
  * method to perform conversions between color spaces. A color space can be
  * manually adapted to a specific white point using {@link #adapt(ColorSpace, float[])}.
- * Please refer to the documentation of {@link Rgb RGB color spaces} for more
+ * Please refer to the documentation of {@link ColorSpaceRGB RGB color spaces} for more
  * information. Several common CIE standard illuminants are provided in this
  * class as reference (see {@link #ILLUMINANT_D65} or {@link #ILLUMINANT_D50}
  * for instance).</p>
@@ -93,50 +89,42 @@ import java.util.function.DoubleUnaryOperator;
  *
  * <pre>{@code
  * // Convert from DCI-P3 to Rec.2020
- * ColorSpace.Connector connector = ColorSpace.connect(
+ * ColorTransform transform = new ColorTransform(
  *         ColorSpace.get(ColorSpace.Named.DCI_P3),
  *         ColorSpace.get(ColorSpace.Named.BT2020));
  *
- * float[] bt2020 = connector.transform(p3r, p3g, p3b);
- * }</pre>
- *
- * <p>You can easily convert to {@link Named#SRGB sRGB} by omitting the second
- * parameter:</p>
- *
- * <pre>{@code
- * // Convert from DCI-P3 to sRGB
- * ColorSpace.Connector connector = ColorSpace.connect(ColorSpace.get(ColorSpace.Named.DCI_P3));
- *
- * float[] sRGB = connector.transform(p3r, p3g, p3b);
+ * float[] bt2020 = transform.transform(p3r, p3g, p3b);
  * }</pre>
  *
  * <p>Conversions also work between color spaces with different color models:</p>
  *
  * <pre class="prettyprint">
  * // Convert from CIE L*a*b* (color model Lab) to Rec.709 (color model RGB)
- * ColorSpace.Connector connector = ColorSpace.connect(
+ * ColorTransform transform = new ColorTransform(
  *         ColorSpace.get(ColorSpace.Named.CIE_LAB),
  *         ColorSpace.get(ColorSpace.Named.BT709));
  * </pre>
  *
  * <h3>Color spaces and multi-threading</h3>
  *
- * <p>Color spaces and other related classes ({@link Connector} for instance)
+ * <p>Color spaces and other related classes ({@link ColorTransform} for instance)
  * are immutable and stateless. They can be safely used from multiple concurrent
  * threads.</p>
  *
- * <p>Public static methods provided by this class, such as {@link #get(Named)}
- * and {@link #connect(ColorSpace, ColorSpace)}, are also guaranteed to be
- * thread-safe.</p>
+ * <p>Static factory methods provided by this class, such as {@link #get(Named)},
+ * are also guaranteed to be thread-safe.</p>
  *
  * @see #get(Named)
  * @see Named
- * @see Connector
+ * @see ColorTransform
  * @see ChromaticAdaptation
+ * @see ColorSpaceXYZ
+ * @see ColorSpaceRGB
  */
 // modified from Android
 @SuppressWarnings("unused")
-public abstract sealed class ColorSpace {
+public abstract sealed class ColorSpace permits ColorSpaceXYZ, ColorSpaceRGB,
+        ColorSpace.Lab, ColorSpace.OkLab {
 
     /**
      * Standard CIE 1931 2° illuminant A, encoded in xyY.
@@ -228,8 +216,8 @@ public abstract sealed class ColorSpace {
      */
     public static final int MODEL_CMYK = 9;
 
-    private static final float[] SRGB_PRIMARIES = {0.640f, 0.330f, 0.300f, 0.600f, 0.150f, 0.060f};
-    private static final float[] NTSC_1953_PRIMARIES = {0.67f, 0.33f, 0.21f, 0.71f, 0.14f, 0.08f};
+    static final float[] SRGB_PRIMARIES = {0.640f, 0.330f, 0.300f, 0.600f, 0.150f, 0.060f};
+    static final float[] NTSC_1953_PRIMARIES = {0.67f, 0.33f, 0.21f, 0.71f, 0.14f, 0.08f};
     private static final float[] DCI_P3_PRIMARIES =
             { 0.680f, 0.320f, 0.265f, 0.690f, 0.150f, 0.060f };
     private static final float[] BT2020_PRIMARIES =
@@ -237,15 +225,9 @@ public abstract sealed class ColorSpace {
     /**
      * A gray color space does not have meaningful primaries, so we use this arbitrary set.
      */
-    private static final float[] GRAY_PRIMARIES = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+    static final float[] GRAY_PRIMARIES = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
 
-    private static final float[] ILLUMINANT_D50_XYZ = {0.964212f, 1.0f, 0.825188f};
-
-    private static final Rgb.TransferParameters SRGB_TRANSFER_PARAMETERS =
-            new Rgb.TransferParameters(1 / 1.055, 0.055 / 1.055, 1 / 12.92, 0.04045, 2.4);
-
-    private static final Rgb.TransferParameters SMPTE_170M_TRANSFER_PARAMETERS =
-            new Rgb.TransferParameters(1 / 1.099, 0.099 / 1.099, 1 / 4.5, 0.081, 1 / 0.45);
+    static final float[] ILLUMINANT_D50_XYZ = {0.964212f, 1.0f, 0.825188f};
 
     @NonNull
     private final String mName;
@@ -275,7 +257,7 @@ public abstract sealed class ColorSpace {
     public enum Named {
         // NOTE: Do NOT change the order of the enum
         /**
-         * <p>{@link ColorSpace.Rgb RGB} color space sRGB standardized as IEC 61966-2.1:1999.</p>
+         * <p>{@link ColorSpaceRGB RGB} color space sRGB standardized as IEC 61966-2.1:1999.</p>
          * <table summary="Color space definition">
          *     <tr>
          *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
@@ -311,7 +293,7 @@ public abstract sealed class ColorSpace {
          */
         SRGB,
         /**
-         * <p>{@link ColorSpace.Rgb RGB} color space sRGB standardized as IEC 61966-2.1:1999.</p>
+         * <p>{@link ColorSpaceRGB RGB} color space sRGB standardized as IEC 61966-2.1:1999.</p>
          * <table summary="Color space definition">
          *     <tr>
          *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
@@ -339,7 +321,7 @@ public abstract sealed class ColorSpace {
          */
         LINEAR_SRGB,
         /**
-         * <p>{@link ColorSpace.Rgb RGB} color space scRGB-nl standardized as IEC 61966-2-2:2003.</p>
+         * <p>{@link ColorSpaceRGB RGB} color space scRGB-nl standardized as IEC 61966-2-2:2003.</p>
          * <table summary="Color space definition">
          *     <tr>
          *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
@@ -379,7 +361,7 @@ public abstract sealed class ColorSpace {
          */
         EXTENDED_SRGB,
         /**
-         * <p>{@link ColorSpace.Rgb RGB} color space scRGB standardized as IEC 61966-2-2:2003.</p>
+         * <p>{@link ColorSpaceRGB RGB} color space scRGB standardized as IEC 61966-2-2:2003.</p>
          * <table summary="Color space definition">
          *     <tr>
          *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
@@ -407,7 +389,7 @@ public abstract sealed class ColorSpace {
          */
         LINEAR_EXTENDED_SRGB,
         /**
-         * <p>{@link ColorSpace.Rgb RGB} color space BT.709 standardized as Rec. ITU-R BT.709-5.</p>
+         * <p>{@link ColorSpaceRGB RGB} color space BT.709 standardized as Rec. ITU-R BT.709-5.</p>
          * <table summary="Color space definition">
          *     <tr>
          *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
@@ -443,7 +425,7 @@ public abstract sealed class ColorSpace {
          */
         BT709,
         /**
-         * <p>{@link ColorSpace.Rgb RGB} color space BT.2020 standardized as Rec. ITU-R BT.2020-1.</p>
+         * <p>{@link ColorSpaceRGB RGB} color space BT.2020 standardized as Rec. ITU-R BT.2020-1.</p>
          * <table summary="Color space definition">
          *     <tr>
          *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
@@ -479,7 +461,7 @@ public abstract sealed class ColorSpace {
          */
         BT2020,
         /**
-         * <p>{@link ColorSpace.Rgb RGB} color space DCI-P3 standardized as SMPTE RP 431-2-2007.</p>
+         * <p>{@link ColorSpaceRGB RGB} color space DCI-P3 standardized as SMPTE RP 431-2-2007.</p>
          * <table summary="Color space definition">
          *     <tr>
          *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
@@ -507,7 +489,7 @@ public abstract sealed class ColorSpace {
          */
         DCI_P3,
         /**
-         * <p>{@link ColorSpace.Rgb RGB} color space Display P3 based on SMPTE RP 431-2-2007 and IEC
+         * <p>{@link ColorSpaceRGB RGB} color space Display P3 based on SMPTE RP 431-2-2007 and IEC
          * 61966-2.1:1999.</p>
          * <table summary="Color space definition">
          *     <tr>
@@ -544,7 +526,7 @@ public abstract sealed class ColorSpace {
          */
         DISPLAY_P3,
         /**
-         * <p>{@link ColorSpace.Rgb RGB} color space NTSC, 1953 standard.</p>
+         * <p>{@link ColorSpaceRGB RGB} color space NTSC, 1953 standard.</p>
          * <table summary="Color space definition">
          *     <tr>
          *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
@@ -580,7 +562,7 @@ public abstract sealed class ColorSpace {
          */
         NTSC_1953,
         /**
-         * <p>{@link ColorSpace.Rgb RGB} color space SMPTE C.</p>
+         * <p>{@link ColorSpaceRGB RGB} color space SMPTE C.</p>
          * <table summary="Color space definition">
          *     <tr>
          *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
@@ -616,7 +598,7 @@ public abstract sealed class ColorSpace {
          */
         SMPTE_C,
         /**
-         * <p>{@link ColorSpace.Rgb RGB} color space Adobe RGB (1998).</p>
+         * <p>{@link ColorSpaceRGB RGB} color space Adobe RGB (1998).</p>
          * <table summary="Color space definition">
          *     <tr>
          *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
@@ -644,7 +626,7 @@ public abstract sealed class ColorSpace {
          */
         ADOBE_RGB,
         /**
-         * <p>{@link ColorSpace.Rgb RGB} color space ProPhoto RGB standardized as ROMM RGB ISO 22028-2:2013.</p>
+         * <p>{@link ColorSpaceRGB RGB} color space ProPhoto RGB standardized as ROMM RGB ISO 22028-2:2013.</p>
          * <table summary="Color space definition">
          *     <tr>
          *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
@@ -680,7 +662,7 @@ public abstract sealed class ColorSpace {
          */
         PRO_PHOTO_RGB,
         /**
-         * <p>{@link ColorSpace.Rgb RGB} color space ACES standardized as SMPTE ST 2065-1:2012.</p>
+         * <p>{@link ColorSpaceRGB RGB} color space ACES standardized as SMPTE ST 2065-1:2012.</p>
          * <table summary="Color space definition">
          *     <tr>
          *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
@@ -708,7 +690,7 @@ public abstract sealed class ColorSpace {
          */
         ACES,
         /**
-         * <p>{@link ColorSpace.Rgb RGB} color space ACEScg standardized as Academy S-2014-004.</p>
+         * <p>{@link ColorSpaceRGB RGB} color space ACEScg standardized as Academy S-2014-004.</p>
          * <table summary="Color space definition">
          *     <tr>
          *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
@@ -788,15 +770,15 @@ public abstract sealed class ColorSpace {
         static final ColorSpace[] sNamedColorSpaces = new ColorSpace[Named.values().length];
 
         static {
-            sNamedColorSpaces[Named.SRGB.ordinal()] = new ColorSpace.Rgb(
+            sNamedColorSpaces[Named.SRGB.ordinal()] = new ColorSpaceRGB(
                     "sRGB IEC61966-2.1",
                     SRGB_PRIMARIES,
                     ILLUMINANT_D65,
                     null,
-                    SRGB_TRANSFER_PARAMETERS,
+                    ColorSpaceRGB.TransferParameters.SRGB_TRANSFER_PARAMETERS,
                     Named.SRGB.ordinal()
             );
-            sNamedColorSpaces[Named.LINEAR_SRGB.ordinal()] = new ColorSpace.Rgb(
+            sNamedColorSpaces[Named.LINEAR_SRGB.ordinal()] = new ColorSpaceRGB(
                     "sRGB IEC61966-2.1 (Linear)",
                     SRGB_PRIMARIES,
                     ILLUMINANT_D65,
@@ -804,7 +786,7 @@ public abstract sealed class ColorSpace {
                     0.0f, 1.0f,
                     Named.LINEAR_SRGB.ordinal()
             );
-            sNamedColorSpaces[Named.EXTENDED_SRGB.ordinal()] = new ColorSpace.Rgb(
+            sNamedColorSpaces[Named.EXTENDED_SRGB.ordinal()] = new ColorSpaceRGB(
                     "scRGB-nl IEC 61966-2-2:2003",
                     SRGB_PRIMARIES,
                     ILLUMINANT_D65,
@@ -812,10 +794,10 @@ public abstract sealed class ColorSpace {
                     x -> absRcpResponse(x, 1 / 1.055, 0.055 / 1.055, 1 / 12.92, 0.04045, 2.4),
                     x -> absResponse(x, 1 / 1.055, 0.055 / 1.055, 1 / 12.92, 0.04045, 2.4),
                     -0.799f, 2.399f,
-                    SRGB_TRANSFER_PARAMETERS,
+                    ColorSpaceRGB.TransferParameters.SRGB_TRANSFER_PARAMETERS,
                     Named.EXTENDED_SRGB.ordinal()
             );
-            sNamedColorSpaces[Named.LINEAR_EXTENDED_SRGB.ordinal()] = new ColorSpace.Rgb(
+            sNamedColorSpaces[Named.LINEAR_EXTENDED_SRGB.ordinal()] = new ColorSpaceRGB(
                     "scRGB IEC 61966-2-2:2003",
                     SRGB_PRIMARIES,
                     ILLUMINANT_D65,
@@ -823,23 +805,23 @@ public abstract sealed class ColorSpace {
                     -0.5f, 7.499f,
                     Named.LINEAR_EXTENDED_SRGB.ordinal()
             );
-            sNamedColorSpaces[Named.BT709.ordinal()] = new ColorSpace.Rgb(
+            sNamedColorSpaces[Named.BT709.ordinal()] = new ColorSpaceRGB(
                     "Rec. ITU-R BT.709-5",
                     SRGB_PRIMARIES,
                     ILLUMINANT_D65,
                     null,
-                    SMPTE_170M_TRANSFER_PARAMETERS,
+                    ColorSpaceRGB.TransferParameters.SMPTE_170M_TRANSFER_PARAMETERS,
                     Named.BT709.ordinal()
             );
-            sNamedColorSpaces[Named.BT2020.ordinal()] = new ColorSpace.Rgb(
+            sNamedColorSpaces[Named.BT2020.ordinal()] = new ColorSpaceRGB(
                     "Rec. ITU-R BT.2020-1",
                     BT2020_PRIMARIES,
                     ILLUMINANT_D65,
                     null,
-                    new Rgb.TransferParameters(1 / 1.0993, 0.0993 / 1.0993, 1 / 4.5, 0.08145, 1 / 0.45),
+                    new ColorSpaceRGB.TransferParameters(1 / 1.0993, 0.0993 / 1.0993, 1 / 4.5, 0.08145, 1 / 0.45),
                     Named.BT2020.ordinal()
             );
-            sNamedColorSpaces[Named.DCI_P3.ordinal()] = new ColorSpace.Rgb(
+            sNamedColorSpaces[Named.DCI_P3.ordinal()] = new ColorSpaceRGB(
                     "SMPTE RP 431-2-2007 DCI (P3)",
                     DCI_P3_PRIMARIES,
                     new float[]{0.314f, 0.351f},
@@ -847,31 +829,31 @@ public abstract sealed class ColorSpace {
                     0.0f, 1.0f,
                     Named.DCI_P3.ordinal()
             );
-            sNamedColorSpaces[Named.DISPLAY_P3.ordinal()] = new ColorSpace.Rgb(
+            sNamedColorSpaces[Named.DISPLAY_P3.ordinal()] = new ColorSpaceRGB(
                     "Display P3",
                     DCI_P3_PRIMARIES,
                     ILLUMINANT_D65,
                     null,
-                    SRGB_TRANSFER_PARAMETERS,
+                    ColorSpaceRGB.TransferParameters.SRGB_TRANSFER_PARAMETERS,
                     Named.DISPLAY_P3.ordinal()
             );
-            sNamedColorSpaces[Named.NTSC_1953.ordinal()] = new ColorSpace.Rgb(
+            sNamedColorSpaces[Named.NTSC_1953.ordinal()] = new ColorSpaceRGB(
                     "NTSC (1953)",
                     NTSC_1953_PRIMARIES,
                     ILLUMINANT_C,
                     null,
-                    SMPTE_170M_TRANSFER_PARAMETERS,
+                    ColorSpaceRGB.TransferParameters.SMPTE_170M_TRANSFER_PARAMETERS,
                     Named.NTSC_1953.ordinal()
             );
-            sNamedColorSpaces[Named.SMPTE_C.ordinal()] = new ColorSpace.Rgb(
+            sNamedColorSpaces[Named.SMPTE_C.ordinal()] = new ColorSpaceRGB(
                     "SMPTE-C RGB",
                     new float[]{0.630f, 0.340f, 0.310f, 0.595f, 0.155f, 0.070f},
                     ILLUMINANT_D65,
                     null,
-                    SMPTE_170M_TRANSFER_PARAMETERS,
+                    ColorSpaceRGB.TransferParameters.SMPTE_170M_TRANSFER_PARAMETERS,
                     Named.SMPTE_C.ordinal()
             );
-            sNamedColorSpaces[Named.ADOBE_RGB.ordinal()] = new ColorSpace.Rgb(
+            sNamedColorSpaces[Named.ADOBE_RGB.ordinal()] = new ColorSpaceRGB(
                     "Adobe RGB (1998)",
                     new float[]{0.64f, 0.33f, 0.21f, 0.71f, 0.15f, 0.06f},
                     ILLUMINANT_D65,
@@ -879,15 +861,15 @@ public abstract sealed class ColorSpace {
                     0.0f, 1.0f,
                     Named.ADOBE_RGB.ordinal()
             );
-            sNamedColorSpaces[Named.PRO_PHOTO_RGB.ordinal()] = new ColorSpace.Rgb(
+            sNamedColorSpaces[Named.PRO_PHOTO_RGB.ordinal()] = new ColorSpaceRGB(
                     "ROMM RGB ISO 22028-2:2013",
                     new float[]{0.7347f, 0.2653f, 0.1596f, 0.8404f, 0.0366f, 0.0001f},
                     ILLUMINANT_D50,
                     null,
-                    new Rgb.TransferParameters(1.0, 0.0, 1 / 16.0, 0.031248, 1.8),
+                    new ColorSpaceRGB.TransferParameters(1.0, 0.0, 1 / 16.0, 0.031248, 1.8),
                     Named.PRO_PHOTO_RGB.ordinal()
             );
-            sNamedColorSpaces[Named.ACES.ordinal()] = new ColorSpace.Rgb(
+            sNamedColorSpaces[Named.ACES.ordinal()] = new ColorSpaceRGB(
                     "SMPTE ST 2065-1:2012 ACES",
                     new float[]{0.73470f, 0.26530f, 0.0f, 1.0f, 0.00010f, -0.0770f},
                     ILLUMINANT_D60,
@@ -895,7 +877,7 @@ public abstract sealed class ColorSpace {
                     -65504.0f, 65504.0f,
                     Named.ACES.ordinal()
             );
-            sNamedColorSpaces[Named.ACESCG.ordinal()] = new ColorSpace.Rgb(
+            sNamedColorSpaces[Named.ACESCG.ordinal()] = new ColorSpaceRGB(
                     "Academy S-2014-004 ACEScg",
                     new float[]{0.713f, 0.293f, 0.165f, 0.830f, 0.128f, 0.044f},
                     ILLUMINANT_D60,
@@ -903,12 +885,12 @@ public abstract sealed class ColorSpace {
                     -65504.0f, 65504.0f,
                     Named.ACESCG.ordinal()
             );
-            sNamedColorSpaces[Named.CIE_XYZ_D50.ordinal()] = new ColorSpace.Xyz(
+            sNamedColorSpaces[Named.CIE_XYZ_D50.ordinal()] = new ColorSpaceXYZ(
                     "CIE 1931 XYZ (D50)",
                     ILLUMINANT_D50,
                     Named.CIE_XYZ_D50.ordinal()
             );
-            sNamedColorSpaces[Named.CIE_XYZ_D65.ordinal()] = new ColorSpace.Xyz(
+            sNamedColorSpaces[Named.CIE_XYZ_D65.ordinal()] = new ColorSpaceXYZ(
                     "CIE 1931 XYZ (D65)",
                     ILLUMINANT_D65,
                     Named.CIE_XYZ_D65.ordinal()
@@ -922,49 +904,6 @@ public abstract sealed class ColorSpace {
                     Named.OK_LAB.ordinal()
             );
         }
-    }
-
-    /**
-     * <p>A render intent determines how a {@link ColorSpace.Connector connector}
-     * maps colors from one color space to another. The choice of mapping is
-     * important when the source color space has a larger color gamut than the
-     * destination color space.</p>
-     *
-     * @see ColorSpace#connect(ColorSpace, ColorSpace, RenderIntent)
-     */
-    public enum RenderIntent {
-        /**
-         * <p>Compresses the source gamut into the destination gamut.
-         * This render intent affects all colors, inside and outside
-         * of destination gamut. The goal of this render intent is
-         * to preserve the visual relationship between colors.</p>
-         *
-         * <p class="note">This render intent is currently not
-         * implemented and behaves like {@link #RELATIVE}.</p>
-         */
-        PERCEPTUAL,
-        /**
-         * Similar to the {@link #ABSOLUTE} render intent, this render
-         * intent matches the closest color in the destination gamut
-         * but makes adjustments for the destination white point.
-         */
-        RELATIVE,
-        /**
-         * <p>Attempts to maintain the relative saturation of colors
-         * from the source gamut to the destination gamut, to keep
-         * highly saturated colors as saturated as possible.</p>
-         *
-         * <p class="note">This render intent is currently not
-         * implemented and behaves like {@link #RELATIVE}.</p>
-         */
-        SATURATION,
-        /**
-         * Colors that are in the destination gamut are left unchanged.
-         * Colors that fall outside the destination gamut are mapped
-         * to the closest possible color within the gamut of the destination
-         * color space (they are clipped).
-         */
-        ABSOLUTE
     }
 
     /**
@@ -1111,7 +1050,14 @@ public abstract sealed class ColorSpace {
      * @return True if this color space is the sRGB color space (or a
      * close approximation), false otherwise
      */
-    public boolean isSrgb() {
+    public boolean isSRGB() {
+        return false;
+    }
+
+    /**
+     * Similar to {@link #isSRGB()}, but no range check.
+     */
+    public boolean isExtendedSRGB() {
         return false;
     }
 
@@ -1179,18 +1125,18 @@ public abstract sealed class ColorSpace {
      * <p>This method is a convenience for color spaces with a model
      * of 3 components ({@link #MODEL_RGB RGB} or {@link #MODEL_LAB}
      * for instance). With color spaces using fewer or more components,
-     * use {@link #toXyz(float[])} instead</p>.
+     * use {@link #toXYZ(float[])} instead</p>.
      *
      * @param r The first component of the value to convert from (typically R in RGB)
      * @param g The second component of the value to convert from (typically G in RGB)
      * @param b The third component of the value to convert from (typically B in RGB)
      * @return A new array of 3 floats, containing tristimulus XYZ values
-     * @see #toXyz(float[])
-     * @see #fromXyz(float, float, float)
+     * @see #toXYZ(float[])
+     * @see #fromXYZ(float, float, float)
      */
     @Size(3)
-    public float @NonNull[] toXyz(float r, float g, float b) {
-        return toXyz(new float[]{r, g, b});
+    public float @NonNull[] toXYZ(float r, float g, float b) {
+        return toXYZ(new float[]{r, g, b});
     }
 
 
@@ -1206,24 +1152,24 @@ public abstract sealed class ColorSpace {
      *          color value to convert to XYZ, and large enough to hold
      *          the resulting tristimulus XYZ values
      * @return The array passed in parameter
-     * @see #toXyz(float, float, float)
-     * @see #fromXyz(float[])
+     * @see #toXYZ(float, float, float)
+     * @see #fromXYZ(float[])
      */
     @Size(min = 3)
-    public abstract float @NonNull[] toXyz(@Size(min = 3) float @NonNull[] v);
+    public abstract float @NonNull[] toXYZ(@Size(min = 3) float @NonNull[] v);
 
     /**
-     * Similar to {@link #toXyz}, but results are not clamped to {@link #getMinValue(int)} and
+     * Similar to {@link #toXYZ}, but results are not clamped to {@link #getMinValue(int)} and
      * {@link #getMaxValue(int)}.
      *
      * @param v An array of color components containing the color space's
      *          color value to convert to XYZ, and large enough to hold
      *          the resulting tristimulus XYZ values
      * @return The array passed in parameter
-     * @see #toXyz(float[])
+     * @see #toXYZ(float[])
      */
     @Size(min = 3)
-    public abstract float @NonNull[] toXyzUnclamped(@Size(min = 3) float @NonNull[] v);
+    public abstract float @NonNull[] toXYZExtended(@Size(min = 3) float @NonNull[] v);
 
 
     /**
@@ -1235,16 +1181,16 @@ public abstract sealed class ColorSpace {
      * @param z The Z component of the color value
      * @return A new array whose size is equal to the number of color
      * components as returned by {@link #getComponentCount()}
-     * @see #fromXyz(float[])
-     * @see #toXyz(float, float, float)
+     * @see #fromXYZ(float[])
+     * @see #toXYZ(float, float, float)
      */
     @Size(min = 3)
-    public float @NonNull[] fromXyz(float x, float y, float z) {
+    public float @NonNull[] fromXYZ(float x, float y, float z) {
         float[] xyz = new float[getComponentCount()];
         xyz[0] = x;
         xyz[1] = y;
         xyz[2] = z;
-        return fromXyz(xyz);
+        return fromXYZ(xyz);
     }
 
 
@@ -1262,30 +1208,30 @@ public abstract sealed class ColorSpace {
      *          to convert from, and large enough to hold the number
      *          of components of this color space's model
      * @return The array passed in parameter
-     * @see #fromXyz(float, float, float)
-     * @see #toXyz(float[])
+     * @see #fromXYZ(float, float, float)
+     * @see #toXYZ(float[])
      */
     @Size(min = 3)
-    public abstract float @NonNull[] fromXyz(@Size(min = 3) float @NonNull[] v);
+    public abstract float @NonNull[] fromXYZ(@Size(min = 3) float @NonNull[] v);
 
     /**
-     * Similar to {@link #fromXyz}, but results are not clamped to {@link #getMinValue(int)} and
+     * Similar to {@link #fromXYZ}, but results are not clamped to {@link #getMinValue(int)} and
      * {@link #getMaxValue(int)}.
      *
      * @param v An array of color components containing the XYZ values
      *          to convert from, and large enough to hold the number
      *          of components of this color space's model
      * @return The array passed in parameter
-     * @see #fromXyz(float[])
+     * @see #fromXYZ(float[])
      */
     @Size(min = 3)
-    public abstract float @NonNull[] fromXyzUnclamped(@Size(min = 3) float @NonNull[] v);
+    public abstract float @NonNull[] fromXYZExtended(@Size(min = 3) float @NonNull[] v);
 
     @Override
     public int hashCode() {
-        int result = mName.hashCode();
+        int result = mId;
         result = 31 * result + mModel;
-        result = 31 * result + mId;
+        result = 31 * result + Arrays.hashCode(mWhitePoint);
         return result;
     }
 
@@ -1296,7 +1242,17 @@ public abstract sealed class ColorSpace {
         ColorSpace that = (ColorSpace) o;
         return mId == that.mId &&
                 mModel == that.mModel &&
-                mName.equals(that.mName);
+                Arrays.equals(mWhitePoint, that.mWhitePoint);
+    }
+
+    public boolean equals(ColorSpace that, boolean extended) {
+        if (!extended) {
+            return equals(that);
+        }
+        if (this == that) return true;
+        if (that == null || getClass() != that.getClass()) return false;
+        return mModel == that.mModel &&
+                Arrays.equals(mWhitePoint, that.mWhitePoint);
     }
 
     /**
@@ -1320,111 +1276,6 @@ public abstract sealed class ColorSpace {
     @Override
     public String toString() {
         return mName + " (id=" + mId + ", model=" + mModel + ")";
-    }
-
-    /**
-     * <p>Connects two color spaces to allow conversion from the source color
-     * space to the destination color space. If the source and destination
-     * color spaces do not have the same white point, they are chromatically
-     * adapted from source to destination.</p>
-     *
-     * <p>If the source and destination are the same, an optimized connector
-     * is returned to avoid unnecessary computations and loss of precision.</p>
-     *
-     * <p>Colors are mapped from the source color space to the destination color
-     * space using the {@link RenderIntent#PERCEPTUAL perceptual} render intent.</p>
-     *
-     * @param source      The color space to convert colors from
-     * @param destination The color space to convert colors to
-     * @return A non-null connector between the two specified color spaces
-     * @see #connect(ColorSpace)
-     * @see #connect(ColorSpace, RenderIntent)
-     * @see #connect(ColorSpace, ColorSpace, RenderIntent)
-     */
-    @NonNull
-    public static Connector connect(@NonNull ColorSpace source, @NonNull ColorSpace destination) {
-        return connect(source, destination, RenderIntent.PERCEPTUAL);
-    }
-
-    /**
-     * <p>Connects two color spaces to allow conversion from the source color
-     * space to the destination color space. If the source and destination
-     * color spaces do not have the same white point, they are chromatically
-     * adapted from source to destination.</p>
-     *
-     * <p>If the source and destination are the same, an optimized connector
-     * is returned to avoid unnecessary computations and loss of precision.</p>
-     *
-     * @param source      The color space to convert colors from
-     * @param destination The color space to convert colors to
-     * @param intent      The render intent to map colors from the source to the destination
-     * @return A non-null connector between the two specified color spaces
-     * @see #connect(ColorSpace)
-     * @see #connect(ColorSpace, RenderIntent)
-     * @see #connect(ColorSpace, ColorSpace)
-     */
-    @NonNull
-    @SuppressWarnings("ConstantConditions")
-    public static Connector connect(@NonNull ColorSpace source, @NonNull ColorSpace destination,
-                                    @NonNull RenderIntent intent) {
-        if (source.equals(destination)) return Connector.identity(source, intent);
-
-        if ((source.getModel() == MODEL_RGB || source.getModel() == MODEL_XYZ) &&
-                (destination.getModel() == MODEL_RGB || destination.getModel() == MODEL_XYZ)) {
-            return new Connector.Rgb(source, destination, intent);
-        }
-
-        return new Connector(source, destination, intent);
-    }
-
-    /**
-     * <p>Connects the specified color spaces to sRGB.
-     * If the source color space does not use D65 as its white point,
-     * the source space is chromatically adapted to use the
-     * CIE standard illuminant {@link #ILLUMINANT_D65 D65} as needed.</p>
-     *
-     * <p>If the source is the sRGB color space, an optimized connector
-     * is returned to avoid unnecessary computations and loss of precision.</p>
-     *
-     * <p>Colors are mapped from the source color space to the destination color
-     * space using the {@link RenderIntent#PERCEPTUAL perceptual} render intent.</p>
-     *
-     * @param source The color space to convert colors from
-     * @return A non-null connector between the specified color space and sRGB
-     * @see #connect(ColorSpace, RenderIntent)
-     * @see #connect(ColorSpace, ColorSpace)
-     * @see #connect(ColorSpace, ColorSpace, RenderIntent)
-     */
-    @NonNull
-    public static Connector connect(@NonNull ColorSpace source) {
-        return connect(source, RenderIntent.PERCEPTUAL);
-    }
-
-    /**
-     * <p>Connects the specified color spaces to sRGB.
-     * If the source color space does not use D65 as its white point,
-     * the source space is chromatically adapted to use the
-     * CIE standard illuminant {@link #ILLUMINANT_D65 D65} as needed.</p>
-     *
-     * <p>If the source is the sRGB color space, an optimized connector
-     * is returned to avoid unnecessary computations and loss of precision.</p>
-     *
-     * @param source The color space to convert colors from
-     * @param intent The render intent to map colors from the source to the destination
-     * @return A non-null connector between the specified color space and sRGB
-     * @see #connect(ColorSpace)
-     * @see #connect(ColorSpace, ColorSpace)
-     * @see #connect(ColorSpace, ColorSpace, RenderIntent)
-     */
-    @NonNull
-    public static Connector connect(@NonNull ColorSpace source, @NonNull RenderIntent intent) {
-        if (source.isSrgb()) return Connector.identity(source, intent);
-
-        if (source.getModel() == MODEL_RGB || source.getModel() == MODEL_XYZ) {
-            return new Connector.Rgb(source, get(Named.SRGB), intent);
-        }
-
-        return new Connector(source, get(Named.SRGB), intent);
     }
 
     /**
@@ -1477,16 +1328,16 @@ public abstract sealed class ColorSpace {
             @Size(min = 2, max = 3) float @NonNull[] whitePoint,
                                    @NonNull ChromaticAdaptation adaptation) {
         if (colorSpace.getModel() == MODEL_RGB) {
-            ColorSpace.Rgb rgb = (ColorSpace.Rgb) colorSpace;
+            ColorSpaceRGB rgb = (ColorSpaceRGB) colorSpace;
             if (compare(rgb.mWhitePoint, whitePoint)) return colorSpace;
 
             float[] xyz = whitePoint.length == 3 ?
-                    Arrays.copyOf(whitePoint, 3) : xyYToXyz(whitePoint);
+                    Arrays.copyOf(whitePoint, 3) : xyYToXYZ(whitePoint);
             float[] adaptationTransform = adaptation.computeTransform(
-                    xyYToXyz(rgb.mWhitePoint), xyz);
+                    xyYToXYZ(rgb.mWhitePoint), xyz);
             float[] transform = mul3x3(adaptationTransform, rgb.mTransform);
 
-            return new ColorSpace.Rgb(rgb, transform, whitePoint);
+            return new ColorSpaceRGB(rgb, transform, whitePoint);
         }
         return colorSpace;
     }
@@ -1530,37 +1381,6 @@ public abstract sealed class ColorSpace {
         return Named.sNamedColorSpaces[name.ordinal()];
     }
 
-    /**
-     * <p>Returns a {@link Named} instance of {@link ColorSpace} that matches
-     * the specified RGB to CIE XYZ transform and transfer functions. If no
-     * instance can be found, this method returns null.</p>
-     *
-     * <p>The color transform matrix is assumed to target the CIE XYZ space
-     * a {@link #ILLUMINANT_D50 D50} standard illuminant.</p>
-     *
-     * @param toXYZD50 3x3 column-major transform matrix from RGB to the profile
-     *                 connection space CIE XYZ as an array of 9 floats, cannot be null
-     * @param function Parameters for the transfer functions
-     * @return A non-null {@link ColorSpace} if a match is found, null otherwise
-     */
-    @Nullable
-    public static ColorSpace match(
-            @Size(9) float @NonNull[] toXYZD50,
-            Rgb.@NonNull TransferParameters function) {
-
-        for (ColorSpace colorSpace : Named.sNamedColorSpaces) {
-            if (colorSpace.getModel() == MODEL_RGB) {
-                ColorSpace.Rgb rgb = (ColorSpace.Rgb) adapt(colorSpace, ILLUMINANT_D50_XYZ);
-                if (compare(toXYZD50, rgb.mTransform) &&
-                        compare(function, rgb.mTransferParameters)) {
-                    return colorSpace;
-                }
-            }
-        }
-
-        return null;
-    }
-
 
     /**
      * Helper method for internal color space transformation.
@@ -1576,9 +1396,9 @@ public abstract sealed class ColorSpace {
         float[] desired = ILLUMINANT_D50;
         if (compare(origWhitePoint, desired)) return origTransform;
 
-        float[] xyz = xyYToXyz(desired);
+        float[] xyz = xyYToXYZ(desired);
         float[] adaptationTransform = ChromaticAdaptation.BRADFORD.computeTransform(
-                xyYToXyz(origWhitePoint), xyz);
+                xyYToXYZ(origWhitePoint), xyz);
         return mul3x3(adaptationTransform, origTransform);
     }
 
@@ -1640,28 +1460,6 @@ public abstract sealed class ColorSpace {
     public static double absResponse(double x, double a, double b, double c, double d,
                                       double e, double f, double g) {
         return Math.copySign(response(x < 0.0 ? -x : x, a, b, c, d, e, f, g), x);
-    }
-
-    /**
-     * Compares two sets of parametric transfer functions parameters with a precision of 1e-3.
-     *
-     * @param a The first set of parameters to compare
-     * @param b The second set of parameters to compare
-     * @return True if the two sets are equal, false otherwise
-     */
-    private static boolean compare(
-            Rgb.@Nullable TransferParameters a,
-            Rgb.@Nullable TransferParameters b) {
-        //noinspection SimplifiableIfStatement
-        if (a == null && b == null) return true;
-        return a != null && b != null &&
-                Math.abs(a.a - b.a) < 1e-3 &&
-                Math.abs(a.b - b.b) < 1e-3 &&
-                Math.abs(a.c - b.c) < 1e-3 &&
-                Math.abs(a.d - b.d) < 2e-3 && // Special case for variations in sRGB OETF/EOTF
-                Math.abs(a.e - b.e) < 1e-3 &&
-                Math.abs(a.f - b.f) < 1e-3 &&
-                Math.abs(a.g - b.g) < 1e-3;
     }
 
     /**
@@ -1792,7 +1590,7 @@ public abstract sealed class ColorSpace {
      * @return A new float array of length 3 containing XYZ values
      */
     @Size(3)
-    static float @NonNull[] xyYToXyz(@Size(2) float @NonNull[] xyY) {
+    static float @NonNull[] xyYToXYZ(@Size(2) float @NonNull[] xyY) {
         return new float[]{xyY[0] / xyY[1], 1.0f, (1 - xyY[0] - xyY[1]) / xyY[1]};
     }
 
@@ -1815,7 +1613,7 @@ public abstract sealed class ColorSpace {
      * @throws IllegalArgumentException If cct is invalid
      */
     @Size(3)
-    public static float @NonNull[] cctToXyz(@Range(from = 1, to = Integer.MAX_VALUE) int cct) {
+    public static float @NonNull[] cctToXYZ(@Range(from = 1, to = Integer.MAX_VALUE) int cct) {
         if (cct < 1) {
             throw new IllegalArgumentException("Temperature must be greater than 0");
         }
@@ -1833,7 +1631,7 @@ public abstract sealed class ColorSpace {
                         -0.16748867f + 2.09137015f * x - 1.37418593f * x2 - 0.9549476f * x2 * x :
                         -0.37001483f + 3.75112997f * x - 5.8733867f * x2 + 3.0817580f * x2 * x;
 
-        return xyYToXyz(new float[]{x, y});
+        return xyYToXYZ(new float[]{x, y});
     }
 
     /**
@@ -1858,64 +1656,6 @@ public abstract sealed class ColorSpace {
         }
 
         return xyWhitePoint;
-    }
-
-    /**
-     * Implementation of the CIE XYZ color space.
-     */
-    public static final class Xyz extends ColorSpace {
-
-        public Xyz(@NonNull String name, float @NonNull[] whitePoint) {
-            this(name, whitePoint, MIN_ID);
-        }
-
-        private Xyz(@NonNull String name, float @NonNull[] whitePoint,
-                    @Range(from = MIN_ID, to = MAX_ID) int id) {
-            super(name, MODEL_XYZ, whitePoint, id);
-        }
-
-        @Override
-        public boolean isWideGamut() {
-            return true;
-        }
-
-        @Override
-        public float getMinValue(@Range(from = 0, to = 3) int component) {
-            return -2.0f;
-        }
-
-        @Override
-        public float getMaxValue(@Range(from = 0, to = 3) int component) {
-            return 2.0f;
-        }
-
-
-        @Override
-        public float @NonNull[] toXyz(@Size(min = 3) float @NonNull[] v) {
-            v[0] = MathUtil.clamp(v[0], -2.0f, 2.0f);
-            v[1] = MathUtil.clamp(v[1], -2.0f, 2.0f);
-            v[2] = MathUtil.clamp(v[2], -2.0f, 2.0f);
-            return v;
-        }
-
-        @Override
-        public float @NonNull[] toXyzUnclamped(@Size(min = 3) float @NonNull[] v) {
-            return v;
-        }
-
-
-        @Override
-        public float @NonNull[] fromXyz(@Size(min = 3) float @NonNull[] v) {
-            v[0] = MathUtil.clamp(v[0], -2.0f, 2.0f);
-            v[1] = MathUtil.clamp(v[1], -2.0f, 2.0f);
-            v[2] = MathUtil.clamp(v[2], -2.0f, 2.0f);
-            return v;
-        }
-
-        @Override
-        public float @NonNull[] fromXyzUnclamped(@Size(min = 3) float @NonNull[] v) {
-            return v;
-        }
     }
 
     /**
@@ -1951,7 +1691,7 @@ public abstract sealed class ColorSpace {
 
 
         @Override
-        public float @NonNull[] toXyz(@Size(min = 3) float @NonNull[] v) {
+        public float @NonNull[] toXYZ(@Size(min = 3) float @NonNull[] v) {
             v[0] = MathUtil.clamp(v[0], 0.0f, 100.0f);
             v[1] = MathUtil.clamp(v[1], -128.0f, 128.0f);
             v[2] = MathUtil.clamp(v[2], -128.0f, 128.0f);
@@ -1971,7 +1711,7 @@ public abstract sealed class ColorSpace {
         }
 
         @Override
-        public float @NonNull[] toXyzUnclamped(@Size(min = 3) float @NonNull[] v) {
+        public float @NonNull[] toXYZExtended(@Size(min = 3) float @NonNull[] v) {
             float fy = (v[0] + 16.0f) / 116.0f;
             float fx = fy + (v[1] * 0.002f);
             float fz = fy - (v[2] * 0.005f);
@@ -1987,7 +1727,7 @@ public abstract sealed class ColorSpace {
         }
 
         @Override
-        public float @NonNull[] fromXyz(@Size(min = 3) float @NonNull[] v) {
+        public float @NonNull[] fromXYZ(@Size(min = 3) float @NonNull[] v) {
             float X = v[0] / ILLUMINANT_D50_XYZ[0];
             float Y = v[1] / ILLUMINANT_D50_XYZ[1];
             float Z = v[2] / ILLUMINANT_D50_XYZ[2];
@@ -2008,7 +1748,7 @@ public abstract sealed class ColorSpace {
         }
 
         @Override
-        public float @NonNull[] fromXyzUnclamped(@Size(min = 3) float @NonNull[] v) {
+        public float @NonNull[] fromXYZExtended(@Size(min = 3) float @NonNull[] v) {
             float X = v[0] / ILLUMINANT_D50_XYZ[0];
             float Y = v[1] / ILLUMINANT_D50_XYZ[1];
             float Z = v[2] / ILLUMINANT_D50_XYZ[2];
@@ -2084,7 +1824,7 @@ public abstract sealed class ColorSpace {
         }
 
         @Override
-        public float @NonNull[] toXyz(@Size(min = 3) float @NonNull[] v) {
+        public float @NonNull[] toXYZ(@Size(min = 3) float @NonNull[] v) {
             v[0] = MathUtil.clamp(v[0], 0.0f, 1.0f);
             v[1] = MathUtil.clamp(v[1], -0.5f, 0.5f);
             v[2] = MathUtil.clamp(v[2], -0.5f, 0.5f);
@@ -2101,7 +1841,7 @@ public abstract sealed class ColorSpace {
         }
 
         @Override
-        public float @NonNull[] toXyzUnclamped(@Size(min = 3) float @NonNull[] v) {
+        public float @NonNull[] toXYZExtended(@Size(min = 3) float @NonNull[] v) {
             mul3x3Float3(INVERSE_M2, v);
             v[0] = v[0] * v[0] * v[0];
             v[1] = v[1] * v[1] * v[1];
@@ -2111,7 +1851,7 @@ public abstract sealed class ColorSpace {
         }
 
         @Override
-        public float @NonNull[] fromXyz(@Size(min = 3) float @NonNull[] v) {
+        public float @NonNull[] fromXYZ(@Size(min = 3) float @NonNull[] v) {
             mul3x3Float3(M1, v);
 
             v[0] = (float) Math.cbrt(v[0]);
@@ -2128,7 +1868,7 @@ public abstract sealed class ColorSpace {
         }
 
         @Override
-        public float @NonNull[] fromXyzUnclamped(@Size(min = 3) float @NonNull[] v) {
+        public float @NonNull[] fromXYZExtended(@Size(min = 3) float @NonNull[] v) {
             mul3x3Float3(M1, v);
             v[0] = (float) Math.cbrt(v[0]);
             v[1] = (float) Math.cbrt(v[1]);
@@ -2138,1932 +1878,4 @@ public abstract sealed class ColorSpace {
         }
     }
 
-    /**
-     * {@usesMathJax}
-     *
-     * <p>An RGB color space is an additive color space using the
-     * {@link #MODEL_RGB RGB} color model (a color is therefore represented
-     * by a tuple of 3 numbers).</p>
-     *
-     * <p>A specific RGB color space is defined by the following properties:</p>
-     * <ul>
-     *     <li>Three chromaticities of the red, green and blue primaries, which
-     *     define the gamut of the color space.</li>
-     *     <li>A white point chromaticity that defines the stimulus to which
-     *     color space values are normalized (also just called "white").</li>
-     *     <li>An opto-electronic transfer function, also called opto-electronic
-     *     conversion function or often, and approximately, gamma function.</li>
-     *     <li>An electro-optical transfer function, also called electo-optical
-     *     conversion function or often, and approximately, gamma function.</li>
-     *     <li>A range of valid RGB values (most commonly \([0..1]\)).</li>
-     * </ul>
-     *
-     * <p>The most commonly used RGB color space is {@link Named#SRGB sRGB}.</p>
-     *
-     * <h3>Primaries and white point chromaticities</h3>
-     * <p>In this implementation, the chromaticity of the primaries and the white
-     * point of an RGB color space is defined in the CIE xyY color space. This
-     * color space separates the chromaticity of a color, the x and y components,
-     * and its luminance, the Y component. Since the primaries and the white
-     * point have full brightness, the Y component is assumed to be 1 and only
-     * the x and y components are needed to encode them.</p>
-     * <p>For convenience, this implementation also allows to define the
-     * primaries and white point in the CIE XYZ space. The tristimulus XYZ values
-     * are internally converted to xyY.</p>
-     *
-     * <p>
-     *     <img style="display: block; margin: 0 auto;" src="{@docRoot}reference/android/images/graphics
-     *     /colorspace_srgb.png" />
-     *     <figcaption style="text-align: center;">sRGB primaries and white point</figcaption>
-     * </p>
-     *
-     * <h3>Transfer functions</h3>
-     * <p>A transfer function is a color component conversion function, defined as
-     * a single variable, monotonic mathematical function. It is applied to each
-     * individual component of a color. They are used to perform the mapping
-     * between linear tristimulus values and non-linear electronic signal value.</p>
-     * <p>The <em>opto-electronic transfer function</em> (OETF or OECF) encodes
-     * tristimulus values in a scene to a non-linear electronic signal value.
-     * An OETF is often expressed as a power function with an exponent between
-     * 0.38 and 0.55 (the reciprocal of 1.8 to 2.6).</p>
-     * <p>The <em>electro-optical transfer function</em> (EOTF or EOCF) decodes
-     * a non-linear electronic signal value to a tristimulus value at the display.
-     * An EOTF is often expressed as a power function with an exponent between
-     * 1.8 and 2.6.</p>
-     * <p>Transfer functions are used as a compression scheme. For instance,
-     * linear sRGB values would normally require 11 to 12 bits of precision to
-     * store all values that can be perceived by the human eye. When encoding
-     * sRGB values using the appropriate OETF (see {@link Named#SRGB sRGB} for
-     * an exact mathematical description of that OETF), the values can be
-     * compressed to only 8 bits precision.</p>
-     * <p>When manipulating RGB values, particularly sRGB values, it is safe
-     * to assume that these values have been encoded with the appropriate
-     * OETF (unless noted otherwise). Encoded values are often said to be in
-     * "gamma space". They are therefore defined in a non-linear space. This
-     * in turns means that any linear operation applied to these values is
-     * going to yield mathematically incorrect results (any linear interpolation
-     * such as gradient generation for instance, most image processing functions
-     * such as blurs, etc.).</p>
-     * <p>To properly process encoded RGB values you must first apply the
-     * EOTF to decode the value into linear space. After processing, the RGB
-     * value must be encoded back to non-linear ("gamma") space. Here is a
-     * formal description of the process, where \(f\) is the processing
-     * function to apply:</p>
-     * <p>
-     * $$RGB_{out} = OETF(f(EOTF(RGB_{in})))$$
-     *
-     * <p>If the transfer functions of the color space can be expressed as an
-     * ICC parametric curve as defined in ICC.1:2004-10, the numeric parameters
-     * can be retrieved by calling {@link #getTransferParameters()}. This can
-     * be useful to match color spaces for instance.</p>
-     *
-     * <p class="note">Some RGB color spaces, such as {@link Named#ACES} and
-     * {@link Named#LINEAR_EXTENDED_SRGB scRGB}, are said to be linear because
-     * their transfer functions are the identity function: \(f(x) = x\).
-     * If the source and/or destination are known to be linear, it is not
-     * necessary to invoke the transfer functions.</p>
-     *
-     * <h3>Range</h3>
-     * <p>Most RGB color spaces allow RGB values in the range \([0..1]\). There
-     * are however a few RGB color spaces that allow much larger ranges. For
-     * instance, {@link Named#EXTENDED_SRGB scRGB} is used to manipulate the
-     * range \([-0.5..7.5]\) while {@link Named#ACES ACES} can be used throughout
-     * the range \([-65504, 65504]\).</p>
-     *
-     * <p>
-     *     <img style="display: block; margin: 0 auto;" src="{@docRoot}reference/android/images/graphics
-     *     /colorspace_scrgb.png" />
-     *     <figcaption style="text-align: center;">Extended sRGB and its large range</figcaption>
-     * </p>
-     *
-     * <h3>Converting between RGB color spaces</h3>
-     * <p>Conversion between two color spaces is achieved by using an intermediate
-     * color space called the profile connection space (PCS). The PCS used by
-     * this implementation is CIE XYZ. The conversion operation is defined
-     * as such:</p>
-     * <p>
-     * $$RGB_{out} = OETF(T_{dst}^{-1} \cdot T_{src} \cdot EOTF(RGB_{in}))$$
-     *
-     * <p>Where \(T_{src}\) is the {@link #getTransform() RGB to XYZ transform}
-     * of the source color space and \(T_{dst}^{-1}\) the {@link #getInverseTransform()
-     * XYZ to RGB transform} of the destination color space.</p>
-     * <p>Many RGB color spaces commonly used with electronic devices use the
-     * standard illuminant {@link #ILLUMINANT_D65 D65}. Care must be take however
-     * when converting between two RGB color spaces if their white points do not
-     * match. This can be achieved by either calling
-     * {@link #adapt(ColorSpace, float[])} to adapt one or both color spaces to
-     * a single common white point. This can be achieved automatically by calling
-     * {@link ColorSpace#connect(ColorSpace, ColorSpace)}, which also handles
-     * non-RGB color spaces.</p>
-     * <p>To learn more about the white point adaptation process, refer to the
-     * documentation of {@link ChromaticAdaptation}.</p>
-     */
-    public static non-sealed class Rgb extends ColorSpace {
-        /**
-         * {@usesMathJax}
-         *
-         * <p>Defines the parameters for the ICC parametric curve type 4, as
-         * defined in ICC.1:2004-10, section 10.15.</p>
-         *
-         * <p>The EOTF is of the form:</p>
-         * <p>
-         * \(\begin{equation}
-         * Y = \begin{cases}c X + f & X \lt d \\\
-         * \left( a X + b \right) ^{g} + e & X \ge d \end{cases}
-         * \end{equation}\)
-         *
-         * <p>The corresponding OETF is simply the inverse function.</p>
-         *
-         * <p>The parameters defined by this class form a valid transfer
-         * function only if all the following conditions are met:</p>
-         * <ul>
-         *     <li>No parameter is a {@link Double#isNaN(double) Not-a-Number}</li>
-         *     <li>\(d\) is in the range \([0..1]\)</li>
-         *     <li>The function is not constant</li>
-         *     <li>The function is positive and increasing</li>
-         * </ul>
-         */
-        public static class TransferParameters {
-            /**
-             * Variable \(a\) in the equation of the EOTF described above.
-             */
-            public final double a;
-            /**
-             * Variable \(b\) in the equation of the EOTF described above.
-             */
-            public final double b;
-            /**
-             * Variable \(c\) in the equation of the EOTF described above.
-             */
-            public final double c;
-            /**
-             * Variable \(d\) in the equation of the EOTF described above.
-             */
-            public final double d;
-            /**
-             * Variable \(e\) in the equation of the EOTF described above.
-             */
-            public final double e;
-            /**
-             * Variable \(f\) in the equation of the EOTF described above.
-             */
-            public final double f;
-            /**
-             * Variable \(g\) in the equation of the EOTF described above.
-             */
-            public final double g;
-
-            /**
-             * <p>Defines the parameters for the ICC parametric curve type 3, as
-             * defined in ICC.1:2004-10, section 10.15.</p>
-             *
-             * <p>The EOTF is of the form:</p>
-             * <p>
-             * \(\begin{equation}
-             * Y = \begin{cases}c X & X \lt d \\\
-             * \left( a X + b \right) ^{g} & X \ge d \end{cases}
-             * \end{equation}\)
-             *
-             * <p>This constructor is equivalent to setting  \(e\) and \(f\) to 0.</p>
-             *
-             * @param a The value of \(a\) in the equation of the EOTF described above
-             * @param b The value of \(b\) in the equation of the EOTF described above
-             * @param c The value of \(c\) in the equation of the EOTF described above
-             * @param d The value of \(d\) in the equation of the EOTF described above
-             * @param g The value of \(g\) in the equation of the EOTF described above
-             * @throws IllegalArgumentException If the parameters form an invalid transfer function
-             */
-            public TransferParameters(double a, double b, double c, double d, double g) {
-                this(a, b, c, d, 0.0, 0.0, g);
-            }
-
-            /**
-             * <p>Defines the parameters for the ICC parametric curve type 4, as
-             * defined in ICC.1:2004-10, section 10.15.</p>
-             *
-             * @param a The value of \(a\) in the equation of the EOTF described above
-             * @param b The value of \(b\) in the equation of the EOTF described above
-             * @param c The value of \(c\) in the equation of the EOTF described above
-             * @param d The value of \(d\) in the equation of the EOTF described above
-             * @param e The value of \(e\) in the equation of the EOTF described above
-             * @param f The value of \(f\) in the equation of the EOTF described above
-             * @param g The value of \(g\) in the equation of the EOTF described above
-             * @throws IllegalArgumentException If the parameters form an invalid transfer function
-             */
-            public TransferParameters(double a, double b, double c, double d, double e,
-                                      double f, double g) {
-
-                if (Double.isNaN(a) || Double.isNaN(b) || Double.isNaN(c) ||
-                        Double.isNaN(d) || Double.isNaN(e) || Double.isNaN(f) ||
-                        Double.isNaN(g)) {
-                    throw new IllegalArgumentException("Parameters cannot be NaN");
-                }
-
-                // Next representable float after 1.0
-                // We use doubles here but the representation inside our native code is often floats
-                if (!(d >= 0.0 && d <= 1.0f + Math.ulp(1.0f))) {
-                    throw new IllegalArgumentException("Parameter d must be in the range [0..1], " +
-                            "was " + d);
-                }
-
-                if (d == 0.0 && (a == 0.0 || g == 0.0)) {
-                    throw new IllegalArgumentException(
-                            "Parameter a or g is zero, the transfer function is constant");
-                }
-
-                if (d >= 1.0 && c == 0.0) {
-                    throw new IllegalArgumentException(
-                            "Parameter c is zero, the transfer function is constant");
-                }
-
-                if ((a == 0.0 || g == 0.0) && c == 0.0) {
-                    throw new IllegalArgumentException("Parameter a or g is zero," +
-                            " and c is zero, the transfer function is constant");
-                }
-
-                if (c < 0.0) {
-                    throw new IllegalArgumentException("The transfer function must be increasing");
-                }
-
-                if (a < 0.0 || g < 0.0) {
-                    throw new IllegalArgumentException("The transfer function must be " +
-                            "positive or increasing");
-                }
-
-                this.a = a;
-                this.b = b;
-                this.c = c;
-                this.d = d;
-                this.e = e;
-                this.f = f;
-                this.g = g;
-            }
-
-            @SuppressWarnings("SimplifiableIfStatement")
-            @Override
-            public boolean equals(Object o) {
-                if (this == o) return true;
-                if (o == null || getClass() != o.getClass()) return false;
-
-                TransferParameters that = (TransferParameters) o;
-
-                if (Double.compare(that.a, a) != 0) return false;
-                if (Double.compare(that.b, b) != 0) return false;
-                if (Double.compare(that.c, c) != 0) return false;
-                if (Double.compare(that.d, d) != 0) return false;
-                if (Double.compare(that.e, e) != 0) return false;
-                if (Double.compare(that.f, f) != 0) return false;
-                return Double.compare(that.g, g) == 0;
-            }
-
-            @Override
-            public int hashCode() {
-                int result;
-                long temp;
-                temp = Double.doubleToLongBits(a);
-                result = (int) (temp ^ (temp >>> 32));
-                temp = Double.doubleToLongBits(b);
-                result = 31 * result + (int) (temp ^ (temp >>> 32));
-                temp = Double.doubleToLongBits(c);
-                result = 31 * result + (int) (temp ^ (temp >>> 32));
-                temp = Double.doubleToLongBits(d);
-                result = 31 * result + (int) (temp ^ (temp >>> 32));
-                temp = Double.doubleToLongBits(e);
-                result = 31 * result + (int) (temp ^ (temp >>> 32));
-                temp = Double.doubleToLongBits(f);
-                result = 31 * result + (int) (temp ^ (temp >>> 32));
-                temp = Double.doubleToLongBits(g);
-                result = 31 * result + (int) (temp ^ (temp >>> 32));
-                return result;
-            }
-        }
-
-
-        private final float @NonNull[] mPrimaries;
-
-        private final float @NonNull[] mTransform;
-
-        private final float @NonNull[] mInverseTransform;
-
-        @NonNull
-        private final DoubleUnaryOperator mOetf;
-        @NonNull
-        private final DoubleUnaryOperator mEotf;
-        @NonNull
-        private final DoubleUnaryOperator mClampedOetf;
-        @NonNull
-        private final DoubleUnaryOperator mClampedEotf;
-
-        private final float mMin;
-        private final float mMax;
-
-        private final boolean mIsWideGamut;
-        private final boolean mIsSrgb;
-
-        @Nullable
-        private final TransferParameters mTransferParameters;
-
-        /**
-         * <p>Creates a new RGB color space using a 3x3 column-major transform matrix.
-         * The transform matrix must convert from the RGB space to the profile connection
-         * space CIE XYZ.</p>
-         *
-         * <p class="note">The range of the color space is imposed to be \([0..1]\).</p>
-         *
-         * @param name  Name of the color space, cannot be null, its length must be >= 1
-         * @param toXYZ 3x3 column-major transform matrix from RGB to the profile
-         *              connection space CIE XYZ as an array of 9 floats, cannot be null
-         * @param oetf  Opto-electronic transfer function, cannot be null
-         * @param eotf  Electro-optical transfer function, cannot be null
-         * @throws IllegalArgumentException If any of the following conditions is met:
-         *                                  <ul>
-         *                                      <li>The name is null or has a length of 0.</li>
-         *                                      <li>The OETF is null or the EOTF is null.</li>
-         *                                      <li>The minimum valid value is >= the maximum valid value.</li>
-         *                                  </ul>
-         * @see #get(Named)
-         */
-        public Rgb(
-                @NonNull @Size(min = 1) String name,
-                @Size(9) float @NonNull[] toXYZ,
-                @NonNull DoubleUnaryOperator oetf,
-                @NonNull DoubleUnaryOperator eotf) {
-            this(name, computePrimaries(toXYZ), computeWhitePoint(toXYZ), null,
-                    oetf, eotf, 0.0f, 1.0f, null, MIN_ID);
-        }
-
-        /**
-         * <p>Creates a new RGB color space using a specified set of primaries
-         * and a specified white point.</p>
-         *
-         * <p>The primaries and white point can be specified in the CIE xyY space
-         * or in CIE XYZ. The length of the arrays depends on the chosen space:</p>
-         *
-         * <table summary="Parameters length">
-         *     <tr><th>Space</th><th>Primaries length</th><th>White point length</th></tr>
-         *     <tr><td>xyY</td><td>6</td><td>2</td></tr>
-         *     <tr><td>XYZ</td><td>9</td><td>3</td></tr>
-         * </table>
-         *
-         * <p>When the primaries and/or white point are specified in xyY, the Y component
-         * does not need to be specified and is assumed to be 1.0. Only the xy components
-         * are required.</p>
-         *
-         * <p class="note">The ID, as returned by {@link #getId()}, of an object created by
-         * this constructor is always {@link #MIN_ID}.</p>
-         *
-         * @param name       Name of the color space, cannot be null, its length must be >= 1
-         * @param primaries  RGB primaries as an array of 6 (xy) or 9 (XYZ) floats
-         * @param whitePoint Reference white as an array of 2 (xy) or 3 (XYZ) floats
-         * @param oetf       Opto-electronic transfer function, cannot be null
-         * @param eotf       Electro-optical transfer function, cannot be null
-         * @param min        The minimum valid value in this color space's RGB range
-         * @param max        The maximum valid value in this color space's RGB range
-         * @throws IllegalArgumentException <p>If any of the following conditions is met:</p>
-         *                                  <ul>
-         *                                      <li>The name is null or has a length of 0.</li>
-         *                                      <li>The primaries array is null or has a length that is neither 6 or
-         *                                      9.</li>
-         *                                      <li>The white point array is null or has a length that is neither 2
-         *                                      or 3.</li>
-         *                                      <li>The OETF is null or the EOTF is null.</li>
-         *                                      <li>The minimum valid value is >= the maximum valid value.</li>
-         *                                  </ul>
-         * @see #get(Named)
-         */
-        public Rgb(
-                @NonNull @Size(min = 1) String name,
-                @Size(min = 6, max = 9) float @NonNull[] primaries,
-                @Size(min = 2, max = 3) float @NonNull[] whitePoint,
-                @NonNull DoubleUnaryOperator oetf,
-                @NonNull DoubleUnaryOperator eotf,
-                float min,
-                float max) {
-            this(name, primaries, whitePoint, null, oetf, eotf, min, max, null, MIN_ID);
-        }
-
-        /**
-         * <p>Creates a new RGB color space using a 3x3 column-major transform matrix.
-         * The transform matrix must convert from the RGB space to the profile connection
-         * space CIE XYZ.</p>
-         *
-         * <p class="note">The range of the color space is imposed to be \([0..1]\).</p>
-         *
-         * @param name     Name of the color space, cannot be null, its length must be >= 1
-         * @param toXYZ    3x3 column-major transform matrix from RGB to the profile
-         *                 connection space CIE XYZ as an array of 9 floats, cannot be null
-         * @param function Parameters for the transfer functions
-         * @throws IllegalArgumentException If any of the following conditions is met:
-         *                                  <ul>
-         *                                      <li>The name is null or has a length of 0.</li>
-         *                                      <li>Gamma is negative.</li>
-         *                                  </ul>
-         * @see #get(Named)
-         */
-        public Rgb(
-                @NonNull @Size(min = 1) String name,
-                @Size(9) float @NonNull[] toXYZ,
-                @NonNull TransferParameters function) {
-            // Note: when isGray() returns false, this passes null for the transform for
-            // consistency with other constructors, which compute the transform from the primaries
-            // and white point.
-            this(name, isGray(toXYZ) ? GRAY_PRIMARIES : computePrimaries(toXYZ),
-                    computeWhitePoint(toXYZ), isGray(toXYZ) ? toXYZ : null, function, MIN_ID);
-        }
-
-        /**
-         * <p>Creates a new RGB color space using a specified set of primaries
-         * and a specified white point.</p>
-         *
-         * <p>The primaries and white point can be specified in the CIE xyY space
-         * or in CIE XYZ. The length of the arrays depends on the chosen space:</p>
-         *
-         * <table summary="Parameters length">
-         *     <tr><th>Space</th><th>Primaries length</th><th>White point length</th></tr>
-         *     <tr><td>xyY</td><td>6</td><td>2</td></tr>
-         *     <tr><td>XYZ</td><td>9</td><td>3</td></tr>
-         * </table>
-         *
-         * <p>When the primaries and/or white point are specified in xyY, the Y component
-         * does not need to be specified and is assumed to be 1.0. Only the xy components
-         * are required.</p>
-         *
-         * @param name       Name of the color space, cannot be null, its length must be >= 1
-         * @param primaries  RGB primaries as an array of 6 (xy) or 9 (XYZ) floats
-         * @param whitePoint Reference white as an array of 2 (xy) or 3 (XYZ) floats
-         * @param function   Parameters for the transfer functions
-         * @throws IllegalArgumentException If any of the following conditions is met:
-         *                                  <ul>
-         *                                      <li>The name is null or has a length of 0.</li>
-         *                                      <li>The primaries array is null or has a length that is neither 6 or
-         *                                      9.</li>
-         *                                      <li>The white point array is null or has a length that is neither 2
-         *                                      or 3.</li>
-         *                                      <li>The transfer parameters are invalid.</li>
-         *                                  </ul>
-         * @see #get(Named)
-         */
-        public Rgb(
-                @NonNull @Size(min = 1) String name,
-                @Size(min = 6, max = 9) float @NonNull[] primaries,
-                @Size(min = 2, max = 3) float @NonNull[] whitePoint,
-                @NonNull TransferParameters function) {
-            this(name, primaries, whitePoint, null, function, MIN_ID);
-        }
-
-        /**
-         * <p>Creates a new RGB color space using a specified set of primaries
-         * and a specified white point.</p>
-         *
-         * <p>The primaries and white point can be specified in the CIE xyY space
-         * or in CIE XYZ. The length of the arrays depends on the chosen space:</p>
-         *
-         * <table summary="Parameters length">
-         *     <tr><th>Space</th><th>Primaries length</th><th>White point length</th></tr>
-         *     <tr><td>xyY</td><td>6</td><td>2</td></tr>
-         *     <tr><td>XYZ</td><td>9</td><td>3</td></tr>
-         * </table>
-         *
-         * <p>When the primaries and/or white point are specified in xyY, the Y component
-         * does not need to be specified and is assumed to be 1.0. Only the xy components
-         * are required.</p>
-         *
-         * @param name       Name of the color space, cannot be null, its length must be >= 1
-         * @param primaries  RGB primaries as an array of 6 (xy) or 9 (XYZ) floats
-         * @param whitePoint Reference white as an array of 2 (xy) or 3 (XYZ) floats
-         * @param transform  Computed transform matrix that converts from RGB to XYZ, or
-         *                   {@code null} to compute it from {@code primaries} and {@code whitePoint}.
-         * @param function   Parameters for the transfer functions
-         * @param id         ID of this color space as an integer between {@link #MIN_ID} and {@link #MAX_ID}
-         * @throws IllegalArgumentException If any of the following conditions is met:
-         *                                  <ul>
-         *                                      <li>The name is null or has a length of 0.</li>
-         *                                      <li>The primaries array is null or has a length that is neither 6 or
-         *                                      9.</li>
-         *                                      <li>The white point array is null or has a length that is neither 2
-         *                                      or 3.</li>
-         *                                      <li>The ID is not between {@link #MIN_ID} and {@link #MAX_ID}.</li>
-         *                                      <li>The transfer parameters are invalid.</li>
-         *                                  </ul>
-         * @see #get(Named)
-         */
-        private Rgb(
-                @NonNull @Size(min = 1) String name,
-                @Size(min = 6, max = 9) float @NonNull[] primaries,
-                @Size(min = 2, max = 3) float @NonNull[] whitePoint,
-                @Size(9) float @Nullable[] transform,
-                @NonNull TransferParameters function,
-                @Range(from = MIN_ID, to = MAX_ID) int id) {
-            this(name, primaries, whitePoint, transform,
-                    function.e == 0.0 && function.f == 0.0 ?
-                            x -> absRcpResponse(x, function.a, function.b,
-                                    function.c, function.d, function.g) :
-                            x -> absRcpResponse(x, function.a, function.b, function.c,
-                                    function.d, function.e, function.f, function.g),
-                    function.e == 0.0 && function.f == 0.0 ?
-                            x -> absResponse(x, function.a, function.b,
-                                    function.c, function.d, function.g) :
-                            x -> absResponse(x, function.a, function.b, function.c,
-                                    function.d, function.e, function.f, function.g),
-                    0.0f, 1.0f, function, id);
-        }
-
-        /**
-         * <p>Creates a new RGB color space using a 3x3 column-major transform matrix.
-         * The transform matrix must convert from the RGB space to the profile connection
-         * space CIE XYZ.</p>
-         *
-         * <p class="note">The range of the color space is imposed to be \([0..1]\).</p>
-         *
-         * @param name  Name of the color space, cannot be null, its length must be >= 1
-         * @param toXYZ 3x3 column-major transform matrix from RGB to the profile
-         *              connection space CIE XYZ as an array of 9 floats, cannot be null
-         * @param gamma Gamma to use as the transfer function
-         * @throws IllegalArgumentException If any of the following conditions is met:
-         *                                  <ul>
-         *                                      <li>The name is null or has a length of 0.</li>
-         *                                      <li>Gamma is negative.</li>
-         *                                  </ul>
-         * @see #get(Named)
-         */
-        public Rgb(
-                @NonNull @Size(min = 1) String name,
-                @Size(9) float @NonNull[] toXYZ,
-                double gamma) {
-            this(name, computePrimaries(toXYZ), computeWhitePoint(toXYZ), gamma, 0.0f, 1.0f, MIN_ID);
-        }
-
-        /**
-         * <p>Creates a new RGB color space using a specified set of primaries
-         * and a specified white point.</p>
-         *
-         * <p>The primaries and white point can be specified in the CIE xyY space
-         * or in CIE XYZ. The length of the arrays depends on the chosen space:</p>
-         *
-         * <table summary="Parameters length">
-         *     <tr><th>Space</th><th>Primaries length</th><th>White point length</th></tr>
-         *     <tr><td>xyY</td><td>6</td><td>2</td></tr>
-         *     <tr><td>XYZ</td><td>9</td><td>3</td></tr>
-         * </table>
-         *
-         * <p>When the primaries and/or white point are specified in xyY, the Y component
-         * does not need to be specified and is assumed to be 1.0. Only the xy components
-         * are required.</p>
-         *
-         * @param name       Name of the color space, cannot be null, its length must be >= 1
-         * @param primaries  RGB primaries as an array of 6 (xy) or 9 (XYZ) floats
-         * @param whitePoint Reference white as an array of 2 (xy) or 3 (XYZ) floats
-         * @param gamma      Gamma to use as the transfer function
-         * @throws IllegalArgumentException If any of the following conditions is met:
-         *                                  <ul>
-         *                                      <li>The name is null or has a length of 0.</li>
-         *                                      <li>The primaries array is null or has a length that is neither 6 or
-         *                                      9.</li>
-         *                                      <li>The white point array is null or has a length that is neither 2
-         *                                      or 3.</li>
-         *                                      <li>Gamma is negative.</li>
-         *                                  </ul>
-         * @see #get(Named)
-         */
-        public Rgb(
-                @NonNull @Size(min = 1) String name,
-                @Size(min = 6, max = 9) float @NonNull[] primaries,
-                @Size(min = 2, max = 3) float @NonNull[] whitePoint,
-                double gamma) {
-            this(name, primaries, whitePoint, gamma, 0.0f, 1.0f, MIN_ID);
-        }
-
-        /**
-         * <p>Creates a new RGB color space using a specified set of primaries
-         * and a specified white point.</p>
-         *
-         * <p>The primaries and white point can be specified in the CIE xyY space
-         * or in CIE XYZ. The length of the arrays depends on the chosen space:</p>
-         *
-         * <table summary="Parameters length">
-         *     <tr><th>Space</th><th>Primaries length</th><th>White point length</th></tr>
-         *     <tr><td>xyY</td><td>6</td><td>2</td></tr>
-         *     <tr><td>XYZ</td><td>9</td><td>3</td></tr>
-         * </table>
-         *
-         * <p>When the primaries and/or white point are specified in xyY, the Y component
-         * does not need to be specified and is assumed to be 1.0. Only the xy components
-         * are required.</p>
-         *
-         * @param name       Name of the color space, cannot be null, its length must be >= 1
-         * @param primaries  RGB primaries as an array of 6 (xy) or 9 (XYZ) floats
-         * @param whitePoint Reference white as an array of 2 (xy) or 3 (XYZ) floats
-         * @param gamma      Gamma to use as the transfer function
-         * @param min        The minimum valid value in this color space's RGB range
-         * @param max        The maximum valid value in this color space's RGB range
-         * @param id         ID of this color space as an integer between {@link #MIN_ID} and {@link #MAX_ID}
-         * @throws IllegalArgumentException If any of the following conditions is met:
-         *                                  <ul>
-         *                                      <li>The name is null or has a length of 0.</li>
-         *                                      <li>The primaries array is null or has a length that is neither 6 or
-         *                                      9.</li>
-         *                                      <li>The white point array is null or has a length that is neither 2
-         *                                      or 3.</li>
-         *                                      <li>The minimum valid value is >= the maximum valid value.</li>
-         *                                      <li>The ID is not between {@link #MIN_ID} and {@link #MAX_ID}.</li>
-         *                                      <li>Gamma is negative.</li>
-         *                                  </ul>
-         * @see #get(Named)
-         */
-        private Rgb(
-                @NonNull @Size(min = 1) String name,
-                @Size(min = 6, max = 9) float @NonNull[] primaries,
-                @Size(min = 2, max = 3) float @NonNull[] whitePoint,
-                double gamma,
-                float min,
-                float max,
-                @Range(from = MIN_ID, to = MAX_ID) int id) {
-            this(name, primaries, whitePoint, null,
-                    gamma == 1.0 ? DoubleUnaryOperator.identity() :
-                            x -> absRcpResponse(x, gamma),
-                    gamma == 1.0 ? DoubleUnaryOperator.identity() :
-                            x -> absResponse(x, gamma),
-                    min, max, new TransferParameters(1.0, 0.0, 0.0, 0.0, gamma), id);
-        }
-
-        /**
-         * <p>Creates a new RGB color space using a specified set of primaries
-         * and a specified white point.</p>
-         *
-         * <p>The primaries and white point can be specified in the CIE xyY space
-         * or in CIE XYZ. The length of the arrays depends on the chosen space:</p>
-         *
-         * <table summary="Parameters length">
-         *     <tr><th>Space</th><th>Primaries length</th><th>White point length</th></tr>
-         *     <tr><td>xyY</td><td>6</td><td>2</td></tr>
-         *     <tr><td>XYZ</td><td>9</td><td>3</td></tr>
-         * </table>
-         *
-         * <p>When the primaries and/or white point are specified in xyY, the Y component
-         * does not need to be specified and is assumed to be 1.0. Only the xy components
-         * are required.</p>
-         *
-         * @param name               Name of the color space, cannot be null, its length must be >= 1
-         * @param primaries          RGB primaries as an array of 6 (xy) or 9 (XYZ) floats
-         * @param whitePoint         Reference white as an array of 2 (xy) or 3 (XYZ) floats
-         * @param transform          Computed transform matrix that converts from RGB to XYZ, or
-         *                           {@code null} to compute it from {@code primaries} and {@code whitePoint}.
-         * @param oetf               Opto-electronic transfer function, cannot be null
-         * @param eotf               Electro-optical transfer function, cannot be null
-         * @param min                The minimum valid value in this color space's RGB range
-         * @param max                The maximum valid value in this color space's RGB range
-         * @param transferParameters Parameters for the transfer functions
-         * @throws IllegalArgumentException If any of the following conditions is met:
-         *                                  <ul>
-         *                                      <li>The name is null or has a length of 0.</li>
-         *                                      <li>The primaries array is null or has a length that is neither 6 or
-         *                                      9.</li>
-         *                                      <li>The white point array is null or has a length that is neither 2
-         *                                      or 3.</li>
-         *                                      <li>The OETF is null or the EOTF is null.</li>
-         *                                      <li>The minimum valid value is >= the maximum valid value.</li>
-         *                                  </ul>
-         * @see #get(Named)
-         */
-        public Rgb(
-                @NonNull @Size(min = 1) String name,
-                @Size(min = 6, max = 9) float @NonNull[] primaries,
-                @Size(min = 2, max = 3) float @NonNull[] whitePoint,
-                @Size(9) float @Nullable[] transform,
-                @NonNull DoubleUnaryOperator oetf,
-                @NonNull DoubleUnaryOperator eotf,
-                float min,
-                float max,
-                @Nullable TransferParameters transferParameters) {
-            this(name, primaries, whitePoint, transform,
-                    oetf, eotf, min, max, transferParameters, MIN_ID);
-        }
-
-        /**
-         * <p>Creates a new RGB color space using a specified set of primaries
-         * and a specified white point.</p>
-         *
-         * <p>The primaries and white point can be specified in the CIE xyY space
-         * or in CIE XYZ. The length of the arrays depends on the chosen space:</p>
-         *
-         * <table summary="Parameters length">
-         *     <tr><th>Space</th><th>Primaries length</th><th>White point length</th></tr>
-         *     <tr><td>xyY</td><td>6</td><td>2</td></tr>
-         *     <tr><td>XYZ</td><td>9</td><td>3</td></tr>
-         * </table>
-         *
-         * <p>When the primaries and/or white point are specified in xyY, the Y component
-         * does not need to be specified and is assumed to be 1.0. Only the xy components
-         * are required.</p>
-         *
-         * @param name               Name of the color space, cannot be null, its length must be >= 1
-         * @param primaries          RGB primaries as an array of 6 (xy) or 9 (XYZ) floats
-         * @param whitePoint         Reference white as an array of 2 (xy) or 3 (XYZ) floats
-         * @param transform          Computed transform matrix that converts from RGB to XYZ, or
-         *                           {@code null} to compute it from {@code primaries} and {@code whitePoint}.
-         * @param oetf               Opto-electronic transfer function, cannot be null
-         * @param eotf               Electro-optical transfer function, cannot be null
-         * @param min                The minimum valid value in this color space's RGB range
-         * @param max                The maximum valid value in this color space's RGB range
-         * @param transferParameters Parameters for the transfer functions
-         * @param id                 ID of this color space as an integer between {@link #MIN_ID} and {@link #MAX_ID}
-         * @throws IllegalArgumentException If any of the following conditions is met:
-         *                                  <ul>
-         *                                      <li>The name is null or has a length of 0.</li>
-         *                                      <li>The primaries array is null or has a length that is neither 6 or
-         *                                      9.</li>
-         *                                      <li>The white point array is null or has a length that is neither 2
-         *                                      or 3.</li>
-         *                                      <li>The OETF is null or the EOTF is null.</li>
-         *                                      <li>The minimum valid value is >= the maximum valid value.</li>
-         *                                      <li>The ID is not between {@link #MIN_ID} and {@link #MAX_ID}.</li>
-         *                                  </ul>
-         * @see #get(Named)
-         */
-        private Rgb(
-                @NonNull @Size(min = 1) String name,
-                @Size(min = 6, max = 9) float @NonNull[] primaries,
-                @Size(min = 2, max = 3) float @NonNull[] whitePoint,
-                @Size(9) float @Nullable[] transform,
-                @NonNull DoubleUnaryOperator oetf,
-                @NonNull DoubleUnaryOperator eotf,
-                float min,
-                float max,
-                @Nullable TransferParameters transferParameters,
-                @Range(from = MIN_ID, to = MAX_ID) int id) {
-
-            super(name, MODEL_RGB, whitePoint, id);
-
-            if (primaries.length != 6 && primaries.length != 9) {
-                throw new IllegalArgumentException("The color space's primaries must be " +
-                        "defined as an array of 6 floats in xyY or 9 floats in XYZ");
-            }
-
-            Objects.requireNonNull(oetf, "The transfer functions of a color space cannot be null");
-            Objects.requireNonNull(eotf, "The transfer functions of a color space cannot be null");
-
-            if (min >= max) {
-                throw new IllegalArgumentException("Invalid range: min=" + min + ", max=" + max +
-                        "; min must be strictly < max");
-            }
-
-            mPrimaries = xyPrimaries(primaries);
-
-            if (transform == null) {
-                mTransform = computeXYZMatrix(mPrimaries, mWhitePoint);
-            } else {
-                if (transform.length != 9) {
-                    throw new IllegalArgumentException("Transform must have 9 entries! Has "
-                            + transform.length);
-                }
-                mTransform = transform;
-            }
-            mInverseTransform = inverse3x3(mTransform);
-
-            mOetf = oetf;
-            mEotf = eotf;
-
-            mMin = min;
-            mMax = max;
-
-            DoubleUnaryOperator clamp = x -> MathUtil.clamp(x, min, max);
-            mClampedOetf = oetf.andThen(clamp);
-            mClampedEotf = clamp.andThen(eotf);
-
-            mTransferParameters = transferParameters;
-
-            // A color space is wide-gamut if its area is >90% of NTSC 1953 and
-            // if it entirely contains the Color space definition in xyY
-            mIsWideGamut = isWideGamut(mPrimaries, min, max);
-            mIsSrgb = isSrgb(mPrimaries, mWhitePoint, oetf, eotf, min, max, id);
-        }
-
-        /**
-         * Creates a copy of the specified color space with a new transform.
-         *
-         * @param colorSpace The color space to create a copy of
-         */
-        private Rgb(@NonNull Rgb colorSpace,
-                @Size(9) float @NonNull[] transform,
-                @Size(min = 2, max = 3) float @NonNull[] whitePoint) {
-            this(colorSpace.getName(), colorSpace.mPrimaries, whitePoint, transform,
-                    colorSpace.mOetf, colorSpace.mEotf, colorSpace.mMin, colorSpace.mMax,
-                    colorSpace.mTransferParameters, MIN_ID);
-        }
-
-
-        /**
-         * Copies the primaries of this color space in specified array. The Y
-         * component is assumed to be 1 and is therefore not copied into the
-         * destination. The x and y components of the first primary are written
-         * in the array at positions 0 and 1 respectively.
-         *
-         * <p>Note: Some ColorSpaces represent gray profiles. The concept of
-         * primaries for such a ColorSpace does not make sense, so we use a special
-         * set of primaries that are all 1s.</p>
-         *
-         * @param primaries The destination array, cannot be null, its length
-         *                  must be >= 6
-         * @return The destination array passed as a parameter
-         * @see #getPrimaries()
-         */
-        @Size(min = 6)
-        public float @NonNull[] getPrimaries(@Size(min = 6) float @NonNull[] primaries) {
-            System.arraycopy(mPrimaries, 0, primaries, 0, mPrimaries.length);
-            return primaries;
-        }
-
-
-        /**
-         * Returns the primaries of this color space as a new array of 6 floats.
-         * The Y component is assumed to be 1 and is therefore not copied into
-         * the destination. The x and y components of the first primary are
-         * written in the array at positions 0 and 1 respectively.
-         *
-         * <p>Note: Some ColorSpaces represent gray profiles. The concept of
-         * primaries for such a ColorSpace does not make sense, so we use a special
-         * set of primaries that are all 1s.</p>
-         *
-         * @return A new non-null array of 6 floats
-         * @see #getPrimaries(float[])
-         */
-        @Size(6)
-        public float @NonNull[] getPrimaries() {
-            return mPrimaries.clone();
-        }
-
-
-        /**
-         * <p>Copies the transform of this color space in specified array. The
-         * transform is used to convert from RGB to XYZ (with the same white
-         * point as this color space). To connect color spaces, you must first
-         * {@link ColorSpace#adapt(ColorSpace, float[]) adapt} them to the
-         * same white point.</p>
-         * <p>It is recommended to use {@link ColorSpace#connect(ColorSpace, ColorSpace)}
-         * to convert between color spaces.</p>
-         *
-         * @param transform The destination array, cannot be null, its length
-         *                  must be >= 9
-         * @return The destination array passed as a parameter
-         * @see #getTransform()
-         */
-        @Size(min = 9)
-        public float @NonNull[] getTransform(@Size(min = 9) float @NonNull[] transform) {
-            System.arraycopy(mTransform, 0, transform, 0, mTransform.length);
-            return transform;
-        }
-
-
-        /**
-         * <p>Returns the transform of this color space as a new array. The
-         * transform is used to convert from RGB to XYZ (with the same white
-         * point as this color space). To connect color spaces, you must first
-         * {@link ColorSpace#adapt(ColorSpace, float[]) adapt} them to the
-         * same white point.</p>
-         * <p>It is recommended to use {@link ColorSpace#connect(ColorSpace, ColorSpace)}
-         * to convert between color spaces.</p>
-         *
-         * @return A new array of 9 floats
-         * @see #getTransform(float[])
-         */
-        @Size(9)
-        public float @NonNull[] getTransform() {
-            return mTransform.clone();
-        }
-
-
-        /**
-         * <p>Copies the inverse transform of this color space in specified array.
-         * The inverse transform is used to convert from XYZ to RGB (with the
-         * same white point as this color space). To connect color spaces, you
-         * must first {@link ColorSpace#adapt(ColorSpace, float[]) adapt} them
-         * to the same white point.</p>
-         * <p>It is recommended to use {@link ColorSpace#connect(ColorSpace, ColorSpace)}
-         * to convert between color spaces.</p>
-         *
-         * @param inverseTransform The destination array, cannot be null, its length
-         *                         must be >= 9
-         * @return The destination array passed as a parameter
-         * @see #getInverseTransform()
-         */
-        @Size(min = 9)
-        public float @NonNull[] getInverseTransform(@Size(min = 9) float @NonNull[] inverseTransform) {
-            System.arraycopy(mInverseTransform, 0, inverseTransform, 0, mInverseTransform.length);
-            return inverseTransform;
-        }
-
-
-        /**
-         * <p>Returns the inverse transform of this color space as a new array.
-         * The inverse transform is used to convert from XYZ to RGB (with the
-         * same white point as this color space). To connect color spaces, you
-         * must first {@link ColorSpace#adapt(ColorSpace, float[]) adapt} them
-         * to the same white point.</p>
-         * <p>It is recommended to use {@link ColorSpace#connect(ColorSpace, ColorSpace)}
-         * to convert between color spaces.</p>
-         *
-         * @return A new array of 9 floats
-         * @see #getInverseTransform(float[])
-         */
-        @Size(9)
-        public float @NonNull[] getInverseTransform() {
-            return mInverseTransform.clone();
-        }
-
-        /**
-         * <p>Returns the opto-electronic transfer function (OETF) of this color space.
-         * The inverse function is the electro-optical transfer function (EOTF) returned
-         * by {@link #getEotf()}. These functions are defined to satisfy the following
-         * equality for \(x \in [0..1]\):</p>
-         * <p>
-         * $$OETF(EOTF(x)) = EOTF(OETF(x)) = x$$
-         *
-         * <p>For RGB colors, this function can be used to convert from linear space
-         * to "gamma space" (gamma encoded). The terms gamma space and gamma encoded
-         * are frequently used because many OETFs can be closely approximated using
-         * a simple power function of the form \(x^{\frac{1}{\gamma}}\) (the
-         * approximation of the {@link Named#SRGB sRGB} OETF uses \(\gamma=2.2\)
-         * for instance).</p>
-         *
-         * @return A transfer function that converts from linear space to "gamma space"
-         * @see #getEotf()
-         * @see #getTransferParameters()
-         */
-        @NonNull
-        public DoubleUnaryOperator getOetf() {
-            return mClampedOetf;
-        }
-
-        /**
-         * Similar to {@link #getOetf}, but not clamped to min/max per spec.
-         *
-         * @see #getOetf()
-         * @return A transfer function that converts from linear space to "gamma space"
-         */
-        @NonNull
-        public DoubleUnaryOperator getUnclampedOetf() {
-            return mOetf;
-        }
-
-        /**
-         * <p>Returns the electro-optical transfer function (EOTF) of this color space.
-         * The inverse function is the opto-electronic transfer function (OETF)
-         * returned by {@link #getOetf()}. These functions are defined to satisfy the
-         * following equality for \(x \in [0..1]\):</p>
-         * <p>
-         * $$OETF(EOTF(x)) = EOTF(OETF(x)) = x$$
-         *
-         * <p>For RGB colors, this function can be used to convert from "gamma space"
-         * (gamma encoded) to linear space. The terms gamma space and gamma encoded
-         * are frequently used because many EOTFs can be closely approximated using
-         * a simple power function of the form \(x^\gamma\) (the approximation of the
-         * {@link Named#SRGB sRGB} EOTF uses \(\gamma=2.2\) for instance).</p>
-         *
-         * @return A transfer function that converts from "gamma space" to linear space
-         * @see #getOetf()
-         * @see #getTransferParameters()
-         */
-        @NonNull
-        public DoubleUnaryOperator getEotf() {
-            return mClampedEotf;
-        }
-
-        /**
-         * Similar to {@link #getEotf}, but not clamped to min/max per spec.
-         *
-         * @see #getEotf()
-         * @return A transfer function that converts from "gamma space" to linear space
-         */
-        @NonNull
-        public DoubleUnaryOperator getUnclampedEotf() {
-            return mEotf;
-        }
-
-        /**
-         * <p>Returns the parameters used by the {@link #getEotf() electro-optical}
-         * and {@link #getOetf() opto-electronic} transfer functions. If the transfer
-         * functions do not match the ICC parametric curves defined in ICC.1:2004-10
-         * (section 10.15), this method returns null.</p>
-         *
-         * <p>See {@link TransferParameters} for a full description of the transfer
-         * functions.</p>
-         *
-         * @return An instance of {@link TransferParameters} or null if this color
-         * space's transfer functions do not match the equation defined in
-         * {@link TransferParameters}
-         */
-        @Nullable
-        public TransferParameters getTransferParameters() {
-            return mTransferParameters;
-        }
-
-        @Override
-        public boolean isSrgb() {
-            return mIsSrgb;
-        }
-
-        @Override
-        public boolean isWideGamut() {
-            return mIsWideGamut;
-        }
-
-        @Override
-        public float getMinValue(int component) {
-            return mMin;
-        }
-
-        @Override
-        public float getMaxValue(int component) {
-            return mMax;
-        }
-
-
-        /**
-         * <p>Decodes an RGB value to linear space. This is achieved by
-         * applying this color space's electro-optical transfer function
-         * to the supplied values.</p>
-         *
-         * <p>Refer to the documentation of {@link ColorSpace.Rgb} for
-         * more information about transfer functions and their use for
-         * encoding and decoding RGB values.</p>
-         *
-         * @param r The red component to decode to linear space
-         * @param g The green component to decode to linear space
-         * @param b The blue component to decode to linear space
-         * @return A new array of 3 floats containing linear RGB values
-         * @see #toLinear(float[])
-         * @see #fromLinear(float, float, float)
-         */
-        @Size(3)
-        public float @NonNull[] toLinear(float r, float g, float b) {
-            return toLinear(new float[]{r, g, b});
-        }
-
-
-        /**
-         * <p>Decodes an RGB value to linear space. This is achieved by
-         * applying this color space's electro-optical transfer function
-         * to the first 3 values of the supplied array. The result is
-         * stored back in the input array.</p>
-         *
-         * <p>Refer to the documentation of {@link ColorSpace.Rgb} for
-         * more information about transfer functions and their use for
-         * encoding and decoding RGB values.</p>
-         *
-         * @param v A non-null array of non-linear RGB values, its length
-         *          must be at least 3
-         * @return The specified array
-         * @see #toLinear(float, float, float)
-         * @see #fromLinear(float[])
-         */
-        @Size(min = 3)
-        public float @NonNull[] toLinear(@Size(min = 3) float @NonNull[] v) {
-            v[0] = (float) mClampedEotf.applyAsDouble(v[0]);
-            v[1] = (float) mClampedEotf.applyAsDouble(v[1]);
-            v[2] = (float) mClampedEotf.applyAsDouble(v[2]);
-            return v;
-        }
-
-        @Size(min = 3)
-        public float @NonNull[] toLinearUnclamped(@Size(min = 3) float @NonNull[] v) {
-            v[0] = (float) mEotf.applyAsDouble(v[0]);
-            v[1] = (float) mEotf.applyAsDouble(v[1]);
-            v[2] = (float) mEotf.applyAsDouble(v[2]);
-            return v;
-        }
-
-        /**
-         * <p>Encodes an RGB value from linear space to this color space's
-         * "gamma space". This is achieved by applying this color space's
-         * opto-electronic transfer function to the supplied values.</p>
-         *
-         * <p>Refer to the documentation of {@link ColorSpace.Rgb} for
-         * more information about transfer functions and their use for
-         * encoding and decoding RGB values.</p>
-         *
-         * @param r The red component to encode from linear space
-         * @param g The green component to encode from linear space
-         * @param b The blue component to encode from linear space
-         * @return A new array of 3 floats containing non-linear RGB values
-         * @see #fromLinear(float[])
-         * @see #toLinear(float, float, float)
-         */
-        @Size(3)
-        public float @NonNull[] fromLinear(float r, float g, float b) {
-            return fromLinear(new float[]{r, g, b});
-        }
-
-
-        /**
-         * <p>Encodes an RGB value from linear space to this color space's
-         * "gamma space". This is achieved by applying this color space's
-         * opto-electronic transfer function to the first 3 values of the
-         * supplied array. The result is stored back in the input array.</p>
-         *
-         * <p>Refer to the documentation of {@link ColorSpace.Rgb} for
-         * more information about transfer functions and their use for
-         * encoding and decoding RGB values.</p>
-         *
-         * @param v A non-null array of linear RGB values, its length
-         *          must be at least 3
-         * @return A new array of 3 floats containing non-linear RGB values
-         * @see #fromLinear(float[])
-         * @see #toLinear(float, float, float)
-         */
-        @Size(min = 3)
-        public float @NonNull[] fromLinear(@Size(min = 3) float @NonNull[] v) {
-            v[0] = (float) mClampedOetf.applyAsDouble(v[0]);
-            v[1] = (float) mClampedOetf.applyAsDouble(v[1]);
-            v[2] = (float) mClampedOetf.applyAsDouble(v[2]);
-            return v;
-        }
-
-        @Size(min = 3)
-        public float @NonNull[] fromLinearUnclamped(@Size(min = 3) float @NonNull[] v) {
-            v[0] = (float) mOetf.applyAsDouble(v[0]);
-            v[1] = (float) mOetf.applyAsDouble(v[1]);
-            v[2] = (float) mOetf.applyAsDouble(v[2]);
-            return v;
-        }
-
-        @Override
-        @Size(min = 3)
-        public float @NonNull[] toXyz(@Size(min = 3) float @NonNull[] v) {
-            v[0] = (float) mClampedEotf.applyAsDouble(v[0]);
-            v[1] = (float) mClampedEotf.applyAsDouble(v[1]);
-            v[2] = (float) mClampedEotf.applyAsDouble(v[2]);
-            return mul3x3Float3(mTransform, v);
-        }
-
-        @Override
-        @Size(min = 3)
-        public float @NonNull [] toXyzUnclamped(float @NonNull [] v) {
-            v[0] = (float) mEotf.applyAsDouble(v[0]);
-            v[1] = (float) mEotf.applyAsDouble(v[1]);
-            v[2] = (float) mEotf.applyAsDouble(v[2]);
-            return mul3x3Float3(mTransform, v);
-        }
-
-        @Override
-        @Size(min = 3)
-        public float @NonNull[] fromXyz(@Size(min = 3) float @NonNull[] v) {
-            mul3x3Float3(mInverseTransform, v);
-            v[0] = (float) mClampedOetf.applyAsDouble(v[0]);
-            v[1] = (float) mClampedOetf.applyAsDouble(v[1]);
-            v[2] = (float) mClampedOetf.applyAsDouble(v[2]);
-            return v;
-        }
-
-        @Override
-        @Size(min = 3)
-        public float @NonNull [] fromXyzUnclamped(float @NonNull [] v) {
-            mul3x3Float3(mInverseTransform, v);
-            v[0] = (float) mOetf.applyAsDouble(v[0]);
-            v[1] = (float) mOetf.applyAsDouble(v[1]);
-            v[2] = (float) mOetf.applyAsDouble(v[2]);
-            return v;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = super.hashCode();
-            result = 31 * result + Arrays.hashCode(mWhitePoint);
-            result = 31 * result + Arrays.hashCode(mPrimaries);
-            result = 31 * result + (mMin != 0.0f ? Float.floatToIntBits(mMin) : 0);
-            result = 31 * result + (mMax != 0.0f ? Float.floatToIntBits(mMax) : 0);
-            result = 31 * result +
-                    (mTransferParameters != null ? mTransferParameters.hashCode() : 0);
-            if (mTransferParameters == null) {
-                result = 31 * result + mOetf.hashCode();
-                result = 31 * result + mEotf.hashCode();
-            }
-            return result;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            if (!super.equals(o)) return false;
-
-            Rgb rgb = (Rgb) o;
-
-            if (Float.compare(rgb.mMin, mMin) != 0) return false;
-            if (Float.compare(rgb.mMax, mMax) != 0) return false;
-            if (!Arrays.equals(mWhitePoint, rgb.mWhitePoint)) return false;
-            if (!Arrays.equals(mPrimaries, rgb.mPrimaries)) return false;
-            if (mTransferParameters != null) {
-                return mTransferParameters.equals(rgb.mTransferParameters);
-            } else if (rgb.mTransferParameters == null) {
-                return true;
-            }
-            //noinspection SimplifiableIfStatement
-            if (!mOetf.equals(rgb.mOetf)) return false;
-            return mEotf.equals(rgb.mEotf);
-        }
-
-        /**
-         * Computes whether a color space is the sRGB color space or at least
-         * a close approximation.
-         *
-         * @param primaries  The set of RGB primaries in xyY as an array of 6 floats
-         * @param whitePoint The white point in xyY as an array of 2 floats
-         * @param oetf       The opto-electronic transfer function
-         * @param eotf       The electro-optical transfer function
-         * @param min        The minimum value of the color space's range
-         * @param max        The minimum value of the color space's range
-         * @param id         The ID of the color space
-         * @return True if the color space can be considered as the sRGB color space
-         * @see #isSrgb()
-         */
-        public static boolean isSrgb(
-                @Size(6) float @NonNull[] primaries,
-                @Size(2) float @NonNull[] whitePoint,
-                @NonNull DoubleUnaryOperator oetf,
-                @NonNull DoubleUnaryOperator eotf,
-                float min,
-                float max,
-                @Range(from = MIN_ID, to = MAX_ID) int id) {
-            if (id == 0) return true;
-            if (!ColorSpace.compare(primaries, SRGB_PRIMARIES)) {
-                return false;
-            }
-            if (!ColorSpace.compare(whitePoint, ILLUMINANT_D65)) {
-                return false;
-            }
-
-            if (min != 0.0f) return false;
-            if (max != 1.0f) return false;
-
-            // We would have already returned true if this was SRGB itself, so
-            // it is safe to reference it here.
-            ColorSpace.Rgb srgb = (ColorSpace.Rgb) get(Named.SRGB);
-
-            for (double x = 0.0; x <= 1.0; x += 1 / 255.0) {
-                if (!compare(x, oetf, srgb.mOetf)) return false;
-                if (!compare(x, eotf, srgb.mEotf)) return false;
-            }
-
-            return true;
-        }
-
-        /**
-         * Report whether this matrix is a special gray matrix.
-         *
-         * @param toXYZ A XYZ D50 matrix.
-         * @return true if this is a special gray matrix.
-         */
-        public static boolean isGray( @Size(9) float @NonNull[] toXYZ) {
-            return toXYZ.length == 9 &&
-                    toXYZ[1] == 0 &&
-                    toXYZ[2] == 0 &&
-                    toXYZ[3] == 0 &&
-                    toXYZ[5] == 0 &&
-                    toXYZ[6] == 0 &&
-                    toXYZ[7] == 0;
-        }
-
-        public static boolean compare(double point,
-                                       @NonNull DoubleUnaryOperator a,
-                                       @NonNull DoubleUnaryOperator b) {
-            double rA = a.applyAsDouble(point);
-            double rB = b.applyAsDouble(point);
-            return Math.abs(rA - rB) <= 1e-3;
-        }
-
-        /**
-         * Computes whether the specified CIE xyY or XYZ primaries (with Y set to 1) form
-         * a wide color gamut. A color gamut is considered wide if its area is &gt; 90%
-         * of the area of NTSC 1953 and if it contains the sRGB color gamut entirely.
-         * If the conditions above are not met, the color space is considered as having
-         * a wide color gamut if its range is larger than [0..1].
-         *
-         * @param primaries RGB primaries in CIE xyY as an array of 6 floats
-         * @param min       The minimum value of the color space's range
-         * @param max       The minimum value of the color space's range
-         * @return True if the color space has a wide gamut, false otherwise
-         * @see #isWideGamut()
-         * @see #area(float[])
-         */
-        public static boolean isWideGamut( @Size(6) float @NonNull[] primaries,
-                                           float min, float max) {
-            return (area(primaries) / area(NTSC_1953_PRIMARIES) > 0.9f &&
-                    contains(primaries, SRGB_PRIMARIES)) || (min < 0.0f && max > 1.0f);
-        }
-
-        /**
-         * Computes the area of the triangle represented by a set of RGB primaries
-         * in the CIE xyY space.
-         *
-         * @param primaries The triangle's vertices, as RGB primaries in an array of 6 floats
-         * @return The area of the triangle
-         * @see #isWideGamut(float[], float, float)
-         */
-        public static float area( @Size(6) float @NonNull[] primaries) {
-            float Rx = primaries[0];
-            float Ry = primaries[1];
-            float Gx = primaries[2];
-            float Gy = primaries[3];
-            float Bx = primaries[4];
-            float By = primaries[5];
-            float det = Rx * Gy + Ry * Bx + Gx * By - Gy * Bx - Ry * Gx - Rx * By;
-            float r = 0.5f * det;
-            return r < 0.0f ? -r : r;
-        }
-
-        /**
-         * Computes the cross product of two 2D vectors.
-         *
-         * @param ax The x coordinate of the first vector
-         * @param ay The y coordinate of the first vector
-         * @param bx The x coordinate of the second vector
-         * @param by The y coordinate of the second vector
-         * @return The result of a x b
-         */
-        public static float cross(float ax, float ay, float bx, float by) {
-            return ax * by - ay * bx;
-        }
-
-        /**
-         * Decides whether a 2D triangle, identified by the 6 coordinates of its
-         * 3 vertices, is contained within another 2D triangle, also identified
-         * by the 6 coordinates of its 3 vertices.
-         * <p>
-         * In the illustration below, we want to test whether the RGB triangle
-         * is contained within the triangle XYZ formed by the 3 vertices at
-         * the "+" locations.
-         * <pre>{@literal
-         *                                  Y     .
-         *                              .   +    .
-         *                               .     ..
-         *                                .   .
-         *                                 . .
-         *                                  .  G
-         *                                  *
-         *                                 * *
-         *                               **   *
-         *                              *      **
-         *                             *         *
-         *                           **           *
-         *                          *              *
-         *                         *                *
-         *                       **                  *
-         *                      *                     *
-         *                     *                       **
-         *                   **                          *   R    ...
-         *                  *                             *  .....
-         *                 *                         ***** ..
-         *               **              ************       .   +
-         *           B  *    ************                    .   X
-         *        ......*****                                 .
-         *  ......    .                                        .
-         *          ..
-         *     +   .
-         *   Z    .
-         * }</pre>
-         * RGB is contained within XYZ if all the following conditions are true
-         * (with "x" the cross product operator):
-         * <pre>
-         *   -->  -->
-         *   GR x RX >= 0
-         *   -->  -->
-         *   RX x BR >= 0
-         *   -->  -->
-         *   RG x GY >= 0
-         *   -->  -->
-         *   GY x RG >= 0
-         *   -->  -->
-         *   RB x BZ >= 0
-         *   -->  -->
-         *   BZ x GB >= 0
-         * </pre>
-         *
-         * @param p1 The enclosing triangle
-         * @param p2 The enclosed triangle
-         * @return True if the triangle p1 contains the triangle p2
-         * @see #isWideGamut(float[], float, float)
-         */
-        @SuppressWarnings("RedundantIfStatement")
-        public static boolean contains( @Size(6) float @NonNull[] p1,  @Size(6) float @NonNull[] p2) {
-            // Translate the vertices p1 in the coordinates system
-            // with the vertices p2 as the origin
-            float[] p0 = {
-                    p1[0] - p2[0], p1[1] - p2[1],
-                    p1[2] - p2[2], p1[3] - p2[3],
-                    p1[4] - p2[4], p1[5] - p2[5],
-            };
-            // Check the first vertex of p1
-            if (cross(p0[0], p0[1], p2[0] - p2[4], p2[1] - p2[5]) < 0 ||
-                    cross(p2[0] - p2[2], p2[1] - p2[3], p0[0], p0[1]) < 0) {
-                return false;
-            }
-            // Check the second vertex of p1
-            if (cross(p0[2], p0[3], p2[2] - p2[0], p2[3] - p2[1]) < 0 ||
-                    cross(p2[2] - p2[4], p2[3] - p2[5], p0[2], p0[3]) < 0) {
-                return false;
-            }
-            // Check the third vertex of p1
-            if (cross(p0[4], p0[5], p2[4] - p2[2], p2[5] - p2[3]) < 0 ||
-                    cross(p2[4] - p2[0], p2[5] - p2[1], p0[4], p0[5]) < 0) {
-                return false;
-            }
-            return true;
-        }
-
-
-        /**
-         * Computes the primaries  of a color space identified only by
-         * its RGB->XYZ transform matrix. This method assumes that the
-         * range of the color space is [0..1].
-         *
-         * @param toXYZ The color space's 3x3 transform matrix to XYZ
-         * @return A new array of 6 floats containing the color space's
-         * primaries in CIE xyY
-         */
-        @Size(6)
-        public static float @NonNull[] computePrimaries(@Size(9) float @NonNull[] toXYZ) {
-            float[] r = mul3x3Float3(toXYZ, new float[]{1.0f, 0.0f, 0.0f});
-            float[] g = mul3x3Float3(toXYZ, new float[]{0.0f, 1.0f, 0.0f});
-            float[] b = mul3x3Float3(toXYZ, new float[]{0.0f, 0.0f, 1.0f});
-
-            float rSum = r[0] + r[1] + r[2];
-            float gSum = g[0] + g[1] + g[2];
-            float bSum = b[0] + b[1] + b[2];
-
-            return new float[]{
-                    r[0] / rSum, r[1] / rSum,
-                    g[0] / gSum, g[1] / gSum,
-                    b[0] / bSum, b[1] / bSum,
-            };
-        }
-
-
-        /**
-         * Computes the white point of a color space identified only by
-         * its RGB->XYZ transform matrix. This method assumes that the
-         * range of the color space is [0..1].
-         *
-         * @param toXYZ The color space's 3x3 transform matrix to XYZ
-         * @return A new array of 2 floats containing the color space's
-         * white point in CIE xyY
-         */
-        @Size(2)
-        public static float @NonNull[] computeWhitePoint(@Size(9) float @NonNull[] toXYZ) {
-            float[] w = mul3x3Float3(toXYZ, new float[]{1.0f, 1.0f, 1.0f});
-            float sum = w[0] + w[1] + w[2];
-            return new float[]{w[0] / sum, w[1] / sum};
-        }
-
-
-        /**
-         * Converts the specified RGB primaries point to xyY if needed. The primaries
-         * can be specified as an array of 6 floats (in CIE xyY) or 9 floats
-         * (in CIE XYZ). If no conversion is needed, the input array is copied.
-         *
-         * @param primaries The primaries in xyY or XYZ
-         * @return A new array of 6 floats containing the primaries in xyY
-         */
-        @Size(6)
-        public static float @NonNull[] xyPrimaries(@Size(min = 6, max = 9) float @NonNull[] primaries) {
-            float[] xyPrimaries = new float[6];
-
-            // XYZ to xyY
-            if (primaries.length == 9) {
-                float sum;
-
-                sum = primaries[0] + primaries[1] + primaries[2];
-                xyPrimaries[0] = primaries[0] / sum;
-                xyPrimaries[1] = primaries[1] / sum;
-
-                sum = primaries[3] + primaries[4] + primaries[5];
-                xyPrimaries[2] = primaries[3] / sum;
-                xyPrimaries[3] = primaries[4] / sum;
-
-                sum = primaries[6] + primaries[7] + primaries[8];
-                xyPrimaries[4] = primaries[6] / sum;
-                xyPrimaries[5] = primaries[7] / sum;
-            } else {
-                System.arraycopy(primaries, 0, xyPrimaries, 0, 6);
-            }
-
-            return xyPrimaries;
-        }
-
-
-        /**
-         * Computes the matrix that converts from RGB to XYZ based on RGB
-         * primaries and a white point, both specified in the CIE xyY space.
-         * The Y component of the primaries and white point is implied to be 1.
-         *
-         * @param primaries  The RGB primaries in xyY, as an array of 6 floats
-         * @param whitePoint The white point in xyY, as an array of 2 floats
-         * @return A 3x3 matrix as a new array of 9 floats
-         */
-        @Size(9)
-        public static float @NonNull[] computeXYZMatrix(
-                @Size(6) float @NonNull[] primaries,
-                @Size(2) float @NonNull[] whitePoint) {
-            float Rx = primaries[0];
-            float Ry = primaries[1];
-            float Gx = primaries[2];
-            float Gy = primaries[3];
-            float Bx = primaries[4];
-            float By = primaries[5];
-            float Wx = whitePoint[0];
-            float Wy = whitePoint[1];
-
-            float oneRxRy = (1 - Rx) / Ry;
-            float oneGxGy = (1 - Gx) / Gy;
-            float oneBxBy = (1 - Bx) / By;
-            float oneWxWy = (1 - Wx) / Wy;
-
-            float RxRy = Rx / Ry;
-            float GxGy = Gx / Gy;
-            float BxBy = Bx / By;
-            float WxWy = Wx / Wy;
-
-            float BY =
-                    ((oneWxWy - oneRxRy) * (GxGy - RxRy) - (WxWy - RxRy) * (oneGxGy - oneRxRy)) /
-                            ((oneBxBy - oneRxRy) * (GxGy - RxRy) - (BxBy - RxRy) * (oneGxGy - oneRxRy));
-            float GY = (WxWy - RxRy - BY * (BxBy - RxRy)) / (GxGy - RxRy);
-            float RY = 1 - GY - BY;
-
-            float RYRy = RY / Ry;
-            float GYGy = GY / Gy;
-            float BYBy = BY / By;
-
-            return new float[]{
-                    RYRy * Rx, RY, RYRy * (1 - Rx - Ry),
-                    GYGy * Gx, GY, GYGy * (1 - Gx - Gy),
-                    BYBy * Bx, BY, BYBy * (1 - Bx - By)
-            };
-        }
-    }
-
-    /**
-     * {@usesMathJax}
-     *
-     * <p>A connector transforms colors from a source color space to a destination
-     * color space.</p>
-     *
-     * <p>A source color space is connected to a destination color space using the
-     * color transform \(C\) computed from their respective transforms noted
-     * \(T_{src}\) and \(T_{dst}\) in the following equation:</p>
-     * <p>
-     * $$C = T^{-1}_{dst} . T_{src}$$
-     *
-     * <p>The transform \(C\) shown above is only valid when the source and
-     * destination color spaces have the same profile connection space (PCS).
-     * We know that instances of {@link ColorSpace} always use CIE XYZ as their
-     * PCS but their white points might differ. When they do, we must perform
-     * a chromatic adaptation of the color spaces' transforms. To do so, we
-     * use the von Kries method described in the documentation of {@link ChromaticAdaptation},
-     * using the CIE standard illuminant {@link ColorSpace#ILLUMINANT_D50 D50}
-     * as the target white point.</p>
-     *
-     * <p>Example of conversion from {@link Named#SRGB sRGB} to
-     * {@link Named#DCI_P3 DCI-P3}:</p>
-     *
-     * <pre class="prettyprint">
-     * ColorSpace.Connector connector = ColorSpace.connect(
-     *         ColorSpace.get(ColorSpace.Named.SRGB),
-     *         ColorSpace.get(ColorSpace.Named.DCI_P3));
-     * float[] p3 = connector.transform(1.0f, 0.0f, 0.0f);
-     * // p3 contains { 0.9473, 0.2740, 0.2076 }
-     * </pre>
-     *
-     * @see ChromaticAdaptation
-     * @see ColorSpace#adapt(ColorSpace, float[], ChromaticAdaptation)
-     * @see ColorSpace#adapt(ColorSpace, float[])
-     * @see ColorSpace#connect(ColorSpace, ColorSpace, RenderIntent)
-     * @see ColorSpace#connect(ColorSpace, ColorSpace)
-     * @see ColorSpace#connect(ColorSpace, RenderIntent)
-     * @see ColorSpace#connect(ColorSpace)
-     */
-    public static sealed class Connector {
-        @NonNull
-        private final ColorSpace mSource;
-        @NonNull
-        private final ColorSpace mDestination;
-        @NonNull
-        private final RenderIntent mIntent;
-
-        @Size(9)
-        private final float @Nullable[] mTransform;
-
-        /**
-         * Creates a new connector between a source and a destination color space.
-         *
-         * @param source      The source color space, cannot be null
-         * @param destination The destination color space, cannot be null
-         * @param intent      The render intent to use when compressing gamuts
-         */
-        Connector(@NonNull ColorSpace source, @NonNull ColorSpace destination,
-                  @NonNull RenderIntent intent) {
-            this(source, destination,
-                    intent, computeTransform(source, destination, intent));
-        }
-
-        /**
-         * To connect between color spaces, we might need to use adapted transforms.
-         * This should be transparent to the user so this constructor takes the
-         * original source and destinations (returned by the getters), as well as
-         * possibly adapted color spaces used by transform().
-         */
-        private Connector(
-                @NonNull ColorSpace source, @NonNull ColorSpace destination,
-                @NonNull RenderIntent intent, @Size(9) float @Nullable[] transform) {
-            mSource = source;
-            mDestination = destination;
-            mIntent = intent;
-            mTransform = transform;
-        }
-
-        /**
-         * Computes an extra transform to apply in XYZ space depending on the
-         * selected rendering intent.
-         */
-        private static float @Nullable[] computeTransform(@NonNull ColorSpace source,
-                                                          @NonNull ColorSpace destination,
-                                                          @NonNull RenderIntent intent) {
-            if (intent == RenderIntent.ABSOLUTE) return null;
-
-            float[] srcWhitePoint = source.mWhitePoint;
-            float[] dstWhitePoint = destination.mWhitePoint;
-
-            if (compare(srcWhitePoint, dstWhitePoint)) {
-                return null;
-            }
-
-            return ChromaticAdaptation.BRADFORD.computeTransform(
-                    xyYToXyz(srcWhitePoint), xyYToXyz(dstWhitePoint));
-        }
-
-        /**
-         * Returns the source color space this connector will convert from.
-         *
-         * @return A non-null instance of {@link ColorSpace}
-         * @see #getDestination()
-         */
-        @NonNull
-        public ColorSpace getSource() {
-            return mSource;
-        }
-
-        /**
-         * Returns the destination color space this connector will convert to.
-         *
-         * @return A non-null instance of {@link ColorSpace}
-         * @see #getSource()
-         */
-        @NonNull
-        public ColorSpace getDestination() {
-            return mDestination;
-        }
-
-        /**
-         * Returns the render intent this connector will use when mapping the
-         * source color space to the destination color space.
-         *
-         * @return A non-null {@link RenderIntent}
-         * @see RenderIntent
-         */
-        @NonNull
-        public RenderIntent getRenderIntent() {
-            return mIntent;
-        }
-
-
-        /**
-         * <p>Transforms the specified color from the source color space
-         * to a color in the destination color space. This convenience
-         * method assumes a source color model with 3 components
-         * (typically RGB). To transform from color models with more than
-         * 3 components, such as {@link #MODEL_CMYK CMYK}, use
-         * {@link #transform(float[])} instead.</p>
-         *
-         * @param r The red component of the color to transform
-         * @param g The green component of the color to transform
-         * @param b The blue component of the color to transform
-         * @return A new array of 3 floats containing the specified color
-         * transformed from the source space to the destination space
-         * @see #transform(float[])
-         */
-        @Size(3)
-        public float @NonNull[] transform(float r, float g, float b) {
-            return transform(new float[]{r, g, b});
-        }
-
-
-        /**
-         * <p>Transforms the specified color from the source color space
-         * to a color in the destination color space.</p>
-         *
-         * @param v A non-null array of 3 floats containing the value to transform
-         *          and that will hold the result of the transform
-         * @return The v array passed as a parameter, containing the specified color
-         * transformed from the source space to the destination space
-         * @see #transform(float, float, float)
-         */
-        @Size(min = 3)
-        public float @NonNull[] transform(@Size(min = 3) float @NonNull[] v) {
-            float[] xyz = mSource.toXyz(v);
-            if (mTransform != null) {
-                mul3x3Float3(mTransform, xyz);
-            }
-            return mDestination.fromXyz(xyz);
-        }
-
-        /**
-         * Similar to {@link #transform}, but not clamp to source and destination's
-         * min/max per spec.
-         *
-         * @param v A non-null array of 3 floats containing the value to transform
-         *          and that will hold the result of the transform
-         * @return The v array passed as a parameter, containing the specified color
-         * transformed from the source space to the destination space
-         */
-        @Size(min = 3)
-        public float @NonNull[] transformUnclamped(@Size(min = 3) float @NonNull[] v) {
-            float[] xyz = mSource.toXyzUnclamped(v);
-            if (mTransform != null) {
-                mul3x3Float3(mTransform, xyz);
-            }
-            return mDestination.fromXyzUnclamped(xyz);
-        }
-
-        /**
-         * Optimized connector for RGB->RGB conversions.
-         *
-         * @hide
-         * @hidden
-         */
-        @ApiStatus.Internal
-        public static final class Rgb extends Connector {
-
-            private final ColorSpace.@Nullable Rgb mSource;
-
-            private final ColorSpace.@Nullable Rgb mDestination;
-
-            private final float @Nullable[] mTransform;
-
-            Rgb(@NonNull ColorSpace source, @NonNull ColorSpace destination,
-                @NonNull RenderIntent intent) {
-                super(source, destination, intent, null);
-                mSource = source.getModel() == MODEL_RGB ? (ColorSpace.Rgb) source : null;
-                mDestination = destination.getModel() == MODEL_RGB ? (ColorSpace.Rgb) destination : null;
-                mTransform = computeTransform(source, destination, intent);
-            }
-
-
-            @Override
-            public float @NonNull[] transform(@Size(min = 3) float @NonNull[] rgb) {
-                if (mSource != null) {
-                    rgb[0] = (float) mSource.mClampedEotf.applyAsDouble(rgb[0]);
-                    rgb[1] = (float) mSource.mClampedEotf.applyAsDouble(rgb[1]);
-                    rgb[2] = (float) mSource.mClampedEotf.applyAsDouble(rgb[2]);
-                } else {
-                    rgb[0] = MathUtil.clamp(rgb[0], -2.0f, 2.0f);
-                    rgb[1] = MathUtil.clamp(rgb[1], -2.0f, 2.0f);
-                    rgb[2] = MathUtil.clamp(rgb[2], -2.0f, 2.0f);
-                }
-                if (mTransform != null) {
-                    mul3x3Float3(mTransform, rgb);
-                }
-                if (mDestination != null) {
-                    rgb[0] = (float) mDestination.mClampedOetf.applyAsDouble(rgb[0]);
-                    rgb[1] = (float) mDestination.mClampedOetf.applyAsDouble(rgb[1]);
-                    rgb[2] = (float) mDestination.mClampedOetf.applyAsDouble(rgb[2]);
-                } else {
-                    rgb[0] = MathUtil.clamp(rgb[0], -2.0f, 2.0f);
-                    rgb[1] = MathUtil.clamp(rgb[1], -2.0f, 2.0f);
-                    rgb[2] = MathUtil.clamp(rgb[2], -2.0f, 2.0f);
-                }
-                return rgb;
-            }
-
-            @Override
-            public float @NonNull[] transformUnclamped(@Size(min = 3) float @NonNull[] rgb) {
-                if (mSource != null) {
-                    rgb[0] = (float) mSource.mEotf.applyAsDouble(rgb[0]);
-                    rgb[1] = (float) mSource.mEotf.applyAsDouble(rgb[1]);
-                    rgb[2] = (float) mSource.mEotf.applyAsDouble(rgb[2]);
-                }
-                if (mTransform != null) {
-                    mul3x3Float3(mTransform, rgb);
-                }
-                if (mDestination != null) {
-                    rgb[0] = (float) mDestination.mOetf.applyAsDouble(rgb[0]);
-                    rgb[1] = (float) mDestination.mOetf.applyAsDouble(rgb[1]);
-                    rgb[2] = (float) mDestination.mOetf.applyAsDouble(rgb[2]);
-                }
-                return rgb;
-            }
-
-            /**
-             * <p>Computes the color transform that connects two RGB color spaces,
-             * XYZ to RGB spaces, RGB to XYZ spaces.</p>
-             *
-             * <p>We can only connect color spaces if they use the same profile
-             * connection space. We assume the connection space is always
-             * CIE XYZ but we maybe need to perform a chromatic adaptation to
-             * match the white points. The unmatched color space is adapted
-             * using the von Kries transform and the {@link ChromaticAdaptation#BRADFORD}
-             * matrix.</p>
-             *
-             * @param source      The source color space
-             * @param destination The destination color space
-             * @param intent      The render intent to use when compressing gamuts
-             * @return An array of 9 floats containing the 3x3 matrix transform
-             */
-            @Size(9)
-            public static float @Nullable[] computeTransform(
-                    @NonNull ColorSpace source,
-                    @NonNull ColorSpace destination,
-                    @NonNull RenderIntent intent) {
-                var srcRGB = source.getModel() == MODEL_RGB ? (ColorSpace.Rgb) source : null;
-                var dstRGB = destination.getModel() == MODEL_RGB ? (ColorSpace.Rgb) destination : null;
-                if (srcRGB != null && dstRGB != null) {
-                    // RGB->RGB
-                    boolean whitePointMatch = compare(source.mWhitePoint, destination.mWhitePoint);
-                    if (whitePointMatch || intent == RenderIntent.ABSOLUTE) {
-                        if (whitePointMatch && compare(srcRGB.mPrimaries, dstRGB.mPrimaries)) {
-                            return null;
-                        } else {
-                            return mul3x3(dstRGB.mInverseTransform, srcRGB.mTransform);
-                        }
-                    } else {
-                        float[] transform = srcRGB.mTransform;
-                        float[] inverseTransform = dstRGB.mInverseTransform;
-
-                        float[] srcXYZ = xyYToXyz(source.mWhitePoint);
-                        float[] dstXYZ = xyYToXyz(destination.mWhitePoint);
-
-                        float[] adaptation = ChromaticAdaptation.BRADFORD.computeTransform(
-                                srcXYZ, dstXYZ
-                        );
-
-                        return mul3x3(inverseTransform, mul3x3(adaptation, transform));
-                    }
-                } else if (srcRGB == null && dstRGB != null) {
-                    // XYZ->RGB
-                    if (intent == RenderIntent.ABSOLUTE ||
-                            compare(destination.mWhitePoint, source.mWhitePoint)) {
-                        return dstRGB.getInverseTransform();
-                    }
-                    float[] adaptation = ChromaticAdaptation.BRADFORD.computeTransform(
-                            xyYToXyz(source.mWhitePoint),
-                            xyYToXyz(destination.mWhitePoint));
-                    return mul3x3(dstRGB.mInverseTransform, adaptation);
-                } else if (srcRGB != null) {
-                    // RGB->XYZ
-                    if (intent == RenderIntent.ABSOLUTE ||
-                            compare(source.mWhitePoint, destination.mWhitePoint)) {
-                        return srcRGB.getTransform();
-                    }
-                    float[] adaptation = ChromaticAdaptation.BRADFORD.computeTransform(
-                            xyYToXyz(source.mWhitePoint),
-                            xyYToXyz(destination.mWhitePoint));
-                    return mul3x3(adaptation, srcRGB.mTransform);
-                } else {
-                    if (intent == RenderIntent.ABSOLUTE ||
-                            compare(source.mWhitePoint, destination.mWhitePoint)) {
-                        return null;
-                    }
-                    return ChromaticAdaptation.BRADFORD.computeTransform(
-                            xyYToXyz(source.mWhitePoint),
-                            xyYToXyz(destination.mWhitePoint));
-                }
-            }
-        }
-
-        /**
-         * Returns the identity connector for a given color space.
-         *
-         * @param source The source and destination color space
-         * @return A non-null connector that does not perform any transform
-         * @see ColorSpace#connect(ColorSpace, ColorSpace)
-         */
-        @NonNull
-        static Connector identity(@NonNull ColorSpace source, @NonNull RenderIntent intent) {
-            return new Identity(source, intent);
-        }
-
-        private static final class Identity extends Connector {
-
-            public Identity(@NonNull ColorSpace source, @NonNull RenderIntent intent) {
-                super(source, source, intent, null);
-            }
-
-            @Override
-            public float @NonNull [] transform(@Size(min = 3) float @NonNull[] v) {
-                return v;
-            }
-
-            @Override
-            public float @NonNull[] transformUnclamped(@Size(min = 3) float @NonNull[] v) {
-                return v;
-            }
-        }
-    }
 }

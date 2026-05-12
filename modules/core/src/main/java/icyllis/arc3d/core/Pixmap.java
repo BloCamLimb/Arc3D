@@ -245,7 +245,7 @@ public class Pixmap {
         var ct = getColorType();
         var at = getAlphaType();
         var cs = getColorSpace();
-        if (at != ColorInfo.AT_PREMUL && (cs == null || cs.isSrgb())) {
+        if (at != ColorInfo.AT_PREMUL && (cs == null || cs.isExtendedSRGB())) {
             // no alpha type and color space conversion
             try {
                 return PixelUtils.load(ct, base == null)

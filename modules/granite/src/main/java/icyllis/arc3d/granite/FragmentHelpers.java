@@ -42,11 +42,11 @@ import org.jspecify.annotations.Nullable;
  */
 public class FragmentHelpers {
 
-    public static final ColorSpace.Rgb.TransferParameters LINEAR_TRANSFER_PARAMETERS =
-            new ColorSpace.Rgb.TransferParameters(1.0, 0.0, 0.0, 0.0, 1.0);
+    public static final ColorSpaceRGB.TransferParameters LINEAR_TRANSFER_PARAMETERS =
+            new ColorSpaceRGB.TransferParameters(1.0, 0.0, 0.0, 0.0, 1.0);
 
     private static void append_transfer_function_uniform(
-            ColorSpace.Rgb.TransferParameters tf,
+            ColorSpaceRGB.TransferParameters tf,
             UniformDataGatherer uniformDataGatherer
     ) {
         // vec4 and vec4 array have the same alignment rule
@@ -78,14 +78,14 @@ public class FragmentHelpers {
         boolean srcXYZ = srcCS.getModel() == ColorSpace.MODEL_XYZ;
         boolean dstXYZ = dstCS.getModel() == ColorSpace.MODEL_XYZ;
         var srcRGB = srcCS.getModel() == ColorSpace.MODEL_RGB
-                ? (ColorSpace.Rgb) srcCS : null;
+                ? (ColorSpaceRGB) srcCS : null;
         var dstRGB = dstCS.getModel() == ColorSpace.MODEL_RGB
-                ? (ColorSpace.Rgb) dstCS : null;
+                ? (ColorSpaceRGB) dstCS : null;
 
         // we handle RGB space with known transfer parameters and XYZ space
         boolean csXform = (srcXYZ || (srcRGB != null && srcRGB.getTransferParameters() != null)) &&
                 (dstXYZ || (dstRGB != null && dstRGB.getTransferParameters() != null)) &&
-                !srcCS.equals(dstCS);
+                !srcCS.equals(dstCS, true);
 
         int flags = 0;
 
@@ -99,8 +99,9 @@ public class FragmentHelpers {
         }
 
         if (csXform) {
-            float[] transform = ColorSpace.Connector.Rgb.computeTransform(
-                    srcCS, dstCS, ColorSpace.RenderIntent.RELATIVE
+            float[] transform = ColorTransform.computeTransform(
+                    srcCS, dstCS, ColorTransform.RELATIVE_COLORIMETRIC,
+                    ChromaticAdaptation.BRADFORD
             );
             if (transform != null) {
                 flags |= PixelUtils.kColorSpaceXformFlagGamutTransform;
@@ -633,9 +634,9 @@ public class FragmentHelpers {
                                       @RawPtr ColorShader shader) {
         float[] color = shader.getColor();
         ColorSpace dstCS = keyContext.dstInfo.colorSpace();
-        if (dstCS != null && shader.getColorSpace() != dstCS) {
-            ColorSpace.connect(shader.getColorSpace(), dstCS)
-                    .transformUnclamped(color);
+        if (dstCS != null && !shader.getColorSpace().equals(dstCS, true)) {
+            new ColorTransform(shader.getColorSpace(), dstCS)
+                    .transformExtended(color);
         }
         // premul
         for (int i = 0; i < 3; i++) {

@@ -2113,7 +2113,7 @@ public class PixelUtils {
             dstCS = srcCS;
         }
 
-        boolean csXform = !srcCS.equals(dstCS);
+        boolean csXform = !srcCS.equals(dstCS, true);
 
         int flags = 0;
 
@@ -2170,7 +2170,7 @@ public class PixelUtils {
             // high precision pipeline
             final PixelOp load = loadOp(srcCT, srcBase == null);
             final boolean unpremul = (flags & kColorSpaceXformFlagUnpremul) != 0;
-            final ColorSpace.Connector connector = csXform ? ColorSpace.connect(srcCS, dstCS) : null;
+            final ColorTransform transform = csXform ? new ColorTransform(srcCS, dstCS) : null;
             final boolean premul = (flags & kColorSpaceXformFlagPremul) != 0;
             final PixelOp store = storeOp(dstCT, dstBase == null);
 
@@ -2189,8 +2189,8 @@ public class PixelUtils {
                         col[1] *= scale;
                         col[2] *= scale;
                     }
-                    if (connector != null) {
-                        connector.transformUnclamped(col);
+                    if (transform != null) {
+                        transform.transformExtended(col);
                     }
                     if (premul) {
                         float scale = col[3];
