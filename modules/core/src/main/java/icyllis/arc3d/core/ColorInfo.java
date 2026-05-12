@@ -21,7 +21,7 @@ package icyllis.arc3d.core;
 
 import org.intellij.lang.annotations.MagicConstant;
 import org.jetbrains.annotations.ApiStatus;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -35,6 +35,10 @@ import java.nio.ByteOrder;
 public final class ColorInfo {
 
     //@formatter:off
+    /**
+     * @hide
+     * @hidden
+     */
     @ApiStatus.Internal
     @MagicConstant(intValues = {
             COMPRESSION_NONE,
@@ -80,6 +84,9 @@ public final class ColorInfo {
 
     /**
      * Describes how to interpret the alpha component of a pixel.
+     *
+     * @hide
+     * @hidden
      */
     @ApiStatus.Internal
     @MagicConstant(intValues = {
@@ -127,6 +134,9 @@ public final class ColorInfo {
 
     /**
      * Describes how pixel bits encode color.
+     *
+     * @hide
+     * @hidden
      */
     @ApiStatus.Internal
     @MagicConstant(intValues = {
