@@ -75,11 +75,11 @@ public class FragmentHelpers {
             dstCS = srcCS;
         }
 
-        boolean srcXYZ = srcCS.getModel() == ColorSpace.Model.XYZ;
-        boolean dstXYZ = dstCS.getModel() == ColorSpace.Model.XYZ;
-        var srcRGB = srcCS.getModel() == ColorSpace.Model.RGB
+        boolean srcXYZ = srcCS.getModel() == ColorSpace.MODEL_XYZ;
+        boolean dstXYZ = dstCS.getModel() == ColorSpace.MODEL_XYZ;
+        var srcRGB = srcCS.getModel() == ColorSpace.MODEL_RGB
                 ? (ColorSpace.Rgb) srcCS : null;
-        var dstRGB = dstCS.getModel() == ColorSpace.Model.RGB
+        var dstRGB = dstCS.getModel() == ColorSpace.MODEL_RGB
                 ? (ColorSpace.Rgb) dstCS : null;
 
         // we handle RGB space with known transfer parameters and XYZ space

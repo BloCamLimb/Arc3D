@@ -19,6 +19,7 @@
 
 package icyllis.arc3d.core;
 
+import org.intellij.lang.annotations.MagicConstant;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Range;
 import org.jspecify.annotations.NonNull;
@@ -30,8 +31,8 @@ import java.util.function.DoubleUnaryOperator;
 
 /**
  * <p>A {@link ColorSpace} is used to identify a specific organization of colors.
- * Each color space is characterized by a {@link Model color model} that defines
- * how a color value is represented (for instance the {@link Model#RGB RGB} color
+ * Each color space is characterized by a color model that defines
+ * how a color value is represented (for instance the {@link #MODEL_RGB RGB} color
  * model defines a color value as a triplet of numbers).</p>
  *
  * <p>Each component of a color must fall within a valid range, specific to each
@@ -39,6 +40,15 @@ import java.util.function.DoubleUnaryOperator;
  * This range is commonly \([0..1]\). While it is recommended to use values in the
  * valid range, a color space always clamps input and output values when performing
  * operations such as converting to a different color space.</p>
+ *
+ * <h3>Color model</h3>
+ *
+ * <p>
+ * A color model is required by a {@link ColorSpace} to describe the
+ * way colors can be represented as tuples of numbers. A common color
+ * model is the {@link #MODEL_RGB RGB} color model which defines a color
+ * as represented by a tuple of 3 numbers (red, green and blue).
+ * </p>
  *
  * <h3>Using color spaces</h3>
  *
@@ -51,7 +61,7 @@ import java.util.function.DoubleUnaryOperator;
  * }</pre>
  *
  * <p>The {@link #get(Named)} method always returns the same instance for a given
- * name. Color spaces with an {@link Model#RGB RGB} color model can be safely
+ * name. Color spaces with an {@link #MODEL_RGB RGB} color model can be safely
  * cast to {@link Rgb}. Doing so gives you access to more APIs to query various
  * properties of RGB color models: color gamut primaries, transfer functions,
  * conversions to and from linear space, etc. Please refer to {@link Rgb} for
@@ -121,7 +131,6 @@ import java.util.function.DoubleUnaryOperator;
  *
  * @see #get(Named)
  * @see Named
- * @see Model
  * @see Connector
  * @see Adaptation
  */
@@ -190,6 +199,35 @@ public abstract sealed class ColorSpace {
      */
     public static final int MAX_ID = 63; // Do not change, used to encode in longs
 
+    /**
+     * The XYZ model is a color model with 3 components that
+     * are used to model human color vision on a basic sensory
+     * level.
+     */
+    public static final int MODEL_XYZ = 0;
+
+    /**
+     * The Lab model is a color model with 3 components used
+     * to describe a color space that is more perceptually
+     * uniform than XYZ.
+     */
+    public static final int MODEL_LAB = 1;
+
+    /**
+     * The RGB model is a color model with 3 components that
+     * refer to the three additive primaries: red, green
+     * and blue.
+     */
+    public static final int MODEL_RGB = 5;
+
+    /**
+     * The CMYK model is a color model with 4 components that
+     * refer to four inks used in color printing: cyan, magenta,
+     * yellow and black (or key). CMYK is a subtractive color
+     * model.
+     */
+    public static final int MODEL_CMYK = 9;
+
     private static final float[] SRGB_PRIMARIES = {0.640f, 0.330f, 0.300f, 0.600f, 0.150f, 0.060f};
     private static final float[] NTSC_1953_PRIMARIES = {0.67f, 0.33f, 0.21f, 0.71f, 0.14f, 0.08f};
     private static final float[] DCI_P3_PRIMARIES =
@@ -211,8 +249,8 @@ public abstract sealed class ColorSpace {
 
     @NonNull
     private final String mName;
-    @NonNull
-    private final Model mModel;
+    @MagicConstant(intValues = {MODEL_XYZ, MODEL_LAB, MODEL_RGB, MODEL_CMYK})
+    private final int mModel;
     @Range(from = MIN_ID, to = MAX_ID)
     private final int mId;
 
@@ -698,7 +736,7 @@ public abstract sealed class ColorSpace {
          */
         ACESCG,
         /**
-         * <p>{@link Model#XYZ XYZ} color space CIE XYZ. This color space assumes standard
+         * <p>{@link #MODEL_XYZ XYZ} color space CIE XYZ. This color space assumes standard
          * illuminant D50 as its white point.</p>
          * <table summary="Color space definition">
          *     <tr><th>Property</th><th colspan="4">Value</th></tr>
@@ -709,7 +747,7 @@ public abstract sealed class ColorSpace {
          */
         CIE_XYZ_D50,
         /**
-         * <p>{@link Model#XYZ XYZ} color space CIE XYZ. This color space assumes standard
+         * <p>{@link #MODEL_XYZ XYZ} color space CIE XYZ. This color space assumes standard
          * illuminant D65 as its white point.</p>
          * <table summary="Color space definition">
          *     <tr><th>Property</th><th colspan="4">Value</th></tr>
@@ -720,7 +758,7 @@ public abstract sealed class ColorSpace {
          */
         CIE_XYZ_D65,
         /**
-         * <p>{@link Model#LAB Lab} color space CIE L*a*b*. This color space uses CIE XYZ D50
+         * <p>{@link #MODEL_LAB Lab} color space CIE L*a*b*. This color space uses CIE XYZ D50
          * as a profile conversion space.</p>
          * <table summary="Color space definition">
          *     <tr><th>Property</th><th colspan="4">Value</th></tr>
@@ -1003,57 +1041,23 @@ public abstract sealed class ColorSpace {
     }
 
     /**
-     * A color model is required by a {@link ColorSpace} to describe the
-     * way colors can be represented as tuples of numbers. A common color
-     * model is the {@link #RGB RGB} color model which defines a color
-     * as represented by a tuple of 3 numbers (red, green and blue).
+     * Returns the number of components for this color model.
+     *
+     * @return An integer between 1 and 4
      */
-    public enum Model {
-        /**
-         * The RGB model is a color model with 3 components that
-         * refer to the three additive primaries: red, green
-         * and blue.
-         */
-        RGB(3),
-        /**
-         * The XYZ model is a color model with 3 components that
-         * are used to model human color vision on a basic sensory
-         * level.
-         */
-        XYZ(3),
-        /**
-         * The Lab model is a color model with 3 components used
-         * to describe a color space that is more perceptually
-         * uniform than XYZ.
-         */
-        LAB(3),
-        /**
-         * The CMYK model is a color model with 4 components that
-         * refer to four inks used in color printing: cyan, magenta,
-         * yellow and black (or key). CMYK is a subtractive color
-         * model.
-         */
-        CMYK(4);
-
-        private final int mComponentCount;
-
-        Model(int componentCount) {
-            mComponentCount = componentCount;
-        }
-
-        /**
-         * Returns the number of components for this color model.
-         *
-         * @return An integer between 1 and 4
-         */
-        public int getComponentCount() {
-            return mComponentCount;
-        }
+    public static int getComponentCount(int model) {
+        return switch (model) {
+            case MODEL_XYZ,
+                 MODEL_LAB,
+                 MODEL_RGB -> 3;
+            case MODEL_CMYK -> 4;
+            default -> throw new AssertionError(model);
+        };
     }
 
     ColorSpace(@NonNull @Size(min = 1) String name,
-               @NonNull Model model,
-               float @NonNull[] whitePoint,
+               @MagicConstant(intValues = {MODEL_XYZ, MODEL_LAB, MODEL_RGB, MODEL_CMYK}) int model,
+               @Size(min = 2, max = 3) float @NonNull[] whitePoint,
                @Range(from = MIN_ID, to = MAX_ID) int id) {
         if (name.isEmpty()) {
             throw new IllegalArgumentException("The name of a color space cannot be null and " +
@@ -1123,12 +1127,11 @@ public abstract sealed class ColorSpace {
     /**
      * Return the color model of this color space.
      *
-     * @return A non-null {@link Model}
-     * @see Model
+     * @return A model
      * @see #getComponentCount()
      */
-    @NonNull
-    public Model getModel() {
+    @MagicConstant(intValues = {MODEL_XYZ, MODEL_LAB, MODEL_RGB, MODEL_CMYK})
+    public int getModel() {
         return mModel;
     }
 
@@ -1137,12 +1140,11 @@ public abstract sealed class ColorSpace {
      * to this color space's color model.
      *
      * @return An integer between 1 and 4
-     * @see Model
      * @see #getModel()
      */
     @Range(from = 1, to = 4)
     public int getComponentCount() {
-        return mModel.getComponentCount();
+        return getComponentCount(mModel);
     }
 
     /**
@@ -1163,7 +1165,7 @@ public abstract sealed class ColorSpace {
      * <p>A color space is considered sRGB if it meets all the following
      * conditions:</p>
      * <ul>
-     *     <li>Its color model is {@link Model#RGB}.</li>
+     *     <li>Its color model is {@link #MODEL_RGB}.</li>
      *     <li>
      *         Its primaries are within 1e-3 of the true
      *         {@link Named#SRGB sRGB} primaries.
@@ -1193,7 +1195,7 @@ public abstract sealed class ColorSpace {
      * @param component The index of the component
      * @return A floating point value less than {@link #getMaxValue(int)}
      * @see #getMaxValue(int)
-     * @see Model#getComponentCount()
+     * @see #getComponentCount()
      */
     public abstract float getMinValue(@Range(from = 0, to = 3) int component);
 
@@ -1204,7 +1206,7 @@ public abstract sealed class ColorSpace {
      * @param component The index of the component
      * @return A floating point value greater than {@link #getMinValue(int)}
      * @see #getMinValue(int)
-     * @see Model#getComponentCount()
+     * @see #getComponentCount()
      */
     public abstract float getMaxValue(@Range(from = 0, to = 3) int component);
 
@@ -1248,7 +1250,7 @@ public abstract sealed class ColorSpace {
      * tristimulus CIE XYZ values.</p>
      *
      * <p>This method is a convenience for color spaces with a model
-     * of 3 components ({@link Model#RGB RGB} or {@link Model#LAB}
+     * of 3 components ({@link #MODEL_RGB RGB} or {@link #MODEL_LAB}
      * for instance). With color spaces using fewer or more components,
      * use {@link #toXyz(float[])} instead</p>.
      *
@@ -1271,7 +1273,7 @@ public abstract sealed class ColorSpace {
      *
      * <p class="note">The specified array's length  must be at least
      * equal to to the number of color components as returned by
-     * {@link Model#getComponentCount()}.</p>
+     * {@link #getComponentCount()}.</p>
      *
      * @param v An array of color components containing the color space's
      *          color value to convert to XYZ, and large enough to hold
@@ -1305,13 +1307,13 @@ public abstract sealed class ColorSpace {
      * @param y The Y component of the color value
      * @param z The Z component of the color value
      * @return A new array whose size is equal to the number of color
-     * components as returned by {@link Model#getComponentCount()}
+     * components as returned by {@link #getComponentCount()}
      * @see #fromXyz(float[])
      * @see #toXyz(float, float, float)
      */
     @Size(min = 3)
     public float @NonNull[] fromXyz(float x, float y, float z) {
-        float[] xyz = new float[mModel.getComponentCount()];
+        float[] xyz = new float[getComponentCount()];
         xyz[0] = x;
         xyz[1] = y;
         xyz[2] = z;
@@ -1326,7 +1328,7 @@ public abstract sealed class ColorSpace {
      *
      * <p class="note">The specified array's length  must be at least equal to
      * to the number of color components as returned by
-     * {@link Model#getComponentCount()}, and its first 3 values must
+     * {@link #getComponentCount()}, and its first 3 values must
      * be the XYZ components to convert from.</p>
      *
      * @param v An array of color components containing the XYZ values
@@ -1355,7 +1357,7 @@ public abstract sealed class ColorSpace {
     @Override
     public int hashCode() {
         int result = mName.hashCode();
-        result = 31 * result + mModel.hashCode();
+        result = 31 * result + mModel;
         result = 31 * result + mId;
         return result;
     }
@@ -1440,8 +1442,8 @@ public abstract sealed class ColorSpace {
                                     @NonNull RenderIntent intent) {
         if (source.equals(destination)) return Connector.identity(source, intent);
 
-        if ((source.getModel() == Model.RGB || source.getModel() == Model.XYZ) &&
-                (destination.getModel() == Model.RGB || destination.getModel() == Model.XYZ)) {
+        if ((source.getModel() == MODEL_RGB || source.getModel() == MODEL_XYZ) &&
+                (destination.getModel() == MODEL_RGB || destination.getModel() == MODEL_XYZ)) {
             return new Connector.Rgb(source, destination, intent);
         }
 
@@ -1491,7 +1493,7 @@ public abstract sealed class ColorSpace {
     public static Connector connect(@NonNull ColorSpace source, @NonNull RenderIntent intent) {
         if (source.isSrgb()) return Connector.identity(source, intent);
 
-        if (source.getModel() == Model.RGB || source.getModel() == Model.XYZ) {
+        if (source.getModel() == MODEL_RGB || source.getModel() == MODEL_XYZ) {
             return new Connector.Rgb(source, get(Named.SRGB), intent);
         }
 
@@ -1524,7 +1526,7 @@ public abstract sealed class ColorSpace {
     /**
      * <p>Performs the chromatic adaptation of a color space from its native
      * white point to the specified white point. If the specified color space
-     * does not have an {@link Model#RGB RGB} color model, or if the color
+     * does not have an {@link #MODEL_RGB RGB} color model, or if the color
      * space already has the target white point, the color space is returned
      * unmodified.</p>
      *
@@ -1547,7 +1549,7 @@ public abstract sealed class ColorSpace {
     public static ColorSpace adapt(@NonNull ColorSpace colorSpace,
             @Size(min = 2, max = 3) float @NonNull[] whitePoint,
                                    @NonNull Adaptation adaptation) {
-        if (colorSpace.getModel() == Model.RGB) {
+        if (colorSpace.getModel() == MODEL_RGB) {
             ColorSpace.Rgb rgb = (ColorSpace.Rgb) colorSpace;
             if (compare(rgb.mWhitePoint, whitePoint)) return colorSpace;
 
@@ -1620,7 +1622,7 @@ public abstract sealed class ColorSpace {
             Rgb.@NonNull TransferParameters function) {
 
         for (ColorSpace colorSpace : Named.sNamedColorSpaces) {
-            if (colorSpace.getModel() == Model.RGB) {
+            if (colorSpace.getModel() == MODEL_RGB) {
                 ColorSpace.Rgb rgb = (ColorSpace.Rgb) adapt(colorSpace, ILLUMINANT_D50_XYZ);
                 if (compare(toXYZD50, rgb.mTransform) &&
                         compare(function, rgb.mTransferParameters)) {
@@ -2003,7 +2005,7 @@ public abstract sealed class ColorSpace {
 
         private Xyz(@NonNull String name, float @NonNull[] whitePoint,
                     @Range(from = MIN_ID, to = MAX_ID) int id) {
-            super(name, Model.XYZ, whitePoint, id);
+            super(name, MODEL_XYZ, whitePoint, id);
         }
 
         @Override
@@ -2063,7 +2065,7 @@ public abstract sealed class ColorSpace {
 
         private Lab(@NonNull String name,
                     @Range(from = MIN_ID, to = MAX_ID) int id) {
-            super(name, Model.LAB, ILLUMINANT_D50, id);
+            super(name, MODEL_LAB, ILLUMINANT_D50, id);
         }
 
         @Override
@@ -2197,7 +2199,7 @@ public abstract sealed class ColorSpace {
 
         private OkLab(@NonNull String name,
                       @Range(from = MIN_ID, to = MAX_ID) int id) {
-            super(name, Model.LAB, ILLUMINANT_D65, id);
+            super(name, MODEL_LAB, ILLUMINANT_D65, id);
         }
 
         @Override
@@ -2274,7 +2276,7 @@ public abstract sealed class ColorSpace {
      * {@usesMathJax}
      *
      * <p>An RGB color space is an additive color space using the
-     * {@link Model#RGB RGB} color model (a color is therefore represented
+     * {@link #MODEL_RGB RGB} color model (a color is therefore represented
      * by a tuple of 3 numbers).</p>
      *
      * <p>A specific RGB color space is defined by the following properties:</p>
@@ -3024,7 +3026,7 @@ public abstract sealed class ColorSpace {
                 @Nullable TransferParameters transferParameters,
                 @Range(from = MIN_ID, to = MAX_ID) int id) {
 
-            super(name, Model.RGB, whitePoint, id);
+            super(name, MODEL_RGB, whitePoint, id);
 
             if (primaries.length != 6 && primaries.length != 9) {
                 throw new IllegalArgumentException("The color space's primaries must be " +
@@ -3971,7 +3973,7 @@ public abstract sealed class ColorSpace {
          * to a color in the destination color space. This convenience
          * method assumes a source color model with 3 components
          * (typically RGB). To transform from color models with more than
-         * 3 components, such as {@link Model#CMYK CMYK}, use
+         * 3 components, such as {@link #MODEL_CMYK CMYK}, use
          * {@link #transform(float[])} instead.</p>
          *
          * @param r The red component of the color to transform
@@ -4042,8 +4044,8 @@ public abstract sealed class ColorSpace {
             Rgb(@NonNull ColorSpace source, @NonNull ColorSpace destination,
                 @NonNull RenderIntent intent) {
                 super(source, destination, intent, null);
-                mSource = source.getModel() == Model.RGB ? (ColorSpace.Rgb) source : null;
-                mDestination = destination.getModel() == Model.RGB ? (ColorSpace.Rgb) destination : null;
+                mSource = source.getModel() == MODEL_RGB ? (ColorSpace.Rgb) source : null;
+                mDestination = destination.getModel() == MODEL_RGB ? (ColorSpace.Rgb) destination : null;
                 mTransform = computeTransform(source, destination, intent);
             }
 
@@ -4113,8 +4115,8 @@ public abstract sealed class ColorSpace {
                     @NonNull ColorSpace source,
                     @NonNull ColorSpace destination,
                     @NonNull RenderIntent intent) {
-                var srcRGB = source.getModel() == Model.RGB ? (ColorSpace.Rgb) source : null;
-                var dstRGB = destination.getModel() == Model.RGB ? (ColorSpace.Rgb) destination : null;
+                var srcRGB = source.getModel() == MODEL_RGB ? (ColorSpace.Rgb) source : null;
+                var dstRGB = destination.getModel() == MODEL_RGB ? (ColorSpace.Rgb) destination : null;
                 if (srcRGB != null && dstRGB != null) {
                     // RGB->RGB
                     boolean whitePointMatch = compare(source.mWhitePoint, destination.mWhitePoint);

@@ -75,8 +75,8 @@ public final class ColorShader implements Shader {
         if (!MathUtil.isFinite(color, 0, color.length)) {
             return null;
         }
-        if (colorSpace != null && colorSpace.getModel() != ColorSpace.Model.RGB &&
-                colorSpace.getModel() != ColorSpace.Model.XYZ) {
+        if (colorSpace != null && colorSpace.getModel() != ColorSpace.MODEL_RGB &&
+                colorSpace.getModel() != ColorSpace.MODEL_XYZ) {
             float[] srgb = ColorSpace.connect(colorSpace)
                     .transformUnclamped(Arrays.copyOfRange(color, 0, color.length - 1));
             return new ColorShader(srgb[0], srgb[1], srgb[2], color[color.length - 1], null);
@@ -90,8 +90,8 @@ public final class ColorShader implements Shader {
         if (!MathUtil.isFinite(r, g, b, a)) {
             return null;
         }
-        if (colorSpace != null && colorSpace.getModel() != ColorSpace.Model.RGB &&
-                colorSpace.getModel() != ColorSpace.Model.XYZ) {
+        if (colorSpace != null && colorSpace.getModel() != ColorSpace.MODEL_RGB &&
+                colorSpace.getModel() != ColorSpace.MODEL_XYZ) {
             float[] srgb = ColorSpace.connect(colorSpace)
                     .transformUnclamped(new float[]{r, g, b});
             return new ColorShader(srgb[0], srgb[1], srgb[2], a, null);

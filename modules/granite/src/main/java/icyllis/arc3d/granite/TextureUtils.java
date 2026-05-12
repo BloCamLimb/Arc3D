@@ -41,7 +41,7 @@ public class TextureUtils {
 
         ColorSpace colorSpace = pixmap.getColorSpace();
         if (colorSpace != null) {
-            if (colorSpace.getModel() != ColorSpace.Model.RGB && colorSpace.getModel() != ColorSpace.Model.XYZ) {
+            if (colorSpace.getModel() != ColorSpace.MODEL_RGB && colorSpace.getModel() != ColorSpace.MODEL_XYZ) {
                 return null;
             }
             if (colorSpace instanceof ColorSpace.Rgb rgbColorSpace && rgbColorSpace.getTransferParameters() == null) {
