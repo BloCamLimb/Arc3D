@@ -3,15 +3,16 @@ repositories {
 }
 
 dependencies {
-    compileOnly "org.lwjgl:lwjgl-spvc" // we only use the Spv header
+    compileOnly "org.lwjgl:lwjgl-spvc:${lwjgl_version}" // we only use the Spv header
 
-    testImplementation "org.lwjgl:lwjgl-shaderc"
-    testImplementation "org.lwjgl:lwjgl-spvc"
-    testImplementation "org.lwjgl:lwjgl-tinyfd"
-    testRuntimeOnly "org.lwjgl:lwjgl::${rootProject.ext.lwjglNatives}"
-    testRuntimeOnly "org.lwjgl:lwjgl-shaderc::${rootProject.ext.lwjglNatives}"
-    testRuntimeOnly "org.lwjgl:lwjgl-spvc::${rootProject.ext.lwjglNatives}"
-    testRuntimeOnly "org.lwjgl:lwjgl-tinyfd::${rootProject.ext.lwjglNatives}"
+    testImplementation "org.lwjgl:lwjgl:${lwjgl_version}"
+    testImplementation "org.lwjgl:lwjgl-shaderc:${lwjgl_version}"
+    testImplementation "org.lwjgl:lwjgl-spvc:${lwjgl_version}"
+    testImplementation "org.lwjgl:lwjgl-tinyfd:${lwjgl_version}"
+    testRuntimeOnly "org.lwjgl:lwjgl:${lwjgl_version}:${rootProject.ext.lwjglNatives}"
+    testRuntimeOnly "org.lwjgl:lwjgl-shaderc:${lwjgl_version}:${rootProject.ext.lwjglNatives}"
+    testRuntimeOnly "org.lwjgl:lwjgl-spvc:${lwjgl_version}:${rootProject.ext.lwjglNatives}"
+    testRuntimeOnly "org.lwjgl:lwjgl-tinyfd:${lwjgl_version}:${rootProject.ext.lwjglNatives}"
 }
 
 test {

@@ -3,16 +3,17 @@ repositories {
 }
 
 dependencies {
-    api "org.lwjgl:lwjgl"
-    runtimeOnly "org.lwjgl:lwjgl::${rootProject.ext.lwjglNatives}"
+    compileOnly "org.lwjgl:lwjgl:${lwjgl_version}"
 
     testImplementation "org.slf4j:slf4j-api:${slf4j_version}"
     testImplementation "org.slf4j:slf4j-simple:${slf4j_version}"
 
-    testImplementation "org.lwjgl:lwjgl-jemalloc"
-    testImplementation "org.lwjgl:lwjgl-stb"
-    testRuntimeOnly "org.lwjgl:lwjgl-jemalloc::${rootProject.ext.lwjglNatives}"
-    testRuntimeOnly "org.lwjgl:lwjgl-stb::${rootProject.ext.lwjglNatives}"
+    testImplementation "org.lwjgl:lwjgl:${lwjgl_version}"
+    testImplementation "org.lwjgl:lwjgl-jemalloc:${lwjgl_version}"
+    testImplementation "org.lwjgl:lwjgl-stb:${lwjgl_version}"
+    testRuntimeOnly "org.lwjgl:lwjgl:${lwjgl_version}:${rootProject.ext.lwjglNatives}"
+    testRuntimeOnly "org.lwjgl:lwjgl-jemalloc:${lwjgl_version}:${rootProject.ext.lwjglNatives}"
+    testRuntimeOnly "org.lwjgl:lwjgl-stb:${lwjgl_version}:${rootProject.ext.lwjglNatives}"
 }
 
 test {

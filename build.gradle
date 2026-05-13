@@ -74,8 +74,6 @@ subprojects {
 
         implementation "it.unimi.dsi:fastutil:${fastutil_version}"
 
-        implementation platform("org.lwjgl:lwjgl-bom:${lwjgl_version}")
-
         testImplementation 'org.openjdk.jmh:jmh-core:1.35'
         testAnnotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.35'
 
@@ -124,8 +122,8 @@ subprojects {
                 name 'IzzelAliz'
                 url 'https://maven.izzel.io/releases'
                 credentials {
-                    username = project.findProperty("maven_user")
-                    password = project.findProperty("izzel_maven_token")
+                    username = project.findProperty("izzel_maven_user")
+                    password = project.findProperty("izzel_maven_dev_token")
                 }
             }
         }

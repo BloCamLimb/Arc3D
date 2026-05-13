@@ -4,10 +4,15 @@ repositories {
 
 dependencies {
     api project(':arc3d-engine')
-    api "org.lwjgl:lwjgl-opengl"
-    api "org.lwjgl:lwjgl-opengles"
-    runtimeOnly "org.lwjgl:lwjgl-opengl::${rootProject.ext.lwjglNatives}"
-    runtimeOnly "org.lwjgl:lwjgl-opengles::${rootProject.ext.lwjglNatives}"
+    compileOnly "org.lwjgl:lwjgl-opengl:${lwjgl_version}"
+    compileOnly "org.lwjgl:lwjgl-opengles:${lwjgl_version}"
+
+    testImplementation "org.lwjgl:lwjgl:${lwjgl_version}"
+    testImplementation "org.lwjgl:lwjgl-opengl:${lwjgl_version}"
+    testImplementation "org.lwjgl:lwjgl-opengles:${lwjgl_version}"
+    testRuntimeOnly "org.lwjgl:lwjgl:${lwjgl_version}:${rootProject.ext.lwjglNatives}"
+    testRuntimeOnly "org.lwjgl:lwjgl-opengl:${lwjgl_version}:${rootProject.ext.lwjglNatives}"
+    testRuntimeOnly "org.lwjgl:lwjgl-opengles:${lwjgl_version}:${rootProject.ext.lwjglNatives}"
 }
 
 test {
