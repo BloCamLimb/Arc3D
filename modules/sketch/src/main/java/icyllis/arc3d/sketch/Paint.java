@@ -393,7 +393,7 @@ public class Paint implements AutoCloseable {
     public final void setColor( @Size(min = 4) float @NonNull[] color,
                                 @Nullable ColorSpace colorSpace) {
         if (colorSpace != null && !colorSpace.isExtendedSRGB()) {
-            float[] srgb = new ColorTransform(colorSpace, ColorSpace.get(ColorSpace.Named.EXTENDED_SRGB))
+            float[] srgb = new ColorTransform(colorSpace, ColorSpaces.EXTENDED_SRGB)
                     .transformExtended(Arrays.copyOfRange(color, 0, color.length - 1));
             setColor4f(srgb[0], srgb[1], srgb[2], color[color.length - 1]);
         } else {
@@ -449,7 +449,7 @@ public class Paint implements AutoCloseable {
     public final void setColor4f(float r, float g, float b, float a,
                                  @Nullable ColorSpace colorSpace) {
         if (colorSpace != null && !colorSpace.isExtendedSRGB()) {
-            float[] srgb = new ColorTransform(colorSpace, ColorSpace.get(ColorSpace.Named.EXTENDED_SRGB))
+            float[] srgb = new ColorTransform(colorSpace, ColorSpaces.EXTENDED_SRGB)
                     .transformExtended(new float[]{r, g, b});
             setColor4f(srgb[0], srgb[1], srgb[2], a);
         } else {
