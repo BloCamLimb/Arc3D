@@ -236,6 +236,56 @@ public abstract sealed class ColorSpace permits ColorSpaceXYZ, ColorSpaceRGB,
     final float @NonNull[] mWhitePoint;
 
     /**
+     * @deprecated use static fields in {@link ColorSpaces}
+     */
+    @Deprecated
+    public enum Named {
+        // NOTE: Do NOT change the order of the enum
+        SRGB,
+        LINEAR_SRGB,
+        EXTENDED_SRGB,
+        LINEAR_EXTENDED_SRGB,
+        BT709,
+        BT2020,
+        DCI_P3,
+        DISPLAY_P3,
+        NTSC_1953,
+        SMPTE_C,
+        ADOBE_RGB,
+        PRO_PHOTO_RGB,
+        ACES,
+        ACESCG,
+        CIE_XYZ,
+        CIE_LAB
+    }
+
+    /**
+     * @deprecated use static fields in {@link ColorSpaces}
+     */
+    @Deprecated
+    public static ColorSpace get(Named named) {
+        return switch (named) {
+            case SRGB -> ColorSpaces.SRGB;
+            case LINEAR_SRGB -> ColorSpaces.LINEAR_SRGB;
+            case EXTENDED_SRGB -> ColorSpaces.EXTENDED_SRGB;
+            case LINEAR_EXTENDED_SRGB -> ColorSpaces.LINEAR_EXTENDED_SRGB;
+            case BT709 -> ColorSpaces.BT709;
+            case BT2020 -> ColorSpaces.BT2020;
+            case DCI_P3 -> ColorSpaces.DCI_P3;
+            case DISPLAY_P3 -> ColorSpaces.DISPLAY_P3;
+            case NTSC_1953 -> ColorSpaces.NTSC_1953;
+            case SMPTE_C -> ColorSpaces.SMPTE_C;
+            case ADOBE_RGB -> ColorSpaces.ADOBE_RGB;
+            case PRO_PHOTO_RGB -> ColorSpaces.PRO_PHOTO_RGB;
+            case ACES -> ColorSpaces.ACES;
+            case ACESCG -> ColorSpaces.ACESCG;
+            case CIE_XYZ -> ColorSpaces.CIE_XYZ_D50;
+            case CIE_LAB -> ColorSpaces.CIE_LAB;
+            default -> null;
+        };
+    }
+
+    /**
      * Returns the number of components for this color model.
      *
      * @return An integer between 1 and 4
