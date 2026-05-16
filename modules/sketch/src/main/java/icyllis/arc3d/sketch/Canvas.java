@@ -1984,24 +1984,26 @@ public class Canvas implements AutoCloseable {
         return true;
     }
 
-    private boolean internalQuickReject(Rect2fc bounds, Paint paint) {
+    private boolean internalQuickReject(Rect2fc bounds, @Nullable Paint paint) {
         return internalQuickReject(bounds, paint, null);
     }
 
-    private boolean internalQuickReject(Rect2fc bounds, Paint paint,
+    private boolean internalQuickReject(Rect2fc bounds, @Nullable Paint paint,
                                         @Nullable Matrixc matrix) {
-        if (!bounds.isFinite() || paint.nothingToDraw()) {
+        if (!bounds.isFinite() || (paint != null && paint.nothingToDraw())) {
             return true;
         }
 
-        if (paint.canComputeFastBounds(null)) {
+        if (paint == null || paint.canComputeFastBounds(null)) {
             var tmp = mTmpQuickBounds;
             if (matrix != null) {
                 matrix.mapRect(bounds, tmp);
             } else {
                 tmp.set(bounds);
             }
-            paint.computeFastBounds(null, tmp, tmp);
+            if (paint != null) {
+                paint.computeFastBounds(null, tmp, tmp);
+            }
             return quickReject(tmp);
         }
 
