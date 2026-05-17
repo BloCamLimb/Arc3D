@@ -540,8 +540,12 @@ public final class GraniteDevice extends Device {
 
     @Override
     public void drawVertices(Vertices vertices, Blender blender, Paint paint) {
+        Blender primitiveBlender =
+                !vertices.hasColors() ? null :
+                        blender != null ? blender
+                                : BlendMode.SRC_OVER;
         drawGeometry(getLocalToDevice33(), vertices, false,
-                mPaintParams.set(paint, blender, false, false), null,
+                mPaintParams.set(paint, primitiveBlender, false, false), null,
                 mRendererProvider.getVertices(
                         vertices.getVertexMode(), vertices.hasColors(), vertices.hasTexCoords()));
     }
