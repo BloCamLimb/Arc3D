@@ -186,7 +186,7 @@ public final class GLBuffer extends Buffer {
         }
         if (checkError) {
             if (device.getError() != GL_NO_ERROR) {
-                device.getLogger().error("Failed to create GLBuffer: cannot allocate {} bytes from device",
+                device.getLogger().error(GLUtil.MARKER, "Failed to create GLBuffer: cannot allocate {} bytes from device",
                         mSize);
                 return false;
             }
@@ -206,7 +206,7 @@ public final class GLBuffer extends Buffer {
                         target, 0, mSize, mapFlags);
             }
             if (persistentlyMappedBuffer == NULL) {
-                device.getLogger().error("Failed to create GLBuffer: cannot create persistent mapping");
+                device.getLogger().error(GLUtil.MARKER, "Failed to create GLBuffer: cannot create persistent mapping");
                 return false;
             }
             mPersistentlyMappedBuffer = persistentlyMappedBuffer;
@@ -249,7 +249,7 @@ public final class GLBuffer extends Buffer {
         }
         if (checkError) {
             if (device.getError() != GL_NO_ERROR) {
-                device.getLogger().error("Failed to create GLBuffer: cannot allocate {} bytes from device",
+                device.getLogger().error(GLUtil.MARKER, "Failed to create GLBuffer: cannot allocate {} bytes from device",
                         mSize);
                 return false;
             }
@@ -361,7 +361,7 @@ public final class GLBuffer extends Buffer {
                 device.getGL().glBindBuffer(target, 0);
             }
             if (mappedBuffer == NULL) {
-                device.getLogger().error("Failed to map buffer {}", mBuffer);
+                device.getLogger().error(GLUtil.MARKER, "Failed to map buffer {}", mBuffer);
             }
             return mappedBuffer;
         } else {
@@ -382,7 +382,7 @@ public final class GLBuffer extends Buffer {
                 }
                 mCachedBufferSize = size;
                 if (mCachedBuffer == NULL) {
-                    device.getLogger().error("Failed to map buffer {}", this);
+                    device.getLogger().error(GLUtil.MARKER, "Failed to map buffer {}", this);
                 }
             }
             return mCachedBuffer;

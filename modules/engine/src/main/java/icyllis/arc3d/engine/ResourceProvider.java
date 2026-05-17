@@ -850,7 +850,7 @@ public abstract class ResourceProvider {
     @SharedPtr
     public final Buffer createNewBuffer(long size, int usage) {
         if (size <= 0) {
-            mContext.getLogger().error(
+            mDevice.getLogger().error(Engine.MARKER,
                     "Failed to create buffer: invalid size {}",
                     size);
             return null;

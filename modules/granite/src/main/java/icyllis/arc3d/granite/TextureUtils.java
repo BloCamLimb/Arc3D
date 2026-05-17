@@ -117,7 +117,7 @@ public class TextureUtils {
                 ImageUploadTask.uploadOnce()
         );
         if (task == null) {
-            context.getLogger().error("ImageUtils.makePixmapViewProxy: Could not create ImageUploadTask");
+            context.getLogger().error(GraniteUtil.MARKER, "ImageUtils.makePixmapViewProxy: Could not create ImageUploadTask");
             return null;
         }
 

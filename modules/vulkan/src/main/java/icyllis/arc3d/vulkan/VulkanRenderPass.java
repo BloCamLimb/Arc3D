@@ -335,7 +335,7 @@ public final class VulkanRenderPass extends ManagedResource {
                     pCreateInfo, null, pRenderPass);
             device.checkResult(result);
             if (result != VK_SUCCESS) {
-                device.getLogger().error("Failed to create VulkanRenderPass: {}",
+                device.getLogger().error(VKUtil.MARKER, "Failed to create VulkanRenderPass: {}",
                         VKUtil.getResultMessage(result));
                 return null;
             }

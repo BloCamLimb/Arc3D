@@ -187,7 +187,7 @@ public abstract class VulkanCommandBuffer extends CommandBuffer {
             );
             device.checkResult(result);
             if (result != VK_SUCCESS) {
-                device.getLogger().error("Failed to allocate {} VulkanCommandBuffer: {}",
+                device.getLogger().error(VKUtil.MARKER, "Failed to allocate {} VulkanCommandBuffer: {}",
                         forSecondary ? "Secondary" : "Primary", VKUtil.getResultMessage(result));
                 return VK_NULL_HANDLE;
             }

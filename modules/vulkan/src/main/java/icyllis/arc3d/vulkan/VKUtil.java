@@ -571,20 +571,13 @@ public final class VKUtil {
             var result = vkCreateShaderModule(device.vkDevice(), pCreateInfo, null, pShaderModule);
             device.checkResult(result);
             if (result != VK_SUCCESS) {
-                device.getLogger().error("Failed to create VkShaderModule");
+                device.getLogger().error(MARKER, "Failed to create VkShaderModule");
                 return VK_NULL_HANDLE;
             }
             return pShaderModule.get(0);
         } finally {
             Reference.reachabilityFence(spirv);
         }
-    }
-
-    public static void handleCompileError(Logger logger,
-                                          String source,
-                                          String errors) {
-        if (!logger.isErrorEnabled(MARKER)) return;
-        logger.error(MARKER, ShaderUtils.buildShaderErrorMessage(source, errors));
     }
 
     public static int toVkFilter(int filter) {

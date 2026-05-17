@@ -49,7 +49,7 @@ public class AtlasProvider implements AutoCloseable {
 
     public void recordUploads(SurfaceDrawContext sdc) {
         if (!mGlyphAtlasManager.recordUploads(sdc)) {
-            mRC.getLogger().error("GlyphAtlasManager uploads have failed");
+            mRC.getLogger().error(GraniteUtil.MARKER, "GlyphAtlasManager uploads have failed");
         }
     }
 

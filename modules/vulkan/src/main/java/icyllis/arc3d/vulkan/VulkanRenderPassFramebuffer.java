@@ -115,7 +115,7 @@ public final class VulkanRenderPassFramebuffer extends Framebuffer {
                     pCreateInfo, null, pFramebuffer);
             device.checkResult(result);
             if (result != VK_SUCCESS) {
-                device.getLogger().error("Failed to create VulkanFramebuffer: {}",
+                device.getLogger().error(VKUtil.MARKER, "Failed to create VulkanFramebuffer: {}",
                         VKUtil.getResultMessage(result));
                 return null;
             }

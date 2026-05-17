@@ -21,6 +21,7 @@ package icyllis.arc3d.granite.task;
 
 import icyllis.arc3d.core.*;
 import icyllis.arc3d.engine.*;
+import icyllis.arc3d.granite.GraniteUtil;
 import icyllis.arc3d.granite.RecordingContext;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.Nullable;
@@ -176,7 +177,7 @@ public class ImageUploadTask extends Task {
                 bufferInfo
         );
         if (writer == MemoryUtil.NULL) {
-            context.getLogger().warn("Failed to get write-mapped buffer for pixel upload of size {}",
+            context.getLogger().warn(GraniteUtil.MARKER, "Failed to get write-mapped buffer for pixel upload of size {}",
                     combinedBufferSize);
             imageProxy.unref();
             return null;

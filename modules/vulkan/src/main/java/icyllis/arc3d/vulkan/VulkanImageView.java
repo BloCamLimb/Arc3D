@@ -114,7 +114,7 @@ public final class VulkanImageView extends ManagedResource {
             );
             device.checkResult(result);
             if (result != VK_SUCCESS) {
-                device.getLogger().error("Failed to create VulkanImageView: {}",
+                device.getLogger().error(VKUtil.MARKER, "Failed to create VulkanImageView: {}",
                         VKUtil.getResultMessage(result));
                 return null;
             }

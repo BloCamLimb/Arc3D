@@ -94,7 +94,7 @@ public final class VulkanSampler extends Sampler {
             );
             device.checkResult(result);
             if (result != VK_SUCCESS) {
-                device.getLogger().error("Failed to create VulkanSampler: desc {} result {}",
+                device.getLogger().error(VKUtil.MARKER, "Failed to create VulkanSampler: desc {} result {}",
                         desc, VKUtil.getResultMessage(result));
                 return null;
             }

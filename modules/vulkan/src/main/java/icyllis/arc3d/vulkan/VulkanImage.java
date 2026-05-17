@@ -87,7 +87,7 @@ public final class VulkanImage extends Image {
 
         int vkSamples = VKUtil.toVkSampleCount(desc.getSampleCount());
         if (vkSamples == 0) {
-            device.getLogger().error("Failed to create VulkanImage: unsupported number of samples {}",
+            device.getLogger().error(VKUtil.MARKER, "Failed to create VulkanImage: unsupported number of samples {}",
                     desc.getSampleCount());
             return null;
         }
@@ -122,7 +122,7 @@ public final class VulkanImage extends Image {
             );
             device.checkResult(result);
             if (result != VK_SUCCESS) {
-                device.getLogger().error("Failed to create VulkanImage: {}",
+                device.getLogger().error(VKUtil.MARKER, "Failed to create VulkanImage: {}",
                         VKUtil.getResultMessage(result));
                 return null;
             }
@@ -148,7 +148,7 @@ public final class VulkanImage extends Image {
                     device, pImage.get(0), allocFlags, allocInfo
             )) {
                 vkDestroyImage(device.vkDevice(), pImage.get(0), null);
-                device.getLogger().error("Failed to create VulkanImage: cannot allocate {} bytes from device",
+                device.getLogger().error(VKUtil.MARKER, "Failed to create VulkanImage: cannot allocate {} bytes from device",
                         size);
                 return null;
             }
@@ -157,7 +157,7 @@ public final class VulkanImage extends Image {
                     (allocInfo.mMemoryFlags & VulkanAllocation.kLazilyAllocated_Flag) == 0) {
                 allocator.freeMemory(allocInfo);
                 vkDestroyImage(device.vkDevice(), pImage.get(0), null);
-                device.getLogger().error("Failed to create VulkanImage: cannot allocate lazy memory when requested");
+                device.getLogger().error(VKUtil.MARKER, "Failed to create VulkanImage: cannot allocate lazy memory when requested");
                 return null;
             }
 
@@ -171,7 +171,7 @@ public final class VulkanImage extends Image {
             if (result != VK_SUCCESS) {
                 allocator.freeMemory(allocInfo);
                 vkDestroyImage(device.vkDevice(), pImage.get(0), null);
-                device.getLogger().error("Failed to bind image memory: {}",
+                device.getLogger().error(VKUtil.MARKER, "Failed to bind image memory: {}",
                         VKUtil.getResultMessage(result));
                 return null;
             }

@@ -124,7 +124,7 @@ public class GLGraphicsPipelineBuilder {
             TranslationUnit fragmentProgram = compiler.parse(info.mFragSource, ShaderKind.FRAGMENT,
                     options, ModuleLoader.getInstance().loadCommonModule(compiler));
             if (fragmentProgram == null) {
-                GLUtil.handleCompileError(mDevice.getLogger(),
+                Engine.handleCompileError(mDevice.getLogger(), Engine.MARKER,
                         info.mFragSource, compiler.getErrorMessage());
                 success = false;
             } else {
@@ -134,7 +134,7 @@ public class GLGraphicsPipelineBuilder {
                     mFinalizedFragGLSL = compiler.generateGLSL(fragmentProgram, shaderCaps);
                 }
                 if (mFinalizedFragGLSL == null && mFinalizedFragSPIRV == null) {
-                    GLUtil.handleCompileError(mDevice.getLogger(),
+                    Engine.handleCompileError(mDevice.getLogger(), Engine.MARKER,
                             info.mFragSource, compiler.getErrorMessage());
                     success = false;
                 }
@@ -154,7 +154,7 @@ public class GLGraphicsPipelineBuilder {
             TranslationUnit vertexProgram = compiler.parse(info.mVertSource, ShaderKind.VERTEX,
                     options, ModuleLoader.getInstance().loadCommonModule(compiler));
             if (vertexProgram == null) {
-                GLUtil.handleCompileError(mDevice.getLogger(),
+                Engine.handleCompileError(mDevice.getLogger(), Engine.MARKER,
                         info.mVertSource, compiler.getErrorMessage());
             } else {
                 if (mDevice.getCaps().hasSPIRVSupport()) {
@@ -163,7 +163,7 @@ public class GLGraphicsPipelineBuilder {
                     mFinalizedVertGLSL = compiler.generateGLSL(vertexProgram, shaderCaps);
                 }
                 if (mFinalizedVertGLSL == null && mFinalizedVertSPIRV == null) {
-                    GLUtil.handleCompileError(mDevice.getLogger(),
+                    Engine.handleCompileError(mDevice.getLogger(), Engine.MARKER,
                             info.mVertSource, compiler.getErrorMessage());
                 }
             }
@@ -284,7 +284,7 @@ public class GLGraphicsPipelineBuilder {
                                     MemoryUtil.memUTF8Safe(mFinalizedFragGLSL)},
                             log);
                 } else {
-                    mDevice.getLogger().error("Program linking error: {}", log);
+                    mDevice.getLogger().error(GLUtil.MARKER, "Program linking error: {}", log);
                 }
                 return false;
             } finally {

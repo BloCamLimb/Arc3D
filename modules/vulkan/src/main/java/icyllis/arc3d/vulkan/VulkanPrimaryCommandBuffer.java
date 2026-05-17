@@ -90,7 +90,7 @@ public final class VulkanPrimaryCommandBuffer extends VulkanCommandBuffer {
             );
             device.checkResult(result);
             if (result != VK_SUCCESS) {
-                device.getLogger().error("Failed to VulkanCommandPool: {}",
+                device.getLogger().error(VKUtil.MARKER, "Failed to VulkanCommandPool: {}",
                         VKUtil.getResultMessage(result));
                 return null;
             }

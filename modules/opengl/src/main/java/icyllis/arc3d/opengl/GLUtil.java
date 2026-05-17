@@ -622,7 +622,7 @@ public final class GLUtil {
             String log = checkShaderCompiled(gl, shader);
             if (log != null) {
                 gl.glDeleteShader(shader);
-                handleCompileError(device.getLogger(), MemoryUtil.memUTF8(glsl), log);
+                Engine.handleCompileError(device.getLogger(), MARKER, MemoryUtil.memUTF8(glsl), log);
                 return 0;
             }
 
@@ -719,13 +719,6 @@ public final class GLUtil {
             }
         }
         return null;
-    }
-
-    public static void handleCompileError(Logger logger,
-                                          String source,
-                                          String errors) {
-        if (!logger.isErrorEnabled(MARKER)) return;
-        logger.error(MARKER, ShaderUtils.buildShaderErrorMessage(source, errors));
     }
 
     public static void handleLinkError(Logger logger,

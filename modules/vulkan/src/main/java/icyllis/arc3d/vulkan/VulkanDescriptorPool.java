@@ -126,7 +126,7 @@ public final class VulkanDescriptorPool extends Resource {
             device.checkResult(result);
             if (result != VK_SUCCESS) {
                 layout.unref();
-                device.getLogger().error("Failed to create VulkanDescriptorPool: {}",
+                device.getLogger().error(VKUtil.MARKER, "Failed to create VulkanDescriptorPool: {}",
                         VKUtil.getResultMessage(result));
                 return null;
             }
@@ -145,7 +145,7 @@ public final class VulkanDescriptorPool extends Resource {
             // check if the first DS is successfully created, otherwise the whole array is empty
             if (descriptorSets[0] == null) {
                 resultPool.unref();
-                device.getLogger().error("Failed to allocate any descriptor sets from pool");
+                device.getLogger().error(VKUtil.MARKER, "Failed to allocate any descriptor sets from pool");
                 return null;
             }
 

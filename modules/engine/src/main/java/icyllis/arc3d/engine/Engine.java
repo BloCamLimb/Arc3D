@@ -21,13 +21,19 @@ package icyllis.arc3d.engine;
 
 import icyllis.arc3d.core.Color;
 import icyllis.arc3d.core.ColorInfo;
+import icyllis.arc3d.core.ShaderUtils;
 import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
+import org.slf4j.Logger;
+import org.slf4j.Marker;
+import org.slf4j.MarkerFactory;
 
 /**
  * Shared constants, enums and utilities for Arc3D Engine.
  */
 public interface Engine {
+
+    Marker MARKER = MarkerFactory.getMarker("Engine");
 
     /**
      * Block engine-private values.
@@ -917,4 +923,12 @@ public interface Engine {
      * ResourceHandle is an opaque handle to a resource, actually a table index.
      */
     int INVALID_RESOURCE_HANDLE = -1;
+
+    static void handleCompileError(Logger logger,
+                                   Marker marker,
+                                   String source,
+                                   String errors) {
+        if (!logger.isErrorEnabled(marker)) return;
+        logger.error(marker, ShaderUtils.buildShaderErrorMessage(source, errors));
+    }
 }

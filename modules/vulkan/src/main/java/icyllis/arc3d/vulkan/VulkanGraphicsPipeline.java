@@ -78,7 +78,7 @@ public final class VulkanGraphicsPipeline extends GraphicsPipeline {
                     } else {
                         // this would be impossible, however if it does occur, it should happen in
                         // PipelineDesc.create*PipelineInfo, so there should be no resource leak.
-                        dev.getLogger().error("Fatal error encountered during pipeline compilation", ex);
+                        dev.getLogger().error(VKUtil.MARKER, "Fatal error encountered during pipeline compilation", ex);
                     }
                 });
                 mAsyncWork = null;

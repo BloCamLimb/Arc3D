@@ -101,7 +101,7 @@ public final class VulkanBuffer extends Buffer {
             );
             device.checkResult(result);
             if (result != VK_SUCCESS) {
-                device.getLogger().error("Failed to create VulkanBuffer: {}",
+                device.getLogger().error(VKUtil.MARKER, "Failed to create VulkanBuffer: {}",
                         VKUtil.getResultMessage(result));
                 return null;
             }
@@ -117,7 +117,7 @@ public final class VulkanBuffer extends Buffer {
                     device, pBuffer.get(0), usage, allocFlags, allocInfo
             )) {
                 vkDestroyBuffer(device.vkDevice(), pBuffer.get(0), null);
-                device.getLogger().error("Failed to create VulkanBuffer: cannot allocate {} bytes from device",
+                device.getLogger().error(VKUtil.MARKER, "Failed to create VulkanBuffer: cannot allocate {} bytes from device",
                         size);
                 return null;
             }
@@ -132,7 +132,7 @@ public final class VulkanBuffer extends Buffer {
             if (result != VK_SUCCESS) {
                 allocator.freeMemory(allocInfo);
                 vkDestroyBuffer(device.vkDevice(), pBuffer.get(0), null);
-                device.getLogger().error("Failed to bind buffer memory: {}",
+                device.getLogger().error(VKUtil.MARKER, "Failed to bind buffer memory: {}",
                         VKUtil.getResultMessage(result));
                 return null;
             }
@@ -170,14 +170,14 @@ public final class VulkanBuffer extends Buffer {
         var allocator = device.getMemoryAllocator();
         var mappedBuffer = allocator.mapMemory(device, mMemoryAlloc);
         if (mappedBuffer == NULL) {
-            device.getLogger().error("Failed to map buffer {}", this);
+            device.getLogger().error(VKUtil.MARKER, "Failed to map buffer {}", this);
         }
         if (mappedBuffer != NULL && mode == kRead_MapMode && size != 0) {
             // make device writes visible to host, availability was guaranteed by a pipeline barrier
             if ((mMemoryAlloc.mMemoryFlags & VulkanAllocation.kHostCoherent_Flag) == 0) {
                 boolean result = allocator.invalidateMemory(device, mMemoryAlloc, offset, size);
                 if (!result) {
-                    device.getLogger().error("Failed to invalidate mapped memory {}", this);
+                    device.getLogger().error(VKUtil.MARKER, "Failed to invalidate mapped memory {}", this);
                 }
             }
         }
@@ -193,7 +193,7 @@ public final class VulkanBuffer extends Buffer {
             if ((mMemoryAlloc.mMemoryFlags & VulkanAllocation.kHostCoherent_Flag) == 0) {
                 boolean result = allocator.flushMemory(device, mMemoryAlloc, offset, size);
                 if (!result) {
-                    device.getLogger().error("Failed to flush mapped memory {}", this);
+                    device.getLogger().error(VKUtil.MARKER, "Failed to flush mapped memory {}", this);
                 }
             }
         }

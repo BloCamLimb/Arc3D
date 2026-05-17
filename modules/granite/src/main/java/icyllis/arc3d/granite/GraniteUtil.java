@@ -21,8 +21,12 @@ package icyllis.arc3d.granite;
 
 import icyllis.arc3d.engine.ImmediateContext;
 import org.jspecify.annotations.NonNull;
+import org.slf4j.Marker;
+import org.slf4j.MarkerFactory;
 
 public class GraniteUtil {
+
+    public static final Marker MARKER = MarkerFactory.getMarker("Granite");
 
     public static final String SHADER_CODE_SOURCE = "granite:shader_code_source";
     public static final String RENDERER_PROVIDER = "granite:renderer_provider";

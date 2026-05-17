@@ -108,7 +108,7 @@ public final class VulkanDescriptorSetLayout extends ManagedResource {
                     pCreateInfo, null, pSetLayout);
             device.checkResult(result);
             if (result != VK_SUCCESS) {
-                device.getLogger().error("Failed to create VulkanDescriptorSetLayout: {}",
+                device.getLogger().error(VKUtil.MARKER, "Failed to create VulkanDescriptorSetLayout: {}",
                         VKUtil.getResultMessage(result));
                 return null;
             }

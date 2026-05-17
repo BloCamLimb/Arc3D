@@ -80,7 +80,7 @@ public final class VulkanDescriptorSet extends RecycledResource {
                         pAllocateInfo,
                         pDescriptorSets);
                 if (result != VK_SUCCESS) {
-                    device.getLogger().warn(
+                    device.getLogger().warn(VKUtil.MARKER,
                             "Failed to allocate {} descriptor sets from pool; " +
                                     "allocated: {}, total requested: {}; " +
                                     "no more sets will be allocated from this pool.",

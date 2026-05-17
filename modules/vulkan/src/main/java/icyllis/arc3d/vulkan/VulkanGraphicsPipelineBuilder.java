@@ -156,13 +156,13 @@ public class VulkanGraphicsPipelineBuilder {
             TranslationUnit fragmentProgram = compiler.parse(mInfo.mFragSource, ShaderKind.FRAGMENT,
                     options, ModuleLoader.getInstance().loadCommonModule(compiler));
             if (fragmentProgram == null) {
-                VKUtil.handleCompileError(mDevice.getLogger(),
+                Engine.handleCompileError(mDevice.getLogger(), Engine.MARKER,
                         mInfo.mFragSource, compiler.getErrorMessage());
                 return false;
             } else {
                 mFinalizedFragSPIRV = compiler.generateSPIRV(fragmentProgram, shaderCaps);
                 if (mFinalizedFragSPIRV == null) {
-                    VKUtil.handleCompileError(mDevice.getLogger(),
+                    Engine.handleCompileError(mDevice.getLogger(), Engine.MARKER,
                             mInfo.mFragSource, compiler.getErrorMessage());
                     return false;
                 } else {
@@ -174,13 +174,13 @@ public class VulkanGraphicsPipelineBuilder {
             TranslationUnit vertexProgram = compiler.parse(mInfo.mVertSource, ShaderKind.VERTEX,
                     options, ModuleLoader.getInstance().loadCommonModule(compiler));
             if (vertexProgram == null) {
-                VKUtil.handleCompileError(mDevice.getLogger(),
+                Engine.handleCompileError(mDevice.getLogger(), Engine.MARKER,
                         mInfo.mVertSource, compiler.getErrorMessage());
                 return false;
             } else {
                 mFinalizedVertSPIRV = compiler.generateSPIRV(vertexProgram, shaderCaps);
                 if (mFinalizedVertSPIRV == null) {
-                    VKUtil.handleCompileError(mDevice.getLogger(),
+                    Engine.handleCompileError(mDevice.getLogger(), Engine.MARKER,
                             mInfo.mVertSource, compiler.getErrorMessage());
                     return false;
                 } else {
@@ -688,7 +688,7 @@ public class VulkanGraphicsPipelineBuilder {
                     VK_NULL_HANDLE, pCreateInfo, null, pPipeline);
             mDevice.checkResult(result);
             if (result != VK_SUCCESS) {
-                mDevice.getLogger().error("Failed to create VulkanGraphicsPipeline: {}",
+                mDevice.getLogger().error(VKUtil.MARKER, "Failed to create VulkanGraphicsPipeline: {}",
                         VKUtil.getResultMessage(result));
                 return;
             }
