@@ -93,6 +93,9 @@ public final class UniformTracker implements AutoCloseable {
                         1, uniformDataSize, 1, slot.mBufferInfo);
             }
             if (writer == MemoryUtil.NULL) {
+                if (mCurrentBuffer != null) {
+                    mCurrentBuffer.reset();
+                }
                 mCurrentBuffer = mBufferManager.getMappableUniformBuffer(1, uniformDataSize);
                 if (mCurrentBuffer == null || (writer = mCurrentBuffer.getMappedSubrange(
                         1, uniformDataSize, 1, slot.mBufferInfo)) == MemoryUtil.NULL) {
