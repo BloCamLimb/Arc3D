@@ -93,10 +93,9 @@ public abstract class GLCaps extends Caps {
     GLCaps(ContextOptions options) {
         super(options);
         mVolatileContext = options.mVolatileContext;
-        // we currently don't use ARB_clip_control
-        //TODO we need to make this a context option,
-        // zero to one and reversed-Z is helpful in 3D rendering
-        mDepthClipNegativeOneToOne = true;
+        // we don't use ARB_clip_control, but callers are free to do so and
+        // can use this flag to indicate that zero-to-one Z is already in use.
+        mDepthClipNegativeOneToOne = Objects.requireNonNullElse(options.mDepthClipNegativeOneToOne, Boolean.TRUE);
     }
 
     void initFormatTable(boolean texStorageSupported,

@@ -171,6 +171,16 @@ public final class ContextOptions {
      */
     public Executor mPipelineCompilationExecutor = ForkJoinPool.commonPool();
 
+    /**
+     * True means that the backend has used a depth clip of -1 to 1.
+     * False means that the backend has used a depth clip of 0 to 1.
+     * OpenGL default is true; Vulkan is always false.
+     * <p>
+     * For OpenGL, set this to false if glClipControl is already called
+     * with GL_ZERO_TO_ONE depth mode, and all shaders will assume this.
+     */
+    public Boolean mDepthClipNegativeOneToOne = null;
+
     public DriverBugWorkarounds mDriverBugWorkarounds;
 
     public ContextOptions() {
