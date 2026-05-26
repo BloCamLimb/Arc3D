@@ -159,6 +159,7 @@ public class VulkanCaps extends Caps {
             mFormatTable[i] = new FormatInfo();
         }
 
+        // Format: VK_FORMAT_R8_UNORM
         {
             FormatInfo info = getFormatInfo(ImageFormat.kR8);
             info.init(logger, physDev, physProps, VK_FORMAT_R8_UNORM, stack);
@@ -193,6 +194,48 @@ public class VulkanCaps extends Caps {
             }
         }
 
+        // Format: VK_FORMAT_R8G8_UNORM
+        {
+            FormatInfo info = getFormatInfo(ImageFormat.kRG8);
+            info.init(logger, physDev, physProps, VK_FORMAT_R8G8_UNORM, stack);
+            if (info.isSampled(VK_IMAGE_TILING_OPTIMAL)) {
+                info.mColorTypeInfos = new ColorTypeInfo[2];
+                // Format: RG8, Surface: kRG_88
+                {
+                    ColorTypeInfo ctInfo = info.mColorTypeInfos[0] = new ColorTypeInfo();
+                    ctInfo.mColorType = ColorInfo.CT_RG_88;
+                    ctInfo.mTransferColorType = ColorInfo.CT_RG_88;
+                    ctInfo.mFlags = ColorTypeInfo.kUploadData_Flag | ColorTypeInfo.kRenderable_Flag;
+                }
+
+                // Format: RG8, Surface: kGrayAlpha_88
+                {
+                    ColorTypeInfo ctInfo = info.mColorTypeInfos[1] = new ColorTypeInfo();
+                    ctInfo.mColorType = ColorInfo.CT_GRAY_ALPHA_88;
+                    ctInfo.mTransferColorType = ColorInfo.CT_GRAY_ALPHA_88;
+                    ctInfo.mFlags = ColorTypeInfo.kUploadData_Flag;
+                    ctInfo.mReadSwizzle = Swizzle.make("rrrg");
+                }
+            }
+        }
+
+        // Format: VK_FORMAT_R8G8B8_UNORM
+        {
+            FormatInfo info = getFormatInfo(ImageFormat.kRGB8);
+            info.init(logger, physDev, physProps, VK_FORMAT_R8G8B8_UNORM, stack);
+            if (info.isSampled(VK_IMAGE_TILING_OPTIMAL)) {
+                info.mColorTypeInfos = new ColorTypeInfo[1];
+                // Format: RGB8, Surface: kRGB_888
+                {
+                    ColorTypeInfo ctInfo = info.mColorTypeInfos[0] = new ColorTypeInfo();
+                    ctInfo.mColorType = ColorInfo.CT_RGB_888;
+                    ctInfo.mTransferColorType = ColorInfo.CT_RGB_888;
+                    // disallow rendering to this format
+                    ctInfo.mFlags = ColorTypeInfo.kUploadData_Flag;
+                }
+            }
+        }
+
         // Format: VK_FORMAT_R8G8B8A8_UNORM
         {
             FormatInfo info = getFormatInfo(ImageFormat.kRGBA8);
@@ -217,6 +260,141 @@ public class VulkanCaps extends Caps {
             }
         }
 
+        // Format: VK_FORMAT_R16_UNORM
+        {
+            FormatInfo info = getFormatInfo(ImageFormat.kR16);
+            info.init(logger, physDev, physProps, VK_FORMAT_R16_UNORM, stack);
+            if (info.isSampled(VK_IMAGE_TILING_OPTIMAL)) {
+                info.mColorTypeInfos = new ColorTypeInfo[3];
+
+                // Format: R16, Surface: kR_16
+                {
+                    ColorTypeInfo ctInfo = info.mColorTypeInfos[0] = new ColorTypeInfo();
+                    ctInfo.mColorType = ColorInfo.CT_R_16;
+                    ctInfo.mTransferColorType = ColorInfo.CT_R_16;
+                    ctInfo.mFlags = ColorTypeInfo.kUploadData_Flag | ColorTypeInfo.kRenderable_Flag;
+                }
+
+                // Format: R16, Surface: kAlpha_16
+                {
+                    ColorTypeInfo ctInfo = info.mColorTypeInfos[1] = new ColorTypeInfo();
+                    ctInfo.mColorType = ColorInfo.CT_ALPHA_16;
+                    ctInfo.mTransferColorType = ColorInfo.CT_ALPHA_16;
+                    ctInfo.mFlags = ColorTypeInfo.kUploadData_Flag | ColorTypeInfo.kRenderable_Flag;
+                    ctInfo.mReadSwizzle = Swizzle.make("000r");
+                    ctInfo.mWriteSwizzle = Swizzle.make("a000");
+                }
+
+                // Format: R16, Surface: kGray_16
+                {
+                    ColorTypeInfo ctInfo = info.mColorTypeInfos[2] = new ColorTypeInfo();
+                    ctInfo.mColorType = ColorInfo.CT_GRAY_16;
+                    ctInfo.mTransferColorType = ColorInfo.CT_GRAY_16;
+                    ctInfo.mFlags = ColorTypeInfo.kUploadData_Flag;
+                    ctInfo.mReadSwizzle = Swizzle.make("rrr1");
+                }
+            }
+        }
+
+        // Format: VK_FORMAT_R16G16_UNORM
+        {
+            FormatInfo info = getFormatInfo(ImageFormat.kRG16);
+            info.init(logger, physDev, physProps, VK_FORMAT_R16G16_UNORM, stack);
+            if (info.isSampled(VK_IMAGE_TILING_OPTIMAL)) {
+                info.mColorTypeInfos = new ColorTypeInfo[2];
+                // Format: RG16, Surface: kRG_1616
+                {
+                    ColorTypeInfo ctInfo = info.mColorTypeInfos[0] = new ColorTypeInfo();
+                    ctInfo.mColorType = ColorInfo.CT_RG_1616;
+                    ctInfo.mTransferColorType = ColorInfo.CT_RG_1616;
+                    ctInfo.mFlags = ColorTypeInfo.kUploadData_Flag | ColorTypeInfo.kRenderable_Flag;
+                }
+
+                // Format: RG16, Surface: kGrayAlpha_1616
+                {
+                    ColorTypeInfo ctInfo = info.mColorTypeInfos[1] = new ColorTypeInfo();
+                    ctInfo.mColorType = ColorInfo.CT_GRAY_ALPHA_1616;
+                    ctInfo.mTransferColorType = ColorInfo.CT_GRAY_ALPHA_1616;
+                    ctInfo.mFlags = ColorTypeInfo.kUploadData_Flag;
+                    ctInfo.mReadSwizzle = Swizzle.make("rrrg");
+                }
+            }
+        }
+
+        // Format: VK_FORMAT_R16G16B16_UNORM
+        {
+            FormatInfo info = getFormatInfo(ImageFormat.kRGB16);
+            info.init(logger, physDev, physProps, VK_FORMAT_R16G16B16_UNORM, stack);
+            if (info.isSampled(VK_IMAGE_TILING_OPTIMAL)) {
+                info.mColorTypeInfos = new ColorTypeInfo[1];
+                // Format: RGB16, Surface: kRGB_161616
+                {
+                    ColorTypeInfo ctInfo = info.mColorTypeInfos[0] = new ColorTypeInfo();
+                    ctInfo.mColorType = ColorInfo.CT_RGB_161616;
+                    ctInfo.mTransferColorType = ColorInfo.CT_RGB_161616;
+                    // disallow rendering to this format
+                    ctInfo.mFlags = ColorTypeInfo.kUploadData_Flag;
+                }
+            }
+        }
+
+        // Format: VK_FORMAT_R16G16B16_UNORM
+        {
+            FormatInfo info = getFormatInfo(ImageFormat.kRGBA16);
+            info.init(logger, physDev, physProps, VK_FORMAT_R16G16B16A16_UNORM, stack);
+            if (info.isSampled(VK_IMAGE_TILING_OPTIMAL)) {
+                // Format: GL_RGBA16, Surface: kRGBA_16161616
+                info.mColorTypeInfos = new ColorTypeInfo[1];
+                {
+                    ColorTypeInfo ctInfo = info.mColorTypeInfos[0] = new ColorTypeInfo();
+                    ctInfo.mColorType = ColorInfo.CT_RGBA_16161616;
+                    ctInfo.mTransferColorType = ColorInfo.CT_RGBA_16161616;
+                    ctInfo.mFlags = ColorTypeInfo.kUploadData_Flag | ColorTypeInfo.kRenderable_Flag;
+                }
+            }
+        }
+
+        // Format: VK_FORMAT_R16_SFLOAT
+        {
+            FormatInfo info = getFormatInfo(ImageFormat.kR16F);
+            info.init(logger, physDev, physProps, VK_FORMAT_R16_SFLOAT, stack);
+            if (info.isSampled(VK_IMAGE_TILING_OPTIMAL)) {
+                info.mColorTypeInfos = new ColorTypeInfo[2];
+                // Format: R16F, Surface: kR_F16
+                {
+                    ColorTypeInfo ctInfo = info.mColorTypeInfos[0] = new ColorTypeInfo();
+                    ctInfo.mColorType = ColorInfo.CT_R_F16;
+                    ctInfo.mTransferColorType = ColorInfo.CT_R_F16;
+                    ctInfo.mFlags = ColorTypeInfo.kUploadData_Flag | ColorTypeInfo.kRenderable_Flag;
+                }
+                // Format: R16F, Surface: kAlpha_F16
+                {
+                    ColorTypeInfo ctInfo = info.mColorTypeInfos[1] = new ColorTypeInfo();
+                    ctInfo.mColorType = ColorInfo.CT_ALPHA_F16;
+                    ctInfo.mTransferColorType = ColorInfo.CT_ALPHA_F16;
+                    ctInfo.mFlags = ColorTypeInfo.kUploadData_Flag | ColorTypeInfo.kRenderable_Flag;
+                    ctInfo.mReadSwizzle = Swizzle.make("000r");
+                    ctInfo.mWriteSwizzle = Swizzle.make("a000");
+                }
+            }
+        }
+
+        // Format: VK_FORMAT_R16G16_SFLOAT
+        {
+            FormatInfo info = getFormatInfo(ImageFormat.kRG16F);
+            info.init(logger, physDev, physProps, VK_FORMAT_R16G16_SFLOAT, stack);
+            if (info.isSampled(VK_IMAGE_TILING_OPTIMAL)) {
+                info.mColorTypeInfos = new ColorTypeInfo[1];
+                // Format: GL_RG16F, Surface: kRG_F16
+                {
+                    ColorTypeInfo ctInfo = info.mColorTypeInfos[0] = new ColorTypeInfo();
+                    ctInfo.mColorType = ColorInfo.CT_RG_F16;
+                    ctInfo.mTransferColorType = ColorInfo.CT_RG_F16;
+                    ctInfo.mFlags = ColorTypeInfo.kUploadData_Flag | ColorTypeInfo.kRenderable_Flag;
+                }
+            }
+        }
+
         // Format: VK_FORMAT_R16G16B16A16_SFLOAT
         {
             FormatInfo info = getFormatInfo(ImageFormat.kRGBA16F);
@@ -233,9 +411,127 @@ public class VulkanCaps extends Caps {
             }
         }
 
+        // Format: VK_FORMAT_B8G8R8A8_UNORM
+        {
+            FormatInfo info = getFormatInfo(Engine.ImageFormat.kBGRA8);
+            info.init(logger, physDev, physProps, VK_FORMAT_B8G8R8A8_UNORM, stack);
+            if (info.isSampled(VK_IMAGE_TILING_OPTIMAL)) {
+                info.mColorTypeInfos = new ColorTypeInfo[1];
+                // Format: BGRA8, Surface: kBGRA_8888
+                {
+                    ColorTypeInfo ctInfo = info.mColorTypeInfos[0] = new ColorTypeInfo();
+                    ctInfo.mColorType = ColorInfo.CT_BGRA_8888;
+                    ctInfo.mTransferColorType = ColorInfo.CT_BGRA_8888;
+                    ctInfo.mFlags = ColorTypeInfo.kUploadData_Flag | ColorTypeInfo.kRenderable_Flag;
+                }
+            }
+        }
+
+        // Format: VK_FORMAT_R5G6B5_UNORM_PACK16
+        {
+            FormatInfo info = getFormatInfo(ImageFormat.kB5_G6_R5);
+            info.init(logger, physDev, physProps, VK_FORMAT_R5G6B5_UNORM_PACK16, stack);
+            if (info.isSampled(VK_IMAGE_TILING_OPTIMAL)) {
+                info.mColorTypeInfos = new ColorTypeInfo[1];
+                // Format: B5_G6_R5, Surface: kBGR_565
+                {
+                    ColorTypeInfo ctInfo = info.mColorTypeInfos[0] = new ColorTypeInfo();
+                    ctInfo.mColorType = ColorInfo.CT_BGR_565;
+                    ctInfo.mTransferColorType = ColorInfo.CT_BGR_565;
+                    ctInfo.mFlags = ColorTypeInfo.kUploadData_Flag | ColorTypeInfo.kRenderable_Flag;
+                }
+            }
+        }
+
+        // Format: VK_FORMAT_A1R5G5B5_UNORM_PACK16
+        {
+            FormatInfo info = getFormatInfo(Engine.ImageFormat.kBGR5_A1);
+            info.init(logger, physDev, physProps, VK_FORMAT_A1R5G5B5_UNORM_PACK16, stack);
+            if (info.isSampled(VK_IMAGE_TILING_OPTIMAL)) {
+                info.mColorTypeInfos = new ColorTypeInfo[1];
+                // Format: BGR5_A1, Surface: kBGRA_5551
+                {
+                    ColorTypeInfo ctInfo = info.mColorTypeInfos[0] = new ColorTypeInfo();
+                    ctInfo.mColorType = ColorInfo.CT_BGRA_5551;
+                    ctInfo.mFlags = ColorTypeInfo.kUploadData_Flag | ColorTypeInfo.kRenderable_Flag;
+                }
+            }
+        }
+
+        // Format: VK_FORMAT_A2B10G10R10_UNORM_PACK32
+        {
+            FormatInfo info = getFormatInfo(ImageFormat.kRGB10_A2);
+            info.init(logger, physDev, physProps, VK_FORMAT_A2B10G10R10_UNORM_PACK32, stack);
+            if (info.isSampled(VK_IMAGE_TILING_OPTIMAL)) {
+                info.mColorTypeInfos = new ColorTypeInfo[1];
+                // Format: RGB10_A2, Surface: kRGBA_1010102
+                {
+                    ColorTypeInfo ctInfo = info.mColorTypeInfos[0] = new ColorTypeInfo();
+                    ctInfo.mColorType = ColorInfo.CT_RGBA_1010102;
+                    ctInfo.mTransferColorType = ColorInfo.CT_RGBA_1010102;
+                    ctInfo.mFlags = ColorTypeInfo.kUploadData_Flag | ColorTypeInfo.kRenderable_Flag;
+                }
+            }
+        }
+
+        // Format: VK_FORMAT_A2R10G10B10_UNORM_PACK32
+        {
+            FormatInfo info = getFormatInfo(ImageFormat.kBGR10_A2);
+            info.init(logger, physDev, physProps, VK_FORMAT_A2R10G10B10_UNORM_PACK32, stack);
+            if (info.isSampled(VK_IMAGE_TILING_OPTIMAL)) {
+                info.mColorTypeInfos = new ColorTypeInfo[1];
+                // Format: BGR10_A2, Surface: kBGRA_1010102
+                {
+                    ColorTypeInfo ctInfo = info.mColorTypeInfos[0] = new ColorTypeInfo();
+                    ctInfo.mColorType = ColorInfo.CT_BGRA_1010102;
+                    ctInfo.mTransferColorType = ColorInfo.CT_BGRA_1010102;
+                    ctInfo.mFlags = ColorTypeInfo.kUploadData_Flag | ColorTypeInfo.kRenderable_Flag;
+                }
+            }
+        }
+
+        // Format: VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK
+        {
+            FormatInfo info = getFormatInfo(ImageFormat.kRGB8_ETC2);
+            info.init(logger, physDev, physProps, VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK, stack);
+        }
+
+        // Format: VK_FORMAT_BC1_RGB_UNORM_BLOCK
+        {
+            FormatInfo info = getFormatInfo(ImageFormat.kRGB8_BC1);
+            info.init(logger, physDev, physProps, VK_FORMAT_BC1_RGB_UNORM_BLOCK, stack);
+        }
+
+        // Format: VK_FORMAT_BC1_RGBA_UNORM_BLOCK
+        {
+            FormatInfo info = getFormatInfo(ImageFormat.kRGBA8_BC1);
+            info.init(logger, physDev, physProps, VK_FORMAT_BC1_RGBA_UNORM_BLOCK, stack);
+        }
+
         setColorTypeFormat(ColorInfo.CT_R_8, ImageFormat.kR8);
+        setColorTypeFormat(ColorInfo.CT_GRAY_8, ImageFormat.kR8);
+        setColorTypeFormat(ColorInfo.CT_ALPHA_8, ImageFormat.kR8);
+        setColorTypeFormat(ColorInfo.CT_RG_88, ImageFormat.kRG8);
+        setColorTypeFormat(ColorInfo.CT_GRAY_ALPHA_88, ImageFormat.kRG8);
+        setColorTypeFormat(ColorInfo.CT_RGB_888, ImageFormat.kRGB8);
         setColorTypeFormat(ColorInfo.CT_RGBA_8888, ImageFormat.kRGBA8);
+        setColorTypeFormat(ColorInfo.CT_RGBX_8888, ImageFormat.kRGBA8);
+        setColorTypeFormat(ColorInfo.CT_R_16, ImageFormat.kR16);
+        setColorTypeFormat(ColorInfo.CT_ALPHA_16, ImageFormat.kR16);
+        setColorTypeFormat(ColorInfo.CT_GRAY_16, ImageFormat.kR16);
+        setColorTypeFormat(ColorInfo.CT_RG_1616, ImageFormat.kRG16);
+        setColorTypeFormat(ColorInfo.CT_GRAY_ALPHA_1616, ImageFormat.kRG16);
+        setColorTypeFormat(ColorInfo.CT_RGB_161616, ImageFormat.kRGB16);
+        setColorTypeFormat(ColorInfo.CT_RGBA_16161616, ImageFormat.kRGBA16);
+        setColorTypeFormat(ColorInfo.CT_R_F16, ImageFormat.kR16F);
+        setColorTypeFormat(ColorInfo.CT_ALPHA_F16, ImageFormat.kR16F);
+        setColorTypeFormat(ColorInfo.CT_RG_F16, ImageFormat.kRG16F);
         setColorTypeFormat(ColorInfo.CT_RGBA_F16, ImageFormat.kRGBA16F);
+        setColorTypeFormat(ColorInfo.CT_BGRA_8888, ImageFormat.kBGRA8);
+        setColorTypeFormat(ColorInfo.CT_BGR_565, ImageFormat.kB5_G6_R5);
+        setColorTypeFormat(ColorInfo.CT_BGRA_5551, ImageFormat.kBGR5_A1);
+        setColorTypeFormat(ColorInfo.CT_RGBA_1010102, ImageFormat.kRGB10_A2);
+        setColorTypeFormat(ColorInfo.CT_BGRA_1010102, ImageFormat.kBGR10_A2);
     }
 
     private void initGLSL(VkPhysicalDeviceFeatures2 deviceFeatures2,
