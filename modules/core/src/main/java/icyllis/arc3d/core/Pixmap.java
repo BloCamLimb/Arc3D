@@ -218,7 +218,7 @@ public class Pixmap {
     }
 
     /**
-     * Gets the pixel value at (x, y), and converts it to {@link ColorInfo#CT_BGRA_8888_NATIVE},
+     * Gets the pixel value at (x, y), and converts it to {@link ColorInfo#CT_BGRA_8888},
      * {@link ColorInfo#AT_UNPREMUL}, and {@link ColorSpaces#SRGB}.
      * <p>
      * Input is not validated: out of bounds values of x or y trigger an assertion error;
@@ -256,7 +256,7 @@ public class Pixmap {
         }
 
         var srcInfo = new ImageInfo(1, 1, ct, at, cs);
-        var dstInfo = new ImageInfo(1, 1, ColorInfo.CT_BGRA_8888_NATIVE,
+        var dstInfo = new ImageInfo(1, 1, ColorInfo.CT_BGRA_8888,
                 ColorInfo.AT_UNPREMUL, ColorSpaces.SRGB);
         int[] col = new int[1];
         boolean res = PixelUtils.convertPixels(

@@ -169,13 +169,29 @@ public final class ColorInfo {
             CT_RGB_888,
             CT_RGB_161616,
             CT_RGBX_8888,
-            CT_R5G6B5_UNORM,
+            CT_R8_UNORM,
             CT_R8G8_UNORM,
+            CT_R8G8B8_UNORM,
+            CT_R8G8B8A8_UNORM,
+            CT_R16_UNORM,
+            CT_R16G16_UNORM,
+            CT_R16G16B16_UNORM,
+            CT_R16G16B16A16_UNORM,
+            CT_R16_FLOAT,
+            CT_R16G16_FLOAT,
+            CT_R16G16B16A16_FLOAT,
+            CT_R32_FLOAT,
+            CT_R32G32_FLOAT,
+            CT_R32G32B32A32_FLOAT,
+            CT_A8_UNORM,
             CT_A16_UNORM,
             CT_A16_FLOAT,
-            CT_A16G16_UNORM,
-            CT_R16G16_FLOAT,
-            CT_R16G16B16A16_UNORM,
+            CT_B8G8R8A8_UNORM,
+            CT_R5G6B5_UNORM_PACK16,
+            CT_A1R5G5B5_UNORM_PACK16,
+            CT_A2B10G10R10_UNORM_PACK32,
+            CT_A2R10G10B10_UNORM_PACK32,
+            CT_E5B9G9R9_FLOAT_PACK32,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface ColorType {
@@ -283,10 +299,8 @@ public final class ColorInfo {
     // Single channel data (16 bits) interpreted as a grayscale value (e.g. replicated to RGB).
     public static final int
             CT_GRAY_16          = 17;
-    @ApiStatus.Internal
     public static final int
             CT_GRAY_ALPHA_88    = 18;
-    @ApiStatus.Internal
     public static final int
             CT_GRAY_ALPHA_1616  = 19;
 
@@ -324,12 +338,10 @@ public final class ColorInfo {
 
     // Three channel RGB data (8 bits per channel).
     // This must be interpreted as three R,G,B uint8_t, no alignment requirement.
-    @ApiStatus.Internal
     public static final int
             CT_RGB_888          = 26;
     // Three channel RGB data (16 bits per channel).
     // This must be interpreted as three R,G,B uint16_t, no alignment requirement.
-    @ApiStatus.Internal
     public static final int
             CT_RGB_161616       = 27;
 
@@ -337,8 +349,9 @@ public final class ColorInfo {
     // The remaining 8 bits are ignored and alpha is forced to opaque when read.
     // This can be interpreted as four R,G,B,X uint8_t or a LE 32-bit word.
     //  Bits: [X:31..24 B:23..16 G:15..8 R:7..0]
+    @Deprecated
     public static final int
-            CT_RGBX_8888        = 28;
+            CT_RGBX_8888        = 28; //TODO delete
 
     /**
      * An alias based on host endianness, packed as
@@ -347,7 +360,7 @@ public final class ColorInfo {
      * This is not a standalone packed format, it just depends on CPU:
      * on little-endian machine this is {@link #CT_RGBA_8888}.
      */
-    @ColorType
+    @Deprecated
     public static final int
             CT_RGBA_8888_NATIVE = CT_RGBA_8888;
     /**
@@ -357,7 +370,7 @@ public final class ColorInfo {
      * This is not a standalone packed format, it just depends on CPU:
      * on little-endian machine this is {@link #CT_BGRA_8888}.
      */
-    @ColorType
+    @Deprecated
     public static final int
             CT_BGRA_8888_NATIVE = CT_BGRA_8888;
     /**
@@ -365,13 +378,29 @@ public final class ColorInfo {
      */
     @ColorType
     public static final int
-            CT_R5G6B5_UNORM       = CT_BGR_565,
-            CT_R8G8_UNORM         = CT_RG_88,
-            CT_A16_UNORM          = CT_ALPHA_16,
-            CT_A16_FLOAT          = CT_ALPHA_F16,
-            CT_A16G16_UNORM       = CT_RG_1616,
-            CT_R16G16_FLOAT       = CT_RG_F16,
-            CT_R16G16B16A16_UNORM = CT_RGBA_16161616;
+            CT_R8_UNORM                 = CT_R_8,
+            CT_R8G8_UNORM               = CT_RG_88,
+            CT_R8G8B8_UNORM             = CT_RGB_888,
+            CT_R8G8B8A8_UNORM           = CT_RGBA_8888,
+            CT_R16_UNORM                = CT_R_16,
+            CT_R16G16_UNORM             = CT_RG_1616,
+            CT_R16G16B16_UNORM          = CT_RGB_161616,
+            CT_R16G16B16A16_UNORM       = CT_RGBA_16161616,
+            CT_R16_FLOAT                = CT_R_F16,
+            CT_R16G16_FLOAT             = CT_RG_F16,
+            CT_R16G16B16A16_FLOAT       = CT_RGBA_F16,
+            CT_R32_FLOAT                = CT_R_F32,
+            CT_R32G32_FLOAT             = CT_RG_F32,
+            CT_R32G32B32A32_FLOAT       = CT_RGBA_F32,
+            CT_A8_UNORM                 = CT_ALPHA_8,
+            CT_A16_UNORM                = CT_ALPHA_16,
+            CT_A16_FLOAT                = CT_ALPHA_F16,
+            CT_B8G8R8A8_UNORM           = CT_BGRA_8888,
+            CT_R5G6B5_UNORM_PACK16      = CT_BGR_565,
+            CT_A1R5G5B5_UNORM_PACK16    = CT_BGRA_5551,
+            CT_A2B10G10R10_UNORM_PACK32 = CT_RGBA_1010102,
+            CT_A2R10G10B10_UNORM_PACK32 = CT_BGRA_1010102,
+            CT_E5B9G9R9_FLOAT_PACK32    = CT_RGBE_9995;
     @ApiStatus.Internal
     public static final int
             CT_COUNT        = 29;
