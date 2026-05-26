@@ -36,12 +36,23 @@ import org.slf4j.helpers.NOPLogger;
 import java.util.Arrays;
 import java.util.Objects;
 
+import static icyllis.arc3d.vulkan.VKUtil.*;
 import static org.lwjgl.vulkan.VK11.*;
 
 public class VulkanCaps extends Caps {
 
     // the minimum value of 'maxBoundDescriptorSets' required by VkSpec
     public static final int MAX_BOUND_SETS = 4;
+
+    int mAPIVersion;
+    int mDriverVersion;
+    int mVendorID;
+    int mDeviceID;
+    int mDeviceType;
+    String mDeviceName;
+    final byte[] mPipelineCacheUUID = new byte[VK_UUID_SIZE];
+
+    float mMaxSamplerAnisotropy = 1.f;
 
     /**
      * Vulkan image format table.
@@ -72,7 +83,7 @@ public class VulkanCaps extends Caps {
         shaderCaps.mTargetApi = TargetApi.VULKAN_1_0;
         shaderCaps.mGLSLVersion = GLSLVersion.GLSL_450;
 
-        logger.info("Physical device version: {}.{}.{}",
+        logger.info(MARKER, "Physical device version: {}.{}.{}",
                 VK_VERSION_MAJOR(physicalDeviceVersion),
                 VK_VERSION_MINOR(physicalDeviceVersion),
                 VK_VERSION_PATCH(physicalDeviceVersion));
@@ -80,7 +91,16 @@ public class VulkanCaps extends Caps {
         try (var stack = MemoryStack.stackPush()) {
             VkPhysicalDeviceProperties physProps = VkPhysicalDeviceProperties.malloc(stack);
             vkGetPhysicalDeviceProperties(physDev, physProps);
+            mAPIVersion = physProps.apiVersion();
+            mDriverVersion = physProps.driverVersion();
+            mVendorID = physProps.vendorID();
+            mDeviceID = physProps.deviceID();
+            mDeviceType = physProps.deviceType();
+            mDeviceName = physProps.deviceNameString();
+            physProps.pipelineCacheUUID().get(0, mPipelineCacheUUID);
+
             VkPhysicalDeviceLimits limits = physProps.limits();
+            VkPhysicalDeviceFeatures features = deviceFeatures2.features();
 
             if (Integer.compareUnsigned(physicalDeviceVersion,
                     VK_MAKE_VERSION(1, 3, 0)) >= 0) {
@@ -95,18 +115,21 @@ public class VulkanCaps extends Caps {
                 shaderCaps.mSPIRVVersion = SPIRVVersion.SPIRV_1_0;
             }
 
-            mMaxVertexAttributes = limits.maxVertexInputAttributes();
-            mMaxVertexBindings = limits.maxVertexInputBindings();
+            mMaxVertexAttributes = (int) Math.min(
+                    Integer.toUnsignedLong(limits.maxVertexInputAttributes()), Integer.MAX_VALUE);
+            mMaxVertexBindings = (int) Math.min(
+                    Integer.toUnsignedLong(limits.maxVertexInputBindings()), Integer.MAX_VALUE);
 
             mMaxTextureSize = (int) Math.min(
                     Integer.toUnsignedLong(limits.maxImageDimension2D()), Integer.MAX_VALUE);
             assert mMaxTextureSize >= 4096;
 
-            mMaxPushConstantsSize = limits.maxPushConstantsSize();
+            mMaxPushConstantsSize = (int) Math.min(
+                    Integer.toUnsignedLong(limits.maxPushConstantsSize()), Integer.MAX_VALUE);
             // our attachment points are consistent with draw buffers
-            mMaxColorAttachments = Math.min(Math.min(
-                            limits.maxFragmentOutputAttachments(),
-                            limits.maxColorAttachments()),
+            mMaxColorAttachments = (int) Math.min(Math.min(
+                            Integer.toUnsignedLong(limits.maxFragmentOutputAttachments()),
+                            Integer.toUnsignedLong(limits.maxColorAttachments())),
                     MAX_COLOR_TARGETS);
             assert mMaxColorAttachments >= 4;
 
@@ -117,9 +140,14 @@ public class VulkanCaps extends Caps {
             mOptimalBufferCopyOffsetAlignment = Math.max((int) limits.optimalBufferCopyOffsetAlignment(), 4);
             mOptimalBufferCopyRowBytesAlignment = Math.max((int) limits.optimalBufferCopyRowPitchAlignment(), 4);
 
+            mAnisotropySupport = features.samplerAnisotropy();
+            if (mAnisotropySupport) {
+                mMaxSamplerAnisotropy = limits.maxSamplerAnisotropy();
+            }
+
             initFormatTable(logger, physDev, physProps, stack);
 
-            initGLSL();
+            initGLSL(deviceFeatures2, features, limits);
         }
     }
 
@@ -210,7 +238,9 @@ public class VulkanCaps extends Caps {
         setColorTypeFormat(ColorInfo.CT_RGBA_F16, ImageFormat.kRGBA16F);
     }
 
-    private void initGLSL() {
+    private void initGLSL(VkPhysicalDeviceFeatures2 deviceFeatures2,
+                          VkPhysicalDeviceFeatures features,
+                          VkPhysicalDeviceLimits limits) {
         ShaderCaps shaderCaps = mShaderCaps;
 
         shaderCaps.mPreferFlatInterpolation = true;
@@ -225,6 +255,11 @@ public class VulkanCaps extends Caps {
         shaderCaps.mUniformBindingSupport = true;
         shaderCaps.mUseBlockMemberOffset = true;
         shaderCaps.mUsePrecisionModifiers = true;
+        shaderCaps.mDualSourceBlendingSupport = features.dualSrcBlend();
+        shaderCaps.mMaxFragmentSamplers = (int) Math.min(Math.min(
+                Integer.toUnsignedLong(limits.maxPerStageDescriptorSampledImages()),
+                Integer.toUnsignedLong(limits.maxPerStageDescriptorSamplers())),
+                Integer.MAX_VALUE);
     }
 
     FormatInfo getFormatInfo(int format) {
@@ -488,6 +523,47 @@ public class VulkanCaps extends Caps {
         return null;
     }
 
+    @Override
+    public void dump(StringBuilder out, boolean includeFormatTable) {
+        super.dump(out, includeFormatTable);
+
+        out.append("APIVersion: ").append(apiVersionToString(mAPIVersion)).append('\n');
+        out.append("DriverVersion: ").append(switch (mVendorID) {
+            case kNVIDIA_VendorID -> String.format("%d.%d.%d.%d",
+                    mDriverVersion >>> 22,
+                    (mDriverVersion >>> 14) & 0xFF,
+                    (mDriverVersion >> 6) & 0xFF,
+                    mDriverVersion & 0x3F);
+            default -> "0x" + Integer.toHexString(mDriverVersion);
+        }).append('\n');
+        out.append("VendorID: ").append(String.format("0x%X (%s)", mVendorID, getVendorIDName(mVendorID))).append('\n');
+        out.append("DeviceID: ").append(String.format("0x%X", mDeviceID)).append('\n');
+        out.append("DeviceType: ").append(getPhysicalDeviceTypeName(mDeviceType)).append('\n');
+        out.append("DeviceName: ").append(mDeviceName).append('\n');
+        out.append("PipelineCacheUUID: ");
+        for (byte b : mPipelineCacheUUID) {
+            out.append(String.format("%02X", b));
+        }
+        out.append('\n');
+
+        out.append("MaxSamplerAnisotropy: ").append(mMaxSamplerAnisotropy).append('\n');
+
+        out.append("ColorTypeToFormat:\n");
+        for (int i = 0; i < mColorTypeToFormat.length; i++) {
+            out.append('\t').append(ColorInfo.colorTypeToString(i))
+                    .append("=>").append(ImageFormat.toString(mColorTypeToFormat[i])).append('\n');
+        }
+
+        if (includeFormatTable) {
+            out.append("FormatTable:\n");
+            for (int i = 1; i < mFormatTable.length; i++) {
+                out.append('\t').append(ImageFormat.toString(i))
+                        .append("=>\n");
+                mFormatTable[i].dump("\t\t", out);
+            }
+        }
+    }
+
     static int[] initSampleCounts(Logger logger,
                                   VkPhysicalDevice physDev,
                                   VkPhysicalDeviceProperties physProps,
@@ -508,7 +584,7 @@ public class VulkanCaps extends Caps {
                     props
             );
             if (result != VK_SUCCESS) {
-                logger.warn("Failed to vkGetPhysicalDeviceImageFormatProperties: {}",
+                logger.warn(MARKER, "Failed to vkGetPhysicalDeviceImageFormatProperties: {}",
                         VKUtil.getResultMessage(result));
                 return IntArrays.EMPTY_ARRAY;
             }
@@ -633,12 +709,19 @@ public class VulkanCaps extends Caps {
 
         @Override
         public String toString() {
-            return "FormatInfo{" +
-                    "optimalTilingFeatures=0x" + Integer.toHexString(mOptimalTilingFeatures) +
-                    ", linearTilingFeatures=0x" + Integer.toHexString(mLinearTilingFeatures) +
-                    ", colorSampleCounts=" + Arrays.toString(mColorSampleCounts) +
-                    ", colorTypeInfos=" + Arrays.toString(mColorTypeInfos) +
-                    '}';
+            StringBuilder b = new StringBuilder("FormatInfo:\n");
+            dump("", b);
+            return b.toString();
+        }
+
+        void dump(String prefix, StringBuilder out) {
+            out.append(prefix).append("OptimalTilingFeatures: 0x").append(Integer.toHexString(mOptimalTilingFeatures)).append('\n');
+            out.append(prefix).append("LinearTilingFeatures: 0x").append(Integer.toHexString(mLinearTilingFeatures)).append('\n');
+            out.append(prefix).append("ColorSampleCounts: ").append(Arrays.toString(mColorSampleCounts)).append('\n');
+            for (int i = 0; i < mColorTypeInfos.length; i++) {
+                out.append(prefix).append("ColorTypeInfo[").append(i).append("]:\n");
+                mColorTypeInfos[i].dump(prefix + "\t", out);
+            }
         }
     }
 }

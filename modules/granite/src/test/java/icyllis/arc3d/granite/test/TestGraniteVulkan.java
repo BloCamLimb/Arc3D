@@ -263,6 +263,9 @@ public class TestGraniteVulkan {
                 LOGGER.error("Failed to create Vulkan context");
                 return;
             }
+            StringBuilder capsInfo = new StringBuilder();
+            immediateContext.getDevice().getCaps().dump(capsInfo, false);
+            LOGGER.info(capsInfo.toString());
             if (!GraniteUtil.init(immediateContext)) {
                 throw new RuntimeException();
             }

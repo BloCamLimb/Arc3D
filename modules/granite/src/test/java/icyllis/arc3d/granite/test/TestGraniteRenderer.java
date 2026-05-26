@@ -170,7 +170,7 @@ public class TestGraniteRenderer {
         GLInterface gl = ((GLDevice) immediateContext.getDevice()).getGL();
         LOGGER.info("Renderer: {}", gl.glGetString(GL11C.GL_RENDERER));
         StringBuilder capsInfo = new StringBuilder();
-        ((GLDevice) immediateContext.getDevice()).getCaps().dump(capsInfo, false);
+        immediateContext.getDevice().getCaps().dump(capsInfo, false);
         LOGGER.info(capsInfo.toString());
         if (!TEST_OPENGL_ES) {
             TestDrawPass.glSetupDebugCallback();

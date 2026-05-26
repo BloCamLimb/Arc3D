@@ -213,6 +213,10 @@ public final class VKUtil {
 
     //@formatter:off
 
+    public static String apiVersionToString(int apiVersion) {
+        return VK_API_VERSION_MAJOR(apiVersion) + "." + VK_API_VERSION_MINOR(apiVersion) + "." + VK_API_VERSION_PATCH(apiVersion);
+    }
+
     /**
      * Lists all supported Vulkan image formats and converts to table index.
      * 0 is reserved for unsupported formats.
@@ -359,6 +363,7 @@ public final class VKUtil {
                  VK_FORMAT_R16G16_SFLOAT,
                  VK_FORMAT_R16G16_UNORM,
                  VK_FORMAT_R8G8B8A8_SRGB,
+                 VK_FORMAT_B8G8R8A8_SRGB,
                  VK_FORMAT_A2R10G10B10_UNORM_PACK32,
                  VK_FORMAT_A2B10G10R10_UNORM_PACK32,
                  VK_FORMAT_B8G8R8A8_UNORM -> 4;
@@ -421,6 +426,7 @@ public final class VKUtil {
             case VK_FORMAT_R4G4B4A4_UNORM_PACK16 -> "R4G4B4A4_UNORM_PACK16";
             case VK_FORMAT_R32G32B32A32_SFLOAT -> "R32G32B32A32_SFLOAT";
             case VK_FORMAT_R8G8B8A8_SRGB -> "R8G8B8A8_SRGB";
+            case VK_FORMAT_B8G8R8A8_SRGB -> "B8G8R8A8_SRGB";
             case VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK -> "ETC2_R8G8B8_UNORM_BLOCK";
             case VK_FORMAT_BC1_RGB_UNORM_BLOCK -> "BC1_RGB_UNORM_BLOCK";
             case VK_FORMAT_BC1_RGBA_UNORM_BLOCK -> "BC1_RGBA_UNORM_BLOCK";

@@ -1299,32 +1299,8 @@ public abstract class GLCaps extends Caps {
     }
 
     @Override
-    public String toString() {
-        StringBuilder b = new StringBuilder("GLCaps:\n");
-        dump(b, true);
-        return b.toString();
-    }
-
     public void dump(StringBuilder out, boolean includeFormatTable) {
-        out.append("AnisotropySupport: ").append(mAnisotropySupport).append('\n');
-        out.append("GpuTracingSupport: ").append(mGpuTracingSupport).append('\n');
-        out.append("ConservativeRasterSupport: ").append(mConservativeRasterSupport).append('\n');
-        out.append("TextureBarrierSupport: ").append(mTextureBarrierSupport).append('\n');
-        out.append("DepthClipNegativeOneToOne: ").append(mDepthClipNegativeOneToOne).append('\n');
-        out.append("BlendEquationSupport: ").append(mBlendEquationSupport).append('\n');
-        out.append("ClampToBorderSupport: ").append(mClampToBorderSupport).append('\n');
-        out.append("MaxRenderTargetSize: ").append(mMaxRenderTargetSize).append('\n');
-        out.append("MaxPreferredRenderTargetSize: ").append(mMaxPreferredRenderTargetSize).append('\n');
-        out.append("MaxVertexAttributes: ").append(mMaxVertexAttributes).append('\n');
-        out.append("MaxVertexBindings: ").append(mMaxVertexBindings).append('\n');
-        out.append("MaxTextureSize: ").append(mMaxTextureSize).append('\n');
-        out.append("MaxPushConstantsSize: ").append(mMaxPushConstantsSize).append('\n');
-        out.append("MaxColorAttachments: ").append(mMaxColorAttachments).append('\n');
-        out.append("MinUniformBufferOffsetAlignment: ").append(mMinUniformBufferOffsetAlignment).append('\n');
-        out.append("MinStorageBufferOffsetAlignment: ").append(mMinStorageBufferOffsetAlignment).append('\n');
-
-        out.append("ShaderCaps:\n");
-        mShaderCaps.dump("\t", out);
+        super.dump(out, includeFormatTable);
 
         out.append("Vendor: ").append(mVendor).append('\n');
         out.append("Driver: ").append(mDriver).append('\n');
