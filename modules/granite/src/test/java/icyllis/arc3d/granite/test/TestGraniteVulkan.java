@@ -20,10 +20,11 @@
 package icyllis.arc3d.granite.test;
 
 import icyllis.arc3d.core.ColorInfo;
-import icyllis.arc3d.core.ColorSpaceRGB;
+import icyllis.arc3d.core.RGBColorSpace;
 import icyllis.arc3d.core.ColorSpaces;
 import icyllis.arc3d.core.ImageInfo;
 import icyllis.arc3d.core.SharedPtr;
+import icyllis.arc3d.core.TransferFunction;
 import icyllis.arc3d.engine.ContextOptions;
 import icyllis.arc3d.engine.Engine;
 import icyllis.arc3d.engine.ISurface;
@@ -174,13 +175,13 @@ public class TestGraniteVulkan {
                         ISurface.FLAG_RENDERABLE
                 );
 
-                ColorSpaceRGB origCS = ColorSpaces.LINEAR_EXTENDED_SRGB;
+                RGBColorSpace origCS = ColorSpaces.LINEAR_EXTENDED_SRGB;
                 float exposure = sRGBWhitePointNits / 80f;
-                ColorSpaceRGB newCS = USE_EXTENDED_SRGB_LINEAR ?
-                        new ColorSpaceRGB("Generic scRGB",
+                RGBColorSpace newCS = USE_EXTENDED_SRGB_LINEAR ?
+                        new RGBColorSpace("Generic scRGB",
                                 origCS.getPrimaries(), origCS.getWhitePoint(), null,
                                 d -> d * exposure, d -> d / exposure, -0.5f, 7.5f,
-                                new ColorSpaceRGB.TransferParameters(1/exposure,0,1/exposure,0,1))
+                                new TransferFunction(1/exposure,0,1/exposure,0,1))
                         : ColorSpaces.SRGB;
                 for (int i = 0; i < swapchainImages.length; i++) {
                     VulkanBackendImage backendImage = new VulkanBackendImage(

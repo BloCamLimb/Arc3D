@@ -22,7 +22,7 @@ package icyllis.arc3d.core.test;
 import icyllis.arc3d.core.ChromaticAdaptation;
 import icyllis.arc3d.core.Color;
 import icyllis.arc3d.core.ColorSpace;
-import icyllis.arc3d.core.ColorSpaceRGB;
+import icyllis.arc3d.core.RGBColorSpace;
 import icyllis.arc3d.core.ColorSpaces;
 import icyllis.arc3d.core.ColorTransform;
 import icyllis.arc3d.core.MathUtil;
@@ -40,7 +40,7 @@ public class TestColorSpace {
         for (int i = 0; i < 1000; i++) {
             int finalI = i;
             new Thread(() -> {
-                    new ColorSpaceRGB("A", new float[]{
+                    new RGBColorSpace("A", new float[]{
                             1, 0, 0, 0, 1, 0, 0, 0, 1
                     }, 1);
 
@@ -91,7 +91,7 @@ public class TestColorSpace {
         LOGGER.info("{}", ChromaticAdaptation.BRADFORD.computeTransform(
                 new float[]{0.314f, 0.351f}, ColorSpace.ILLUMINANT_D65));
 
-        ColorSpaceRGB adaptedP3 = ColorSpaceRGB.adapt(ColorSpaces.ADOBE_RGB,
+        RGBColorSpace adaptedP3 = RGBColorSpace.adapt(ColorSpaces.ADOBE_RGB,
                 ColorSpace.ILLUMINANT_D50, ChromaticAdaptation.BRADFORD);
         LOGGER.info("adapted P3 {}", adaptedP3.getTransform());
 
@@ -125,9 +125,9 @@ public class TestColorSpace {
     }
 
     public static void testRgbTransform(ColorSpace src, ColorSpace dst) {
-        ColorSpaceRGB
-                srcRGB = (ColorSpaceRGB) src,
-                dstRGB = (ColorSpaceRGB) dst;
+        RGBColorSpace
+                srcRGB = (RGBColorSpace) src,
+                dstRGB = (RGBColorSpace) dst;
 
         LOGGER.info("{} to {}", srcRGB, dstRGB);
 

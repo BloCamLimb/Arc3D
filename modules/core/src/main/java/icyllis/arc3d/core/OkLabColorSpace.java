@@ -24,8 +24,10 @@ import org.jspecify.annotations.NonNull;
 
 /**
  * Implementation of the Oklab color space. Oklab uses a D65 white point.
+ *
+ * @see ColorSpaces#OK_LAB
  */
-final class ColorSpaceOklab extends ColorSpace {
+public final class OkLabColorSpace extends ColorSpace {
 
     /**
      * Matrix applied before the nonlinear transform.
@@ -56,7 +58,7 @@ final class ColorSpaceOklab extends ColorSpace {
      */
     private static final float[] INVERSE_M2 = inverse3x3(M2);
 
-    ColorSpaceOklab(@NonNull String name,
+    OkLabColorSpace(@NonNull String name,
                     @Range(from = MIN_ID, to = MAX_ID) int id) {
         super(name, MODEL_LAB, ILLUMINANT_D65, id);
     }

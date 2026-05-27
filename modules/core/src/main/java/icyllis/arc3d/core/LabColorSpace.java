@@ -25,15 +25,17 @@ import org.jspecify.annotations.NonNull;
 /**
  * Implementation of the CIE L*a*b* color space. Its PCS is CIE XYZ
  * with a white point of D50.
+ *
+ * @see ColorSpaces#CIE_LAB
  */
-final class ColorSpaceLab extends ColorSpace {
+public final class LabColorSpace extends ColorSpace {
 
     private static final float A = 216.0f / 24389.0f;
     private static final float B = 841.0f / 108.0f;
     private static final float C = 4.0f / 29.0f;
     private static final float D = 6.0f / 29.0f;
 
-    ColorSpaceLab(@NonNull String name,
+    LabColorSpace(@NonNull String name,
                   @Range(from = MIN_ID, to = MAX_ID) int id) {
         super(name, MODEL_LAB, ILLUMINANT_D50, id);
     }

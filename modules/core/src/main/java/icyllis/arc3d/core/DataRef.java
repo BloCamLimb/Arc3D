@@ -20,7 +20,7 @@
 package icyllis.arc3d.core;
 
 //TODO
-public final class RefCountedData extends RefCnt {
+public class DataRef extends RefCnt {
 
     @Override
     protected void deallocate() {

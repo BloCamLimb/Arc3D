@@ -58,9 +58,9 @@ import java.util.Arrays;
  *
  * <p>The {@link ColorSpaces} method always returns the same instance for a given
  * name. Color spaces with an {@link #MODEL_RGB RGB} color model can be safely
- * cast to {@link ColorSpaceRGB}. Doing so gives you access to more APIs to query various
+ * cast to {@link RGBColorSpace}. Doing so gives you access to more APIs to query various
  * properties of RGB color models: color gamut primaries, transfer functions,
- * conversions to and from linear space, etc. Please refer to {@link ColorSpaceRGB} for
+ * conversions to and from linear space, etc. Please refer to {@link RGBColorSpace} for
  * more information.</p>
  *
  * <p>The documentation of {@link ColorSpaces} provides a detailed description of the
@@ -79,8 +79,8 @@ import java.util.Arrays;
  * <p>Since the white point of the PCS is not defined for RGB color space, it is
  * highly recommended to use the variants of the {@link ColorTransform}
  * method to perform conversions between color spaces. A color space can be
- * manually adapted to a specific white point using {@link ColorSpaceRGB#adapt(ColorSpaceRGB, float[])}.
- * Please refer to the documentation of {@link ColorSpaceRGB RGB color spaces} for more
+ * manually adapted to a specific white point using {@link RGBColorSpace#adapt(RGBColorSpace, float[])}.
+ * Please refer to the documentation of {@link RGBColorSpace RGB color spaces} for more
  * information. Several common CIE standard illuminants are provided in this
  * class as reference (see {@link #ILLUMINANT_D65} or {@link #ILLUMINANT_D50}
  * for instance).</p>
@@ -114,13 +114,13 @@ import java.util.Arrays;
  * @see ColorSpaces
  * @see ColorTransform
  * @see ChromaticAdaptation
- * @see ColorSpaceXYZ
- * @see ColorSpaceRGB
+ * @see XYZColorSpace
+ * @see RGBColorSpace
  */
 // modified from Android
 @SuppressWarnings("unused")
-public abstract sealed class ColorSpace permits ColorSpaceXYZ, ColorSpaceRGB,
-        ColorSpaceLab, ColorSpaceOklab {
+public abstract sealed class ColorSpace permits XYZColorSpace, RGBColorSpace,
+        LabColorSpace, OkLabColorSpace {
 
     /**
      * Standard CIE 1931 2° illuminant A, encoded in xyY.
@@ -657,26 +657,6 @@ public abstract sealed class ColorSpace permits ColorSpaceXYZ, ColorSpaceRGB,
         return mName + " (id=" + mId + ", model=" + mModel + ")";
     }
 
-
-    /**
-     * Helper method for internal color space transformation.
-     * <p>
-     * This essentially calls adapt on a ColorSpace that has not been fully
-     * created. It also does not fully create the adapted ColorSpace, but
-     * just returns the transform.
-     */
-    @Size(9)
-    public static float @NonNull[] adaptToIlluminantD50(
-            @Size(2) float @NonNull[] origWhitePoint,
-            @Size(9) float @NonNull[] origTransform) {
-        float[] desired = ILLUMINANT_D50;
-        if (compare(origWhitePoint, desired)) return origTransform;
-
-        float[] xyz = xyYToXYZ(desired);
-        float[] adaptationTransform = ChromaticAdaptation.BRADFORD.computeTransform(
-                xyYToXYZ(origWhitePoint), xyz);
-        return mul3x3(adaptationTransform, origTransform);
-    }
 
     // Reciprocal piecewise gamma response
     public static double rcpResponse(double x, double a, double b, double c, double d, double g) {

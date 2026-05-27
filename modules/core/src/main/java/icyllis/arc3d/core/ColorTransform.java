@@ -59,11 +59,12 @@ import org.jspecify.annotations.Nullable;
  * destination color space.</p>
  *
  * @see ChromaticAdaptation
- * @see ColorSpaceRGB#adapt(ColorSpaceRGB, float[], ChromaticAdaptation)
- * @see ColorSpaceRGB#adapt(ColorSpaceRGB, float[])
+ * @see RGBColorSpace#adapt(RGBColorSpace, float[], ChromaticAdaptation)
+ * @see RGBColorSpace#adapt(RGBColorSpace, float[])
  */
 public final class ColorTransform {
 
+    // these constants match ICC Profile Rendering Intent
     /**
      * <p>Compresses the source gamut into the destination gamut.
      * This render intent affects all colors, inside and outside
@@ -103,8 +104,8 @@ public final class ColorTransform {
     private final ColorSpace mDestination;
 
     // Optimized connector for RGB/XYZ -> RGB/XYZ conversions.
-    private final @Nullable ColorSpaceRGB mSourceRGB;
-    private final @Nullable ColorSpaceRGB mDestinationRGB;
+    private final @Nullable RGBColorSpace mSourceRGB;
+    private final @Nullable RGBColorSpace mDestinationRGB;
 
     private final int mIntent;
 
@@ -177,9 +178,9 @@ public final class ColorTransform {
         mSource = source;
         mDestination = destination;
         mSourceRGB = source.getModel() == ColorSpace.MODEL_RGB
-                ? (ColorSpaceRGB) source : null;
+                ? (RGBColorSpace) source : null;
         mDestinationRGB = destination.getModel() == ColorSpace.MODEL_RGB
-                ? (ColorSpaceRGB) destination : null;
+                ? (RGBColorSpace) destination : null;
         mIntent = intent;
         mTransform = computeTransform(source, destination, intent, adaptation);
     }
@@ -206,8 +207,8 @@ public final class ColorTransform {
             @NonNull ColorSpace destination,
             int intent,
             @NonNull ChromaticAdaptation adaptation) {
-        var srcRGB = source.getModel() == ColorSpace.MODEL_RGB ? (ColorSpaceRGB) source : null;
-        var dstRGB = destination.getModel() == ColorSpace.MODEL_RGB ? (ColorSpaceRGB) destination : null;
+        var srcRGB = source.getModel() == ColorSpace.MODEL_RGB ? (RGBColorSpace) source : null;
+        var dstRGB = destination.getModel() == ColorSpace.MODEL_RGB ? (RGBColorSpace) destination : null;
         if (srcRGB != null && dstRGB != null) {
             // RGB->RGB
             boolean whitePointMatch = ColorSpace.compare(source.mWhitePoint, destination.mWhitePoint);
@@ -218,17 +219,12 @@ public final class ColorTransform {
                     return ColorSpace.mul3x3(dstRGB.mInverseTransform, srcRGB.mTransform);
                 }
             } else {
-                float[] transform = srcRGB.mTransform;
-                float[] inverseTransform = dstRGB.mInverseTransform;
-
-                float[] srcXYZ = ColorSpace.xyYToXYZ(source.mWhitePoint);
-                float[] dstXYZ = ColorSpace.xyYToXYZ(destination.mWhitePoint);
-
-                float[] adaptationTransform = adaptation.computeTransform(
-                        srcXYZ, dstXYZ
-                );
-
-                return ColorSpace.mul3x3(inverseTransform, ColorSpace.mul3x3(adaptationTransform, transform));
+                float[] adaptationTransform = ChromaticAdaptation.computeTransform(
+                        adaptation.mTransform, adaptation.mInverseTransform,
+                        ColorSpace.xyYToXYZ(source.mWhitePoint),
+                        ColorSpace.xyYToXYZ(destination.mWhitePoint));
+                return ColorSpace.mul3x3(dstRGB.mInverseTransform,
+                        ColorSpace.mul3x3(adaptationTransform, srcRGB.mTransform));
             }
         } else if (srcRGB == null && dstRGB != null) {
             // XYZ->RGB
@@ -236,7 +232,8 @@ public final class ColorTransform {
                     ColorSpace.compare(destination.mWhitePoint, source.mWhitePoint)) {
                 return dstRGB.getInverseTransform();
             }
-            float[] adaptationTransform = adaptation.computeTransform(
+            float[] adaptationTransform = ChromaticAdaptation.computeTransform(
+                    adaptation.mTransform, adaptation.mInverseTransform,
                     ColorSpace.xyYToXYZ(source.mWhitePoint),
                     ColorSpace.xyYToXYZ(destination.mWhitePoint));
             return ColorSpace.mul3x3(dstRGB.mInverseTransform, adaptationTransform);
@@ -246,7 +243,8 @@ public final class ColorTransform {
                     ColorSpace.compare(source.mWhitePoint, destination.mWhitePoint)) {
                 return srcRGB.getTransform();
             }
-            float[] adaptationTransform = adaptation.computeTransform(
+            float[] adaptationTransform = ChromaticAdaptation.computeTransform(
+                    adaptation.mTransform, adaptation.mInverseTransform,
                     ColorSpace.xyYToXYZ(source.mWhitePoint),
                     ColorSpace.xyYToXYZ(destination.mWhitePoint));
             return ColorSpace.mul3x3(adaptationTransform, srcRGB.mTransform);
@@ -255,7 +253,8 @@ public final class ColorTransform {
                     ColorSpace.compare(source.mWhitePoint, destination.mWhitePoint)) {
                 return null;
             }
-            return adaptation.computeTransform(
+            return ChromaticAdaptation.computeTransform(
+                    adaptation.mTransform, adaptation.mInverseTransform,
                     ColorSpace.xyYToXYZ(source.mWhitePoint),
                     ColorSpace.xyYToXYZ(destination.mWhitePoint));
         }

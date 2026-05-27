@@ -39,7 +39,7 @@ import static icyllis.arc3d.core.ColorSpace.*;
 public final class ColorSpaces {
 
     /**
-     * <p>{@link ColorSpaceRGB RGB} color space sRGB standardized as IEC 61966-2.1:1999.</p>
+     * <p>{@link RGBColorSpace RGB} color space sRGB standardized as IEC 61966-2.1:1999.</p>
      * <table summary="Color space definition">
      *     <tr>
      *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
@@ -73,16 +73,16 @@ public final class ColorSpaces {
      *     <figcaption style="text-align: center;">sRGB</figcaption>
      * </p>
      */
-    public static final ColorSpaceRGB SRGB = new ColorSpaceRGB(
+    public static final RGBColorSpace SRGB = new RGBColorSpace(
             "sRGB IEC61966-2.1",
             SRGB_PRIMARIES,
             ILLUMINANT_D65,
             null,
-            ColorSpaceRGB.TransferParameters.SRGB_TRANSFER_PARAMETERS,
+            TransferFunction.SRGB,
             0
     );
     /**
-     * <p>{@link ColorSpaceRGB RGB} color space sRGB standardized as IEC 61966-2.1:1999.</p>
+     * <p>{@link RGBColorSpace RGB} color space sRGB standardized as IEC 61966-2.1:1999.</p>
      * <table summary="Color space definition">
      *     <tr>
      *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
@@ -108,7 +108,7 @@ public final class ColorSpaces {
      *     <figcaption style="text-align: center;">sRGB</figcaption>
      * </p>
      */
-    public static final ColorSpaceRGB LINEAR_SRGB = new ColorSpaceRGB(
+    public static final RGBColorSpace LINEAR_SRGB = new RGBColorSpace(
             "sRGB IEC61966-2.1 (Linear)",
             SRGB_PRIMARIES,
             ILLUMINANT_D65,
@@ -117,7 +117,7 @@ public final class ColorSpaces {
             1
     );
     /**
-     * <p>{@link ColorSpaceRGB RGB} color space scRGB-nl standardized as IEC 61966-2-2:2003.</p>
+     * <p>{@link RGBColorSpace RGB} color space scRGB-nl standardized as IEC 61966-2-2:2003.</p>
      * <table summary="Color space definition">
      *     <tr>
      *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
@@ -155,19 +155,17 @@ public final class ColorSpaces {
      *     <figcaption style="text-align: center;">Extended sRGB (orange) vs sRGB (white)</figcaption>
      * </p>
      */
-    public static final ColorSpaceRGB EXTENDED_SRGB = new ColorSpaceRGB(
+    public static final RGBColorSpace EXTENDED_SRGB = new RGBColorSpace(
             "scRGB-nl IEC 61966-2-2:2003",
             SRGB_PRIMARIES,
             ILLUMINANT_D65,
             null,
-            x -> absRcpResponse(x, 1 / 1.055, 0.055 / 1.055, 1 / 12.92, 0.04045, 2.4),
-            x -> absResponse(x, 1 / 1.055, 0.055 / 1.055, 1 / 12.92, 0.04045, 2.4),
             -0.799f, 2.399f,
-            ColorSpaceRGB.TransferParameters.SRGB_TRANSFER_PARAMETERS,
+            TransferFunction.SRGB,
             2
     );
     /**
-     * <p>{@link ColorSpaceRGB RGB} color space scRGB standardized as IEC 61966-2-2:2003.</p>
+     * <p>{@link RGBColorSpace RGB} color space scRGB standardized as IEC 61966-2-2:2003.</p>
      * <table summary="Color space definition">
      *     <tr>
      *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
@@ -193,7 +191,7 @@ public final class ColorSpaces {
      *     <figcaption style="text-align: center;">Extended sRGB (orange) vs sRGB (white)</figcaption>
      * </p>
      */
-    public static final ColorSpaceRGB LINEAR_EXTENDED_SRGB = new ColorSpaceRGB(
+    public static final RGBColorSpace LINEAR_EXTENDED_SRGB = new RGBColorSpace(
             "scRGB IEC 61966-2-2:2003",
             SRGB_PRIMARIES,
             ILLUMINANT_D65,
@@ -202,7 +200,7 @@ public final class ColorSpaces {
             3
     );
     /**
-     * <p>{@link ColorSpaceRGB RGB} color space BT.709 standardized as Rec. ITU-R BT.709-5.</p>
+     * <p>{@link RGBColorSpace RGB} color space BT.709 standardized as Rec. ITU-R BT.709-5.</p>
      * <table summary="Color space definition">
      *     <tr>
      *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
@@ -236,16 +234,16 @@ public final class ColorSpaces {
      *     <figcaption style="text-align: center;">BT.709</figcaption>
      * </p>
      */
-    public static final ColorSpaceRGB BT709 = new ColorSpaceRGB(
+    public static final RGBColorSpace BT709 = new RGBColorSpace(
             "Rec. ITU-R BT.709-5",
             SRGB_PRIMARIES,
             ILLUMINANT_D65,
             null,
-            ColorSpaceRGB.TransferParameters.SMPTE_170M_TRANSFER_PARAMETERS,
+            TransferFunction.SMPTE_170M,
             4
     );
     /**
-     * <p>{@link ColorSpaceRGB RGB} color space BT.2020 standardized as Rec. ITU-R BT.2020-1.</p>
+     * <p>{@link RGBColorSpace RGB} color space BT.2020 standardized as Rec. ITU-R BT.2020-1.</p>
      * <table summary="Color space definition">
      *     <tr>
      *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
@@ -279,16 +277,51 @@ public final class ColorSpaces {
      *     <figcaption style="text-align: center;">BT.2020 (orange) vs sRGB (white)</figcaption>
      * </p>
      */
-    public static final ColorSpaceRGB BT2020 = new ColorSpaceRGB(
+    public static final RGBColorSpace BT2020 = new RGBColorSpace(
             "Rec. ITU-R BT.2020-1",
             BT2020_PRIMARIES,
             ILLUMINANT_D65,
             null,
-            new ColorSpaceRGB.TransferParameters(1 / 1.0993, 0.0993 / 1.0993, 1 / 4.5, 0.08145, 1 / 0.45),
+            TransferFunction.SMPTE_170M,
             5
     );
     /**
-     * <p>{@link ColorSpaceRGB RGB} color space DCI-P3 standardized as SMPTE RP 431-2-2007.</p>
+     * <p>{@link RGBColorSpace RGB} color space BT.2020 standardized as Rec. ITU-R BT.2020-1.</p>
+     * <table summary="Color space definition">
+     *     <tr>
+     *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
+     *     </tr>
+     *     <tr><td>x</td><td>0.708</td><td>0.170</td><td>0.131</td><td>0.3127</td></tr>
+     *     <tr><td>y</td><td>0.292</td><td>0.797</td><td>0.046</td><td>0.3290</td></tr>
+     *     <tr><th>Property</th><th colspan="4">Value</th></tr>
+     *     <tr><td>Name</td><td colspan="4">Rec. ITU-R BT.2020-1 (Linear)</td></tr>
+     *     <tr><td>CIE standard illuminant</td><td colspan="4">D65</td></tr>
+     *     <tr>
+     *         <td>Opto-electronic transfer function (OETF)</td>
+     *         <td colspan="4">\(C_{BT2020} = C_{linear}\)</td>
+     *     </tr>
+     *     <tr>
+     *         <td>Electro-optical transfer function (EOTF)</td>
+     *         <td colspan="4">\(C_{linear} = C_{BT2020}\)</td>
+     *     </tr>
+     *     <tr><td>Range</td><td colspan="4">\([0..1]\)</td></tr>
+     * </table>
+     * <p>
+     *     <img style="display: block; margin: 0 auto;" src="https://developer.android
+     *     .com/reference/android/images/graphics/colorspace_bt2020.png" />
+     *     <figcaption style="text-align: center;">BT.2020 (orange) vs sRGB (white)</figcaption>
+     * </p>
+     */
+    public static final RGBColorSpace LINEAR_BT2020 = new RGBColorSpace(
+            "Rec. ITU-R BT.2020-1 (Linear)",
+            BT2020_PRIMARIES,
+            ILLUMINANT_D65,
+            1.0,
+            0.0f, 1.0f,
+            18
+    );
+    /**
+     * <p>{@link RGBColorSpace RGB} color space DCI-P3 standardized as SMPTE RP 431-2-2007.</p>
      * <table summary="Color space definition">
      *     <tr>
      *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
@@ -314,7 +347,7 @@ public final class ColorSpaces {
      *     <figcaption style="text-align: center;">DCI-P3 (orange) vs sRGB (white)</figcaption>
      * </p>
      */
-    public static final ColorSpaceRGB DCI_P3 = new ColorSpaceRGB(
+    public static final RGBColorSpace DCI_P3 = new RGBColorSpace(
             "SMPTE RP 431-2-2007 DCI (P3)",
             DCI_P3_PRIMARIES,
             new float[]{0.314f, 0.351f},
@@ -323,7 +356,7 @@ public final class ColorSpaces {
             6
     );
     /**
-     * <p>{@link ColorSpaceRGB RGB} color space Display P3 based on SMPTE RP 431-2-2007 and IEC
+     * <p>{@link RGBColorSpace RGB} color space Display P3 based on SMPTE RP 431-2-2007 and IEC
      * 61966-2.1:1999.</p>
      * <table summary="Color space definition">
      *     <tr>
@@ -358,16 +391,52 @@ public final class ColorSpaces {
      *     <figcaption style="text-align: center;">Display P3 (orange) vs sRGB (white)</figcaption>
      * </p>
      */
-    public static final ColorSpaceRGB DISPLAY_P3 = new ColorSpaceRGB(
+    public static final RGBColorSpace DISPLAY_P3 = new RGBColorSpace(
             "Display P3",
             DCI_P3_PRIMARIES,
             ILLUMINANT_D65,
             null,
-            ColorSpaceRGB.TransferParameters.SRGB_TRANSFER_PARAMETERS,
+            TransferFunction.SRGB,
             7
     );
     /**
-     * <p>{@link ColorSpaceRGB RGB} color space NTSC, 1953 standard.</p>
+     * <p>{@link RGBColorSpace RGB} color space Display P3 based on SMPTE RP 431-2-2007 and IEC
+     * 61966-2.1:1999.</p>
+     * <table summary="Color space definition">
+     *     <tr>
+     *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
+     *     </tr>
+     *     <tr><td>x</td><td>0.680</td><td>0.265</td><td>0.150</td><td>0.3127</td></tr>
+     *     <tr><td>y</td><td>0.320</td><td>0.690</td><td>0.060</td><td>0.3290</td></tr>
+     *     <tr><th>Property</th><th colspan="4">Value</th></tr>
+     *     <tr><td>Name</td><td colspan="4">Display P3 (Linear)</td></tr>
+     *     <tr><td>CIE standard illuminant</td><td colspan="4">D65</td></tr>
+     *     <tr>
+     *         <td>Opto-electronic transfer function (OETF)</td>
+     *         <td colspan="4">\(C_{DisplayP3} = C_{linear}\)</td>
+     *     </tr>
+     *     <tr>
+     *         <td>Electro-optical transfer function (EOTF)</td>
+     *         <td colspan="4">\(C_{linear} = C_{DisplayP3}\)</td>
+     *     </tr>
+     *     <tr><td>Range</td><td colspan="4">\([0..1]\)</td></tr>
+     * </table>
+     * <p>
+     *     <img style="display: block; margin: 0 auto;" src="https://developer.android
+     *     .com/reference/android/images/graphics/colorspace_display_p3.png" />
+     *     <figcaption style="text-align: center;">Display P3 (orange) vs sRGB (white)</figcaption>
+     * </p>
+     */
+    public static final RGBColorSpace LINEAR_DISPLAY_P3 = new RGBColorSpace(
+            "Display P3 (Linear)",
+            DCI_P3_PRIMARIES,
+            ILLUMINANT_D65,
+            1.0,
+            0.0f, 1.0f,
+            19
+    );
+    /**
+     * <p>{@link RGBColorSpace RGB} color space NTSC, 1953 standard.</p>
      * <table summary="Color space definition">
      *     <tr>
      *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
@@ -401,16 +470,54 @@ public final class ColorSpaces {
      *     <figcaption style="text-align: center;">NTSC 1953 (orange) vs sRGB (white)</figcaption>
      * </p>
      */
-    public static final ColorSpaceRGB NTSC_1953 = new ColorSpaceRGB(
+    public static final RGBColorSpace NTSC_1953 = new RGBColorSpace(
             "NTSC (1953)",
             NTSC_1953_PRIMARIES,
             ILLUMINANT_C,
             null,
-            ColorSpaceRGB.TransferParameters.SMPTE_170M_TRANSFER_PARAMETERS,
+            TransferFunction.SMPTE_170M,
             8
     );
     /**
-     * <p>{@link ColorSpaceRGB RGB} color space SMPTE C.</p>
+     * <p>{@link RGBColorSpace RGB} color space BT.470 B/G, or BT.601 625-line.</p>
+     * <table summary="Color space definition">
+     *     <tr>
+     *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
+     *     </tr>
+     *     <tr><td>x</td><td>0.64</td><td>0.29</td><td>0.15</td><td>0.3127</td></tr>
+     *     <tr><td>y</td><td>0.33</td><td>0.60</td><td>0.06</td><td>0.3290</td></tr>
+     *     <tr><th>Property</th><th colspan="4">Value</th></tr>
+     *     <tr><td>Name</td><td colspan="4">BT.470 B/G (PAL)</td></tr>
+     *     <tr><td>CIE standard illuminant</td><td colspan="4">D65</td></tr>
+     *     <tr>
+     *         <td>Opto-electronic transfer function (OETF)</td>
+     *         <td colspan="4">\(\begin{equation}
+     *             C_{BT709} = \begin{cases} 4.5 \times C_{linear} & C_{linear} \lt 0.018 \\\
+     *             1.099 \times C_{linear}^{\frac{1}{2.2}} - 0.099 & C_{linear} \ge 0.018 \end{cases}
+     *             \end{equation}\)
+     *         </td>
+     *     </tr>
+     *     <tr>
+     *         <td>Electro-optical transfer function (EOTF)</td>
+     *         <td colspan="4">\(\begin{equation}
+     *             C_{linear} = \begin{cases}\frac{C_{BT709}}{4.5} & C_{BT709} \lt 0.081 \\\
+     *             \left( \frac{C_{BT709} + 0.099}{1.099} \right) ^{2.2} & C_{BT709} \ge 0.081 \end{cases}
+     *             \end{equation}\)
+     *         </td>
+     *     </tr>
+     *     <tr><td>Range</td><td colspan="4">\([0..1]\)</td></tr>
+     * </table>
+     */
+    public static final RGBColorSpace BT470_BG = new RGBColorSpace(
+            "BT.470 B/G (PAL)",
+            new float[]{0.64f, 0.33f, 0.29f, 0.60f, 0.15f, 0.06f},
+            ILLUMINANT_D65,
+            null,
+            TransferFunction.SMPTE_170M,
+            20
+    );
+    /**
+     * <p>{@link RGBColorSpace RGB} color space SMPTE C, or BT.601 525-line.</p>
      * <table summary="Color space definition">
      *     <tr>
      *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
@@ -444,16 +551,16 @@ public final class ColorSpaces {
      *     <figcaption style="text-align: center;">SMPTE-C (orange) vs sRGB (white)</figcaption>
      * </p>
      */
-    public static final ColorSpaceRGB SMPTE_C = new ColorSpaceRGB(
+    public static final RGBColorSpace SMPTE_C = new RGBColorSpace(
             "SMPTE-C RGB",
             new float[]{0.630f, 0.340f, 0.310f, 0.595f, 0.155f, 0.070f},
             ILLUMINANT_D65,
             null,
-            ColorSpaceRGB.TransferParameters.SMPTE_170M_TRANSFER_PARAMETERS,
+            TransferFunction.SMPTE_170M,
             9
     );
     /**
-     * <p>{@link ColorSpaceRGB RGB} color space Adobe RGB (1998).</p>
+     * <p>{@link RGBColorSpace RGB} color space Adobe RGB (1998).</p>
      * <table summary="Color space definition">
      *     <tr>
      *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
@@ -479,7 +586,7 @@ public final class ColorSpaces {
      *     <figcaption style="text-align: center;">Adobe RGB (orange) vs sRGB (white)</figcaption>
      * </p>
      */
-    public static final ColorSpaceRGB ADOBE_RGB = new ColorSpaceRGB(
+    public static final RGBColorSpace ADOBE_RGB = new RGBColorSpace(
             "Adobe RGB (1998)",
             new float[]{0.64f, 0.33f, 0.21f, 0.71f, 0.15f, 0.06f},
             ILLUMINANT_D65,
@@ -488,7 +595,7 @@ public final class ColorSpaces {
             10
     );
     /**
-     * <p>{@link ColorSpaceRGB RGB} color space ProPhoto RGB standardized as ROMM RGB ISO 22028-2:2013.</p>
+     * <p>{@link RGBColorSpace RGB} color space ProPhoto RGB standardized as ROMM RGB ISO 22028-2:2013.</p>
      * <table summary="Color space definition">
      *     <tr>
      *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
@@ -509,8 +616,8 @@ public final class ColorSpaces {
      *     <tr>
      *         <td>Electro-optical transfer function (EOTF)</td>
      *         <td colspan="4">\(\begin{equation}
-     *             C_{linear} = \begin{cases}\frac{C_{ROMM}}{16} & C_{ROMM} \lt 0.031248 \\\
-     *             C_{ROMM}^{1.8} & C_{ROMM} \ge 0.031248 \end{cases}
+     *             C_{linear} = \begin{cases}\frac{C_{ROMM}}{16} & C_{ROMM} \lt 0.03125 \\\
+     *             C_{ROMM}^{1.8} & C_{ROMM} \ge 0.03125 \end{cases}
      *             \end{equation}\)
      *         </td>
      *     </tr>
@@ -522,16 +629,16 @@ public final class ColorSpaces {
      *     <figcaption style="text-align: center;">ProPhoto RGB (orange) vs sRGB (white)</figcaption>
      * </p>
      */
-    public static final ColorSpaceRGB PRO_PHOTO_RGB = new ColorSpaceRGB(
+    public static final RGBColorSpace PRO_PHOTO_RGB = new RGBColorSpace(
             "ROMM RGB ISO 22028-2:2013",
             new float[]{0.7347f, 0.2653f, 0.1596f, 0.8404f, 0.0366f, 0.0001f},
             ILLUMINANT_D50,
             null,
-            new ColorSpaceRGB.TransferParameters(1.0, 0.0, 1 / 16.0, 0.031248, 1.8),
+            new TransferFunction(1.0, 0.0, 1 / 16.0, 0.03125, 1.8),
             11
     );
     /**
-     * <p>{@link ColorSpaceRGB RGB} color space ACES standardized as SMPTE ST 2065-1:2012.</p>
+     * <p>{@link RGBColorSpace RGB} color space ACES standardized as SMPTE ST 2065-1:2012.</p>
      * <table summary="Color space definition">
      *     <tr>
      *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
@@ -557,16 +664,16 @@ public final class ColorSpaces {
      *     <figcaption style="text-align: center;">ACES (orange) vs sRGB (white)</figcaption>
      * </p>
      */
-    public static final ColorSpaceRGB ACES = new ColorSpaceRGB(
+    public static final RGBColorSpace ACES = new RGBColorSpace(
             "SMPTE ST 2065-1:2012 ACES",
-            new float[]{0.73470f, 0.26530f, 0.0f, 1.0f, 0.00010f, -0.0770f},
+            new float[]{0.73470f, 0.26530f, 0.0f, 1.0f, 0.00010f, -0.07700f},
             ILLUMINANT_D60,
             1.0,
             -65504.0f, 65504.0f,
             12
     );
     /**
-     * <p>{@link ColorSpaceRGB RGB} color space ACEScg standardized as Academy S-2014-004.</p>
+     * <p>{@link RGBColorSpace RGB} color space ACEScg standardized as Academy S-2014-004.</p>
      * <table summary="Color space definition">
      *     <tr>
      *         <th>Chromaticity</th><th>Red</th><th>Green</th><th>Blue</th><th>White point</th>
@@ -592,7 +699,7 @@ public final class ColorSpaces {
      *     <figcaption style="text-align: center;">ACEScg (orange) vs sRGB (white)</figcaption>
      * </p>
      */
-    public static final ColorSpaceRGB ACESCG = new ColorSpaceRGB(
+    public static final RGBColorSpace ACESCG = new RGBColorSpace(
             "Academy S-2014-004 ACEScg",
             new float[]{0.713f, 0.293f, 0.165f, 0.830f, 0.128f, 0.044f},
             ILLUMINANT_D60,
@@ -601,7 +708,7 @@ public final class ColorSpaces {
             13
     );
     /**
-     * <p>{@link ColorSpaceXYZ XYZ} color space CIE XYZ. This color space assumes standard
+     * <p>{@link ColorSpace#MODEL_XYZ XYZ} color space CIE XYZ. This color space assumes standard
      * illuminant D50 as its white point.</p>
      * <table summary="Color space definition">
      *     <tr><th>Property</th><th colspan="4">Value</th></tr>
@@ -610,13 +717,13 @@ public final class ColorSpaces {
      *     <tr><td>Range</td><td colspan="4">\([-2.0, 2.0]\)</td></tr>
      * </table>
      */
-    public static final ColorSpaceXYZ CIE_XYZ_D50 = new ColorSpaceXYZ(
+    public static final ColorSpace CIE_XYZ_D50 = new XYZColorSpace(
             "CIE 1931 XYZ (D50)",
             ILLUMINANT_D50,
             14
     );
     /**
-     * <p>{@link ColorSpaceXYZ XYZ} color space CIE XYZ. This color space assumes standard
+     * <p>{@link ColorSpace#MODEL_XYZ XYZ} color space CIE XYZ. This color space assumes standard
      * illuminant D65 as its white point.</p>
      * <table summary="Color space definition">
      *     <tr><th>Property</th><th colspan="4">Value</th></tr>
@@ -625,44 +732,44 @@ public final class ColorSpaces {
      *     <tr><td>Range</td><td colspan="4">\([-2.0, 2.0]\)</td></tr>
      * </table>
      */
-    public static final ColorSpaceXYZ CIE_XYZ_D65 = new ColorSpaceXYZ(
+    public static final ColorSpace CIE_XYZ_D65 = new XYZColorSpace(
             "CIE 1931 XYZ (D65)",
             ILLUMINANT_D65,
-            15
+            16
     );
     /**
      * <p>{@link ColorSpace#MODEL_LAB Lab} color space CIE L*a*b*. This color space uses CIE XYZ D50
      * as a profile conversion space.</p>
      * <table summary="Color space definition">
      *     <tr><th>Property</th><th colspan="4">Value</th></tr>
-     *     <tr><td>Name</td><td colspan="4">Generic L*a*b*</td></tr>
+     *     <tr><td>Name</td><td colspan="4">CIE 1976 L*a*b*</td></tr>
      *     <tr><td>CIE standard illuminant</td><td colspan="4">D50</td></tr>
      *     <tr><td>Range</td><td colspan="4">\(L: [0.0, 100.0], a: [-128, 128], b: [-128, 128]\)</td></tr>
      * </table>
      */
-    public static final ColorSpace CIE_LAB = new ColorSpaceLab(
-            "Generic L*a*b*",
-            16
+    public static final ColorSpace CIE_LAB = new LabColorSpace(
+            "CIE 1976 L*a*b*",
+            15
     );
     /**
      * <p>{@link ColorSpace#MODEL_LAB Lab} color space OkLab standardized as
-     * OkLab</p>
+     * OkLab.</p>
      * <table summary="Color space definition">
      *     <tr><th>Property</th><th colspan="4">Value</th></tr>
      *     <tr><td>Name</td><td colspan="4">Oklab</td></tr>
      *     <tr><td>CIE standard illuminant</td><td colspan="4">D65</td></tr>
      *     <tr>
      *         <td>Range</td>
-     *         <td colspan="4">\(L: `[0.0, 1.0]`, a: `[-2, 2]`, b: `[-2, 2]`\)</td>
+     *         <td colspan="4">\(L: `[0.0, 1.0]`, a: `[-0.5, 0.5]`, b: `[-0.5, 0.5]`\)</td>
      *     </tr>
      * </table>
      */
-    public static final ColorSpace OK_LAB = new ColorSpaceOklab(
+    public static final ColorSpace OK_LAB = new OkLabColorSpace(
             "Oklab",
             17
     );
 
-    static final ColorSpace[] sNamedColorSpaces = new ColorSpace[18];
+    static final ColorSpace[] sNamedColorSpaces = new ColorSpace[21];
 
     static {
         sNamedColorSpaces[SRGB.getId()] = SRGB;
@@ -671,9 +778,12 @@ public final class ColorSpaces {
         sNamedColorSpaces[LINEAR_EXTENDED_SRGB.getId()] = LINEAR_EXTENDED_SRGB;
         sNamedColorSpaces[BT709.getId()] = BT709;
         sNamedColorSpaces[BT2020.getId()] = BT2020;
+        sNamedColorSpaces[LINEAR_BT2020.getId()] = LINEAR_BT2020;
         sNamedColorSpaces[DCI_P3.getId()] = DCI_P3;
         sNamedColorSpaces[DISPLAY_P3.getId()] = DISPLAY_P3;
+        sNamedColorSpaces[LINEAR_DISPLAY_P3.getId()] = LINEAR_DISPLAY_P3;
         sNamedColorSpaces[NTSC_1953.getId()] = NTSC_1953;
+        sNamedColorSpaces[BT470_BG.getId()] = BT470_BG;
         sNamedColorSpaces[SMPTE_C.getId()] = SMPTE_C;
         sNamedColorSpaces[ADOBE_RGB.getId()] = ADOBE_RGB;
         sNamedColorSpaces[PRO_PHOTO_RGB.getId()] = PRO_PHOTO_RGB;

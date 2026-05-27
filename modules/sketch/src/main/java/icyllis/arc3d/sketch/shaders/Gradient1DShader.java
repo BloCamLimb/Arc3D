@@ -401,7 +401,7 @@ public abstract sealed class Gradient1DShader extends GradientShader
                     ColorSpace labCS = ColorSpaces.CIE_LAB;
                     for (int i = 0; i < colorCount; i++) {
                         System.arraycopy(mColors, i * 4, col, 0, 4);
-                        System.arraycopy(labCS.fromXYZ(col), 0, mColors, i * 4, 4);
+                        System.arraycopy(labCS.fromXYZExtended(col), 0, mColors, i * 4, 4);
                     }
                     if (cs == Interpolation.kLCH_ColorSpace) {
                         // The color space is technically LCH, but we produce HCL, so that all polar spaces have hue in

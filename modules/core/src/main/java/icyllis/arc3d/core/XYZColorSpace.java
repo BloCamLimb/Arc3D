@@ -25,13 +25,9 @@ import org.jspecify.annotations.NonNull;
 /**
  * Implementation of the CIE XYZ color space.
  */
-public final class ColorSpaceXYZ extends ColorSpace {
+public final class XYZColorSpace extends ColorSpace {
 
-    public ColorSpaceXYZ(@NonNull String name, float @NonNull [] whitePoint) {
-        this(name, whitePoint, MIN_ID);
-    }
-
-    ColorSpaceXYZ(@NonNull String name, float @NonNull [] whitePoint,
+    XYZColorSpace(@NonNull String name, float @NonNull [] whitePoint,
                   @Range(from = MIN_ID, to = MAX_ID) int id) {
         super(name, MODEL_XYZ, whitePoint, id);
     }

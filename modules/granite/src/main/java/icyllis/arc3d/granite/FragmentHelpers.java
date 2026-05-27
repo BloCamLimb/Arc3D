@@ -33,8 +33,6 @@ import icyllis.arc3d.sketch.effects.ComposeColorFilter;
 import icyllis.arc3d.sketch.shaders.*;
 import org.jspecify.annotations.Nullable;
 
-import static icyllis.arc3d.core.ColorSpaceRGB.TransferParameters.LINEAR_TRANSFER_PARAMETERS;
-
 /**
  * Build {@link icyllis.arc3d.engine.Key PaintParamsKey} and collect
  * uniform data and texture sampler desc.
@@ -45,7 +43,7 @@ import static icyllis.arc3d.core.ColorSpaceRGB.TransferParameters.LINEAR_TRANSFE
 public class FragmentHelpers {
 
     private static void append_transfer_function_uniform(
-            ColorSpaceRGB.TransferParameters tf,
+            TransferFunction tf,
             UniformDataGatherer uniformDataGatherer
     ) {
         // vec4 and vec4 array have the same alignment rule
@@ -77,13 +75,13 @@ public class FragmentHelpers {
         boolean srcXYZ = srcCS.getModel() == ColorSpace.MODEL_XYZ;
         boolean dstXYZ = dstCS.getModel() == ColorSpace.MODEL_XYZ;
         var srcRGB = srcCS.getModel() == ColorSpace.MODEL_RGB
-                ? (ColorSpaceRGB) srcCS : null;
+                ? (RGBColorSpace) srcCS : null;
         var dstRGB = dstCS.getModel() == ColorSpace.MODEL_RGB
-                ? (ColorSpaceRGB) dstCS : null;
+                ? (RGBColorSpace) dstCS : null;
 
         // we handle RGB space with known transfer parameters and XYZ space
-        boolean csXform = (srcXYZ || (srcRGB != null && srcRGB.getTransferParameters() != null)) &&
-                (dstXYZ || (dstRGB != null && dstRGB.getTransferParameters() != null)) &&
+        boolean csXform = (srcXYZ || (srcRGB != null && srcRGB.getTransferFunction() != null)) &&
+                (dstXYZ || (dstRGB != null && dstRGB.getTransferFunction() != null)) &&
                 !srcCS.equals(dstCS, true);
 
         int flags = 0;
@@ -106,28 +104,28 @@ public class FragmentHelpers {
                 flags |= PixelUtils.kColorSpaceXformFlagGamutTransform;
             }
 
-            if (srcRGB != null && !LINEAR_TRANSFER_PARAMETERS.equals(srcRGB.getTransferParameters())) {
+            if (srcRGB != null && !TransferFunction.LINEAR.equals(srcRGB.getTransferFunction())) {
                 flags |= PixelUtils.kColorSpaceXformFlagLinearize;
             }
-            if (dstRGB != null && !LINEAR_TRANSFER_PARAMETERS.equals(dstRGB.getTransferParameters())) {
+            if (dstRGB != null && !TransferFunction.LINEAR.equals(dstRGB.getTransferFunction())) {
                 flags |= PixelUtils.kColorSpaceXformFlagEncode;
             }
 
             uniformDataGatherer.write1i(flags);
-            append_transfer_function_uniform(srcRGB == null ? LINEAR_TRANSFER_PARAMETERS
-                    : srcRGB.getTransferParameters(), uniformDataGatherer);
+            append_transfer_function_uniform(srcRGB == null ? TransferFunction.LINEAR
+                    : srcRGB.getTransferFunction(), uniformDataGatherer);
             if (transform != null) {
                 uniformDataGatherer.writeMatrix3f(0, transform);
             } else {
                 uniformDataGatherer.writeMatrix3f(Matrix.identity());
             }
-            append_transfer_function_uniform(dstRGB == null ? LINEAR_TRANSFER_PARAMETERS
-                    : dstRGB.getTransferParameters(), uniformDataGatherer);
+            append_transfer_function_uniform(dstRGB == null ? TransferFunction.LINEAR
+                    : dstRGB.getTransferFunction(), uniformDataGatherer);
         } else {
             uniformDataGatherer.write1i(flags);
-            append_transfer_function_uniform(LINEAR_TRANSFER_PARAMETERS, uniformDataGatherer);
+            append_transfer_function_uniform(TransferFunction.LINEAR, uniformDataGatherer);
             uniformDataGatherer.writeMatrix3f(Matrix.identity());
-            append_transfer_function_uniform(LINEAR_TRANSFER_PARAMETERS, uniformDataGatherer);
+            append_transfer_function_uniform(TransferFunction.LINEAR, uniformDataGatherer);
         }
     }
 

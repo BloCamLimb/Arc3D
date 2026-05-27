@@ -103,7 +103,7 @@ import java.util.function.DoubleUnaryOperator;
  *
  * <p>If the transfer functions of the color space can be expressed as an
  * ICC parametric curve as defined in ICC.1:2004-10, the numeric parameters
- * can be retrieved by calling {@link #getTransferParameters()}. This can
+ * can be retrieved by calling {@link #getTransferFunction()}. This can
  * be useful to match color spaces for instance.</p>
  *
  * <p class="note">Some RGB color spaces, such as {@link ColorSpaces#ACES} and
@@ -140,190 +140,14 @@ import java.util.function.DoubleUnaryOperator;
  * standard illuminant {@link #ILLUMINANT_D65 D65}. Care must be taken however
  * when converting between two RGB color spaces if their white points do not
  * match. This can be achieved by either calling
- * {@link #adapt(ColorSpaceRGB, float[])} to adapt one or both color spaces to
+ * {@link #adapt(RGBColorSpace, float[])} to adapt one or both color spaces to
  * a single common white point. This can be achieved automatically by calling
  * {@link ColorTransform}, which also handles
  * non-RGB color spaces.</p>
  * <p>To learn more about the white point adaptation process, refer to the
  * documentation of {@link ChromaticAdaptation}.</p>
  */
-public non-sealed class ColorSpaceRGB extends ColorSpace {
-    /**
-     * {@usesMathJax}
-     *
-     * <p>Defines the parameters for the ICC parametric curve type 4, as
-     * defined in ICC.1:2004-10, section 10.15.</p>
-     *
-     * <p>The EOTF is of the form:</p>
-     * <p>
-     * \(\begin{equation}
-     * Y = \begin{cases}c X + f & X \lt d \\\
-     * \left( a X + b \right) ^{g} + e & X \ge d \end{cases}
-     * \end{equation}\)
-     *
-     * <p>The corresponding OETF is simply the inverse function.</p>
-     *
-     * <p>The parameters defined by this class form a valid transfer
-     * function only if all the following conditions are met:</p>
-     * <ul>
-     *     <li>No parameter is a {@link Double#isNaN(double) Not-a-Number}</li>
-     *     <li>\(d\) is in the range \([0..1]\)</li>
-     *     <li>The function is not constant</li>
-     *     <li>The function is positive and increasing</li>
-     * </ul>
-     */
-    public static class TransferParameters {
-        public static final TransferParameters SRGB_TRANSFER_PARAMETERS =
-                new TransferParameters(1 / 1.055, 0.055 / 1.055, 1 / 12.92, 0.04045, 2.4);
-        public static final TransferParameters SMPTE_170M_TRANSFER_PARAMETERS =
-                new TransferParameters(1 / 1.099, 0.099 / 1.099, 1 / 4.5, 0.081, 1 / 0.45);
-        public static final TransferParameters LINEAR_TRANSFER_PARAMETERS =
-                new TransferParameters(1.0, 0.0, 0.0, 0.0, 1.0);
-        /**
-         * Variable \(a\) in the equation of the EOTF described above.
-         */
-        public final double a;
-        /**
-         * Variable \(b\) in the equation of the EOTF described above.
-         */
-        public final double b;
-        /**
-         * Variable \(c\) in the equation of the EOTF described above.
-         */
-        public final double c;
-        /**
-         * Variable \(d\) in the equation of the EOTF described above.
-         */
-        public final double d;
-        /**
-         * Variable \(e\) in the equation of the EOTF described above.
-         */
-        public final double e;
-        /**
-         * Variable \(f\) in the equation of the EOTF described above.
-         */
-        public final double f;
-        /**
-         * Variable \(g\) in the equation of the EOTF described above.
-         */
-        public final double g;
-
-        /**
-         * <p>Defines the parameters for the ICC parametric curve type 3, as
-         * defined in ICC.1:2004-10, section 10.15.</p>
-         *
-         * <p>The EOTF is of the form:</p>
-         * <p>
-         * \(\begin{equation}
-         * Y = \begin{cases}c X & X \lt d \\\
-         * \left( a X + b \right) ^{g} & X \ge d \end{cases}
-         * \end{equation}\)
-         *
-         * <p>This constructor is equivalent to setting  \(e\) and \(f\) to 0.</p>
-         *
-         * @param a The value of \(a\) in the equation of the EOTF described above
-         * @param b The value of \(b\) in the equation of the EOTF described above
-         * @param c The value of \(c\) in the equation of the EOTF described above
-         * @param d The value of \(d\) in the equation of the EOTF described above
-         * @param g The value of \(g\) in the equation of the EOTF described above
-         * @throws IllegalArgumentException If the parameters form an invalid transfer function
-         */
-        public TransferParameters(double a, double b, double c, double d, double g) {
-            this(a, b, c, d, 0.0, 0.0, g);
-        }
-
-        /**
-         * <p>Defines the parameters for the ICC parametric curve type 4, as
-         * defined in ICC.1:2004-10, section 10.15.</p>
-         *
-         * @param a The value of \(a\) in the equation of the EOTF described above
-         * @param b The value of \(b\) in the equation of the EOTF described above
-         * @param c The value of \(c\) in the equation of the EOTF described above
-         * @param d The value of \(d\) in the equation of the EOTF described above
-         * @param e The value of \(e\) in the equation of the EOTF described above
-         * @param f The value of \(f\) in the equation of the EOTF described above
-         * @param g The value of \(g\) in the equation of the EOTF described above
-         * @throws IllegalArgumentException If the parameters form an invalid transfer function
-         */
-        public TransferParameters(double a, double b, double c, double d, double e,
-                                  double f, double g) {
-
-            if (Double.isNaN(a) || Double.isNaN(b) || Double.isNaN(c) ||
-                    Double.isNaN(d) || Double.isNaN(e) || Double.isNaN(f) ||
-                    Double.isNaN(g)) {
-                throw new IllegalArgumentException("Parameters cannot be NaN");
-            }
-
-            // Next representable float after 1.0
-            // We use doubles here but the representation inside our native code is often floats
-            if (!(d >= 0.0 && d <= 1.0f + Math.ulp(1.0f))) {
-                throw new IllegalArgumentException("Parameter d must be in the range [0..1], " +
-                        "was " + d);
-            }
-
-            if (d == 0.0 && (a == 0.0 || g == 0.0)) {
-                throw new IllegalArgumentException(
-                        "Parameter a or g is zero, the transfer function is constant");
-            }
-
-            if (d >= 1.0 && c == 0.0) {
-                throw new IllegalArgumentException(
-                        "Parameter c is zero, the transfer function is constant");
-            }
-
-            if ((a == 0.0 || g == 0.0) && c == 0.0) {
-                throw new IllegalArgumentException("Parameter a or g is zero," +
-                        " and c is zero, the transfer function is constant");
-            }
-
-            if (c < 0.0) {
-                throw new IllegalArgumentException("The transfer function must be increasing");
-            }
-
-            if (a < 0.0 || g < 0.0) {
-                throw new IllegalArgumentException("The transfer function must be " +
-                        "positive or increasing");
-            }
-
-            this.a = a;
-            this.b = b;
-            this.c = c;
-            this.d = d;
-            this.e = e;
-            this.f = f;
-            this.g = g;
-        }
-
-        @SuppressWarnings("SimplifiableIfStatement")
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-
-            TransferParameters that = (TransferParameters) o;
-
-            if (Double.compare(that.a, a) != 0) return false;
-            if (Double.compare(that.b, b) != 0) return false;
-            if (Double.compare(that.c, c) != 0) return false;
-            if (Double.compare(that.d, d) != 0) return false;
-            if (Double.compare(that.e, e) != 0) return false;
-            if (Double.compare(that.f, f) != 0) return false;
-            return Double.compare(that.g, g) == 0;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = Double.hashCode(a);
-            result = 31 * result + Double.hashCode(b);
-            result = 31 * result + Double.hashCode(c);
-            result = 31 * result + Double.hashCode(d);
-            result = 31 * result + Double.hashCode(e);
-            result = 31 * result + Double.hashCode(f);
-            result = 31 * result + Double.hashCode(g);
-            return result;
-        }
-    }
-
+public non-sealed class RGBColorSpace extends ColorSpace {
 
     final float @NonNull [] mPrimaries;
 
@@ -347,7 +171,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
     private final boolean mIsSRGB;
 
     @Nullable
-    private final TransferParameters mTransferParameters;
+    private final TransferFunction mTransferFunction;
 
     /**
      * <p>Creates a new RGB color space using a 3x3 column-major transform matrix.
@@ -368,7 +192,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      *                                      <li>The minimum valid value is >= the maximum valid value.</li>
      *                                  </ul>
      */
-    public ColorSpaceRGB(
+    public RGBColorSpace(
             @NonNull @Size(min = 1) String name,
             @Size(9) float @NonNull [] toXYZ,
             @NonNull DoubleUnaryOperator oetf,
@@ -415,7 +239,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      *                                      <li>The minimum valid value is >= the maximum valid value.</li>
      *                                  </ul>
      */
-    public ColorSpaceRGB(
+    public RGBColorSpace(
             @NonNull @Size(min = 1) String name,
             @Size(min = 6, max = 9) float @NonNull [] primaries,
             @Size(min = 2, max = 3) float @NonNull [] whitePoint,
@@ -443,15 +267,15 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      *                                      <li>Gamma is negative.</li>
      *                                  </ul>
      */
-    public ColorSpaceRGB(
+    public RGBColorSpace(
             @NonNull @Size(min = 1) String name,
             @Size(9) float @NonNull [] toXYZ,
-            @NonNull TransferParameters function) {
+            @NonNull TransferFunction function) {
         // Note: when isGray() returns false, this passes null for the transform for
         // consistency with other constructors, which compute the transform from the primaries
         // and white point.
         this(name, isGray(toXYZ) ? GRAY_PRIMARIES : computePrimaries(toXYZ),
-                computeWhitePoint(toXYZ), isGray(toXYZ) ? toXYZ : null, function, MIN_ID);
+                computeWhitePoint(toXYZ), isGray(toXYZ) ? toXYZ : null, 0.0f, 1.0f, function, MIN_ID);
     }
 
     /**
@@ -485,12 +309,12 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      *                                      <li>The transfer parameters are invalid.</li>
      *                                  </ul>
      */
-    public ColorSpaceRGB(
+    public RGBColorSpace(
             @NonNull @Size(min = 1) String name,
             @Size(min = 6, max = 9) float @NonNull [] primaries,
             @Size(min = 2, max = 3) float @NonNull [] whitePoint,
-            @NonNull TransferParameters function) {
-        this(name, primaries, whitePoint, null, function, MIN_ID);
+            @NonNull TransferFunction function) {
+        this(name, primaries, whitePoint, null, 0.0f, 1.0f, function, MIN_ID);
     }
 
     /**
@@ -528,12 +352,62 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      *                                      <li>The transfer parameters are invalid.</li>
      *                                  </ul>
      */
-    ColorSpaceRGB(
+    RGBColorSpace(
             @NonNull @Size(min = 1) String name,
             @Size(min = 6, max = 9) float @NonNull [] primaries,
             @Size(min = 2, max = 3) float @NonNull [] whitePoint,
             @Size(9) float @Nullable [] transform,
-            @NonNull TransferParameters function,
+            @NonNull TransferFunction function,
+            @Range(from = MIN_ID, to = MAX_ID) int id) {
+        this(name, primaries, whitePoint, transform,
+                0.0f, 1.0f, function, id);
+    }
+
+    /**
+     * <p>Creates a new RGB color space using a specified set of primaries
+     * and a specified white point.</p>
+     *
+     * <p>The primaries and white point can be specified in the CIE xyY space
+     * or in CIE XYZ. The length of the arrays depends on the chosen space:</p>
+     *
+     * <table summary="Parameters length">
+     *     <tr><th>Space</th><th>Primaries length</th><th>White point length</th></tr>
+     *     <tr><td>xyY</td><td>6</td><td>2</td></tr>
+     *     <tr><td>XYZ</td><td>9</td><td>3</td></tr>
+     * </table>
+     *
+     * <p>When the primaries and/or white point are specified in xyY, the Y component
+     * does not need to be specified and is assumed to be 1.0. Only the xy components
+     * are required.</p>
+     *
+     * @param name       Name of the color space, cannot be null, its length must be >= 1
+     * @param primaries  RGB primaries as an array of 6 (xy) or 9 (XYZ) floats
+     * @param whitePoint Reference white as an array of 2 (xy) or 3 (XYZ) floats
+     * @param transform  Computed transform matrix that converts from RGB to XYZ, or
+     *                   {@code null} to compute it from {@code primaries} and {@code whitePoint}.
+     * @param min        The minimum valid value in this color space's RGB range
+     * @param max        The maximum valid value in this color space's RGB range
+     * @param function   Parameters for the transfer functions
+     * @param id         ID of this color space as an integer between {@link #MIN_ID} and {@link #MAX_ID}
+     * @throws IllegalArgumentException If any of the following conditions is met:
+     *                                  <ul>
+     *                                      <li>The name is null or has a length of 0.</li>
+     *                                      <li>The primaries array is null or has a length that is neither 6 or
+     *                                      9.</li>
+     *                                      <li>The white point array is null or has a length that is neither 2
+     *                                      or 3.</li>
+     *                                      <li>The ID is not between {@link #MIN_ID} and {@link #MAX_ID}.</li>
+     *                                      <li>The transfer parameters are invalid.</li>
+     *                                  </ul>
+     */
+    RGBColorSpace(
+            @NonNull @Size(min = 1) String name,
+            @Size(min = 6, max = 9) float @NonNull [] primaries,
+            @Size(min = 2, max = 3) float @NonNull [] whitePoint,
+            @Size(9) float @Nullable [] transform,
+            float min,
+            float max,
+            @NonNull TransferFunction function,
             @Range(from = MIN_ID, to = MAX_ID) int id) {
         this(name, primaries, whitePoint, transform,
                 function.e == 0.0 && function.f == 0.0 ?
@@ -546,7 +420,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
                                 function.c, function.d, function.g) :
                         x -> absResponse(x, function.a, function.b, function.c,
                                 function.d, function.e, function.f, function.g),
-                0.0f, 1.0f, function, id);
+                min, max, function, id);
     }
 
     /**
@@ -566,7 +440,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      *                                      <li>Gamma is negative.</li>
      *                                  </ul>
      */
-    public ColorSpaceRGB(
+    public RGBColorSpace(
             @NonNull @Size(min = 1) String name,
             @Size(9) float @NonNull [] toXYZ,
             double gamma) {
@@ -604,7 +478,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      *                                      <li>Gamma is negative.</li>
      *                                  </ul>
      */
-    public ColorSpaceRGB(
+    public RGBColorSpace(
             @NonNull @Size(min = 1) String name,
             @Size(min = 6, max = 9) float @NonNull [] primaries,
             @Size(min = 2, max = 3) float @NonNull [] whitePoint,
@@ -648,7 +522,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      *                                      <li>Gamma is negative.</li>
      *                                  </ul>
      */
-    ColorSpaceRGB(
+    RGBColorSpace(
             @NonNull @Size(min = 1) String name,
             @Size(min = 6, max = 9) float @NonNull [] primaries,
             @Size(min = 2, max = 3) float @NonNull [] whitePoint,
@@ -663,8 +537,8 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
                         x -> absResponse(x, gamma),
                 min, max,
                 gamma == 1.0
-                        ? TransferParameters.LINEAR_TRANSFER_PARAMETERS
-                        : new TransferParameters(1.0, 0.0, 0.0, 0.0, gamma),
+                        ? TransferFunction.LINEAR
+                        : new TransferFunction(1.0, 0.0, 0.0, 0.0, gamma),
                 id);
     }
 
@@ -685,16 +559,16 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      * does not need to be specified and is assumed to be 1.0. Only the xy components
      * are required.</p>
      *
-     * @param name               Name of the color space, cannot be null, its length must be >= 1
-     * @param primaries          RGB primaries as an array of 6 (xy) or 9 (XYZ) floats
-     * @param whitePoint         Reference white as an array of 2 (xy) or 3 (XYZ) floats
-     * @param transform          Computed transform matrix that converts from RGB to XYZ, or
-     *                           {@code null} to compute it from {@code primaries} and {@code whitePoint}.
-     * @param oetf               Opto-electronic transfer function, cannot be null
-     * @param eotf               Electro-optical transfer function, cannot be null
-     * @param min                The minimum valid value in this color space's RGB range
-     * @param max                The maximum valid value in this color space's RGB range
-     * @param transferParameters Parameters for the transfer functions
+     * @param name             Name of the color space, cannot be null, its length must be >= 1
+     * @param primaries        RGB primaries as an array of 6 (xy) or 9 (XYZ) floats
+     * @param whitePoint       Reference white as an array of 2 (xy) or 3 (XYZ) floats
+     * @param transform        Computed transform matrix that converts from RGB to XYZ, or
+     *                         {@code null} to compute it from {@code primaries} and {@code whitePoint}.
+     * @param oetf             Opto-electronic transfer function, cannot be null
+     * @param eotf             Electro-optical transfer function, cannot be null
+     * @param min              The minimum valid value in this color space's RGB range
+     * @param max              The maximum valid value in this color space's RGB range
+     * @param transferFunction Parameters for the transfer functions
      * @throws IllegalArgumentException If any of the following conditions is met:
      *                                  <ul>
      *                                      <li>The name is null or has a length of 0.</li>
@@ -706,7 +580,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      *                                      <li>The minimum valid value is >= the maximum valid value.</li>
      *                                  </ul>
      */
-    public ColorSpaceRGB(
+    public RGBColorSpace(
             @NonNull @Size(min = 1) String name,
             @Size(min = 6, max = 9) float @NonNull [] primaries,
             @Size(min = 2, max = 3) float @NonNull [] whitePoint,
@@ -715,9 +589,9 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
             @NonNull DoubleUnaryOperator eotf,
             float min,
             float max,
-            @Nullable TransferParameters transferParameters) {
+            @Nullable TransferFunction transferFunction) {
         this(name, primaries, whitePoint, transform,
-                oetf, eotf, min, max, transferParameters, MIN_ID);
+                oetf, eotf, min, max, transferFunction, MIN_ID);
     }
 
     /**
@@ -737,17 +611,17 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      * does not need to be specified and is assumed to be 1.0. Only the xy components
      * are required.</p>
      *
-     * @param name               Name of the color space, cannot be null, its length must be >= 1
-     * @param primaries          RGB primaries as an array of 6 (xy) or 9 (XYZ) floats
-     * @param whitePoint         Reference white as an array of 2 (xy) or 3 (XYZ) floats
-     * @param transform          Computed transform matrix that converts from RGB to XYZ, or
-     *                           {@code null} to compute it from {@code primaries} and {@code whitePoint}.
-     * @param oetf               Opto-electronic transfer function, cannot be null
-     * @param eotf               Electro-optical transfer function, cannot be null
-     * @param min                The minimum valid value in this color space's RGB range
-     * @param max                The maximum valid value in this color space's RGB range
-     * @param transferParameters Parameters for the transfer functions
-     * @param id                 ID of this color space as an integer between {@link #MIN_ID} and {@link #MAX_ID}
+     * @param name             Name of the color space, cannot be null, its length must be >= 1
+     * @param primaries        RGB primaries as an array of 6 (xy) or 9 (XYZ) floats
+     * @param whitePoint       Reference white as an array of 2 (xy) or 3 (XYZ) floats
+     * @param transform        Computed transform matrix that converts from RGB to XYZ, or
+     *                         {@code null} to compute it from {@code primaries} and {@code whitePoint}.
+     * @param oetf             Opto-electronic transfer function, cannot be null
+     * @param eotf             Electro-optical transfer function, cannot be null
+     * @param min              The minimum valid value in this color space's RGB range
+     * @param max              The maximum valid value in this color space's RGB range
+     * @param transferFunction Parameters for the transfer functions
+     * @param id               ID of this color space as an integer between {@link #MIN_ID} and {@link #MAX_ID}
      * @throws IllegalArgumentException If any of the following conditions is met:
      *                                  <ul>
      *                                      <li>The name is null or has a length of 0.</li>
@@ -760,7 +634,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      *                                      <li>The ID is not between {@link #MIN_ID} and {@link #MAX_ID}.</li>
      *                                  </ul>
      */
-    ColorSpaceRGB(
+    RGBColorSpace(
             @NonNull @Size(min = 1) String name,
             @Size(min = 6, max = 9) float @NonNull [] primaries,
             @Size(min = 2, max = 3) float @NonNull [] whitePoint,
@@ -769,7 +643,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
             @NonNull DoubleUnaryOperator eotf,
             float min,
             float max,
-            @Nullable TransferParameters transferParameters,
+            @Nullable TransferFunction transferFunction,
             @Range(from = MIN_ID, to = MAX_ID) int id) {
 
         super(name, MODEL_RGB, whitePoint, id);
@@ -810,7 +684,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
         mClampedOETF = oetf.andThen(clamp);
         mClampedEOTF = clamp.andThen(eotf);
 
-        mTransferParameters = transferParameters;
+        mTransferFunction = transferFunction;
 
         // A color space is wide-gamut if its area is >90% of NTSC 1953 and
         // if it entirely contains the Color space definition in xyY
@@ -823,12 +697,12 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      *
      * @param colorSpace The color space to create a copy of
      */
-    ColorSpaceRGB(@NonNull ColorSpaceRGB colorSpace,
-                          @Size(9) float @NonNull [] transform,
-                          @Size(min = 2, max = 3) float @NonNull [] whitePoint) {
+    RGBColorSpace(@NonNull RGBColorSpace colorSpace,
+                  @Size(9) float @NonNull [] transform,
+                  @Size(min = 2, max = 3) float @NonNull [] whitePoint) {
         this(colorSpace.getName(), colorSpace.mPrimaries, whitePoint, transform,
                 colorSpace.mOETF, colorSpace.mEOTF, colorSpace.mMin, colorSpace.mMax,
-                colorSpace.mTransferParameters, MIN_ID);
+                colorSpace.mTransferFunction, MIN_ID);
     }
 
     /**
@@ -839,8 +713,8 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      * @return True if the two sets are equal, false otherwise
      */
     private static boolean compare(
-            @Nullable TransferParameters a,
-            @Nullable TransferParameters b) {
+            @Nullable TransferFunction a,
+            @Nullable TransferFunction b) {
         //noinspection SimplifiableIfStatement
         if (a == null && b == null) return true;
         return a != null && b != null &&
@@ -854,7 +728,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
     }
 
     /**
-     * <p>Returns a named instance of {@link ColorSpaceRGB} that matches
+     * <p>Returns a named instance of {@link RGBColorSpace} that matches
      * the specified RGB to CIE XYZ transform and transfer functions. If no
      * instance can be found, this method returns null.</p>
      *
@@ -864,19 +738,19 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      * @param toXYZD50 3x3 column-major transform matrix from RGB to the profile
      *                 connection space CIE XYZ as an array of 9 floats, cannot be null
      * @param function Parameters for the transfer functions
-     * @return A non-null {@link ColorSpaceRGB} if a match is found, null otherwise
+     * @return A non-null {@link RGBColorSpace} if a match is found, null otherwise
      */
     @Nullable
-    public static ColorSpaceRGB match(
-            @Size(9) float @NonNull[] toXYZD50,
-            @NonNull TransferParameters function) {
+    public static RGBColorSpace match(
+            @Size(9) float @NonNull [] toXYZD50,
+            @NonNull TransferFunction function) {
 
         for (ColorSpace colorSpace : ColorSpaces.sNamedColorSpaces) {
             if (colorSpace.getModel() == MODEL_RGB) {
-                ColorSpaceRGB rgb = adapt((ColorSpaceRGB) colorSpace, ILLUMINANT_D50_XYZ);
+                RGBColorSpace rgb = adapt((RGBColorSpace) colorSpace, ILLUMINANT_D50_XYZ);
                 if (compare(toXYZD50, rgb.mTransform) &&
-                        compare(function, rgb.mTransferParameters)) {
-                    return (ColorSpaceRGB) colorSpace;
+                        compare(function, rgb.mTransferFunction)) {
+                    return (RGBColorSpace) colorSpace;
                 }
             }
         }
@@ -885,7 +759,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
     }
 
     /**
-     * <p>Returns a named instance of {@link ColorSpaceRGB} that matches
+     * <p>Returns a named instance of {@link RGBColorSpace} that matches
      * the specified RGB to CIE XYZ transform and transfer functions. If no
      * instance can be found, this method returns null.</p>
      *
@@ -893,22 +767,22 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      *                            connection space CIE XYZ as an array of 9 floats, cannot be null
      * @param unadaptedWhitePoint the unadapted white point
      * @param function            Parameters for the transfer functions
-     * @return A non-null {@link ColorSpaceRGB} if a match is found, null otherwise
+     * @return A non-null {@link RGBColorSpace} if a match is found, null otherwise
      */
     @Nullable
-    public static ColorSpaceRGB match(
-            @Size(9) float @NonNull[] unadaptedToXYZ,
-            @Size(min = 2) float @NonNull[] unadaptedWhitePoint,
-            @NonNull TransferParameters function) {
+    public static RGBColorSpace match(
+            @Size(9) float @NonNull [] unadaptedToXYZ,
+            @Size(min = 2) float @NonNull [] unadaptedWhitePoint,
+            @NonNull TransferFunction function) {
 
         float[] whitePoint = xyWhitePoint(unadaptedWhitePoint);
 
         for (ColorSpace colorSpace : ColorSpaces.sNamedColorSpaces) {
             if (colorSpace.getModel() == MODEL_RGB) {
-                ColorSpaceRGB rgb = (ColorSpaceRGB) colorSpace;
+                RGBColorSpace rgb = (RGBColorSpace) colorSpace;
                 if (compare(unadaptedToXYZ, rgb.mTransform) &&
                         compare(whitePoint, rgb.mWhitePoint) &&
-                        compare(function, rgb.mTransferParameters)) {
+                        compare(function, rgb.mTransferFunction)) {
                     return rgb;
                 }
             }
@@ -932,11 +806,11 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      * @return A {@link ColorSpace} instance with the same name, primaries,
      * transfer functions and range as the specified color space
      * @see ChromaticAdaptation
-     * @see #adapt(ColorSpaceRGB, float[], ChromaticAdaptation)
+     * @see #adapt(RGBColorSpace, float[], ChromaticAdaptation)
      */
     @NonNull
-    public static ColorSpaceRGB adapt(@NonNull ColorSpaceRGB colorSpace,
-                                   @Size(min = 2, max = 3) float @NonNull[] whitePoint) {
+    public static RGBColorSpace adapt(@NonNull RGBColorSpace colorSpace,
+                                      @Size(min = 2, max = 3) float @NonNull [] whitePoint) {
         return adapt(colorSpace, whitePoint, ChromaticAdaptation.BRADFORD);
     }
 
@@ -962,18 +836,24 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      * @see ChromaticAdaptation
      */
     @NonNull
-    public static ColorSpaceRGB adapt(@NonNull ColorSpaceRGB colorSpace,
-                                   @Size(min = 2, max = 3) float @NonNull[] whitePoint,
-                                   @NonNull ChromaticAdaptation adaptation) {
-        if (compare(colorSpace.mWhitePoint, whitePoint)) return colorSpace;
-
-        float[] xyz = whitePoint.length == 3 ?
+    public static RGBColorSpace adapt(@NonNull RGBColorSpace colorSpace,
+                                      @Size(min = 2, max = 3) float @NonNull [] whitePoint,
+                                      @NonNull ChromaticAdaptation adaptation) {
+        if (whitePoint.length != 2 && whitePoint.length != 3) {
+            throw new IllegalArgumentException("A white point array must have 2 or 3 floats");
+        }
+        float[] srcXYZ = xyYToXYZ(colorSpace.mWhitePoint);
+        float[] dstXYZ = whitePoint.length == 3 ?
                 Arrays.copyOf(whitePoint, 3) : xyYToXYZ(whitePoint);
-        float[] adaptationTransform = adaptation.computeTransform(
-                xyYToXYZ(colorSpace.mWhitePoint), xyz);
+        if (ColorSpace.compare(srcXYZ, dstXYZ)) {
+            return colorSpace;
+        }
+        float[] adaptationTransform = ChromaticAdaptation.computeTransform(
+                adaptation.mTransform, adaptation.mInverseTransform,
+                srcXYZ, dstXYZ);
         float[] transform = mul3x3(adaptationTransform, colorSpace.mTransform);
 
-        return new ColorSpaceRGB(colorSpace, transform, whitePoint);
+        return new RGBColorSpace(colorSpace, transform, whitePoint);
     }
 
 
@@ -1022,7 +902,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      * <p>Copies the transform of this color space in specified array. The
      * transform is used to convert from RGB to XYZ (with the same white
      * point as this color space). To connect color spaces, you must first
-     * {@link #adapt(ColorSpaceRGB, float[]) adapt} them to the
+     * {@link #adapt(RGBColorSpace, float[]) adapt} them to the
      * same white point.</p>
      *
      * @param transform The destination array, cannot be null, its length
@@ -1041,7 +921,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      * <p>Returns the transform of this color space as a new array. The
      * transform is used to convert from RGB to XYZ (with the same white
      * point as this color space). To connect color spaces, you must first
-     * {@link #adapt(ColorSpaceRGB, float[]) adapt} them to the
+     * {@link #adapt(RGBColorSpace, float[]) adapt} them to the
      * same white point.</p>
      *
      * @return A new array of 9 floats
@@ -1057,7 +937,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      * <p>Copies the inverse transform of this color space in specified array.
      * The inverse transform is used to convert from XYZ to RGB (with the
      * same white point as this color space). To connect color spaces, you
-     * must first {@link #adapt(ColorSpaceRGB, float[]) adapt} them
+     * must first {@link #adapt(RGBColorSpace, float[]) adapt} them
      * to the same white point.</p>
      *
      * @param inverseTransform The destination array, cannot be null, its length
@@ -1076,7 +956,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      * <p>Returns the inverse transform of this color space as a new array.
      * The inverse transform is used to convert from XYZ to RGB (with the
      * same white point as this color space). To connect color spaces, you
-     * must first {@link #adapt(ColorSpaceRGB, float[]) adapt} them
+     * must first {@link #adapt(RGBColorSpace, float[]) adapt} them
      * to the same white point.</p>
      *
      * @return A new array of 9 floats
@@ -1104,7 +984,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      *
      * @return A transfer function that converts from linear space to "gamma space"
      * @see #getEOTF()
-     * @see #getTransferParameters()
+     * @see #getTransferFunction()
      */
     @NonNull
     public DoubleUnaryOperator getOETF() {
@@ -1138,7 +1018,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      *
      * @return A transfer function that converts from "gamma space" to linear space
      * @see #getOETF()
-     * @see #getTransferParameters()
+     * @see #getTransferFunction()
      */
     @NonNull
     public DoubleUnaryOperator getEOTF() {
@@ -1162,16 +1042,16 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      * functions do not match the ICC parametric curves defined in ICC.1:2004-10
      * (section 10.15), this method returns null.</p>
      *
-     * <p>See {@link TransferParameters} for a full description of the transfer
+     * <p>See {@link TransferFunction} for a full description of the transfer
      * functions.</p>
      *
-     * @return An instance of {@link TransferParameters} or null if this color
+     * @return An instance of {@link TransferFunction} or null if this color
      * space's transfer functions do not match the equation defined in
-     * {@link TransferParameters}
+     * {@link TransferFunction}
      */
     @Nullable
-    public TransferParameters getTransferParameters() {
-        return mTransferParameters;
+    public TransferFunction getTransferFunction() {
+        return mTransferFunction;
     }
 
     @Override
@@ -1207,7 +1087,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      * applying this color space's electro-optical transfer function
      * to the supplied values.</p>
      *
-     * <p>Refer to the documentation of {@link ColorSpaceRGB} for
+     * <p>Refer to the documentation of {@link RGBColorSpace} for
      * more information about transfer functions and their use for
      * encoding and decoding RGB values.</p>
      *
@@ -1230,7 +1110,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      * to the first 3 values of the supplied array. The result is
      * stored back in the input array.</p>
      *
-     * <p>Refer to the documentation of {@link ColorSpaceRGB} for
+     * <p>Refer to the documentation of {@link RGBColorSpace} for
      * more information about transfer functions and their use for
      * encoding and decoding RGB values.</p>
      *
@@ -1261,7 +1141,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      * "gamma space". This is achieved by applying this color space's
      * opto-electronic transfer function to the supplied values.</p>
      *
-     * <p>Refer to the documentation of {@link ColorSpaceRGB} for
+     * <p>Refer to the documentation of {@link RGBColorSpace} for
      * more information about transfer functions and their use for
      * encoding and decoding RGB values.</p>
      *
@@ -1284,7 +1164,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
      * opto-electronic transfer function to the first 3 values of the
      * supplied array. The result is stored back in the input array.</p>
      *
-     * <p>Refer to the documentation of {@link ColorSpaceRGB} for
+     * <p>Refer to the documentation of {@link RGBColorSpace} for
      * more information about transfer functions and their use for
      * encoding and decoding RGB values.</p>
      *
@@ -1355,8 +1235,8 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
         result = 31 * result + (mMin != 0.0f ? Float.floatToIntBits(mMin) : 0);
         result = 31 * result + (mMax != 0.0f ? Float.floatToIntBits(mMax) : 0);
         result = 31 * result +
-                (mTransferParameters != null ? mTransferParameters.hashCode() : 0);
-        if (mTransferParameters == null) {
+                (mTransferFunction != null ? mTransferFunction.hashCode() : 0);
+        if (mTransferFunction == null) {
             result = 31 * result + mOETF.hashCode();
             result = 31 * result + mEOTF.hashCode();
         }
@@ -1369,12 +1249,12 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
         if (o == null || getClass() != o.getClass()) return false;
         if (!super.equals(o)) return false;
 
-        ColorSpaceRGB rgb = (ColorSpaceRGB) o;
+        RGBColorSpace rgb = (RGBColorSpace) o;
 
         if (Float.compare(rgb.mMin, mMin) != 0) return false;
         if (Float.compare(rgb.mMax, mMax) != 0) return false;
         if (!Arrays.equals(mPrimaries, rgb.mPrimaries)) return false;
-        if (!Objects.equals(mTransferParameters, rgb.mTransferParameters)) return false;
+        if (!Objects.equals(mTransferFunction, rgb.mTransferFunction)) return false;
         if (!mOETF.equals(rgb.mOETF)) return false;
         return mEOTF.equals(rgb.mEOTF);
     }
@@ -1388,10 +1268,10 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
         if (o == null || getClass() != o.getClass()) return false;
         if (!super.equals(o, true)) return false;
 
-        ColorSpaceRGB rgb = (ColorSpaceRGB) o;
+        RGBColorSpace rgb = (RGBColorSpace) o;
 
         if (!Arrays.equals(mPrimaries, rgb.mPrimaries)) return false;
-        return Objects.equals(mTransferParameters, rgb.mTransferParameters);
+        return Objects.equals(mTransferFunction, rgb.mTransferFunction);
     }
 
     /**
@@ -1422,7 +1302,7 @@ public non-sealed class ColorSpaceRGB extends ColorSpace {
 
         // We would have already returned true if this was SRGB itself, so
         // it is safe to reference it here.
-        ColorSpaceRGB srgb = ColorSpaces.SRGB;
+        RGBColorSpace srgb = ColorSpaces.SRGB;
 
         for (double x = 0.0; x <= 1.0; x += 1 / 255.0) {
             if (!compare(x, oetf, srgb.mOETF)) return false;

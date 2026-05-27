@@ -44,7 +44,7 @@ public class TextureUtils {
             if (colorSpace.getModel() != ColorSpace.MODEL_RGB && colorSpace.getModel() != ColorSpace.MODEL_XYZ) {
                 return null;
             }
-            if (colorSpace instanceof ColorSpaceRGB rgbColorSpace && rgbColorSpace.getTransferParameters() == null) {
+            if (colorSpace instanceof RGBColorSpace rgbColorSpace && rgbColorSpace.getTransferFunction() == null) {
                 return null;
             }
         }
