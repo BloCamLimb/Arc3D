@@ -31,6 +31,8 @@ public class Bench {
         }
         new Runner(new OptionsBuilder()
                 .include(args[0])
+                .jvmArgs("--add-modules", "jdk.incubator.vector", "--add-exports","jdk.incubator.vector/jdk.incubator.vector=ALL-UNNAMED")
+                //.jvmArgs("-XX:+UnlockDiagnosticVMOptions", "-XX:+UnlockExperimentalVMOptions", "-XX:CompileCommand=\"print,*BenchCorePNGDecode::*\"")
                 .shouldFailOnError(true)
                 .shouldDoGC(true)
                 .build())

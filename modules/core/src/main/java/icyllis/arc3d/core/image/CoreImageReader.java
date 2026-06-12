@@ -23,12 +23,15 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.SeekableByteChannel;
 
 /**
  * Base class for image decoders provided by Arc3D.
  */
-//PNG/JPEG/GIF/PNM/PAM/PFM/OPENEXR/RADIANCE/TIFF
+//PNG/JPEG/GIF/PNM/PAM/PFM/RADIANCE/OPENEXR/KTX2
 public abstract class CoreImageReader {
 
     // either
@@ -37,51 +40,128 @@ public abstract class CoreImageReader {
 
     public static final int BUFFER_SIZE = 8192;
 
-    protected byte[] buffer;
-    protected int bufPos, bufEnd;
+    protected ByteBuffer buffer;
 
     public void setInput(InputStream in) {
         stream = in;
         channel = null;
-        bufPos = bufEnd;
+        if (buffer != null) {
+            buffer.position(buffer.limit());
+        }
     }
 
     public void setInput(ReadableByteChannel ch) {
         channel = ch;
         stream = null;
-        bufPos = bufEnd;
+        if (buffer != null) {
+            buffer.position(buffer.limit());
+        }
     }
 
-    public void setBuffer(byte[] buf, int pos, int end) {
+    public void setBuffer(ByteBuffer buf) {
         buffer = buf;
-        bufPos = pos;
-        bufEnd = end;
     }
 
-    public byte[] getBuffer() {
+    public ByteBuffer getBuffer() {
         return buffer;
     }
 
-    public int getBufferPos() {
-        return bufPos;
-    }
-
-    public int getBufferEnd() {
-        return bufEnd;
+    protected void ensureReadBuffer() {
+        if (buffer == null) {
+            if (channel instanceof FileChannel) {
+                buffer = ByteBuffer.allocateDirect(BUFFER_SIZE);
+            } else {
+                buffer = ByteBuffer.allocate(BUFFER_SIZE);
+            }
+            buffer.limit(0);
+            buffer.order(ByteOrder.nativeOrder());
+        }
     }
 
     /**
      * Return the next byte from the internal buffer, refilling from source as needed.
      */
     protected byte nextRawByte() throws IOException {
-        if (bufPos < bufEnd) return buffer[bufPos++];
-        // refill
+        if (buffer.hasRemaining()) return buffer.get();
+        refill();
+        return buffer.get();
+    }
+
+    protected void readFully(ByteBuffer dst) throws IOException {
+        int avail = buffer.remaining();
+        if (avail > 0) {
+            int copy = Math.min(avail, dst.remaining());
+            int dstPos = dst.position();
+            int srcPos = buffer.position();
+            dst.put(dstPos, buffer, srcPos, copy);
+            dst.position(dstPos + copy);
+            buffer.position(srcPos + copy);
+        }
+        if (stream != null) {
+            while (dst.hasRemaining()) {
+                int n;
+                if (dst.hasArray()) {
+                    // directly read into the array
+                    int request = Math.min(dst.remaining(), BUFFER_SIZE);
+                    n = stream.read(dst.array(), dst.arrayOffset() + dst.position(), request);
+                    if (n < 0)
+                        break;
+                    dst.position(dst.position() + n);
+                } else {
+                    byte[] buffer = this.buffer.array();
+                    int request = Math.min(dst.remaining(), buffer.length);
+                    n = stream.read(buffer, 0, request);
+                    if (n < 0)
+                        break;
+                    dst.put(buffer, 0, n);
+                }
+            }
+        } else if (channel != null) {
+            while (dst.hasRemaining()) {
+                int n = channel.read(dst);
+                if (n < 0)
+                    break;
+            }
+        }
+        if (dst.hasRemaining())
+            throw new IOException("Insufficient bytes provided: " + dst.remaining() + " bytes more are needed");
+    }
+
+    protected void skip(long n) throws IOException {
+        if (n <= 0) return;
+        if (buffer.hasRemaining()) {
+            int count = (int) Math.min(n, buffer.remaining());
+            buffer.position(buffer.position() + count);
+            n -= count;
+        }
+        if (n > 0) {
+            if (stream != null) {
+                stream.skipNBytes(n);
+                return;
+            } else if (channel != null) {
+                if (channel instanceof SeekableByteChannel seekable) {
+                    seekable.position(seekable.position() + n);
+                    return;
+                }
+            }
+        }
+        while (n > 0) {
+            refill();
+            if (buffer.hasRemaining()) {
+                int count = (int) Math.min(n, buffer.remaining());
+                buffer.position(buffer.position() + count);
+                n -= count;
+            }
+        }
+    }
+
+    protected void refill() throws IOException {
         int n;
         if (stream != null) {
+            byte[] buffer = this.buffer.array();
             n = stream.read(buffer, 0, buffer.length);
         } else if (channel != null) {
-            ByteBuffer bb = ByteBuffer.wrap(buffer);
-            n = channel.read(bb);
+            n = channel.read(buffer.clear());
         } else {
             n = -1;
         }
@@ -89,16 +169,15 @@ public abstract class CoreImageReader {
         // InputStream is always in blocking mode.
         // If a channel is used, then it should be switched to blocking mode.
         if (n == 0) throw new IOException("No bytes provided");
-        bufPos = 0;
-        bufEnd = n;
-        return buffer[bufPos++];
+        buffer.position(0);
+        buffer.limit(n);
     }
 
     /**
      * Push back the last consumed byte (only valid once between nextRawByte calls).
      */
     protected void unget() {
-        bufPos--;
+        buffer.position(buffer.position() - 1);
     }
 
     protected static boolean isWS(byte b) {

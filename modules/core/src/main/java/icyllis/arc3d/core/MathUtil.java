@@ -1112,6 +1112,19 @@ public class MathUtil {
         return limit;
     }
 
+    /**
+     * Zlib compressBound(). Returns negative if overflowed.
+     * <p>
+     * compressBound() returns an upper bound on the compressed size after
+     * compress() or compress2() on sourceLen bytes.  It would be used before a
+     * compress() or compress2() call to allocate the destination buffer.
+     */
+    public static long compressBound(long sourceLen) {
+        assert sourceLen >= 0;
+        return sourceLen + (sourceLen >> 12) + (sourceLen >> 14) +
+                (sourceLen >> 25) + 13;
+    }
+
     protected MathUtil() {
         throw new UnsupportedOperationException();
     }

@@ -23,14 +23,12 @@ import org.intellij.lang.annotations.MagicConstant;
 import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
 
-import javax.annotation.concurrent.Immutable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 /**
  * Immutable struct describing image sampling options (resampling or interpolation method).
  */
-@Immutable
 public final class SamplingOptions {
 
     // keep FilterModes and MipmapModes sync with SamplerDesc::Filter and SamplerDesc::MipmapMode

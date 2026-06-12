@@ -72,7 +72,7 @@ public class PNMImageReader extends CoreImageReader {
     }
 
     public void readHeader() throws IOException {
-        if (buffer == null) setBuffer(new byte[BUFFER_SIZE], 0, 0);
+        ensureReadBuffer();
 
         if (formatIsAscii(format)) {
             // When reading multiple images in the same file, if the last format is plain,
@@ -838,54 +838,20 @@ public class PNMImageReader extends CoreImageReader {
         return ColorInfo.CT_UNKNOWN;
     }
 
-    private void readFully(ByteBuffer dst) throws IOException {
-        int avail = bufEnd - bufPos;
-        if (avail > 0) {
-            int copy = Math.min(avail, dst.remaining());
-            dst.put(buffer, bufPos, copy);
-            bufPos += copy;
-        }
-        if (stream != null) {
-            while (dst.hasRemaining()) {
-                int n;
-                if (dst.hasArray()) {
-                    // directly read into the array
-                    int request = Math.min(dst.remaining(), 8192);
-                    n = stream.read(dst.array(), dst.arrayOffset() + dst.position(), request);
-                    if (n < 0)
-                        break;
-                    dst.position(dst.position() + n);
-                } else {
-                    int request = Math.min(dst.remaining(), buffer.length);
-                    n = stream.read(buffer, 0, request);
-                    if (n < 0)
-                        break;
-                    dst.put(buffer, 0, n);
-                }
-            }
-        } else if (channel != null) {
-            while (dst.hasRemaining()) {
-                int n = channel.read(dst);
-                if (n < 0)
-                    break;
-            }
-        }
-        if (dst.hasRemaining())
-            throw new IOException("Insufficient bytes provided: " + dst.remaining() + " bytes more are needed");
-    }
-
     private void readFully(ShortBuffer dst) throws IOException {
-        int avail = bufEnd - bufPos;
+        int avail = buffer.remaining();
         if (avail > 0) {
             int copy = (int) Math.min(avail, (long) dst.remaining() << 1L);
+            int bufPos = buffer.position();
             // copySwapMemory if needed
-            dst.put(ByteBuffer.wrap(buffer, bufPos, copy)
+            dst.put(buffer.slice(bufPos, copy)
                     .order(ByteOrder.BIG_ENDIAN)
                     .asShortBuffer());
-            bufPos += copy;
+            buffer.position(bufPos + copy);
         }
         if (stream != null) {
             while (dst.hasRemaining()) {
+                byte[] buffer = this.buffer.array();
                 int request = (int) Math.min((long) dst.remaining() << 1L, buffer.length);
                 int n = stream.read(buffer, 0, request);
                 if (n < 0)
@@ -898,15 +864,15 @@ public class PNMImageReader extends CoreImageReader {
                     n += 1;
                 }
                 // copySwapMemory if needed
-                dst.put(ByteBuffer.wrap(buffer, bufPos, n)
+                dst.put(ByteBuffer.wrap(buffer, 0, n)
                         .order(ByteOrder.BIG_ENDIAN)
                         .asShortBuffer());
             }
         } else if (channel != null) {
-            ByteBuffer tmp = ByteBuffer.wrap(buffer, 0, buffer.length)
+            ByteBuffer tmp = buffer.clear().duplicate()
                     .order(ByteOrder.BIG_ENDIAN);
             while (dst.hasRemaining()) {
-                int request = (int) Math.min((long) dst.remaining() << 1L, buffer.length);
+                int request = (int) Math.min((long) dst.remaining() << 1L, tmp.capacity());
                 tmp.position(0).limit(request);
                 int n = channel.read(tmp);
                 if (n < 0)

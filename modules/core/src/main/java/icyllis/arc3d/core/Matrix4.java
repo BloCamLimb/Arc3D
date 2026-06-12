@@ -19,11 +19,11 @@
 
 package icyllis.arc3d.core;
 
+import org.jetbrains.annotations.CheckReturnValue;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
 
-import javax.annotation.CheckReturnValue;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 
