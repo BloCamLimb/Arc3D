@@ -19,16 +19,41 @@
 
 package icyllis.arc3d.core.image;
 
+import icyllis.arc3d.core.ContentLightLevelInformation;
+import icyllis.arc3d.core.MasteringDisplayColorVolume;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.function.Function;
 
-import static icyllis.arc3d.core.image.PNGHelpers.*;
+import static icyllis.arc3d.core.image.PNG.*;
 
 public class PNGMetadata {
 
+    static final int
+            CHUNK_IHDR = 1 << 0,
+            CHUNK_PLTE = 1 << 1,
+            CHUNK_tRNS = 1 << 2,
+            CHUNK_cHRM = 1 << 3,
+            CHUNK_gAMA = 1 << 4,
+            CHUNK_iCCP = 1 << 5,
+            CHUNK_sBIT = 1 << 6,
+            CHUNK_sRGB = 1 << 7,
+            CHUNK_cICP = 1 << 8,
+            CHUNK_mDCV = 1 << 9,
+            CHUNK_cLLI = 1 << 10,
+            CHUNK_bKGD = 1 << 11,
+            CHUNK_hIST = 1 << 12,
+            CHUNK_pHYs = 1 << 13,
+            CHUNK_sPLT = 1 << 14,
+            CHUNK_eXIf = 1 << 15,
+            CHUNK_tIME = 1 << 16,
+            CHUNK_acTL = 1 << 17;
+    int presentChunks;
+
     // IHDR chunk
-    public boolean IHDR;
     public int IHDR_width;
     public int IHDR_height;
     public int IHDR_bitDepth;
@@ -38,11 +63,9 @@ public class PNGMetadata {
     public int IHDR_interlaceMethod; // 0 == none, 1 == adam7
 
     // PLTE chunk
-    public boolean PLTE;
     public byte[] PLTE_entries; // rgb0 rgb1 ...
 
     // tRNS chunk
-    public boolean tRNS;
     public int tRNS_gray;
     public int tRNS_red;
     public int tRNS_green;
@@ -50,7 +73,6 @@ public class PNGMetadata {
     public byte[] tRNS_alpha; // May have fewer entries than PLTE_entries.
 
     // cHRM chunk
-    public boolean cHRM;
     public int cHRM_whitePointX;
     public int cHRM_whitePointY;
     public int cHRM_redX;
@@ -61,17 +83,14 @@ public class PNGMetadata {
     public int cHRM_blueY;
 
     // gAMA chunk
-    public boolean gAMA;
     public int gAMA_gamma;
 
     // iCCP chunk
-    public boolean iCCP;
     public String iCCP_profileName;
     public int iCCP_compressionMethod;
     public byte[] iCCP_compressedProfile;
 
     // sBIT chunk
-    public boolean sBIT;
     public int sBIT_grayBits;
     public int sBIT_redBits;
     public int sBIT_greenBits;
@@ -79,27 +98,24 @@ public class PNGMetadata {
     public int sBIT_alphaBits;
 
     // sRGB chunk
-    public boolean sRGB;
     public int sRGB_renderingIntent;
 
     // cICP chunk
-    public boolean cICP;
     public int cICP_colorPrimaries;
     public int cICP_transferFunction;
     public int cICP_matrixCoefficients;
     public int cICP_videoFullRangeFlag;
 
-    // tEXt chunk
-    public ArrayList<Text> tEXt = new ArrayList<>();
+    // mDCV chunk
+    public @Nullable MasteringDisplayColorVolume mDCV;
 
-    // zTXt chunk
-    public ArrayList<Text> zTXt = new ArrayList<>();
+    // cLLI chunk
+    public @Nullable ContentLightLevelInformation cLLI;
 
-    // iTXt chunk
-    public ArrayList<Text> iTXt = new ArrayList<>();
+    // tEXt, zTXt, iTXt chunk
+    public @NonNull ArrayList<@NonNull Text> texts = new ArrayList<>();
 
     // bKGD chunk
-    public boolean bKGD;
     public int bKGD_gray;
     public int bKGD_red;
     public int bKGD_green;
@@ -107,21 +123,55 @@ public class PNGMetadata {
     public int bKGD_index;
 
     // hIST chunk
-    public boolean hIST;
     public char[] hIST_histogram;
 
     // pHYs chunk
-    public boolean pHYs;
     public int pHYs_pixelsPerUnitXAxis;
     public int pHYs_pixelsPerUnitYAxis;
     public int pHYs_unitSpecifier; // 0 == unknown, 1 == meter
 
     // sPLT chunk
-    public ArrayList<SuggestedPalette> sPLT = new ArrayList<>();
+    public @NonNull ArrayList<@NonNull SuggestedPalette> suggestedPalettes = new ArrayList<>();
 
     // eXIf chunk
-    public boolean eXIf;
     public byte[] eXIf_data;
+
+    // tIME chunk
+    public int tIME_year;
+    public int tIME_month;     // 1-12
+    public int tIME_day;       // 1-31
+    public int tIME_hour;      // 0-23
+    public int tIME_minute;    // 0-59
+    public int tIME_second;    // 0-60
+
+    // acTL chunk
+    public int acTL_numFrames;
+    public int acTL_numPlays;
+
+    public boolean hasChunk(int chunkType) {
+        int mask = switch (chunkType) {
+            case IHDR_TYPE -> CHUNK_IHDR;
+            case PLTE_TYPE -> CHUNK_PLTE;
+            case tRNS_TYPE -> CHUNK_tRNS;
+            case cHRM_TYPE -> CHUNK_cHRM;
+            case gAMA_TYPE -> CHUNK_gAMA;
+            case iCCP_TYPE -> CHUNK_iCCP;
+            case sBIT_TYPE -> CHUNK_sBIT;
+            case sRGB_TYPE -> CHUNK_sRGB;
+            case cICP_TYPE -> CHUNK_cICP;
+            case mDCV_TYPE -> CHUNK_mDCV;
+            case cLLI_TYPE -> CHUNK_cLLI;
+            case bKGD_TYPE -> CHUNK_bKGD;
+            case hIST_TYPE -> CHUNK_hIST;
+            case pHYs_TYPE -> CHUNK_pHYs;
+            case sPLT_TYPE -> CHUNK_sPLT;
+            case eXIf_TYPE -> CHUNK_eXIf;
+            case tIME_TYPE -> CHUNK_tIME;
+            case acTL_TYPE -> CHUNK_acTL;
+            default -> 0;
+        };
+        return (presentChunks & mask) != 0;
+    }
 
     public void checkIHDR(Function<String, ? extends IOException> ex) throws IOException {
         if (IHDR_width <= 0) {
@@ -164,7 +214,7 @@ public class PNGMetadata {
     }
 
     public void checkPLTE(int numEntries, Function<String, ? extends IOException> ex) throws IOException {
-        if (!IHDR) {
+        if ((presentChunks & CHUNK_IHDR) == 0) {
             throw ex.apply("No IHDR chunk");
         }
         if (numEntries == 0 ||
@@ -184,6 +234,6 @@ public class PNGMetadata {
     }
 
     public int numChannels() {
-        return PNGHelpers.numChannels(IHDR_colorType);
+        return PNG.numChannels(IHDR_colorType);
     }
 }

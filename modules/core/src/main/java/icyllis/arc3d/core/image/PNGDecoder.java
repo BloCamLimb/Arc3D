@@ -23,7 +23,7 @@ import icyllis.arc3d.core.Pixmap;
 import icyllis.arc3d.image.PNGFilter;
 import org.lwjgl.system.MemoryUtil;
 
-import static icyllis.arc3d.core.image.PNGHelpers.*;
+import static icyllis.arc3d.core.image.PNG.*;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -133,13 +133,13 @@ public class PNGDecoder extends CoreImageReader {
         int width = readInt();
         int height = readInt();
 
-        int bitDepth          = nextRawByte() & 0xff;
-        int colorType         = nextRawByte() & 0xff;
-        int compressionMethod = nextRawByte() & 0xff;
-        int filterMethod      = nextRawByte() & 0xff;
-        int interlaceMethod   = nextRawByte() & 0xff;
+        int bitDepth          = nextRawByte() & 0xFF;
+        int colorType         = nextRawByte() & 0xFF;
+        int compressionMethod = nextRawByte() & 0xFF;
+        int filterMethod      = nextRawByte() & 0xFF;
+        int interlaceMethod   = nextRawByte() & 0xFF;
 
-        metadata.IHDR = true;
+        metadata.presentChunks |= PNGMetadata.CHUNK_IHDR;
         metadata.IHDR_width = width;
         metadata.IHDR_height = height;
         metadata.IHDR_bitDepth = bitDepth;
@@ -167,7 +167,8 @@ public class PNGDecoder extends CoreImageReader {
             System.out.println(Integer.toHexString(chunkType));
 
             if (chunkType == IDAT_TYPE) {
-                if (metadata.IHDR_colorType == COLOR_TYPE_PALETTE && !metadata.PLTE) {
+                if (metadata.IHDR_colorType == COLOR_TYPE_PALETTE &&
+                        (metadata.presentChunks & PNGMetadata.CHUNK_PLTE) == 0) {
                     throw new DecoderException("Required PLTE chunk missing");
                 }
 
@@ -181,11 +182,14 @@ public class PNGDecoder extends CoreImageReader {
 
             if (isCriticalChunk(chunkType)) {
                 if (chunkType == PLTE_TYPE) {
-                    if (metadata.bKGD || metadata.hIST || metadata.tRNS || stage >= STAGE_FIRST_IDAT) {
+                    if ((metadata.presentChunks & (PNGMetadata.CHUNK_bKGD |
+                            PNGMetadata.CHUNK_hIST |
+                            PNGMetadata.CHUNK_tRNS)) != 0
+                            || stage >= STAGE_FIRST_IDAT) {
                         throw new DecoderException("PLTE must appear before bKGD, hIST, tRNS, IDAT");
                     }
 
-                    if (metadata.PLTE) {
+                    if ((metadata.presentChunks & PNGMetadata.CHUNK_PLTE) != 0) {
                         throw new DecoderException("Duplicate PLTE chunk");
                     }
 
@@ -209,7 +213,7 @@ public class PNGDecoder extends CoreImageReader {
                     byte[] entries = new byte[chunkLength];
                     readFully(ByteBuffer.wrap(entries));
 
-                    metadata.PLTE = true;
+                    metadata.presentChunks |= PNGMetadata.CHUNK_PLTE;
                     metadata.PLTE_entries = entries;
 
                 } else if (chunkType == IEND_TYPE) {
@@ -230,7 +234,7 @@ public class PNGDecoder extends CoreImageReader {
                 if (stage >= STAGE_FIRST_IDAT) {
                     throw new DecoderException("tRNS must appear before IDAT");
                 }
-                if (metadata.tRNS) {
+                if ((metadata.presentChunks & PNGMetadata.CHUNK_tRNS) != 0) {
                     throw new DecoderException("Duplicate tRNS");
                 }
 
@@ -238,17 +242,18 @@ public class PNGDecoder extends CoreImageReader {
                 skip(chunkLength);
 
             } else if (chunkType == cHRM_TYPE) {
-                if (metadata.PLTE || stage >= STAGE_FIRST_IDAT) {
+                if ((metadata.presentChunks & PNGMetadata.CHUNK_PLTE) != 0
+                        || stage >= STAGE_FIRST_IDAT) {
                     throw new DecoderException("cHRM must appear before PLTE and IDAT");
                 }
-                if (metadata.cHRM) {
+                if ((metadata.presentChunks & PNGMetadata.CHUNK_cHRM) != 0) {
                     throw new DecoderException("Duplicate cHRM");
                 }
                 if (chunkLength != 32) {
                     throw new DecoderException("Invalid cHRM");
                 }
 
-                metadata.cHRM = true;
+                metadata.presentChunks |= PNGMetadata.CHUNK_cHRM;
                 metadata.cHRM_whitePointX = readInt();
                 metadata.cHRM_whitePointY = readInt();
                 metadata.cHRM_redX = readInt();
@@ -259,17 +264,18 @@ public class PNGDecoder extends CoreImageReader {
                 metadata.cHRM_blueY = readInt();
 
             } else if (chunkType == gAMA_TYPE) {
-                if (metadata.PLTE || stage >= STAGE_FIRST_IDAT) {
+                if ((metadata.presentChunks & PNGMetadata.CHUNK_PLTE) != 0
+                        || stage >= STAGE_FIRST_IDAT) {
                     throw new DecoderException("gAMA must appear before PLTE and IDAT");
                 }
-                if (metadata.gAMA) {
+                if ((metadata.presentChunks & PNGMetadata.CHUNK_gAMA) != 0) {
                     throw new DecoderException("Duplicate gAMA");
                 }
                 if (chunkLength != 4) {
                     throw new DecoderException("Invalid gAMA");
                 }
 
-                metadata.gAMA = true;
+                metadata.presentChunks |= PNGMetadata.CHUNK_gAMA;
                 metadata.gAMA_gamma = readInt();
 
             } else {
@@ -470,7 +476,9 @@ public class PNGDecoder extends CoreImageReader {
                 ((b3 & 0xFF) << 8) | (b4 & 0xFF);
     }
 
-    public static boolean isCriticalChunk(int chunkType) {
-        return (chunkType & (1 << (5 + 24))) == 0;
+    private char readUShort() throws IOException {
+        byte b1 = nextRawByte();
+        byte b2 = nextRawByte();
+        return (char) (((b1 & 0xFF) << 8) | (b2 & 0xFF));
     }
 }

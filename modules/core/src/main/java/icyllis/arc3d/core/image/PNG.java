@@ -19,18 +19,7 @@
 
 package icyllis.arc3d.core.image;
 
-import icyllis.arc3d.image.PNGFilter;
-import org.jspecify.annotations.NonNull;
-import org.w3c.dom.Node;
-
-import javax.imageio.ImageIO;
-import javax.imageio.ImageReader;
-import javax.imageio.ImageTypeSpecifier;
-import javax.imageio.metadata.IIOMetadata;
-import java.io.IOException;
-import java.util.Iterator;
-
-public class PNGHelpers {
+public class PNG {
 
     //   Color    Allowed    Interpretation
     //   Type    Bit Depths
@@ -98,6 +87,10 @@ public class PNGHelpers {
     public static final int fcTL_TYPE = 0x6663544C;
     public static final int fdAT_TYPE = 0x66644154;
 
+    public static boolean isCriticalChunk(int chunkType) {
+        return (chunkType & (1 << (5 + 24))) == 0;
+    }
+
     // Filter types
     public static final int FILTER_NONE = 0;
     public static final int FILTER_SUB = 1;
@@ -105,43 +98,7 @@ public class PNGHelpers {
     public static final int FILTER_AVERAGE = 3;
     public static final int FILTER_PAETH = 4;
 
-    /**
-     * Create a PNG image reader instance.
-     */
-    public static ImageReader createImageReader() {
-        Iterator<ImageReader> iter = ImageIO.getImageReadersByFormatName("png");
-        return iter.next();
-    }
-
-    /**
-     * Returns an ImageTypeSpecifier that reflects the native format of the PNG decoder,
-     * ensuring efficient decoding and pixel operations by Arc3D.
-     */
-    public static ImageTypeSpecifier getBestImageType(@NonNull ImageReader pngReader) throws IOException {
-        // find the first contiguous interleaved type,
-        // otherwise indexed (1,2,4-bit gray, 1..8-bit palette)
-        Iterator<ImageTypeSpecifier> iter = pngReader.getImageTypes(0);
-
-        ImageTypeSpecifier fallback = null;
-        ImageTypeSpecifier contiguous = null;
-
-        while (iter.hasNext()) {
-            ImageTypeSpecifier next = iter.next();
-            if (fallback == null) {
-                fallback = next;
-            }
-            if (contiguous == null) {
-                if (J2DPixmapUtils.isContiguous(next.getSampleModel())) {
-                    contiguous = next;
-                }
-            }
-        }
-
-        return contiguous != null ? contiguous : fallback;
-    }
-
-    public static Node getImageNativeTree(@NonNull ImageReader pngReader) throws IOException {
-        IIOMetadata metadata = pngReader.getImageMetadata(0);
-        return metadata.getAsTree("javax_imageio_png_1.0");
+    protected PNG() {
+        throw new UnsupportedOperationException();
     }
 }

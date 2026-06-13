@@ -19,7 +19,6 @@
 
 package icyllis.arc3d.core.test.jmh;
 
-import icyllis.arc3d.core.image.PNGHelpers;
 import org.lwjgl.system.MemoryUtil;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;

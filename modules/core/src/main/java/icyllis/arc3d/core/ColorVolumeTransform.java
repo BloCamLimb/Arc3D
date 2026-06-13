@@ -17,29 +17,7 @@
  * License along with Arc3D. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package icyllis.arc3d.core.image;
+package icyllis.arc3d.core;
 
-/**
- * A text entry.
- */
-public class Text {
-
-    /**
-     * One of {@link PNG#tEXt_TYPE},
-     * {@link PNG#zTXt_TYPE},
-     * {@link PNG#iTXt_TYPE}.
-     */
-    public int type = PNG.iTXt_TYPE;
-    public String keyword = "Comment";
-    /**
-     * Whether the text field is compressed.
-     */
-    public boolean compressionFlag = false;
-    /**
-     * Compression method, 0 for deflate. Others values are reserved.
-     */
-    public int compressionMethod = 0;
-    public String languageTag = "";
-    public String translatedKeyword = "";
-    public String text = "";
+public class ColorVolumeTransform {
 }
