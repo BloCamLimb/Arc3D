@@ -148,6 +148,14 @@ public class PNGMetadata {
     public int acTL_numFrames;
     public int acTL_numPlays;
 
+    boolean any(int chunkMask) {
+        return (presentChunks & chunkMask) != 0;
+    }
+
+    void set(int chunkMask) {
+        presentChunks |= chunkMask;
+    }
+
     public boolean hasChunk(int chunkType) {
         int mask = switch (chunkType) {
             case IHDR_TYPE -> CHUNK_IHDR;
@@ -202,13 +210,13 @@ public class PNGMetadata {
                 (bitDepth != 8 && bitDepth != 16)) {
             throw ex.apply("Bad color type/bit depth combination!");
         }
-        if (IHDR_compressionMethod != 0) {
+        if (IHDR_compressionMethod != COMPRESSION_METHOD_DEFLATE) {
             throw ex.apply("Unknown compression method (not 0)!");
         }
-        if (IHDR_filterMethod != 0) {
+        if (IHDR_filterMethod != FILTER_METHOD_ADAPTIVE) {
             throw ex.apply("Unknown filter method (not 0)!");
         }
-        if (IHDR_interlaceMethod != 0 && IHDR_interlaceMethod != 1) {
+        if (IHDR_interlaceMethod != INTERLACE_METHOD_NONE && IHDR_interlaceMethod != INTERLACE_METHOD_ADAM7) {
             throw ex.apply("Unknown interlace method (not 0 or 1)!");
         }
     }
@@ -217,9 +225,9 @@ public class PNGMetadata {
         if ((presentChunks & CHUNK_IHDR) == 0) {
             throw ex.apply("No IHDR chunk");
         }
-        if (numEntries == 0 ||
+        if (numEntries <= 0 ||
                 numEntries > 256) {
-            throw ex.apply("Invalid number of palette entries");
+            throw ex.apply("Invalid number of palette entries " + numEntries);
         }
 
         if (IHDR_colorType == COLOR_TYPE_PALETTE) {
@@ -228,7 +236,43 @@ public class PNGMetadata {
             // have fewer entries than the bit depth would allow. In that case, any out-of-range pixel
             // value found in the image data is an error.
             if (numEntries > (1 << IHDR_bitDepth)) {
-                throw ex.apply("Too many palette entries");
+                throw ex.apply("Too many palette entries, " + numEntries + " for bit depth " + IHDR_bitDepth);
+            }
+        }
+    }
+
+    public void check_sBIT(Function<String, ? extends IOException> ex) throws IOException {
+        if ((presentChunks & CHUNK_IHDR) == 0) {
+            throw ex.apply("No IHDR chunk");
+        }
+
+        if (IHDR_colorType == COLOR_TYPE_GRAYSCALE) {
+            if (sBIT_grayBits <= 0 || sBIT_grayBits > IHDR_bitDepth) {
+                throw ex.apply("Invalid sBIT depth");
+            }
+        } else if (IHDR_colorType == COLOR_TYPE_RGB ||
+                IHDR_colorType == COLOR_TYPE_PALETTE) {
+
+            int sampleDepth = IHDR_colorType == COLOR_TYPE_PALETTE
+                    ? 8
+                    : IHDR_bitDepth;
+
+            if (sBIT_redBits <= 0 || sBIT_redBits > sampleDepth ||
+                    sBIT_greenBits <= 0 || sBIT_greenBits > sampleDepth ||
+                    sBIT_blueBits <= 0 || sBIT_blueBits > sampleDepth) {
+                throw ex.apply("Invalid sBIT depth");
+            }
+        } else if (IHDR_colorType == COLOR_TYPE_GRAY_ALPHA) {
+            if (sBIT_grayBits <= 0 || sBIT_grayBits > IHDR_bitDepth ||
+                    sBIT_alphaBits <= 0 || sBIT_alphaBits > IHDR_bitDepth) {
+                throw ex.apply("Invalid sBIT depth");
+            }
+        } else if (IHDR_colorType == COLOR_TYPE_RGB_ALPHA) {
+            if (sBIT_redBits <= 0 || sBIT_redBits > IHDR_bitDepth ||
+                    sBIT_greenBits <= 0 || sBIT_greenBits > IHDR_bitDepth ||
+                    sBIT_blueBits <= 0 || sBIT_blueBits > IHDR_bitDepth ||
+                    sBIT_alphaBits <= 0 || sBIT_alphaBits > IHDR_bitDepth) {
+                throw ex.apply("Invalid sBIT depth");
             }
         }
     }

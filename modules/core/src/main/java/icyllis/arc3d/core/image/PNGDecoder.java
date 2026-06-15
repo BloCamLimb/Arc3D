@@ -18,9 +18,14 @@
  */
 
 package icyllis.arc3d.core.image;
+import icyllis.arc3d.core.ColorInfo;
+import icyllis.arc3d.core.ColorSpaces;
+import icyllis.arc3d.core.ImageInfo;
 import icyllis.arc3d.core.PixelUtils;
 import icyllis.arc3d.core.Pixmap;
+import icyllis.arc3d.core.Rect2ic;
 import icyllis.arc3d.image.PNGFilter;
+import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
 
 import static icyllis.arc3d.core.image.PNG.*;
@@ -66,6 +71,11 @@ public class PNGDecoder extends CoreImageReader {
     public PNGDecoder() {
     }
 
+    public void reset() {
+        metadata = new PNGMetadata();
+        stage = 0;
+    }
+
     public PNGMetadata getMetadata() {
         return metadata;
     }
@@ -105,8 +115,7 @@ public class PNGDecoder extends CoreImageReader {
     public void readHeader() throws IOException {
         ensureReadBuffer();
 
-        metadata = new PNGMetadata();
-        stage = 0;
+        reset();
 
         if (nextRawByte() != (byte)137 ||
                 nextRawByte() != (byte)80 ||
@@ -139,7 +148,7 @@ public class PNGDecoder extends CoreImageReader {
         int filterMethod      = nextRawByte() & 0xFF;
         int interlaceMethod   = nextRawByte() & 0xFF;
 
-        metadata.presentChunks |= PNGMetadata.CHUNK_IHDR;
+        metadata.set(PNGMetadata.CHUNK_IHDR);
         metadata.IHDR_width = width;
         metadata.IHDR_height = height;
         metadata.IHDR_bitDepth = bitDepth;
@@ -153,6 +162,91 @@ public class PNGDecoder extends CoreImageReader {
         stage = STAGE_IHDR;
     }
 
+    public ImageInfo getBestImageInfo() {
+        @ColorInfo.ColorType
+        int colorType = ColorInfo.CT_UNKNOWN;
+        @ColorInfo.AlphaType
+        int alphaType = ColorInfo.AT_UNKNOWN;
+
+        int bitDepth = metadata.IHDR_bitDepth;
+        boolean tRNS = metadata.any(PNGMetadata.CHUNK_tRNS);
+
+        switch (metadata.IHDR_colorType) {
+            case COLOR_TYPE_GRAYSCALE -> {
+                if (bitDepth <= 8) {
+                    if (tRNS) {
+                        colorType = ColorInfo.CT_GRAY_ALPHA_88;
+                        alphaType = ColorInfo.AT_UNPREMUL;
+                    } else {
+                        colorType = ColorInfo.CT_GRAY_8;
+                        alphaType = ColorInfo.AT_OPAQUE;
+                    }
+                } else {
+                    assert bitDepth == 16;
+                    if (tRNS) {
+                        colorType = ColorInfo.CT_GRAY_ALPHA_1616;
+                        alphaType = ColorInfo.AT_UNPREMUL;
+                    } else {
+                        colorType = ColorInfo.CT_GRAY_16;
+                        alphaType = ColorInfo.AT_OPAQUE;
+                    }
+                }
+            }
+            case COLOR_TYPE_RGB -> {
+                if (bitDepth == 8) {
+                    if (tRNS) {
+                        colorType = ColorInfo.CT_RGBA_8888;
+                        alphaType = ColorInfo.AT_UNPREMUL;
+                    } else {
+                        colorType = ColorInfo.CT_RGB_888;
+                        alphaType = ColorInfo.AT_OPAQUE;
+                    }
+                } else {
+                    assert bitDepth == 16;
+                    if (tRNS) {
+                        colorType = ColorInfo.CT_RGBA_16161616;
+                        alphaType = ColorInfo.AT_UNPREMUL;
+                    } else {
+                        colorType = ColorInfo.CT_RGB_161616;
+                        alphaType = ColorInfo.AT_OPAQUE;
+                    }
+                }
+            }
+            case COLOR_TYPE_PALETTE -> {
+                if (tRNS) {
+                    colorType = ColorInfo.CT_RGBA_8888;
+                    alphaType = ColorInfo.AT_UNPREMUL;
+                } else {
+                    colorType = ColorInfo.CT_RGB_888;
+                    alphaType = ColorInfo.AT_OPAQUE;
+                }
+            }
+            case COLOR_TYPE_GRAY_ALPHA -> {
+                if (bitDepth == 8) {
+                    colorType = ColorInfo.CT_GRAY_ALPHA_88;
+                } else {
+                    assert bitDepth == 16;
+                    colorType = ColorInfo.CT_GRAY_ALPHA_1616;
+                }
+                alphaType = ColorInfo.AT_UNPREMUL;
+            }
+            case COLOR_TYPE_RGB_ALPHA -> {
+                if (bitDepth == 8) {
+                    colorType = ColorInfo.CT_RGBA_8888;
+                } else {
+                    assert bitDepth == 16;
+                    colorType = ColorInfo.CT_RGBA_16161616;
+                }
+                alphaType = ColorInfo.AT_UNPREMUL;
+            }
+        }
+
+        //TODO packed formats, color space info
+
+        return ImageInfo.make(metadata.IHDR_width, metadata.IHDR_height,
+                colorType, alphaType, ColorSpaces.SRGB);
+    }
+
     public void readChunks() throws IOException {
         if (stage < STAGE_IHDR) {
             throw new DecoderException("No IHDR chunk");
@@ -161,15 +255,13 @@ public class PNGDecoder extends CoreImageReader {
             return;
         }
 
-        for (;;) {
+        while (stage < STAGE_FIRST_IDAT || stage >= STAGE_AFTER_IDAT) {
             readChunkHeader();
-
-            System.out.println(Integer.toHexString(chunkType));
 
             if (chunkType == IDAT_TYPE) {
                 if (metadata.IHDR_colorType == COLOR_TYPE_PALETTE &&
-                        (metadata.presentChunks & PNGMetadata.CHUNK_PLTE) == 0) {
-                    throw new DecoderException("Required PLTE chunk missing");
+                        !metadata.any(PNGMetadata.CHUNK_PLTE)) {
+                    throw new DecoderException("PLTE is required before IDAT");
                 }
 
                 if (stage >= STAGE_FIRST_IDAT) {
@@ -182,14 +274,12 @@ public class PNGDecoder extends CoreImageReader {
 
             if (isCriticalChunk(chunkType)) {
                 if (chunkType == PLTE_TYPE) {
-                    if ((metadata.presentChunks & (PNGMetadata.CHUNK_bKGD |
-                            PNGMetadata.CHUNK_hIST |
-                            PNGMetadata.CHUNK_tRNS)) != 0
+                    if (metadata.any(PNGMetadata.CHUNK_bKGD | PNGMetadata.CHUNK_hIST | PNGMetadata.CHUNK_tRNS)
                             || stage >= STAGE_FIRST_IDAT) {
                         throw new DecoderException("PLTE must appear before bKGD, hIST, tRNS, IDAT");
                     }
 
-                    if ((metadata.presentChunks & PNGMetadata.CHUNK_PLTE) != 0) {
+                    if (metadata.any(PNGMetadata.CHUNK_PLTE)) {
                         throw new DecoderException("Duplicate PLTE chunk");
                     }
 
@@ -213,7 +303,7 @@ public class PNGDecoder extends CoreImageReader {
                     byte[] entries = new byte[chunkLength];
                     readFully(ByteBuffer.wrap(entries));
 
-                    metadata.presentChunks |= PNGMetadata.CHUNK_PLTE;
+                    metadata.set(PNGMetadata.CHUNK_PLTE);
                     metadata.PLTE_entries = entries;
 
                 } else if (chunkType == IEND_TYPE) {
@@ -234,26 +324,54 @@ public class PNGDecoder extends CoreImageReader {
                 if (stage >= STAGE_FIRST_IDAT) {
                     throw new DecoderException("tRNS must appear before IDAT");
                 }
-                if ((metadata.presentChunks & PNGMetadata.CHUNK_tRNS) != 0) {
+                if (metadata.any(PNGMetadata.CHUNK_tRNS)) {
                     throw new DecoderException("Duplicate tRNS");
                 }
 
-                //TODO
-                skip(chunkLength);
+                if (metadata.IHDR_colorType == COLOR_TYPE_GRAYSCALE) {
+                    if (chunkLength != 2) {
+                        throw new DecoderException("tRNS chunk for gray image must have length 2");
+                    }
+
+                    metadata.tRNS_gray = readUShort();
+                } else if (metadata.IHDR_colorType == COLOR_TYPE_RGB) {
+                    if (chunkLength != 6) {
+                        throw new DecoderException("tRNS chunk for RGB image must have length 6");
+                    }
+
+                    metadata.tRNS_red = readUShort();
+                    metadata.tRNS_green = readUShort();
+                    metadata.tRNS_blue = readUShort();
+                } else if (metadata.IHDR_colorType == COLOR_TYPE_PALETTE) {
+                    if (metadata.any(PNGMetadata.CHUNK_PLTE)) {
+                        throw new DecoderException("PLTE is required before tRNS");
+                    }
+                    if (chunkLength > metadata.PLTE_entries.length / 3) {
+                        throw new DecoderException("tRNS chunk has more entries than prior PLTE chunk");
+                    }
+
+                    byte[] alpha = new byte[chunkLength];
+                    readFully(ByteBuffer.wrap(alpha));
+                    metadata.tRNS_alpha = alpha;
+                } else {
+                    throw new DecoderException("Gray alpha or RGB alpha image cannot have a tRNS chunk");
+                }
+
+                metadata.set(PNGMetadata.CHUNK_tRNS);
 
             } else if (chunkType == cHRM_TYPE) {
-                if ((metadata.presentChunks & PNGMetadata.CHUNK_PLTE) != 0
+                if (metadata.any(PNGMetadata.CHUNK_PLTE)
                         || stage >= STAGE_FIRST_IDAT) {
                     throw new DecoderException("cHRM must appear before PLTE and IDAT");
                 }
-                if ((metadata.presentChunks & PNGMetadata.CHUNK_cHRM) != 0) {
+                if (metadata.any(PNGMetadata.CHUNK_cHRM)) {
                     throw new DecoderException("Duplicate cHRM");
                 }
                 if (chunkLength != 32) {
-                    throw new DecoderException("Invalid cHRM");
+                    throw new DecoderException("Invalid cHRM chunk length");
                 }
 
-                metadata.presentChunks |= PNGMetadata.CHUNK_cHRM;
+                metadata.set(PNGMetadata.CHUNK_cHRM);
                 metadata.cHRM_whitePointX = readInt();
                 metadata.cHRM_whitePointY = readInt();
                 metadata.cHRM_redX = readInt();
@@ -264,19 +382,87 @@ public class PNGDecoder extends CoreImageReader {
                 metadata.cHRM_blueY = readInt();
 
             } else if (chunkType == gAMA_TYPE) {
-                if ((metadata.presentChunks & PNGMetadata.CHUNK_PLTE) != 0
+                if (metadata.any(PNGMetadata.CHUNK_PLTE)
                         || stage >= STAGE_FIRST_IDAT) {
                     throw new DecoderException("gAMA must appear before PLTE and IDAT");
                 }
-                if ((metadata.presentChunks & PNGMetadata.CHUNK_gAMA) != 0) {
+                if (metadata.any(PNGMetadata.CHUNK_gAMA)) {
                     throw new DecoderException("Duplicate gAMA");
                 }
                 if (chunkLength != 4) {
-                    throw new DecoderException("Invalid gAMA");
+                    throw new DecoderException("Invalid gAMA chunk length");
                 }
 
-                metadata.presentChunks |= PNGMetadata.CHUNK_gAMA;
+                metadata.set(PNGMetadata.CHUNK_gAMA);
                 metadata.gAMA_gamma = readInt();
+
+            } else if (chunkType == sBIT_TYPE) {
+                if (metadata.any(PNGMetadata.CHUNK_PLTE)
+                        || stage >= STAGE_FIRST_IDAT) {
+                    throw new DecoderException("sBIT must appear before PLTE and IDAT");
+                }
+                if (metadata.any(PNGMetadata.CHUNK_sBIT)) {
+                    throw new DecoderException("Duplicate sBIT");
+                }
+
+                if (metadata.IHDR_colorType == COLOR_TYPE_GRAYSCALE) {
+                    if (chunkLength != 1) {
+                        throw new DecoderException("Invalid sBIT chunk length");
+                    }
+
+                    metadata.sBIT_grayBits = nextRawByte() & 0xFF;
+                } else if (metadata.IHDR_colorType == COLOR_TYPE_RGB ||
+                        metadata.IHDR_colorType == COLOR_TYPE_PALETTE) {
+                    if (chunkLength != 3) {
+                        throw new DecoderException("Invalid sBIT chunk length");
+                    }
+
+                    metadata.sBIT_redBits = nextRawByte() & 0xFF;
+                    metadata.sBIT_greenBits = nextRawByte() & 0xFF;
+                    metadata.sBIT_blueBits = nextRawByte() & 0xFF;
+                } else if (metadata.IHDR_colorType == COLOR_TYPE_GRAY_ALPHA) {
+                    if (chunkLength != 2) {
+                        throw new DecoderException("Invalid sBIT chunk length");
+                    }
+
+                    metadata.sBIT_grayBits = nextRawByte() & 0xFF;
+                    metadata.sBIT_alphaBits = nextRawByte() & 0xFF;
+                } else if (metadata.IHDR_colorType == COLOR_TYPE_RGB_ALPHA) {
+                    if (chunkLength != 4) {
+                        throw new DecoderException("Invalid sBIT chunk length");
+                    }
+
+                    metadata.sBIT_redBits = nextRawByte() & 0xFF;
+                    metadata.sBIT_greenBits = nextRawByte() & 0xFF;
+                    metadata.sBIT_blueBits = nextRawByte() & 0xFF;
+                    metadata.sBIT_alphaBits = nextRawByte() & 0xFF;
+                }
+
+                metadata.check_sBIT(DecoderException::new);
+
+                metadata.set(PNGMetadata.CHUNK_sBIT);
+
+            } else if (chunkType == sRGB_TYPE) {
+                if (metadata.any(PNGMetadata.CHUNK_PLTE)
+                        || stage >= STAGE_FIRST_IDAT) {
+                    throw new DecoderException("sRGB must appear before PLTE and IDAT");
+                }
+                if (metadata.any(PNGMetadata.CHUNK_sRGB)) {
+                    throw new DecoderException("Duplicate sRGB");
+                }
+
+                if (chunkLength != 1) {
+                    throw new DecoderException("Invalid sRGB chunk length");
+                }
+
+                int renderingIntent = nextRawByte() & 0xFF;
+                if (renderingIntent > 3) {
+                    throw new DecoderException("Invalid sRGB rendering intent: " + renderingIntent);
+                }
+
+                metadata.sRGB_renderingIntent = renderingIntent;
+
+                metadata.set(PNGMetadata.CHUNK_sRGB);
 
             } else {
                 skip(chunkLength);
@@ -304,7 +490,7 @@ public class PNGDecoder extends CoreImageReader {
         chunkRemaining = chunkLength;
     }
 
-    public void decodeImage(Pixmap dst) throws IOException {
+    public void decodeImage(Pixmap dst, @Nullable Rect2ic roi) throws IOException {
         if (chunkType != IDAT_TYPE || stage != STAGE_FIRST_IDAT) {
             throw new DecoderException("Not IDAT");
         }
@@ -349,9 +535,9 @@ public class PNGDecoder extends CoreImageReader {
             }
 
             switch (filter) {
-                case FILTER_NONE:
+                case FILTER_TYPE_NONE:
                     break;
-                case FILTER_SUB:
+                case FILTER_TYPE_SUB:
                     switch (bytesPerPixel) {
                         case 1 -> FILTER.decodeSub1(currScanlineBuf.array(), rowBytes);
                         case 2 -> FILTER.decodeSub2(currScanlineBuf.array(), rowBytes);
@@ -361,10 +547,10 @@ public class PNGDecoder extends CoreImageReader {
                         case 8 -> FILTER.decodeSub8(currScanlineBuf.array(), rowBytes);
                     }
                     break;
-                case FILTER_UP:
+                case FILTER_TYPE_UP:
                     PNGFilter.decodeUp(currScanlineBuf.array(), prevScanlineBuf.array(), rowBytes);
                     break;
-                case FILTER_AVERAGE:
+                case FILTER_TYPE_AVERAGE:
                     switch (bytesPerPixel) {
                         case 3 -> FILTER.decodeAverage3(currScanlineBuf.array(), prevScanlineBuf.array(), rowBytes);
                         case 4 -> FILTER.decodeAverage4(currScanlineBuf.array(), prevScanlineBuf.array(), rowBytes);
@@ -373,7 +559,7 @@ public class PNGDecoder extends CoreImageReader {
                         default -> PNGFilter.decodeAverage(currScanlineBuf.array(), prevScanlineBuf.array(), rowBytes, bytesPerPixel);
                     }
                     break;
-                case FILTER_PAETH:
+                case FILTER_TYPE_PAETH:
                     switch (bytesPerPixel) {
                         case 3 -> FILTER.decodePaeth3(currScanlineBuf.array(), prevScanlineBuf.array(), rowBytes);
                         case 4 -> FILTER.decodePaeth4(currScanlineBuf.array(), prevScanlineBuf.array(), rowBytes);
@@ -414,12 +600,17 @@ public class PNGDecoder extends CoreImageReader {
             currScanlineBuf = tBuf;
         }
 
+        // Spec: Some images have unused trailing bytes at the end of the final IDAT chunk.
+        // This could happen when an entire buffer is stored rather than just the portion
+        // of the buffer which is used. This is undesirable. Preferably, an encoder would
+        // not include these unused bytes. If it must, setting the bytes to zero will
+        // prevent accidental data sharing. A decoder should ignore these trailing bytes.
         skip(chunkRemaining);
         stage = STAGE_AFTER_IDAT;
 
     }
 
-    private int computeRowBytes(int width, int reserve) throws IOException {
+    public int computeRowBytes(int width, int reserve) throws IOException {
         assert width > 0;
         long rowBytes = (long) metadata.numChannels() *
                 metadata.IHDR_bitDepth * width;

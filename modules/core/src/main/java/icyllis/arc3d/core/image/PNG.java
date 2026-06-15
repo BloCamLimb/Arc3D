@@ -19,7 +19,7 @@
 
 package icyllis.arc3d.core.image;
 
-public class PNG {
+public final class PNG {
 
     //   Color    Allowed    Interpretation
     //   Type    Bit Depths
@@ -51,6 +51,23 @@ public class PNG {
             default -> 0;
         };
     }
+
+    // Interlace methods
+    public static final int INTERLACE_METHOD_NONE = 0;
+    public static final int INTERLACE_METHOD_ADAM7 = 1;
+
+    // Filter methods
+    public static final int FILTER_METHOD_ADAPTIVE = 0;
+
+    // Filter types
+    public static final int FILTER_TYPE_NONE = 0;
+    public static final int FILTER_TYPE_SUB = 1;
+    public static final int FILTER_TYPE_UP = 2;
+    public static final int FILTER_TYPE_AVERAGE = 3;
+    public static final int FILTER_TYPE_PAETH = 4;
+
+    // Compression methods
+    public static final int COMPRESSION_METHOD_DEFLATE = 0;
 
     // Critical chunks
     public static final int IHDR_TYPE = 0x49484452;
@@ -91,14 +108,6 @@ public class PNG {
         return (chunkType & (1 << (5 + 24))) == 0;
     }
 
-    // Filter types
-    public static final int FILTER_NONE = 0;
-    public static final int FILTER_SUB = 1;
-    public static final int FILTER_UP = 2;
-    public static final int FILTER_AVERAGE = 3;
-    public static final int FILTER_PAETH = 4;
-
-    protected PNG() {
-        throw new UnsupportedOperationException();
+    private PNG() {
     }
 }
