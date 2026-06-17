@@ -32,6 +32,8 @@ import static icyllis.arc3d.core.image.PNG.*;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
@@ -44,7 +46,7 @@ import java.util.zip.Inflater;
  * </ul>
  *
  */
-public class PNGDecoder extends CoreImageReader {
+public class PNGDecoder extends Decoder {
 
     private static final PNGFilter FILTER = PNGFilter.createInstance();
 
@@ -74,6 +76,16 @@ public class PNGDecoder extends CoreImageReader {
     public void reset() {
         metadata = new PNGMetadata();
         stage = 0;
+    }
+
+    @Override
+    public int getWidth() {
+        return metadata.IHDR_width;
+    }
+
+    @Override
+    public int getHeight() {
+        return metadata.IHDR_height;
     }
 
     public PNGMetadata getMetadata() {
@@ -256,7 +268,12 @@ public class PNGDecoder extends CoreImageReader {
         }
 
         while (stage < STAGE_FIRST_IDAT || stage >= STAGE_AFTER_IDAT) {
-            readChunkHeader();
+            if (chunkRemaining == 0) {
+                readChunkHeader();
+            } else if (chunkRemaining != chunkLength) {
+                // internal error
+                throw new DecoderException("Decoder at wrong position");
+            }
 
             if (chunkType == IDAT_TYPE) {
                 if (metadata.IHDR_colorType == COLOR_TYPE_PALETTE &&
@@ -343,7 +360,7 @@ public class PNGDecoder extends CoreImageReader {
                     metadata.tRNS_green = readUShort();
                     metadata.tRNS_blue = readUShort();
                 } else if (metadata.IHDR_colorType == COLOR_TYPE_PALETTE) {
-                    if (metadata.any(PNGMetadata.CHUNK_PLTE)) {
+                    if (!metadata.any(PNGMetadata.CHUNK_PLTE)) {
                         throw new DecoderException("PLTE is required before tRNS");
                     }
                     if (chunkLength > metadata.PLTE_entries.length / 3) {
@@ -490,9 +507,80 @@ public class PNGDecoder extends CoreImageReader {
         chunkRemaining = chunkLength;
     }
 
+    public void skipImage() throws IOException {
+        if (chunkType != IDAT_TYPE || stage != STAGE_FIRST_IDAT) {
+            throw new DecoderException("Not IDAT");
+        }
+
+        while (chunkType == IDAT_TYPE) {
+            skip(chunkRemaining);
+            chunkRemaining = 0;
+            readChunkHeader();
+        }
+    }
+
     public void decodeImage(Pixmap dst, @Nullable Rect2ic roi) throws IOException {
         if (chunkType != IDAT_TYPE || stage != STAGE_FIRST_IDAT) {
             throw new DecoderException("Not IDAT");
+        }
+
+        if (metadata.IHDR_interlaceMethod != 0) {
+            throw new DecoderException("TODO");
+        }
+
+        Object dstBase = dst.getBase();
+
+        int dstCT = dst.getColorType();
+        int bitDepth = metadata.IHDR_bitDepth;
+        boolean noConversion = switch (metadata.IHDR_colorType) {
+            case COLOR_TYPE_GRAYSCALE -> {
+                if (bitDepth == 8) {
+                    yield dstCT == ColorInfo.CT_GRAY_8;
+                } else if (bitDepth == 16) {
+                    yield dstCT == ColorInfo.CT_GRAY_16;
+                } else {
+                    yield false;
+                }
+            }
+            case COLOR_TYPE_RGB -> {
+                if (bitDepth == 8) {
+                    yield dstCT == ColorInfo.CT_RGB_888;
+                } else if (bitDepth == 16) {
+                    yield dstCT == ColorInfo.CT_RGB_161616;
+                } else {
+                    yield false;
+                }
+            }
+            case COLOR_TYPE_PALETTE -> false;
+            case COLOR_TYPE_GRAY_ALPHA -> {
+                if (bitDepth == 8) {
+                    yield dstCT == ColorInfo.CT_GRAY_ALPHA_88;
+                } else {
+                    assert bitDepth == 16;
+                    yield dstCT == ColorInfo.CT_GRAY_ALPHA_1616;
+                }
+            }
+            case COLOR_TYPE_RGB_ALPHA -> {
+                if (bitDepth == 8) {
+                    yield dstCT == ColorInfo.CT_RGBA_8888;
+                } else {
+                    assert bitDepth == 16;
+                    yield dstCT == ColorInfo.CT_RGBA_16161616;
+                }
+            }
+            default -> {
+                assert false;
+                yield true;
+            }
+        };
+        if (noConversion) {
+            boolean premul = dst.getInfo().alphaType() == ColorInfo.AT_PREMUL &&
+                    (metadata.any(PNGMetadata.CHUNK_tRNS) ||
+                            metadata.IHDR_colorType == COLOR_TYPE_RGB_ALPHA ||
+                            metadata.IHDR_colorType == COLOR_TYPE_GRAY_ALPHA);
+            if (premul) {
+                noConversion = false;
+            }
         }
 
         if (inflater == null) {
@@ -504,16 +592,14 @@ public class PNGDecoder extends CoreImageReader {
         int width = metadata.IHDR_width;
         int height = metadata.IHDR_height;
 
-        boolean is16 = metadata.IHDR_bitDepth == 16;
+        boolean is16 = bitDepth == 16;
         int bytesPerPixel = metadata.numChannels() << (is16 ? 1 : 0);
         // reserve 32 bytes for the filter type (1 byte) of next row,
         // and tail padding for vector instructions
         int rowBytes = computeRowBytes(width, 32);
-        // allocate heap buffer
+        // allocate heap buffer (BIG ENDIAN)
         ByteBuffer currScanlineBuf = ByteBuffer.allocate(rowBytes + 32);
         ByteBuffer prevScanlineBuf = ByteBuffer.allocate(rowBytes + 32);
-
-        Object dstBase = dst.getBase();
 
         // read the filter of first scanline
         readScanlineBytes(currScanlineBuf.limit(1));
@@ -573,24 +659,28 @@ public class PNGDecoder extends CoreImageReader {
             }
 
             //TODO expanding, pack bits...
-            long dstAddr = dst.getAddress(0, i);
-            if (dstBase == null) {
-                var dstBuf = MemoryUtil.memByteBuffer(dstAddr, rowBytes);
-                if (is16) {
-                    // copySwapMemory
-                    dstBuf.asShortBuffer().put(currScanlineBuf.asShortBuffer());
+            if (noConversion) {
+                long dstAddr = dst.getAddress(0, i);
+                if (dstBase == null) {
+                    var dstBuf = MemoryUtil.memByteBuffer(dstAddr, rowBytes);
+                    if (is16) {
+                        // copySwapMemory
+                        dstBuf.asShortBuffer().put(currScanlineBuf.asShortBuffer());
+                    } else {
+                        dstBuf.put(currScanlineBuf);
+                    }
                 } else {
-                    dstBuf.put(currScanlineBuf);
+                    if (is16) {
+                        // copySwapMemory
+                        ShortBuffer.wrap((short[]) dstBase, (int) (dstAddr>>1), (rowBytes>>1))
+                                .put(currScanlineBuf.asShortBuffer());
+                    } else {
+                        PixelUtils.mixedMemCopy(currScanlineBuf.array(), 0,
+                                dst.getBase(), dstAddr, rowBytes);
+                    }
                 }
             } else {
-                if (is16) {
-                    // copySwapMemory
-                    ShortBuffer.wrap((short[]) dstBase, (int) (dstAddr>>1), (rowBytes>>1))
-                            .put(currScanlineBuf.asShortBuffer());
-                } else {
-                    PixelUtils.mixedMemCopy(currScanlineBuf.array(), 0,
-                            dst.getBase(), dstAddr, rowBytes);
-                }
+                processScanline(currScanlineBuf, dst, i, width, 6);
             }
 
             filter = nextFilter;
@@ -600,14 +690,224 @@ public class PNGDecoder extends CoreImageReader {
             currScanlineBuf = tBuf;
         }
 
+        if (!inflater.finished()) {
+            throw new DecoderException("ZLIB stream not finished after image data");
+        }
+
         // Spec: Some images have unused trailing bytes at the end of the final IDAT chunk.
         // This could happen when an entire buffer is stored rather than just the portion
         // of the buffer which is used. This is undesirable. Preferably, an encoder would
         // not include these unused bytes. If it must, setting the bytes to zero will
         // prevent accidental data sharing. A decoder should ignore these trailing bytes.
         skip(chunkRemaining);
+        chunkRemaining = 0;
         stage = STAGE_AFTER_IDAT;
+    }
 
+    static int readPackedSample(ByteBuffer scanline, int sampleIndex, int bitDepth) {
+        int bitIndex = sampleIndex * bitDepth;
+        int byteIndex = bitIndex >>> 3;
+        int bitOffset = bitIndex & 7;
+
+        int shift = 8 - bitDepth - bitOffset;
+        int mask = (1 << bitDepth) - 1;
+
+        return (scanline.get(byteIndex) & 0xFF) >>> shift & mask;
+    }
+
+    // per pixel operations
+    private void processScanline(ByteBuffer scanline, Pixmap dst, int dstRowNum,
+                                 int passWidth, int pass) throws IOException {
+
+        int colorType = metadata.IHDR_colorType;
+        int bitDepth = metadata.IHDR_bitDepth;
+        byte[] plte = metadata.PLTE_entries;
+        boolean tRNS = metadata.any(PNGMetadata.CHUNK_tRNS);
+        boolean premul = dst.getInfo().alphaType() == ColorInfo.AT_PREMUL &&
+                (tRNS || colorType == COLOR_TYPE_RGB_ALPHA || colorType == COLOR_TYPE_GRAY_ALPHA);
+
+        ByteBuffer bdst = null;
+        ShortBuffer sdst = null;
+        IntBuffer idst = null;
+        long dstAddr = dst.getAddress(0, dstRowNum);
+        int minRB = dst.getInfo().minRowBytes();
+        int dstCT = dst.getColorType();
+        switch (dstCT) {
+            case ColorInfo.CT_GRAY_8:
+            case ColorInfo.CT_GRAY_ALPHA_88:
+            case ColorInfo.CT_RGB_888:
+            case ColorInfo.CT_RGBA_8888: {
+                Object dstBase = dst.getBase();
+                if (dstBase == null) {
+                    bdst = MemoryUtil.memByteBuffer(dstAddr, minRB);
+                } else {
+                    bdst = ByteBuffer.wrap((byte[]) dstBase, (int) dstAddr, minRB);
+                }
+                break;
+            }
+            case ColorInfo.CT_GRAY_16:
+            case ColorInfo.CT_GRAY_ALPHA_1616:
+            case ColorInfo.CT_RGB_161616:
+            case ColorInfo.CT_RGBA_16161616: {
+                Object dstBase = dst.getBase();
+                if (dstBase == null) {
+                    sdst = MemoryUtil.memByteBuffer(dstAddr, minRB).asShortBuffer();
+                } else {
+                    sdst = ShortBuffer.wrap((short[]) dstBase, (int) (dstAddr>>1), minRB>>1);
+                }
+                break;
+            }
+        }
+
+        int xStep = adam7XStep[pass];
+        int fullWidth = metadata.IHDR_width;
+        for (int i = 0, j = adam7XOffset[pass]; i < passWidth && j < fullWidth; i++, j += xStep) {
+            int r,g,b,a;
+            if (bitDepth < 8) {
+                int unpack = readPackedSample(scanline, i, bitDepth);
+                if (colorType == COLOR_TYPE_GRAYSCALE) {
+                    switch (bitDepth) {
+                        case 1:
+                            r = g = b = unpack * 255;
+                            break;
+                        case 2:
+                            r = g = b = unpack * 85;
+                            break;
+                        case 4:
+                        default:
+                            r = g = b = (unpack * 255 + 7) / 15;
+                            break;
+                    }
+                    a = (tRNS && unpack == metadata.tRNS_gray) ? 0 : 255;
+                } else {
+                    assert colorType == COLOR_TYPE_PALETTE;
+                    r = plte[unpack * 3 + 0] & 0xFF;
+                    g = plte[unpack * 3 + 1] & 0xFF;
+                    b = plte[unpack * 3 + 2] & 0xFF;
+                    a = tRNS && unpack < metadata.tRNS_alpha.length
+                            ? metadata.tRNS_alpha[unpack]
+                            : 255;
+                }
+            } else if (bitDepth == 8) {
+                switch (colorType) {
+                    case COLOR_TYPE_GRAYSCALE:
+                        r = g = b = scanline.get(i) & 0xFF;
+                        a = (tRNS && r == metadata.tRNS_gray) ? 0 : 255;
+                        break;
+                    case COLOR_TYPE_RGB:
+                        r = scanline.get(i * 3 + 0) & 0xFF;
+                        g = scanline.get(i * 3 + 1) & 0xFF;
+                        b = scanline.get(i * 3 + 2) & 0xFF;
+                        a = (tRNS &&
+                                r == metadata.tRNS_red &&
+                                g == metadata.tRNS_green &&
+                                b == metadata.tRNS_blue)
+                                ? 0 : 255;
+                        break;
+                    case COLOR_TYPE_PALETTE: {
+                        int plteIndex = scanline.get(i) & 0xFF;
+                        r = plte[plteIndex * 3 + 0] & 0xFF;
+                        g = plte[plteIndex * 3 + 1] & 0xFF;
+                        b = plte[plteIndex * 3 + 2] & 0xFF;
+                        a = tRNS && plteIndex < metadata.tRNS_alpha.length
+                                ? metadata.tRNS_alpha[plteIndex]
+                                : 255;
+                        break;
+                    }
+                    case COLOR_TYPE_GRAY_ALPHA:
+                        r = g = b = scanline.get(i * 2 + 0) & 0xFF;
+                        a = scanline.get(i * 2 + 1) & 0xFF;
+                        break;
+                    case COLOR_TYPE_RGB_ALPHA:
+                    default:
+                        r = scanline.get(i * 4 + 0) & 0xFF;
+                        g = scanline.get(i * 4 + 1) & 0xFF;
+                        b = scanline.get(i * 4 + 2) & 0xFF;
+                        a = scanline.get(i * 4 + 3) & 0xFF;
+                        break;
+                }
+            } else {
+                assert bitDepth == 16;
+                switch (colorType) {
+                    case COLOR_TYPE_GRAYSCALE:
+                        r = g = b = scanline.getShort(i*2) & 0xFFFF;
+                        a = (tRNS && r == metadata.tRNS_gray) ? 0 : 65535;
+                        break;
+                    case COLOR_TYPE_RGB:
+                        r = scanline.getShort(i * 6 + 0) & 0xFFFF;
+                        g = scanline.getShort(i * 6 + 2) & 0xFFFF;
+                        b = scanline.getShort(i * 6 + 4) & 0xFFFF;
+                        a = (tRNS &&
+                                r == metadata.tRNS_red &&
+                                g == metadata.tRNS_green &&
+                                b == metadata.tRNS_blue)
+                                ? 0 : 65535;
+                        break;
+                    case COLOR_TYPE_GRAY_ALPHA:
+                        r = g = b = scanline.getShort(i * 4 + 0) & 0xFFFF;
+                        a = scanline.get(i * 4 + 2) & 0xFFFF;
+                        break;
+                    case COLOR_TYPE_RGB_ALPHA:
+                    default:
+                        r = scanline.get(i * 8 + 0) & 0xFFFF;
+                        g = scanline.get(i * 8 + 2) & 0xFFFF;
+                        b = scanline.get(i * 8 + 4) & 0xFFFF;
+                        a = scanline.get(i * 8 + 6) & 0xFFFF;
+                        break;
+                }
+            }
+
+            if (premul) {
+                if (bitDepth <= 8) {
+                    r = (r * a + 127) / 255;
+                    g = (g * a + 127) / 255;
+                    b = (b * a + 127) / 255;
+                } else {
+                    r = (int) ((((r & 0xFFFFL) * (a & 0xFFFFL) + 32767L) / 65535L));
+                    g = (int) ((((g & 0xFFFFL) * (a & 0xFFFFL) + 32767L) / 65535L));
+                    b = (int) ((((b & 0xFFFFL) * (a & 0xFFFFL) + 32767L) / 65535L));
+                }
+            }
+
+            switch (dstCT) {
+                case ColorInfo.CT_GRAY_8 -> {
+                    bdst.put(j, (byte) r);
+                }
+                case ColorInfo.CT_GRAY_ALPHA_88 -> {
+                    bdst.put(j*2+0, (byte) r);
+                    bdst.put(j*2+1, (byte) a);
+                }
+                case ColorInfo.CT_RGB_888 -> {
+                    bdst.put(j*3+0, (byte) r);
+                    bdst.put(j*3+1, (byte) g);
+                    bdst.put(j*3+2, (byte) b);
+                }
+                case ColorInfo.CT_RGBA_8888 -> {
+                    bdst.put(j*4+0, (byte) r);
+                    bdst.put(j*4+1, (byte) g);
+                    bdst.put(j*4+2, (byte) b);
+                    bdst.put(j*4+3, (byte) a);
+                }
+                case ColorInfo.CT_GRAY_16 -> {
+                    sdst.put(j, (short) r);
+                }
+                case ColorInfo.CT_GRAY_ALPHA_1616 -> {
+                    sdst.put(j*2+0, (short) r);
+                    sdst.put(j*2+1, (short) a);
+                }
+                case ColorInfo.CT_RGB_161616 -> {
+                    sdst.put(j*3+0, (short) r);
+                    sdst.put(j*3+1, (short) g);
+                    sdst.put(j*3+2, (short) b);
+                }
+                case ColorInfo.CT_RGBA_16161616 -> {
+                    sdst.put(j*4+0, (short) r);
+                    sdst.put(j*4+1, (short) g);
+                    sdst.put(j*4+2, (short) b);
+                    sdst.put(j*4+3, (short) a);
+                }
+            }
+        }
     }
 
     public int computeRowBytes(int width, int reserve) throws IOException {

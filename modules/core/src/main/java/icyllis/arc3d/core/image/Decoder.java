@@ -29,10 +29,12 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 
 /**
- * Base class for image decoders provided by Arc3D.
+ * Base class for image readers (and decoders) provided by Arc3D.
+ * <p>
+ * Most decoders support streaming, some may use seeking when available.
  */
 //PNG/JPEG/GIF/PNM/PAM/PFM/RADIANCE/OPENEXR/KTX2
-public abstract class CoreImageReader {
+public abstract class Decoder {
 
     // either
     protected InputStream stream;
@@ -65,6 +67,10 @@ public abstract class CoreImageReader {
     public ByteBuffer getBuffer() {
         return buffer;
     }
+
+    public abstract int getWidth();
+
+    public abstract int getHeight();
 
     protected void ensureReadBuffer() {
         if (buffer == null) {

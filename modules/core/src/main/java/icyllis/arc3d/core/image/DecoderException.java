@@ -19,7 +19,9 @@
 
 package icyllis.arc3d.core.image;
 
-public class DecoderException extends CodecException {
+import java.io.IOException;
+
+public class DecoderException extends IOException {
 
     public DecoderException() {
     }

@@ -44,7 +44,7 @@ import java.nio.channels.ReadableByteChannel;
  * P6  Portable Pixmap     Binary (Raw)    8/16-bit RGB
  * </pre>
  */
-public class PNMImageReader extends CoreImageReader {
+public class PNMImageReader extends Decoder {
 
     public static final int
             PORTABLE_BITMAP_ASCII = 1,
@@ -69,6 +69,16 @@ public class PNMImageReader extends CoreImageReader {
     public void setInput(ReadableByteChannel ch) {
         super.setInput(ch);
         format = 0;
+    }
+
+    @Override
+    public int getWidth() {
+        return width;
+    }
+
+    @Override
+    public int getHeight() {
+        return height;
     }
 
     public void readHeader() throws IOException {

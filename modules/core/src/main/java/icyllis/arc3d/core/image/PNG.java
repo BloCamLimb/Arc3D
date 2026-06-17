@@ -56,6 +56,11 @@ public final class PNG {
     public static final int INTERLACE_METHOD_NONE = 0;
     public static final int INTERLACE_METHOD_ADAM7 = 1;
 
+    static final int[] adam7XOffset = { 0, 4, 0, 2, 0, 1, 0 };
+    static final int[] adam7YOffset = { 0, 0, 4, 0, 2, 0, 1 };
+    static final int[] adam7XStep = { 8, 8, 4, 4, 2, 2, 1 };
+    static final int[] adam7YStep = { 8, 8, 8, 4, 4, 2, 2 };
+
     // Filter methods
     public static final int FILTER_METHOD_ADAPTIVE = 0;
 
