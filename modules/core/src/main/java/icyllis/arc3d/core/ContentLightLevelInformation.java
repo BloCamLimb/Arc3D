@@ -19,8 +19,7 @@
 
 package icyllis.arc3d.core;
 
-public class ContentLightLevelInformation {
-
-    public float mMaxCLL;
-    public float mMaxFALL;
+public record ContentLightLevelInformation(
+        float maxCLL,
+        float maxFALL) {
 }

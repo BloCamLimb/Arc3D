@@ -222,9 +222,6 @@ public class PNGMetadata {
     }
 
     public void checkPLTE(int numEntries, Function<String, ? extends IOException> ex) throws IOException {
-        if ((presentChunks & CHUNK_IHDR) == 0) {
-            throw ex.apply("No IHDR chunk");
-        }
         if (numEntries <= 0 ||
                 numEntries > 256) {
             throw ex.apply("Invalid number of palette entries " + numEntries);
@@ -242,10 +239,6 @@ public class PNGMetadata {
     }
 
     public void check_sBIT(Function<String, ? extends IOException> ex) throws IOException {
-        if ((presentChunks & CHUNK_IHDR) == 0) {
-            throw ex.apply("No IHDR chunk");
-        }
-
         if (IHDR_colorType == COLOR_TYPE_GRAYSCALE) {
             if (sBIT_grayBits <= 0 || sBIT_grayBits > IHDR_bitDepth) {
                 throw ex.apply("Invalid sBIT depth");
@@ -274,6 +267,21 @@ public class PNGMetadata {
                     sBIT_alphaBits <= 0 || sBIT_alphaBits > IHDR_bitDepth) {
                 throw ex.apply("Invalid sBIT depth");
             }
+        }
+    }
+
+    public void check_sRGB(Function<String, ? extends IOException> ex) throws IOException {
+        if (sRGB_renderingIntent < 0 || sRGB_renderingIntent > 3) {
+            throw ex.apply("Invalid sRGB rendering intent: " + sRGB_renderingIntent);
+        }
+    }
+
+    public void check_cICP(Function<String, ? extends IOException> ex) throws IOException {
+        if (cICP_matrixCoefficients != 0) {
+            throw ex.apply("cICP matrix coefficients must be 0!");
+        }
+        if (cICP_videoFullRangeFlag != 0 && cICP_videoFullRangeFlag != 1) {
+            throw ex.apply("cICP video full range flag must be 0 or 1!");
         }
     }
 

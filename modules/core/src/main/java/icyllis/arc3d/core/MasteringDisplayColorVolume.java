@@ -19,10 +19,9 @@
 
 package icyllis.arc3d.core;
 
-public class MasteringDisplayColorVolume {
-
-    public float[] mPrimaries;
-    public float[] mWhitePoint;
-    public float mMaximumLuminance;
-    public float mMinimumLuminance;
+public record MasteringDisplayColorVolume(
+        float[] primaries,
+        float[] whitePoint,
+        float maxLuminance,
+        float minLuminance) {
 }

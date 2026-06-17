@@ -61,6 +61,18 @@ public final class PNG {
     static final int[] adam7XStep = { 8, 8, 4, 4, 2, 2, 1 };
     static final int[] adam7YStep = { 8, 8, 8, 4, 4, 2, 2 };
 
+    static int computePassWidth(int width, int pass) {
+        return width <= adam7XOffset[pass]
+                ? 0
+                : (width - adam7XOffset[pass] + adam7XStep[pass] - 1) / adam7XStep[pass];
+    }
+
+    static int computePassHeight(int height, int pass) {
+        return height <= adam7YOffset[pass]
+                ? 0
+                : (height - adam7YOffset[pass] + adam7YStep[pass] - 1) / adam7YStep[pass];
+    }
+
     // Filter methods
     public static final int FILTER_METHOD_ADAPTIVE = 0;
 

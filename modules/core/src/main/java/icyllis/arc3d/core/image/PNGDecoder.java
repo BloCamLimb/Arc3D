@@ -20,11 +20,14 @@
 package icyllis.arc3d.core.image;
 import icyllis.arc3d.core.ColorInfo;
 import icyllis.arc3d.core.ColorSpaces;
+import icyllis.arc3d.core.ContentLightLevelInformation;
 import icyllis.arc3d.core.ImageInfo;
+import icyllis.arc3d.core.MasteringDisplayColorVolume;
 import icyllis.arc3d.core.PixelUtils;
 import icyllis.arc3d.core.Pixmap;
 import icyllis.arc3d.core.Rect2ic;
 import icyllis.arc3d.image.PNGFilter;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
 
@@ -32,7 +35,6 @@ import static icyllis.arc3d.core.image.PNG.*;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 import java.util.zip.DataFormatException;
@@ -467,19 +469,86 @@ public class PNGDecoder extends Decoder {
                 if (metadata.any(PNGMetadata.CHUNK_sRGB)) {
                     throw new DecoderException("Duplicate sRGB");
                 }
+                if (metadata.any(PNGMetadata.CHUNK_cICP)) {
+                    throw new DecoderException("sRGB and cICP cannot appear at the same time");
+                }
 
                 if (chunkLength != 1) {
                     throw new DecoderException("Invalid sRGB chunk length");
                 }
 
-                int renderingIntent = nextRawByte() & 0xFF;
-                if (renderingIntent > 3) {
-                    throw new DecoderException("Invalid sRGB rendering intent: " + renderingIntent);
-                }
-
-                metadata.sRGB_renderingIntent = renderingIntent;
+                metadata.sRGB_renderingIntent = nextRawByte() & 0xFF;
+                metadata.check_sRGB(DecoderException::new);
 
                 metadata.set(PNGMetadata.CHUNK_sRGB);
+
+            } else if (chunkType == cICP_TYPE) {
+                if (metadata.any(PNGMetadata.CHUNK_PLTE)
+                        || stage >= STAGE_FIRST_IDAT) {
+                    throw new DecoderException("cICP must appear before PLTE and IDAT");
+                }
+                if (metadata.any(PNGMetadata.CHUNK_cICP)) {
+                    throw new DecoderException("Duplicate cICP");
+                }
+                if (metadata.any(PNGMetadata.CHUNK_sRGB)) {
+                    throw new DecoderException("sRGB and cICP cannot appear at the same time");
+                }
+
+                if (chunkLength != 4) {
+                    throw new DecoderException("Invalid cICP chunk length");
+                }
+
+                metadata.cICP_colorPrimaries = nextRawByte() & 0xFF;
+                metadata.cICP_transferFunction = nextRawByte() & 0xFF;
+                metadata.cICP_matrixCoefficients = nextRawByte() & 0xFF;
+                metadata.cICP_videoFullRangeFlag = nextRawByte() & 0xFF;
+                metadata.check_cICP(DecoderException::new);
+
+                metadata.set(PNGMetadata.CHUNK_cICP);
+
+            } else if (chunkType == mDCV_TYPE) {
+                if (metadata.any(PNGMetadata.CHUNK_PLTE)
+                        || stage >= STAGE_FIRST_IDAT) {
+                    throw new DecoderException("mDCV must appear before PLTE and IDAT");
+                }
+                if (metadata.any(PNGMetadata.CHUNK_mDCV)) {
+                    throw new DecoderException("Duplicate mDCV");
+                }
+
+                if (chunkLength != 24) {
+                    throw new DecoderException("Invalid mDCV chunk length");
+                }
+
+                float[] primaries = new float[6];
+                float[] whitePoint = new float[2];
+                for (int i = 0; i < primaries.length; i++) {
+                    primaries[i] = readUShort() * 0.00002f;
+                }
+                for (int i = 0; i < whitePoint.length; i++) {
+                    whitePoint[i] = readUShort() * 0.00002f;
+                }
+                float maxLuminance = Integer.toUnsignedLong(readInt()) * 0.0001f;
+                float minLuminance = Integer.toUnsignedLong(readInt()) * 0.0001f;
+                metadata.mDCV = new MasteringDisplayColorVolume(primaries, whitePoint, maxLuminance, minLuminance);
+                metadata.set(PNGMetadata.CHUNK_mDCV);
+
+            } else if (chunkType == cLLI_TYPE) {
+                if (metadata.any(PNGMetadata.CHUNK_PLTE)
+                        || stage >= STAGE_FIRST_IDAT) {
+                    throw new DecoderException("mDCV must appear before PLTE and IDAT");
+                }
+                if (metadata.any(PNGMetadata.CHUNK_cLLI)) {
+                    throw new DecoderException("Duplicate cLLI");
+                }
+
+                if (chunkLength != 8) {
+                    throw new DecoderException("Invalid cLLI chunk length");
+                }
+
+                float maxCLL = Integer.toUnsignedLong(readInt()) * 0.0001f;
+                float maxFALL = Integer.toUnsignedLong(readInt()) * 0.0001f;
+                metadata.cLLI = new ContentLightLevelInformation(maxCLL, maxFALL);
+                metadata.set(PNGMetadata.CHUNK_cLLI);
 
             } else {
                 skip(chunkLength);
@@ -519,62 +588,60 @@ public class PNGDecoder extends Decoder {
         }
     }
 
-    public void decodeImage(Pixmap dst, @Nullable Rect2ic roi) throws IOException {
+    public void decodeImage(@NonNull Pixmap dstPixels,
+                            @Nullable Rect2ic srcRegion) throws IOException {
         if (chunkType != IDAT_TYPE || stage != STAGE_FIRST_IDAT) {
             throw new DecoderException("Not IDAT");
         }
 
-        if (metadata.IHDR_interlaceMethod != 0) {
-            throw new DecoderException("TODO");
-        }
+        Object dstBase = dstPixels.getBase();
 
-        Object dstBase = dst.getBase();
-
-        int dstCT = dst.getColorType();
+        int dstCT = dstPixels.getColorType();
         int bitDepth = metadata.IHDR_bitDepth;
-        boolean noConversion = switch (metadata.IHDR_colorType) {
-            case COLOR_TYPE_GRAYSCALE -> {
-                if (bitDepth == 8) {
-                    yield dstCT == ColorInfo.CT_GRAY_8;
-                } else if (bitDepth == 16) {
-                    yield dstCT == ColorInfo.CT_GRAY_16;
-                } else {
-                    yield false;
-                }
-            }
-            case COLOR_TYPE_RGB -> {
-                if (bitDepth == 8) {
-                    yield dstCT == ColorInfo.CT_RGB_888;
-                } else if (bitDepth == 16) {
-                    yield dstCT == ColorInfo.CT_RGB_161616;
-                } else {
-                    yield false;
-                }
-            }
-            case COLOR_TYPE_PALETTE -> false;
-            case COLOR_TYPE_GRAY_ALPHA -> {
-                if (bitDepth == 8) {
-                    yield dstCT == ColorInfo.CT_GRAY_ALPHA_88;
-                } else {
-                    assert bitDepth == 16;
-                    yield dstCT == ColorInfo.CT_GRAY_ALPHA_1616;
-                }
-            }
-            case COLOR_TYPE_RGB_ALPHA -> {
-                if (bitDepth == 8) {
-                    yield dstCT == ColorInfo.CT_RGBA_8888;
-                } else {
-                    assert bitDepth == 16;
-                    yield dstCT == ColorInfo.CT_RGBA_16161616;
-                }
-            }
-            default -> {
-                assert false;
-                yield true;
-            }
-        };
+        boolean interlace = metadata.IHDR_interlaceMethod != INTERLACE_METHOD_NONE;
+        boolean noConversion = !interlace;
         if (noConversion) {
-            boolean premul = dst.getInfo().alphaType() == ColorInfo.AT_PREMUL &&
+            noConversion = switch (metadata.IHDR_colorType) {
+                case COLOR_TYPE_GRAYSCALE -> {
+                    if (bitDepth == 8) {
+                        yield dstCT == ColorInfo.CT_GRAY_8;
+                    } else if (bitDepth == 16) {
+                        yield dstCT == ColorInfo.CT_GRAY_16;
+                    } else {
+                        yield false;
+                    }
+                }
+                case COLOR_TYPE_RGB -> {
+                    if (bitDepth == 8) {
+                        yield dstCT == ColorInfo.CT_RGB_888;
+                    } else if (bitDepth == 16) {
+                        yield dstCT == ColorInfo.CT_RGB_161616;
+                    } else {
+                        yield false;
+                    }
+                }
+                case COLOR_TYPE_PALETTE -> false;
+                case COLOR_TYPE_GRAY_ALPHA -> {
+                    if (bitDepth == 8) {
+                        yield dstCT == ColorInfo.CT_GRAY_ALPHA_88;
+                    } else {
+                        assert bitDepth == 16;
+                        yield dstCT == ColorInfo.CT_GRAY_ALPHA_1616;
+                    }
+                }
+                case COLOR_TYPE_RGB_ALPHA -> {
+                    if (bitDepth == 8) {
+                        yield dstCT == ColorInfo.CT_RGBA_8888;
+                    } else {
+                        assert bitDepth == 16;
+                        yield dstCT == ColorInfo.CT_RGBA_16161616;
+                    }
+                }
+                default -> throw new DecoderException("Unknown color type");
+            };
+        }
+        if (noConversion) {
+            boolean premul = dstPixels.getInfo().alphaType() == ColorInfo.AT_PREMUL &&
                     (metadata.any(PNGMetadata.CHUNK_tRNS) ||
                             metadata.IHDR_colorType == COLOR_TYPE_RGB_ALPHA ||
                             metadata.IHDR_colorType == COLOR_TYPE_GRAY_ALPHA);
@@ -605,94 +672,123 @@ public class PNGDecoder extends Decoder {
         readScanlineBytes(currScanlineBuf.limit(1));
         int filter = currScanlineBuf.get(0) & 0xFF;
 
-        for (int i = 0; i < height; i++) {
-            // we read current row and next row filter
-            boolean lastRow = i == height - 1;
-            currScanlineBuf
-                    .position(0)
-                    .limit(lastRow ? rowBytes : rowBytes + 1);
-            readScanlineBytes(currScanlineBuf);
-            currScanlineBuf.flip();
+        int passCount = (interlace ? 7 : 0);
+        while (passCount > 0) {
+            int passWidth = computePassWidth(width, passCount - 1);
+            int passHeight = computePassHeight(height, passCount - 1);
 
-            int nextFilter = filter;
-            if (!lastRow) {
-                nextFilter = currScanlineBuf.get(rowBytes) & 0xFF;
-                currScanlineBuf.limit(rowBytes);
+            if (passWidth != 0 && passHeight != 0) {
+                break;
             }
+            passCount--;
+        }
 
-            switch (filter) {
-                case FILTER_TYPE_NONE:
-                    break;
-                case FILTER_TYPE_SUB:
-                    switch (bytesPerPixel) {
-                        case 1 -> FILTER.decodeSub1(currScanlineBuf.array(), rowBytes);
-                        case 2 -> FILTER.decodeSub2(currScanlineBuf.array(), rowBytes);
-                        case 3 -> FILTER.decodeSub3(currScanlineBuf.array(), rowBytes);
-                        case 4 -> FILTER.decodeSub4(currScanlineBuf.array(), rowBytes);
-                        case 6 -> FILTER.decodeSub6(currScanlineBuf.array(), rowBytes);
-                        case 8 -> FILTER.decodeSub8(currScanlineBuf.array(), rowBytes);
-                    }
-                    break;
-                case FILTER_TYPE_UP:
-                    PNGFilter.decodeUp(currScanlineBuf.array(), prevScanlineBuf.array(), rowBytes);
-                    break;
-                case FILTER_TYPE_AVERAGE:
-                    switch (bytesPerPixel) {
-                        case 3 -> FILTER.decodeAverage3(currScanlineBuf.array(), prevScanlineBuf.array(), rowBytes);
-                        case 4 -> FILTER.decodeAverage4(currScanlineBuf.array(), prevScanlineBuf.array(), rowBytes);
-                        case 6 -> FILTER.decodeAverage6(currScanlineBuf.array(), prevScanlineBuf.array(), rowBytes);
-                        case 8 -> FILTER.decodeAverage8(currScanlineBuf.array(), prevScanlineBuf.array(), rowBytes);
-                        default -> PNGFilter.decodeAverage(currScanlineBuf.array(), prevScanlineBuf.array(), rowBytes, bytesPerPixel);
-                    }
-                    break;
-                case FILTER_TYPE_PAETH:
-                    switch (bytesPerPixel) {
-                        case 3 -> FILTER.decodePaeth3(currScanlineBuf.array(), prevScanlineBuf.array(), rowBytes);
-                        case 4 -> FILTER.decodePaeth4(currScanlineBuf.array(), prevScanlineBuf.array(), rowBytes);
-                        case 6 -> FILTER.decodePaeth6(currScanlineBuf.array(), prevScanlineBuf.array(), rowBytes);
-                        case 8 -> FILTER.decodePaeth8(currScanlineBuf.array(), prevScanlineBuf.array(), rowBytes);
-                        default -> PNGFilter.decodePaeth(currScanlineBuf.array(), prevScanlineBuf.array(), rowBytes, bytesPerPixel);
-                    }
-                    break;
-                default:
-                    throw new DecoderException("Unknown filter type: " + filter);
+        for (int pass = interlace ? 0 : -1; pass < passCount; pass++) {
+
+            int passWidth = width;
+            int passHeight = height;
+            if (pass >= 0) {
+                passWidth = computePassWidth(width, pass);
+                passHeight = computePassHeight(height, pass);
             }
+            if (passWidth <= 0 || passHeight <= 0) {
+                continue;
+            }
+            int passRowBytes = computeRowBytes(passWidth, 0);
+            assert passRowBytes <= rowBytes;
 
-            //TODO expanding, pack bits...
-            if (noConversion) {
-                long dstAddr = dst.getAddress(0, i);
-                if (dstBase == null) {
-                    var dstBuf = MemoryUtil.memByteBuffer(dstAddr, rowBytes);
-                    if (is16) {
-                        // copySwapMemory
-                        dstBuf.asShortBuffer().put(currScanlineBuf.asShortBuffer());
+            int yStep = pass >= 0 ?adam7YStep[pass] : 1;
+            for (int i = 0, j = pass >= 0? adam7YOffset[pass] : 0;
+                 i < passHeight && j < height;
+                 i++, j += yStep) {
+                // we read current row and next row filter
+                boolean lastRow = pass == passCount - 1 && i == passHeight - 1;
+                currScanlineBuf
+                        .position(0)
+                        .limit(lastRow ? passRowBytes : passRowBytes + 1);
+                readScanlineBytes(currScanlineBuf);
+                currScanlineBuf.flip();
+
+                int nextFilter = filter;
+                if (!lastRow) {
+                    nextFilter = currScanlineBuf.get(passRowBytes) & 0xFF;
+                    currScanlineBuf.limit(passRowBytes);
+                }
+
+                switch (filter) {
+                    case FILTER_TYPE_NONE:
+                        break;
+                    case FILTER_TYPE_SUB:
+                        switch (bytesPerPixel) {
+                            case 1 -> FILTER.decodeSub1(currScanlineBuf.array(), passRowBytes);
+                            case 2 -> FILTER.decodeSub2(currScanlineBuf.array(), passRowBytes);
+                            case 3 -> FILTER.decodeSub3(currScanlineBuf.array(), passRowBytes);
+                            case 4 -> FILTER.decodeSub4(currScanlineBuf.array(), passRowBytes);
+                            case 6 -> FILTER.decodeSub6(currScanlineBuf.array(), passRowBytes);
+                            case 8 -> FILTER.decodeSub8(currScanlineBuf.array(), passRowBytes);
+                        }
+                        break;
+                    case FILTER_TYPE_UP:
+                        PNGFilter.decodeUp(currScanlineBuf.array(), prevScanlineBuf.array(), passRowBytes);
+                        break;
+                    case FILTER_TYPE_AVERAGE:
+                        switch (bytesPerPixel) {
+                            case 3 -> FILTER.decodeAverage3(currScanlineBuf.array(), prevScanlineBuf.array(), passRowBytes);
+                            case 4 -> FILTER.decodeAverage4(currScanlineBuf.array(), prevScanlineBuf.array(), passRowBytes);
+                            case 6 -> FILTER.decodeAverage6(currScanlineBuf.array(), prevScanlineBuf.array(), passRowBytes);
+                            case 8 -> FILTER.decodeAverage8(currScanlineBuf.array(), prevScanlineBuf.array(), passRowBytes);
+                            default -> PNGFilter.decodeAverage(currScanlineBuf.array(), prevScanlineBuf.array(), passRowBytes, bytesPerPixel);
+                        }
+                        break;
+                    case FILTER_TYPE_PAETH:
+                        switch (bytesPerPixel) {
+                            case 3 -> FILTER.decodePaeth3(currScanlineBuf.array(), prevScanlineBuf.array(), passRowBytes);
+                            case 4 -> FILTER.decodePaeth4(currScanlineBuf.array(), prevScanlineBuf.array(), passRowBytes);
+                            case 6 -> FILTER.decodePaeth6(currScanlineBuf.array(), prevScanlineBuf.array(), passRowBytes);
+                            case 8 -> FILTER.decodePaeth8(currScanlineBuf.array(), prevScanlineBuf.array(), passRowBytes);
+                            default -> PNGFilter.decodePaeth(currScanlineBuf.array(), prevScanlineBuf.array(), passRowBytes, bytesPerPixel);
+                        }
+                        break;
+                    default:
+                        throw new DecoderException("Unknown filter type: " + filter);
+                }
+
+                if (noConversion) {
+                    long dstAddr = dstPixels.getAddress(0, j);
+                    if (dstBase == null) {
+                        var dstBuf = MemoryUtil.memByteBuffer(dstAddr, passRowBytes);
+                        if (is16) {
+                            // copySwapMemory
+                            dstBuf.asShortBuffer().put(currScanlineBuf.asShortBuffer());
+                        } else {
+                            dstBuf.put(currScanlineBuf);
+                        }
                     } else {
-                        dstBuf.put(currScanlineBuf);
+                        if (is16) {
+                            // copySwapMemory
+                            ShortBuffer.wrap((short[]) dstBase, (int) (dstAddr>>1), (passRowBytes>>1))
+                                    .put(currScanlineBuf.asShortBuffer());
+                        } else {
+                            PixelUtils.mixedMemCopy(currScanlineBuf.array(), 0,
+                                    dstPixels.getBase(), dstAddr, passRowBytes);
+                        }
                     }
                 } else {
-                    if (is16) {
-                        // copySwapMemory
-                        ShortBuffer.wrap((short[]) dstBase, (int) (dstAddr>>1), (rowBytes>>1))
-                                .put(currScanlineBuf.asShortBuffer());
-                    } else {
-                        PixelUtils.mixedMemCopy(currScanlineBuf.array(), 0,
-                                dst.getBase(), dstAddr, rowBytes);
-                    }
+                    processScanline(currScanlineBuf, dstPixels, j, passWidth, pass, metadata);
                 }
-            } else {
-                processScanline(currScanlineBuf, dst, i, width, 6);
+
+                filter = nextFilter;
+
+                ByteBuffer tBuf = prevScanlineBuf;
+                prevScanlineBuf = currScanlineBuf;
+                currScanlineBuf = tBuf;
             }
-
-            filter = nextFilter;
-
-            ByteBuffer tBuf = prevScanlineBuf;
-            prevScanlineBuf = currScanlineBuf;
-            currScanlineBuf = tBuf;
         }
 
         if (!inflater.finished()) {
             throw new DecoderException("ZLIB stream not finished after image data");
         }
+        inflater.reset();
 
         // Spec: Some images have unused trailing bytes at the end of the final IDAT chunk.
         // This could happen when an entire buffer is stored rather than just the portion
@@ -704,7 +800,7 @@ public class PNGDecoder extends Decoder {
         stage = STAGE_AFTER_IDAT;
     }
 
-    static int readPackedSample(ByteBuffer scanline, int sampleIndex, int bitDepth) {
+    private static int readPackedSample(ByteBuffer scanline, int sampleIndex, int bitDepth) {
         int bitIndex = sampleIndex * bitDepth;
         int byteIndex = bitIndex >>> 3;
         int bitOffset = bitIndex & 7;
@@ -716,8 +812,9 @@ public class PNGDecoder extends Decoder {
     }
 
     // per pixel operations
-    private void processScanline(ByteBuffer scanline, Pixmap dst, int dstRowNum,
-                                 int passWidth, int pass) throws IOException {
+    @SuppressWarnings("PointlessArithmeticExpression")
+    private static void processScanline(ByteBuffer scanline, Pixmap dst, int dstRowNum,
+                                 int passWidth, int pass, PNGMetadata metadata) {
 
         int colorType = metadata.IHDR_colorType;
         int bitDepth = metadata.IHDR_bitDepth;
@@ -759,9 +856,12 @@ public class PNGDecoder extends Decoder {
             }
         }
 
-        int xStep = adam7XStep[pass];
-        int fullWidth = metadata.IHDR_width;
-        for (int i = 0, j = adam7XOffset[pass]; i < passWidth && j < fullWidth; i++, j += xStep) {
+        int xStep = pass >= 0 ? adam7XStep[pass] : 1;
+        int width = metadata.IHDR_width;
+        for (int i = 0, j = pass >= 0 ? adam7XOffset[pass] : 0;
+             i < passWidth && j < width;
+             i++, j += xStep) {
+
             int r,g,b,a;
             if (bitDepth < 8) {
                 int unpack = readPackedSample(scanline, i, bitDepth);
@@ -774,9 +874,10 @@ public class PNGDecoder extends Decoder {
                             r = g = b = unpack * 85;
                             break;
                         case 4:
-                        default:
-                            r = g = b = (unpack * 255 + 7) / 15;
+                            r = g = b = (unpack << 4) | unpack;
                             break;
+                        default:
+                            throw new IllegalStateException("Unknown bit depth");
                     }
                     a = (tRNS && unpack == metadata.tRNS_gray) ? 0 : 255;
                 } else {
@@ -819,12 +920,13 @@ public class PNGDecoder extends Decoder {
                         a = scanline.get(i * 2 + 1) & 0xFF;
                         break;
                     case COLOR_TYPE_RGB_ALPHA:
-                    default:
                         r = scanline.get(i * 4 + 0) & 0xFF;
                         g = scanline.get(i * 4 + 1) & 0xFF;
                         b = scanline.get(i * 4 + 2) & 0xFF;
                         a = scanline.get(i * 4 + 3) & 0xFF;
                         break;
+                    default:
+                        throw new IllegalStateException("Unknown color type");
                 }
             } else {
                 assert bitDepth == 16;
@@ -848,12 +950,13 @@ public class PNGDecoder extends Decoder {
                         a = scanline.get(i * 4 + 2) & 0xFFFF;
                         break;
                     case COLOR_TYPE_RGB_ALPHA:
-                    default:
                         r = scanline.get(i * 8 + 0) & 0xFFFF;
                         g = scanline.get(i * 8 + 2) & 0xFFFF;
                         b = scanline.get(i * 8 + 4) & 0xFFFF;
                         a = scanline.get(i * 8 + 6) & 0xFFFF;
                         break;
+                    default:
+                        throw new IllegalStateException("Unknown color type");
                 }
             }
 
@@ -925,7 +1028,7 @@ public class PNGDecoder extends Decoder {
         Inflater inf = inflater;
         do {
             if (inf.finished() || inf.needsDictionary()) {
-                throw new DecoderException("Not enough ZLIB data");
+                throw new DecoderException("Not enough ZLIB data, want " + dst.remaining() + " bytes more");
             }
             if (inf.needsInput()) {
                 while (chunkRemaining == 0) {
@@ -951,6 +1054,10 @@ public class PNGDecoder extends Decoder {
         } while (dst.hasRemaining());
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void close() {
         if (inflater != null) {
             inflater.end();

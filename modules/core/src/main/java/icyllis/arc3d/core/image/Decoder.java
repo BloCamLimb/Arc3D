@@ -31,10 +31,12 @@ import java.nio.channels.SeekableByteChannel;
 /**
  * Base class for image readers (and decoders) provided by Arc3D.
  * <p>
- * Most decoders support streaming, some may use seeking when available.
+ * Most decoders support streaming, some may make use of seeking when available.
+ * <p>
+ * Decoder instance can be reused for decoding multiple inputs for performance.
  */
 //PNG/JPEG/GIF/PNM/PAM/PFM/RADIANCE/OPENEXR/KTX2
-public abstract class Decoder {
+public abstract class Decoder implements AutoCloseable {
 
     // either
     protected InputStream stream;
@@ -184,6 +186,20 @@ public abstract class Decoder {
      */
     protected void unget() {
         buffer.position(buffer.position() - 1);
+    }
+
+    /**
+     * Releases any resources associated with this decoder instance.
+     * <p>
+     * This method MUST be invoked once the decoder is no longer required.
+     * Any subsequent interactions with this instance after invocation will result
+     * in undefined behavior.
+     * <p>
+     * This method only disposes of decoder-specific resources and will not close
+     * the input source (e.g., stream or channel).
+     */
+    @Override
+    public void close() {
     }
 
     protected static boolean isWS(byte b) {
