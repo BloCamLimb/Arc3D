@@ -169,6 +169,7 @@ public abstract sealed class ColorSpace permits XYZColorSpace, RGBColorSpace,
      * This illuminant has a color temperature of 5454K.
      */
     public static final float[] ILLUMINANT_E = {0.33333f, 0.33333f};
+    static final float[] ILLUMINANT_DCI = {0.314f, 0.351f};
 
     /**
      * The minimum ID value a color space can have.
@@ -212,8 +213,14 @@ public abstract sealed class ColorSpace permits XYZColorSpace, RGBColorSpace,
      */
     public static final int MODEL_CMYK = 9;
 
+    // BT709
     static final float[] SRGB_PRIMARIES = {0.640f, 0.330f, 0.300f, 0.600f, 0.150f, 0.060f};
+    // BT470M
     static final float[] NTSC_1953_PRIMARIES = {0.67f, 0.33f, 0.21f, 0.71f, 0.14f, 0.08f};
+    // BT601 625-line
+    static final float[] BT470_BG_PRIMARIES = {0.64f, 0.33f, 0.29f, 0.60f, 0.15f, 0.06f};
+    // BT601 525-line, SMPTE ST 170, SMPTE ST 240
+    static final float[] SMPTE_C_PRIMARIES = {0.630f, 0.340f, 0.310f, 0.595f, 0.155f, 0.070f};
     static final float[] DCI_P3_PRIMARIES =
             { 0.680f, 0.320f, 0.265f, 0.690f, 0.150f, 0.060f };
     static final float[] BT2020_PRIMARIES =

@@ -21,6 +21,7 @@ package icyllis.arc3d.core;
 
 import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -350,7 +351,7 @@ public final class ColorSpaces {
     public static final RGBColorSpace DCI_P3 = new RGBColorSpace(
             "SMPTE RP 431-2-2007 DCI (P3)",
             DCI_P3_PRIMARIES,
-            new float[]{0.314f, 0.351f},
+            ILLUMINANT_DCI,
             2.6,
             0.0f, 1.0f,
             6
@@ -510,7 +511,7 @@ public final class ColorSpaces {
      */
     public static final RGBColorSpace BT470_BG = new RGBColorSpace(
             "BT.470 B/G (PAL)",
-            new float[]{0.64f, 0.33f, 0.29f, 0.60f, 0.15f, 0.06f},
+            BT470_BG_PRIMARIES,
             ILLUMINANT_D65,
             null,
             TransferFunction.SMPTE_170M,
@@ -553,7 +554,7 @@ public final class ColorSpaces {
      */
     public static final RGBColorSpace SMPTE_C = new RGBColorSpace(
             "SMPTE-C RGB",
-            new float[]{0.630f, 0.340f, 0.310f, 0.595f, 0.155f, 0.070f},
+            SMPTE_C_PRIMARIES,
             ILLUMINANT_D65,
             null,
             TransferFunction.SMPTE_170M,
@@ -738,6 +739,21 @@ public final class ColorSpaces {
             16
     );
     /**
+     * <p>{@link ColorSpace#MODEL_XYZ XYZ} color space CIE XYZ. This color space assumes standard
+     * illuminant E as its white point.</p>
+     * <table summary="Color space definition">
+     *     <tr><th>Property</th><th colspan="4">Value</th></tr>
+     *     <tr><td>Name</td><td colspan="4">CIE 1931 XYZ (E)</td></tr>
+     *     <tr><td>CIE standard illuminant</td><td colspan="4">E</td></tr>
+     *     <tr><td>Range</td><td colspan="4">\([-2.0, 2.0]\)</td></tr>
+     * </table>
+     */
+    public static final ColorSpace CIE_XYZ_E = new XYZColorSpace(
+            "CIE 1931 XYZ (E)",
+            ILLUMINANT_E,
+            21
+    );
+    /**
      * <p>{@link ColorSpace#MODEL_LAB Lab} color space CIE L*a*b*. This color space uses CIE XYZ D50
      * as a profile conversion space.</p>
      * <table summary="Color space definition">
@@ -769,7 +785,198 @@ public final class ColorSpaces {
             17
     );
 
-    static final ColorSpace[] sNamedColorSpaces = new ColorSpace[21];
+    /**
+     * Try to return a ColorSpace for the given coding-independent code points
+     * for video signal type identification, from ITU-T H.273.
+     * <p>
+     * Defined constants can be found in {@link Color}.
+     * If the code points are reserved, or not supported by Arc3D, null is returned.
+     *
+     * @param primaries the color primaries code point
+     * @param transfer  the transfer characteristics code point
+     * @return a color space representing the CICP, or null if not supported
+     */
+    public static @Nullable ColorSpace fromCICP(int primaries, int transfer) {
+        float[] pri;
+        float[] wp;
+        switch (primaries) {
+            case Color.COLOR_PRIMARIES_BT709,
+                 Color.COLOR_PRIMARIES_UNSPECIFIED -> {
+                switch (transfer) {
+                    case Color.TRANSFER_FUNCTION_BT709,
+                         Color.TRANSFER_FUNCTION_UNSPECIFIED,
+                         Color.TRANSFER_FUNCTION_SMPTE170M,
+                         Color.TRANSFER_FUNCTION_BT2020_10BIT,
+                         Color.TRANSFER_FUNCTION_BT2020_12BIT -> {
+                        return BT709;
+                    }
+                    case Color.TRANSFER_FUNCTION_LINEAR -> {
+                        // there's no difference between non-extended and extended version
+                        return LINEAR_SRGB;
+                    }
+                    case Color.TRANSFER_FUNCTION_IEC61966_2_4 -> {
+                        // there's no difference between non-extended and extended version
+                        return BT709;
+                    }
+                    case Color.TRANSFER_FUNCTION_IEC61966_2_1 -> {
+                        // there's no difference between non-extended and extended version
+                        return SRGB;
+                    }
+                }
+
+                pri = SRGB_PRIMARIES;
+                wp = ILLUMINANT_D65;
+            }
+            case Color.COLOR_PRIMARIES_BT470M -> {
+                switch (transfer) {
+                    case Color.TRANSFER_FUNCTION_BT709,
+                         Color.TRANSFER_FUNCTION_UNSPECIFIED,
+                         Color.TRANSFER_FUNCTION_SMPTE170M,
+                         Color.TRANSFER_FUNCTION_BT2020_10BIT,
+                         Color.TRANSFER_FUNCTION_BT2020_12BIT -> {
+                        return NTSC_1953;
+                    }
+                    case Color.TRANSFER_FUNCTION_IEC61966_2_4 -> {
+                        // there's no difference between non-extended and extended version
+                        return NTSC_1953;
+                    }
+                }
+
+                pri = NTSC_1953_PRIMARIES;
+                wp = ILLUMINANT_C;
+            }
+            case Color.COLOR_PRIMARIES_BT470BG -> {
+                switch (transfer) {
+                    case Color.TRANSFER_FUNCTION_BT709,
+                         Color.TRANSFER_FUNCTION_UNSPECIFIED,
+                         Color.TRANSFER_FUNCTION_SMPTE170M,
+                         Color.TRANSFER_FUNCTION_BT2020_10BIT,
+                         Color.TRANSFER_FUNCTION_BT2020_12BIT -> {
+                        return BT470_BG;
+                    }
+                    case Color.TRANSFER_FUNCTION_IEC61966_2_4 -> {
+                        // there's no difference between non-extended and extended version
+                        return BT470_BG;
+                    }
+                }
+
+                pri = BT470_BG_PRIMARIES;
+                wp = ILLUMINANT_D65;
+            }
+            case Color.COLOR_PRIMARIES_SMPTE170M,
+                 Color.COLOR_PRIMARIES_SMPTE240M -> {
+                switch (transfer) {
+                    case Color.TRANSFER_FUNCTION_BT709,
+                         Color.TRANSFER_FUNCTION_UNSPECIFIED,
+                         Color.TRANSFER_FUNCTION_SMPTE170M,
+                         Color.TRANSFER_FUNCTION_BT2020_10BIT,
+                         Color.TRANSFER_FUNCTION_BT2020_12BIT -> {
+                        return SMPTE_C;
+                    }
+                    case Color.TRANSFER_FUNCTION_IEC61966_2_4 -> {
+                        // there's no difference between non-extended and extended version
+                        return SMPTE_C;
+                    }
+                }
+
+                pri = SMPTE_C_PRIMARIES;
+                wp = ILLUMINANT_D65;
+            }
+            case Color.COLOR_PRIMARIES_GENERIC_FILM -> {
+
+                pri = new float[]{0.681f, 0.319f, 0.243f, 0.692f, 0.145f, 0.049f};
+                wp = ILLUMINANT_C;
+            }
+            case Color.COLOR_PRIMARIES_BT2020 -> {
+                switch (transfer) {
+                    case Color.TRANSFER_FUNCTION_BT709,
+                         Color.TRANSFER_FUNCTION_UNSPECIFIED,
+                         Color.TRANSFER_FUNCTION_SMPTE170M,
+                         Color.TRANSFER_FUNCTION_BT2020_10BIT,
+                         Color.TRANSFER_FUNCTION_BT2020_12BIT -> {
+                        return BT2020;
+                    }
+                    case Color.TRANSFER_FUNCTION_LINEAR -> {
+                        // there's no difference between non-extended and extended version
+                        return LINEAR_BT2020;
+                    }
+                    case Color.TRANSFER_FUNCTION_IEC61966_2_4 -> {
+                        // there's no difference between non-extended and extended version
+                        return BT2020;
+                    }
+                }
+
+                pri = BT2020_PRIMARIES;
+                wp = ILLUMINANT_D65;
+            }
+            case Color.COLOR_PRIMARIES_SMPTE428 -> {
+                if (transfer == Color.TRANSFER_FUNCTION_LINEAR) {
+                    return CIE_XYZ_E;
+                }
+
+                pri = new float[]{1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f};
+                wp = ILLUMINANT_E;
+            }
+            case Color.COLOR_PRIMARIES_SMPTE431 -> {
+                if (transfer == Color.TRANSFER_FUNCTION_SMPTE428) {
+                    return DCI_P3;
+                }
+
+                pri = DCI_P3_PRIMARIES;
+                wp = ILLUMINANT_DCI;
+            }
+            case Color.COLOR_PRIMARIES_SMPTE432 -> {
+                switch (transfer) {
+                    case Color.TRANSFER_FUNCTION_LINEAR -> {
+                        // there's no difference between non-extended and extended version
+                        return LINEAR_DISPLAY_P3;
+                    }
+                    case Color.TRANSFER_FUNCTION_IEC61966_2_1 -> {
+                        // there's no difference between non-extended and extended version
+                        return DISPLAY_P3;
+                    }
+                }
+
+                pri = DCI_P3_PRIMARIES;
+                wp = ILLUMINANT_D65;
+            }
+            case Color.COLOR_PRIMARIES_EBU3213 -> {
+
+                pri = new float[]{0.630f, 0.340f, 0.295f, 0.605f, 0.155f, 0.077f};
+                wp = ILLUMINANT_D65;
+            }
+            default -> {
+                return null;
+            }
+        }
+
+        TransferFunction tf = TransferFunction.fromCICP(transfer);
+        if (tf == null) {
+            return null;
+        }
+
+        if (primaries == Color.COLOR_PRIMARIES_SMPTE428) {
+            // special case XYZ
+            return new RGBColorSpace(
+                    "Generic XYZ",
+                    pri,
+                    wp,
+                    new float[]{
+                            1.0f, 0.0f, 0.0f,
+                            0.0f, 1.0f, 0.0f,
+                            0.0f, 0.0f, 1.0f
+                    },
+                    -2.0f, 2.0f,
+                    tf, MIN_ID
+            );
+        }
+
+        //TODO range and name
+        return new RGBColorSpace("Generic RGB",
+                pri, wp, tf);
+    }
+
+    static final ColorSpace[] sNamedColorSpaces = new ColorSpace[22];
 
     static {
         sNamedColorSpaces[SRGB.getId()] = SRGB;
@@ -791,6 +998,7 @@ public final class ColorSpaces {
         sNamedColorSpaces[ACESCG.getId()] = ACESCG;
         sNamedColorSpaces[CIE_XYZ_D50.getId()] = CIE_XYZ_D50;
         sNamedColorSpaces[CIE_XYZ_D65.getId()] = CIE_XYZ_D65;
+        sNamedColorSpaces[CIE_XYZ_E.getId()] = CIE_XYZ_E;
         sNamedColorSpaces[CIE_LAB.getId()] = CIE_LAB;
         sNamedColorSpaces[OK_LAB.getId()] = OK_LAB;
     }

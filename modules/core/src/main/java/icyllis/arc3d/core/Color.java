@@ -101,6 +101,62 @@ public final class Color {
     public static final int MAGENTA = 0xFFFF00FF;
 
     /**
+     * Chromaticity coordinates of the source primaries.
+     * These values match the ones defined by ISO/IEC 23091-2_2019 subclause 8.1 and ITU-T H.273
+     * (Coding-independent code points for video signal type identification).
+     *
+     * @see <a href="https://www.itu.int/rec/T-REC-H.273">ITU-T H.273</a>
+     */
+    //@formatter:off
+    public static final int
+            // Value 0 is reserved.
+            COLOR_PRIMARIES_BT709        = 1,  // ITU-R BT1361 / IEC 61966-2-4 / SMPTE RP 177 Annex B
+            COLOR_PRIMARIES_UNSPECIFIED  = 2,
+            // Value 3 is reserved.
+            COLOR_PRIMARIES_BT470M       = 4,
+            COLOR_PRIMARIES_BT470BG      = 5,  // ITU-R BT601-6 625 / ITU-R BT1358 625 / ITU-R BT1700 625 PAL & SECAM
+            COLOR_PRIMARIES_SMPTE170M    = 6,  // ITU-R BT601-6 525 / ITU-R BT1358 525 / ITU-R BT1700 NTSC
+            COLOR_PRIMARIES_SMPTE240M    = 7,
+            COLOR_PRIMARIES_GENERIC_FILM = 8,
+            COLOR_PRIMARIES_BT2020       = 9,
+            COLOR_PRIMARIES_SMPTE428     = 10, // SMPTE ST 428-1 (CIE 1931 XYZ)
+            COLOR_PRIMARIES_SMPTE431     = 11, // SMPTE ST 431-2 (2011) / DCI P3
+            COLOR_PRIMARIES_SMPTE432     = 12, // SMPTE ST 432-1 (2010) / P3 D65 / Display P3
+            // Values 13-21 are reserved.
+            COLOR_PRIMARIES_EBU3213      = 22;
+    //@formatter:on
+
+    /**
+     * Color Transfer Characteristic.
+     * These values match the ones defined by ISO/IEC 23091-2_2019 subclause 8.2.
+     */
+    //@formatter:off
+    public static final int
+            // Value 0 is reserved.
+            TRANSFER_FUNCTION_BT709        = 1,
+            TRANSFER_FUNCTION_UNSPECIFIED  = 2,
+            // Value 3 is reserved.
+            TRANSFER_FUNCTION_BT470M       = 4,  // ITU-R BT470M / ITU-R BT1700 625 PAL & SECAM, gamma 2.2
+            TRANSFER_FUNCTION_BT470BG      = 5,  // ITU-R BT470BG, gamma 2.8
+            TRANSFER_FUNCTION_SMPTE170M    = 6,  // ITU-R BT601-6 525 or 625 / ITU-R BT1358 525 or 625 / ITU-R BT1700 NTSC
+            TRANSFER_FUNCTION_SMPTE240M    = 7,
+            TRANSFER_FUNCTION_LINEAR       = 8,  // "Linear transfer characteristics"
+            TRANSFER_FUNCTION_LOG          = 9,  // "Logarithmic transfer characteristic (100:1 range)"
+            TRANSFER_FUNCTION_LOG_SQRT     = 10, // "Logarithmic transfer characteristic (100 * Sqrt(10) : 1 range)"
+            TRANSFER_FUNCTION_IEC61966_2_4 = 11, // IEC 61966-2-4
+            TRANSFER_FUNCTION_BT1361_ECG   = 12, // ITU-R BT1361 Extended Colour Gamut
+            TRANSFER_FUNCTION_IEC61966_2_1 = 13, // IEC 61966-2-1 (sRGB or sYCC)
+            TRANSFER_FUNCTION_BT2020_10BIT = 14, // ITU-R BT2020 for 10-bit system
+            TRANSFER_FUNCTION_BT2020_12BIT = 15, // ITU-R BT2020 for 12-bit system
+            TRANSFER_FUNCTION_SMPTE2084    = 16, // SMPTE ST 2084, known as "Perceptual quantization"
+            TRANSFER_FUNCTION_SMPTE428     = 17, // SMPTE ST 428-1
+            TRANSFER_FUNCTION_ARIB_STD_B67 = 18; // ARIB STD-B67, known as "Hybrid log-gamma"
+    //@formatter:on
+
+    public static final int
+            MATRIX_COEFFICIENTS_IDENTITY = 0;
+
+    /**
      * Return the alpha component of a color int. This is the same as saying
      * color >>> 24
      */

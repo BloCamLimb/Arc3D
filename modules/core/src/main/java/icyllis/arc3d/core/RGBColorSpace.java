@@ -410,16 +410,8 @@ public non-sealed class RGBColorSpace extends ColorSpace {
             @NonNull TransferFunction function,
             @Range(from = MIN_ID, to = MAX_ID) int id) {
         this(name, primaries, whitePoint, transform,
-                function.e == 0.0 && function.f == 0.0 ?
-                        x -> absRcpResponse(x, function.a, function.b,
-                                function.c, function.d, function.g) :
-                        x -> absRcpResponse(x, function.a, function.b, function.c,
-                                function.d, function.e, function.f, function.g),
-                function.e == 0.0 && function.f == 0.0 ?
-                        x -> absResponse(x, function.a, function.b,
-                                function.c, function.d, function.g) :
-                        x -> absResponse(x, function.a, function.b, function.c,
-                                function.d, function.e, function.f, function.g),
+                computeOETF(function),
+                computeEOTF(function),
                 min, max, function, id);
     }
 
@@ -1602,5 +1594,39 @@ public non-sealed class RGBColorSpace extends ColorSpace {
                 GYGy * Gx, GY, GYGy * (1 - Gx - Gy),
                 BYBy * Bx, BY, BYBy * (1 - Bx - By)
         };
+    }
+
+    public static @NonNull DoubleUnaryOperator computeOETF(@NonNull TransferFunction function) {
+        if (function.e == 0.0 && function.f == 0.0) {
+            if (function.a == 1.0 && function.b == 0.0 &&
+                    function.c == 0.0 && function.d == 0.0) {
+                if (function.g == 1.0) {
+                    return DoubleUnaryOperator.identity();
+                }
+                double gamma = function.g;
+                return x -> absRcpResponse(x, gamma);
+            }
+            return x -> absRcpResponse(x, function.a, function.b,
+                    function.c, function.d, function.g);
+        }
+        return x -> absRcpResponse(x, function.a, function.b, function.c,
+                function.d, function.e, function.f, function.g);
+    }
+
+    public static @NonNull DoubleUnaryOperator computeEOTF(@NonNull TransferFunction function) {
+        if (function.e == 0.0 && function.f == 0.0) {
+            if (function.a == 1.0 && function.b == 0.0 &&
+                    function.c == 0.0 && function.d == 0.0) {
+                if (function.g == 1.0) {
+                    return DoubleUnaryOperator.identity();
+                }
+                double gamma = function.g;
+                return x -> absResponse(x, gamma);
+            }
+            return x -> absResponse(x, function.a, function.b,
+                    function.c, function.d, function.g);
+        }
+        return x -> absResponse(x, function.a, function.b, function.c,
+                function.d, function.e, function.f, function.g);
     }
 }

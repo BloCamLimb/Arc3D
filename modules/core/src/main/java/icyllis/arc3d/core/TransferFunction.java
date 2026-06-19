@@ -19,6 +19,9 @@
 
 package icyllis.arc3d.core;
 
+import org.jetbrains.annotations.Contract;
+import org.jspecify.annotations.Nullable;
+
 /**
  * {@usesMathJax}
  *
@@ -61,6 +64,66 @@ public class TransferFunction {
             new TransferFunction(1.0, 0.0, 0.0, 0.0, 2.6);
     public static final TransferFunction GAMMA_2_8 =
             new TransferFunction(1.0, 0.0, 0.0, 0.0, 2.8);
+
+    @Contract(pure = true)
+    public static @Nullable TransferFunction fromCICP(int transfer) {
+        TransferFunction tf;
+        switch (transfer) {
+            case Color.TRANSFER_FUNCTION_BT709,
+                 Color.TRANSFER_FUNCTION_UNSPECIFIED,
+                 Color.TRANSFER_FUNCTION_SMPTE170M,
+                 Color.TRANSFER_FUNCTION_BT2020_10BIT,
+                 Color.TRANSFER_FUNCTION_BT2020_12BIT -> {
+                tf = SMPTE_170M;
+            }
+            case Color.TRANSFER_FUNCTION_BT470M -> {
+                tf = GAMMA_2_2;
+            }
+            case Color.TRANSFER_FUNCTION_BT470BG -> {
+                tf = GAMMA_2_8;
+            }
+            case Color.TRANSFER_FUNCTION_SMPTE240M -> {
+                tf = SMPTE_240M;
+            }
+            case Color.TRANSFER_FUNCTION_LINEAR -> {
+                // there's no difference between non-extended and extended version
+                tf = LINEAR;
+            }
+            case Color.TRANSFER_FUNCTION_LOG,
+                 Color.TRANSFER_FUNCTION_LOG_SQRT -> {
+                // no support
+                return null;
+            }
+            case Color.TRANSFER_FUNCTION_IEC61966_2_4 -> {
+                // there's no difference between non-extended and extended version
+                tf = SMPTE_170M;
+            }
+            case Color.TRANSFER_FUNCTION_BT1361_ECG -> {
+                // this is deprecated in favor of IEC 61966-2-4
+                // we don't support it as well...
+                return null;
+            }
+            case Color.TRANSFER_FUNCTION_IEC61966_2_1 -> {
+                tf = SRGB;
+            }
+            case Color.TRANSFER_FUNCTION_SMPTE2084 -> {
+                //TODO PQ
+                return null;
+            }
+            case Color.TRANSFER_FUNCTION_SMPTE428 -> {
+                // there's scaling coefficient we don't care
+                tf = GAMMA_2_6;
+            }
+            case Color.TRANSFER_FUNCTION_ARIB_STD_B67 -> {
+                //TODO HLG
+                return null;
+            }
+            default -> {
+                return null;
+            }
+        }
+        return tf;
+    }
 
     /**
      * Variable \(a\) in the equation of the EOTF described above.
