@@ -25,6 +25,7 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.function.Function;
 
@@ -88,7 +89,7 @@ public class PNGMetadata {
     // iCCP chunk
     public String iCCP_profileName;
     public int iCCP_compressionMethod;
-    public byte[] iCCP_compressedProfile;
+    public byte[] iCCP_profile;
 
     // sBIT chunk
     public int sBIT_grayBits;
@@ -183,15 +184,15 @@ public class PNGMetadata {
 
     public void checkIHDR(Function<String, ? extends IOException> ex) throws IOException {
         if (IHDR_width <= 0) {
-            throw ex.apply("Image width <= 0!");
+            throw ex.apply("Invalid image width: " + IHDR_width);
         }
         if (IHDR_height <= 0) {
-            throw ex.apply("Image height <= 0!");
+            throw ex.apply("Invalid image height: " + IHDR_height);
         }
         int bitDepth = IHDR_bitDepth;
         if (bitDepth != 1 && bitDepth != 2 && bitDepth != 4 &&
                 bitDepth != 8 && bitDepth != 16) {
-            throw ex.apply("Bit depth must be 1, 2, 4, 8, or 16!");
+            throw ex.apply("Bit depth must be 1, 2, 4, 8, or 16, found: " + bitDepth);
         }
         int colorType = IHDR_colorType;
         if (colorType != COLOR_TYPE_GRAYSCALE &&
@@ -199,7 +200,7 @@ public class PNGMetadata {
                 colorType != COLOR_TYPE_PALETTE &&
                 colorType != COLOR_TYPE_GRAY_ALPHA &&
                 colorType != COLOR_TYPE_RGB_ALPHA) {
-            throw ex.apply("Color type must be 0, 2, 3, 4, or 6!");
+            throw ex.apply("Color type must be 0, 2, 3, 4, or 6, found: " + colorType);
         }
         if (colorType == COLOR_TYPE_PALETTE && bitDepth == 16) {
             throw ex.apply("Bad color type/bit depth combination!");
@@ -211,20 +212,20 @@ public class PNGMetadata {
             throw ex.apply("Bad color type/bit depth combination!");
         }
         if (IHDR_compressionMethod != COMPRESSION_METHOD_DEFLATE) {
-            throw ex.apply("Unknown compression method (not 0)!");
+            throw ex.apply("Unknown compression method: " + IHDR_compressionMethod + " (not 0)");
         }
         if (IHDR_filterMethod != FILTER_METHOD_ADAPTIVE) {
-            throw ex.apply("Unknown filter method (not 0)!");
+            throw ex.apply("Unknown filter method: " + IHDR_filterMethod + " (not 0)");
         }
         if (IHDR_interlaceMethod != INTERLACE_METHOD_NONE && IHDR_interlaceMethod != INTERLACE_METHOD_ADAM7) {
-            throw ex.apply("Unknown interlace method (not 0 or 1)!");
+            throw ex.apply("Unknown interlace method: " + IHDR_interlaceMethod + " (not 0 or 1)");
         }
     }
 
     public void checkPLTE(int numEntries, Function<String, ? extends IOException> ex) throws IOException {
         if (numEntries <= 0 ||
                 numEntries > 256) {
-            throw ex.apply("Invalid number of palette entries " + numEntries);
+            throw ex.apply("Invalid number of palette entries: " + numEntries);
         }
 
         if (IHDR_colorType == COLOR_TYPE_PALETTE) {

@@ -42,4 +42,17 @@ public class Text {
     public String languageTag = "";
     public String translatedKeyword = "";
     public String text = "";
+
+    @Override
+    public String toString() {
+        return "Text{" +
+                "type=0x" + Integer.toHexString(type) +
+                ", keyword='" + keyword + '\'' +
+                ", compressionFlag=" + compressionFlag +
+                ", compressionMethod=" + compressionMethod +
+                ", languageTag='" + languageTag + '\'' +
+                ", translatedKeyword='" + translatedKeyword + '\'' +
+                ", text='" + text + '\'' +
+                '}';
+    }
 }

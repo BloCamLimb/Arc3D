@@ -84,7 +84,7 @@ public final class PNG {
     public static final int FILTER_TYPE_PAETH = 4;
 
     // Compression methods
-    public static final int COMPRESSION_METHOD_DEFLATE = 0;
+    public static final int COMPRESSION_METHOD_DEFLATE = 0; // zlib format
 
     // Critical chunks
     public static final int IHDR_TYPE = 0x49484452;
@@ -124,6 +124,69 @@ public final class PNG {
     public static boolean isCriticalChunk(int chunkType) {
         return (chunkType & (1 << (5 + 24))) == 0;
     }
+
+    public static boolean isSafeToCopyChunk(int chunkType) {
+        return (chunkType & (1 << 5)) != 0;
+    }
+
+    /**
+     * Short title or caption for the image.
+     */
+    public static final String TITLE_KEYWORD = "Title";
+    /**
+     * Name of the image creator.
+     */
+    public static final String AUTHOR_KEYWORD = "Author";
+    /**
+     * Description of the image.
+     */
+    public static final String DESCRIPTION_KEYWORD = "Description";
+    /**
+     * Copyright notice associated with the image.
+     */
+    public static final String COPYRIGHT_KEYWORD = "Copyright";
+    /**
+     * Time when the original image was created.
+     * <p>
+     * The date format SHOULD be in the RFC 3339 date-time format or in the
+     * date format defined in section 5.2.14 of RFC 1123.
+     * The RFC3339 date-time format is preferred.
+     */
+    public static final String CREATION_TIME_KEYWORD = "Creation Time";
+    /**
+     * Software used to create the image.
+     */
+    public static final String SOFTWARE_KEYWORD = "Software";
+    /**
+     * Legal disclaimer associated with the image.
+     */
+    public static final String DISCLAIMER_KEYWORD = "Disclaimer";
+    /**
+     * Warning regarding the nature or content of the image.
+     */
+    public static final String WARNING_KEYWORD = "Warning";
+    /**
+     * Device or source used to create the image.
+     */
+    public static final String SOURCE_KEYWORD = "Source";
+    /**
+     * Miscellaneous comment associated with the image.
+     */
+    public static final String COMMENT_KEYWORD = "Comment";
+    /**
+     * Extensible Metadata Platform (XMP) information encoded according
+     * to the XMP specification.
+     * <p>
+     * The use of iTXt, with Compression Flag set to 0, and both
+     * Language Tag and Translated Keyword set to the null string,
+     * are recommended for XMP compliance.
+     */
+    public static final String XMP_KEYWORD = "XML:com.adobe.xmp";
+    /**
+     * Name of a collection to which the image belongs.
+     * Multiple collection names may be stored using separate text chunks.
+     */
+    public static final String COLLECTION_KEYWORD = "Collection";
 
     private PNG() {
     }

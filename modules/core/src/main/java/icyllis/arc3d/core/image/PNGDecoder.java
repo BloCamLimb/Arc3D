@@ -18,6 +18,7 @@
  */
 
 package icyllis.arc3d.core.image;
+
 import icyllis.arc3d.core.ColorInfo;
 import icyllis.arc3d.core.ColorSpaces;
 import icyllis.arc3d.core.ContentLightLevelInformation;
@@ -31,14 +32,17 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
 
-import static icyllis.arc3d.core.image.PNG.*;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
+
+import static icyllis.arc3d.core.image.PNG.*;
 
 /**
  * <a href="https://www.w3.org/TR/2025/REC-png-3-20250624/">Portable Network Graphics (PNG) Specification (Third Edition)</a>
@@ -145,12 +149,12 @@ public class PNGDecoder extends Decoder {
         stage = STAGE_TOP;
 
         int IHDR_length = readInt();
-        if (IHDR_length != 13) {
-            throw new DecoderException("Bad length for IHDR chunk!");
-        }
         int IHDR_type = readInt();
         if (IHDR_type != IHDR_TYPE) {
-            throw new DecoderException("Bad type for IHDR chunk!");
+            throw new DecoderException("First chunk must be IHDR!");
+        }
+        if (IHDR_length != 13) {
+            throw new DecoderException("Invalid IHDR chunk length");
         }
 
         int width = readInt();
@@ -162,7 +166,6 @@ public class PNGDecoder extends Decoder {
         int filterMethod      = nextRawByte() & 0xFF;
         int interlaceMethod   = nextRawByte() & 0xFF;
 
-        metadata.set(PNGMetadata.CHUNK_IHDR);
         metadata.IHDR_width = width;
         metadata.IHDR_height = height;
         metadata.IHDR_bitDepth = bitDepth;
@@ -172,6 +175,7 @@ public class PNGDecoder extends Decoder {
         metadata.IHDR_interlaceMethod = interlaceMethod;
 
         metadata.checkIHDR(DecoderException::new);
+        metadata.set(PNGMetadata.CHUNK_IHDR);
 
         stage = STAGE_IHDR;
     }
@@ -415,6 +419,42 @@ public class PNGDecoder extends Decoder {
                 metadata.set(PNGMetadata.CHUNK_gAMA);
                 metadata.gAMA_gamma = readInt();
 
+            } else if (chunkType == iCCP_TYPE) {
+                if (metadata.any(PNGMetadata.CHUNK_PLTE)
+                        || stage >= STAGE_FIRST_IDAT) {
+                    throw new DecoderException("iCCP must appear before PLTE and IDAT");
+                }
+                if (metadata.any(PNGMetadata.CHUNK_iCCP)) {
+                    throw new DecoderException("Duplicate iCCP");
+                }
+                if (chunkLength == 0) {
+                    throw new DecoderException("Invalid iCCP chunk length");
+                }
+
+                String profileName = readKeyword("ICC profile name");
+
+                if (chunkRemaining == 0) {
+                    throw new DecoderException("Invalid iCCP chunk length");
+                }
+
+                int compressionMethod = nextRawByte() & 0xFF;
+                chunkRemaining--;
+                if (compressionMethod != COMPRESSION_METHOD_DEFLATE) {
+                    throw new DecoderException("Unknown iCCP compression method");
+                }
+
+                ByteBuffer uncompressedData = readCompressedData("iCCP");
+                byte[] data = uncompressedData.array();
+                // trim the array
+                if (uncompressedData.limit() < uncompressedData.capacity()) {
+                    data = Arrays.copyOf(data, uncompressedData.limit());
+                }
+
+                metadata.iCCP_profileName = profileName;
+                metadata.iCCP_compressionMethod = compressionMethod;
+                metadata.iCCP_profile = data;
+                metadata.set(PNGMetadata.CHUNK_iCCP);
+
             } else if (chunkType == sBIT_TYPE) {
                 if (metadata.any(PNGMetadata.CHUNK_PLTE)
                         || stage >= STAGE_FIRST_IDAT) {
@@ -469,9 +509,6 @@ public class PNGDecoder extends Decoder {
                 if (metadata.any(PNGMetadata.CHUNK_sRGB)) {
                     throw new DecoderException("Duplicate sRGB");
                 }
-                if (metadata.any(PNGMetadata.CHUNK_cICP)) {
-                    throw new DecoderException("sRGB and cICP cannot appear at the same time");
-                }
 
                 if (chunkLength != 1) {
                     throw new DecoderException("Invalid sRGB chunk length");
@@ -489,9 +526,6 @@ public class PNGDecoder extends Decoder {
                 }
                 if (metadata.any(PNGMetadata.CHUNK_cICP)) {
                     throw new DecoderException("Duplicate cICP");
-                }
-                if (metadata.any(PNGMetadata.CHUNK_sRGB)) {
-                    throw new DecoderException("sRGB and cICP cannot appear at the same time");
                 }
 
                 if (chunkLength != 4) {
@@ -550,8 +584,112 @@ public class PNGDecoder extends Decoder {
                 metadata.cLLI = new ContentLightLevelInformation(maxCLL, maxFALL);
                 metadata.set(PNGMetadata.CHUNK_cLLI);
 
+            } else if (chunkType == tEXt_TYPE) {
+                if (chunkLength == 0) {
+                    throw new DecoderException("Invalid tEXt chunk length");
+                }
+
+                String keyword = readKeyword("tEXt keyword");
+
+                String value = "";
+                if (chunkRemaining > 0) {
+                    byte[] bytes = new byte[chunkRemaining];
+                    readFully(ByteBuffer.wrap(bytes));
+                    value = new String(bytes, StandardCharsets.ISO_8859_1);
+                }
+
+                Text text = new Text();
+                text.type = tEXt_TYPE;
+                text.keyword = keyword;
+                text.text = value;
+
+                metadata.texts.add(text);
+
+            } else if (chunkType == zTXt_TYPE) {
+                if (chunkLength == 0) {
+                    throw new DecoderException("Invalid zTXt chunk length");
+                }
+
+                String keyword = readKeyword("zTXt keyword");
+
+                if (chunkRemaining == 0) {
+                    throw new DecoderException("Invalid zTXt chunk length");
+                }
+
+                int compressionMethod = nextRawByte() & 0xFF;
+                chunkRemaining--;
+                if (compressionMethod != COMPRESSION_METHOD_DEFLATE) {
+                    throw new DecoderException("Unknown zTXt compression method");
+                }
+
+                ByteBuffer uncompressedData = readCompressedData("zTXt");
+
+                Text text = new Text();
+                text.type = zTXt_TYPE;
+                text.keyword = keyword;
+                text.compressionFlag = true;
+                text.compressionMethod = compressionMethod;
+                text.text = new String(uncompressedData.array(),
+                        0, uncompressedData.limit(), StandardCharsets.ISO_8859_1);
+
+                metadata.texts.add(text);
+
+            } else if (chunkType == iTXt_TYPE) {
+                if (chunkLength == 0) {
+                    throw new DecoderException("Invalid iTXt chunk length");
+                }
+
+                String keyword = readKeyword("iTXt keyword");
+
+                if (chunkRemaining < 2) {
+                    throw new DecoderException("Invalid iTXt chunk length");
+                }
+
+                boolean compressionFlag = nextRawByte() != 0;
+                int compressionMethod = nextRawByte() & 0xFF;
+                chunkRemaining -= 2;
+                if (compressionMethod != COMPRESSION_METHOD_DEFLATE) {
+                    throw new DecoderException("Unknown zTXt compression method");
+                }
+
+                if (chunkRemaining == 0) {
+                    throw new DecoderException("Invalid iTXt chunk length");
+                }
+
+                String languageTag = readString(StandardCharsets.ISO_8859_1);
+
+                if (chunkRemaining == 0) {
+                    throw new DecoderException("Invalid iTXt chunk length");
+                }
+
+                String translatedKeyword = readString(StandardCharsets.UTF_8);
+
+                String value = "";
+                if (chunkRemaining > 0) {
+                    if (compressionFlag) {
+                        ByteBuffer uncompressedData = readCompressedData("iTXt");
+                        value = new String(uncompressedData.array(),
+                                0, uncompressedData.limit(), StandardCharsets.UTF_8);
+                    } else {
+                        byte[] bytes = new byte[chunkRemaining];
+                        readFully(ByteBuffer.wrap(bytes));
+                        value = new String(bytes, StandardCharsets.UTF_8);
+                    }
+                }
+
+                Text text = new Text();
+                text.type = iTXt_TYPE;
+                text.keyword = keyword;
+                text.compressionFlag = compressionFlag;
+                text.compressionMethod = compressionMethod;
+                text.languageTag = languageTag;
+                text.translatedKeyword = translatedKeyword;
+                text.text = value;
+
+                metadata.texts.add(text);
+
             } else {
-                skip(chunkLength);
+                skip(chunkRemaining);
             }
 
             chunkRemaining = 0;
@@ -1052,6 +1190,124 @@ public class PNGDecoder extends Decoder {
                 throw new DecoderException("Invalid ZLIB data: " + e.getMessage());
             }
         } while (dst.hasRemaining());
+    }
+
+    // Keywords shall contain only printable Latin-1 [ISO_8859-1] characters and
+    // spaces; that is, only code points 0x20-7E and 0xA1-FF are allowed.
+    // To reduce the chances for human misreading of a keyword, leading spaces,
+    // trailing spaces, and consecutive spaces are not permitted in keywords,
+    // nor is U+00A0 NON-BREAKING SPACE since it is visually indistinguishable
+    // from an ordinary space.
+    private @NonNull String readKeyword(String what) throws IOException {
+        byte[] name = new byte[80];
+        int nameLen = 0; // with NUL terminator
+        int nameLimit = Math.min(80, chunkRemaining);
+        boolean nullTerminated = false;
+        while (nameLen < nameLimit) {
+            byte b = nextRawByte();
+            if (b == 0) {
+                nameLen++;
+                nullTerminated = true;
+                break;
+            } else {
+                int c = b & 0xFF;
+                if (c >= 0x20 && c <= 0x7E || c >= 0xA1) {
+                    name[nameLen++] = b;
+                } else {
+                    throw new DecoderException("Invalid character in " + what + ": 0x" + hex(b));
+                }
+            }
+        }
+        chunkRemaining -= nameLen;
+        if (nameLen <= 1 || !nullTerminated) {
+            throw new DecoderException("Invalid " + what + " length: " + (nameLen <= 1 ? "zero" : "greater than 79"));
+        }
+
+        String str = new String(name, 0, nameLen - 1, StandardCharsets.ISO_8859_1);
+        if (str.startsWith(" ") || str.endsWith(" ") || str.contains("  ")) {
+            throw new DecoderException("Leading spaces, trailing spaces, and consecutive spaces are not allowed in " + what);
+        }
+        return str;
+    }
+
+    private @NonNull String readString(Charset charset) throws IOException {
+        byte[] name = new byte[64];
+        int nameLen = 0; // with NUL terminator
+        int nameLimit = chunkRemaining;
+        while (nameLen < nameLimit) {
+            byte b = nextRawByte();
+            if (b == 0) {
+                nameLen++;
+                break;
+            } else {
+                if (nameLen + 1 >= name.length) {
+                    if (name.length >= Integer.MAX_VALUE / 2) {
+                        throw new DecoderException("String data is too big, failed to allocate buffer");
+                    }
+                    name = Arrays.copyOf(name, name.length * 2);
+                }
+                name[nameLen++] = b;
+            }
+        }
+        chunkRemaining -= nameLen;
+        if (nameLen <= 1) {
+            return "";
+        }
+
+        return new String(name, 0, nameLen - 1, charset);
+    }
+
+    private @NonNull ByteBuffer readCompressedData(String what) throws IOException {
+        if (inflater == null) {
+            inflater = new Inflater();
+        } else {
+            inflater.reset();
+        }
+
+        ByteBuffer dst = ByteBuffer.allocate(512);
+
+        Inflater inf = inflater;
+        while (!inf.finished() && !inf.needsDictionary()) {
+            if (inf.needsInput()) {
+                if (chunkRemaining == 0) {
+                    throw new DecoderException("Not enough compressed data in " + what);
+                }
+                if (!buffer.hasRemaining()) {
+                    refill();
+                }
+                int len = Math.min(buffer.remaining(), chunkRemaining);
+                int bufPos = buffer.position();
+                inf.setInput(buffer.slice(bufPos, len));
+                buffer.position(bufPos + len);
+                chunkRemaining -= len;
+            }
+            if (!dst.hasRemaining()) {
+                if (dst.capacity() >= Integer.MAX_VALUE / 2) {
+                    throw new DecoderException("Inflated chunk data is too big, failed to allocate buffer");
+                }
+                ByteBuffer newDst =
+                        ByteBuffer.allocate(dst.capacity() + (dst.capacity() >> 1));
+                dst.flip();
+                newDst.put(dst);
+                dst = newDst;
+            }
+            try {
+                inf.inflate(dst);
+            } catch (DataFormatException e) {
+                throw new DecoderException("Invalid ZLIB data: " + e.getMessage());
+            }
+        }
+
+        if (!inf.finished()) {
+            throw new DecoderException("ZLIB stream not finished");
+        }
+        inf.reset();
+
+        if (chunkRemaining > 0) {
+            throw new DecoderException("Chunk not finished after compressed data");
+        }
+
+        return dst.flip();
     }
 
     /**
