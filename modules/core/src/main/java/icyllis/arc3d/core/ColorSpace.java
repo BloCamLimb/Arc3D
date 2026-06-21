@@ -168,7 +168,7 @@ public abstract sealed class ColorSpace permits XYZColorSpace, RGBColorSpace,
      * Standard CIE 1931 2° illuminant E, encoded in xyY.
      * This illuminant has a color temperature of 5454K.
      */
-    public static final float[] ILLUMINANT_E = {0.33333f, 0.33333f};
+    public static final float[] ILLUMINANT_E = {1/3f, 1/3f};
     static final float[] ILLUMINANT_DCI = {0.314f, 0.351f};
 
     /**
@@ -664,66 +664,6 @@ public abstract sealed class ColorSpace permits XYZColorSpace, RGBColorSpace,
         return mName + " (id=" + mId + ", model=" + mModel + ")";
     }
 
-
-    // Reciprocal piecewise gamma response
-    public static double rcpResponse(double x, double a, double b, double c, double d, double g) {
-        return x >= d * c ? (Math.pow(x, 1.0 / g) - b) / a : x / c;
-    }
-
-    // Piecewise gamma response
-    public static double response(double x, double a, double b, double c, double d, double g) {
-        return x >= d ? Math.pow(a * x + b, g) : c * x;
-    }
-
-    // Reciprocal piecewise gamma response
-    public static double rcpResponse(double x, double a, double b, double c, double d,
-                                      double e, double f, double g) {
-        return x >= d * c ? (Math.pow(x - e, 1.0 / g) - b) / a : (x - f) / c;
-    }
-
-    // Piecewise gamma response
-    public static double response(double x, double a, double b, double c, double d,
-                                   double e, double f, double g) {
-        return x >= d ? Math.pow(a * x + b, g) + e : c * x + f;
-    }
-
-    // Reciprocal piecewise gamma response, encoded as sign(x).f(abs(x)) for color
-    // spaces that allow negative values
-    public static double absRcpResponse(double x, double g) {
-        return Math.copySign(Math.pow(x < 0.0 ? -x : x, 1.0 / g), x);
-    }
-
-    // Piecewise gamma response, encoded as sign(x).f(abs(x)) for color spaces that
-    // allow negative values
-    public static double absResponse(double x, double g) {
-        return Math.copySign(Math.pow(x < 0.0 ? -x : x, g), x);
-    }
-
-    // Reciprocal piecewise gamma response, encoded as sign(x).f(abs(x)) for color
-    // spaces that allow negative values
-    public static double absRcpResponse(double x, double a, double b, double c, double d, double g) {
-        return Math.copySign(rcpResponse(x < 0.0 ? -x : x, a, b, c, d, g), x);
-    }
-
-    // Piecewise gamma response, encoded as sign(x).f(abs(x)) for color spaces that
-    // allow negative values
-    public static double absResponse(double x, double a, double b, double c, double d, double g) {
-        return Math.copySign(response(x < 0.0 ? -x : x, a, b, c, d, g), x);
-    }
-
-    // Reciprocal piecewise gamma response, encoded as sign(x).f(abs(x)) for color
-    // spaces that allow negative values
-    public static double absRcpResponse(double x, double a, double b, double c, double d,
-                                         double e, double f, double g) {
-        return Math.copySign(rcpResponse(x < 0.0 ? -x : x, a, b, c, d, e, f, g), x);
-    }
-
-    // Piecewise gamma response, encoded as sign(x).f(abs(x)) for color spaces that
-    // allow negative values
-    public static double absResponse(double x, double a, double b, double c, double d,
-                                      double e, double f, double g) {
-        return Math.copySign(response(x < 0.0 ? -x : x, a, b, c, d, e, f, g), x);
-    }
 
     /**
      * Compares two arrays of float with a precision of 1e-3.

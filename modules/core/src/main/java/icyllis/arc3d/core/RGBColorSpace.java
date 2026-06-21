@@ -171,7 +171,7 @@ public non-sealed class RGBColorSpace extends ColorSpace {
     private final boolean mIsSRGB;
 
     @Nullable
-    private final TransferFunction mTransferFunction;
+    final TransferFunction mTransferFunction;
 
     /**
      * <p>Creates a new RGB color space using a 3x3 column-major transform matrix.
@@ -410,8 +410,8 @@ public non-sealed class RGBColorSpace extends ColorSpace {
             @NonNull TransferFunction function,
             @Range(from = MIN_ID, to = MAX_ID) int id) {
         this(name, primaries, whitePoint, transform,
-                computeOETF(function),
-                computeEOTF(function),
+                function.toOETF(),
+                function.toEOTF(),
                 min, max, function, id);
     }
 
@@ -524,9 +524,9 @@ public non-sealed class RGBColorSpace extends ColorSpace {
             @Range(from = MIN_ID, to = MAX_ID) int id) {
         this(name, primaries, whitePoint, null,
                 gamma == 1.0 ? DoubleUnaryOperator.identity() :
-                        x -> absRcpResponse(x, gamma),
+                        x -> TransferFunction.absRcpResponse(x, gamma),
                 gamma == 1.0 ? DoubleUnaryOperator.identity() :
-                        x -> absResponse(x, gamma),
+                        x -> TransferFunction.absResponse(x, gamma),
                 min, max,
                 gamma == 1.0
                         ? TransferFunction.LINEAR
@@ -681,7 +681,8 @@ public non-sealed class RGBColorSpace extends ColorSpace {
         // A color space is wide-gamut if its area is >90% of NTSC 1953 and
         // if it entirely contains the Color space definition in xyY
         mIsWideGamut = isWideGamut(mPrimaries, min, max);
-        mIsSRGB = isSRGB(mPrimaries, mWhitePoint, oetf, eotf, id);
+        assert id != 0 || isSRGB(mPrimaries, mWhitePoint, oetf, eotf);
+        mIsSRGB = id == 0 || isSRGB(mPrimaries, mWhitePoint, oetf, eotf);
     }
 
     /**
@@ -695,92 +696,6 @@ public non-sealed class RGBColorSpace extends ColorSpace {
         this(colorSpace.getName(), colorSpace.mPrimaries, whitePoint, transform,
                 colorSpace.mOETF, colorSpace.mEOTF, colorSpace.mMin, colorSpace.mMax,
                 colorSpace.mTransferFunction, MIN_ID);
-    }
-
-    /**
-     * Compares two sets of parametric transfer functions parameters with a precision of 1e-3.
-     *
-     * @param a The first set of parameters to compare
-     * @param b The second set of parameters to compare
-     * @return True if the two sets are equal, false otherwise
-     */
-    private static boolean compare(
-            @Nullable TransferFunction a,
-            @Nullable TransferFunction b) {
-        //noinspection SimplifiableIfStatement
-        if (a == null && b == null) return true;
-        return a != null && b != null &&
-                Math.abs(a.a - b.a) < 1e-3 &&
-                Math.abs(a.b - b.b) < 1e-3 &&
-                Math.abs(a.c - b.c) < 1e-3 &&
-                Math.abs(a.d - b.d) < 2e-3 && // Special case for variations in sRGB OETF/EOTF
-                Math.abs(a.e - b.e) < 1e-3 &&
-                Math.abs(a.f - b.f) < 1e-3 &&
-                Math.abs(a.g - b.g) < 1e-3;
-    }
-
-    /**
-     * <p>Returns a named instance of {@link RGBColorSpace} that matches
-     * the specified RGB to CIE XYZ transform and transfer functions. If no
-     * instance can be found, this method returns null.</p>
-     *
-     * <p>The color transform matrix is assumed to target the CIE XYZ space
-     * a {@link #ILLUMINANT_D50 D50} standard illuminant.</p>
-     *
-     * @param toXYZD50 3x3 column-major transform matrix from RGB to the profile
-     *                 connection space CIE XYZ as an array of 9 floats, cannot be null
-     * @param function Parameters for the transfer functions
-     * @return A non-null {@link RGBColorSpace} if a match is found, null otherwise
-     */
-    @Nullable
-    public static RGBColorSpace match(
-            @Size(9) float @NonNull [] toXYZD50,
-            @NonNull TransferFunction function) {
-
-        for (ColorSpace colorSpace : ColorSpaces.sNamedColorSpaces) {
-            if (colorSpace.getModel() == MODEL_RGB) {
-                RGBColorSpace rgb = adapt((RGBColorSpace) colorSpace, ILLUMINANT_D50_XYZ);
-                if (compare(toXYZD50, rgb.mTransform) &&
-                        compare(function, rgb.mTransferFunction)) {
-                    return (RGBColorSpace) colorSpace;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * <p>Returns a named instance of {@link RGBColorSpace} that matches
-     * the specified RGB to CIE XYZ transform and transfer functions. If no
-     * instance can be found, this method returns null.</p>
-     *
-     * @param unadaptedToXYZ      3x3 column-major transform matrix from RGB to the profile
-     *                            connection space CIE XYZ as an array of 9 floats, cannot be null
-     * @param unadaptedWhitePoint the unadapted white point
-     * @param function            Parameters for the transfer functions
-     * @return A non-null {@link RGBColorSpace} if a match is found, null otherwise
-     */
-    @Nullable
-    public static RGBColorSpace match(
-            @Size(9) float @NonNull [] unadaptedToXYZ,
-            @Size(min = 2) float @NonNull [] unadaptedWhitePoint,
-            @NonNull TransferFunction function) {
-
-        float[] whitePoint = xyWhitePoint(unadaptedWhitePoint);
-
-        for (ColorSpace colorSpace : ColorSpaces.sNamedColorSpaces) {
-            if (colorSpace.getModel() == MODEL_RGB) {
-                RGBColorSpace rgb = (RGBColorSpace) colorSpace;
-                if (compare(unadaptedToXYZ, rgb.mTransform) &&
-                        compare(whitePoint, rgb.mWhitePoint) &&
-                        compare(function, rgb.mTransferFunction)) {
-                    return rgb;
-                }
-            }
-        }
-
-        return null;
     }
 
     /**
@@ -1274,7 +1189,6 @@ public non-sealed class RGBColorSpace extends ColorSpace {
      * @param whitePoint The white point in xyY as an array of 2 floats
      * @param oetf       The opto-electronic transfer function
      * @param eotf       The electro-optical transfer function
-     * @param id         The ID of the color space
      * @return True if the color space can be considered as the sRGB color space
      * @see #isSRGB()
      */
@@ -1282,9 +1196,7 @@ public non-sealed class RGBColorSpace extends ColorSpace {
             @Size(6) float @NonNull [] primaries,
             @Size(2) float @NonNull [] whitePoint,
             @NonNull DoubleUnaryOperator oetf,
-            @NonNull DoubleUnaryOperator eotf,
-            @Range(from = MIN_ID, to = MAX_ID) int id) {
-        if (id == 0) return true;
+            @NonNull DoubleUnaryOperator eotf) {
         if (!ColorSpace.compare(primaries, SRGB_PRIMARIES)) {
             return false;
         }
@@ -1292,13 +1204,14 @@ public non-sealed class RGBColorSpace extends ColorSpace {
             return false;
         }
 
-        // We would have already returned true if this was SRGB itself, so
-        // it is safe to reference it here.
-        RGBColorSpace srgb = ColorSpaces.SRGB;
+        TransferFunction srgb = TransferFunction.SRGB;
+        DoubleUnaryOperator srgbOETF = srgb.toOETF();
+        DoubleUnaryOperator srgbEOTF = srgb.toEOTF();
 
-        for (double x = 0.0; x <= 1.0; x += 1 / 255.0) {
-            if (!compare(x, oetf, srgb.mOETF)) return false;
-            if (!compare(x, eotf, srgb.mEOTF)) return false;
+        for (int i = 0; i < 1024; i++) {
+            double x = i / 1023.0;
+            if (!TransferFunction.compare(x, oetf, srgbOETF)) return false;
+            if (!TransferFunction.compare(x, eotf, srgbEOTF)) return false;
         }
 
         return true;
@@ -1318,14 +1231,6 @@ public non-sealed class RGBColorSpace extends ColorSpace {
                 toXYZ[5] == 0 &&
                 toXYZ[6] == 0 &&
                 toXYZ[7] == 0;
-    }
-
-    public static boolean compare(double point,
-                                  @NonNull DoubleUnaryOperator a,
-                                  @NonNull DoubleUnaryOperator b) {
-        double rA = a.applyAsDouble(point);
-        double rB = b.applyAsDouble(point);
-        return Math.abs(rA - rB) <= 1e-3;
     }
 
     /**
@@ -1569,6 +1474,22 @@ public non-sealed class RGBColorSpace extends ColorSpace {
         float Wx = whitePoint[0];
         float Wy = whitePoint[1];
 
+        if (Rx == 1f && Ry == 0f &&
+                Gx == 0f && Gy == 1f &&
+                Bx == 0f && By == 0f) {
+            // XYZ primaries
+            return Wx == 1 / 3f && Wy == 1 / 3f
+                    ? new float[]{
+                    1, 0, 0,
+                    0, 1, 0,
+                    0, 0, 1}
+                    : new float[]{
+                    Wx / Wy, 0, 0,
+                    0, 1, 0,
+                    0, 0, (1 - Wx - Wy) / Wy
+            };
+        }
+
         float oneRxRy = (1 - Rx) / Ry;
         float oneGxGy = (1 - Gx) / Gy;
         float oneBxBy = (1 - Bx) / By;
@@ -1594,39 +1515,5 @@ public non-sealed class RGBColorSpace extends ColorSpace {
                 GYGy * Gx, GY, GYGy * (1 - Gx - Gy),
                 BYBy * Bx, BY, BYBy * (1 - Bx - By)
         };
-    }
-
-    public static @NonNull DoubleUnaryOperator computeOETF(@NonNull TransferFunction function) {
-        if (function.e == 0.0 && function.f == 0.0) {
-            if (function.a == 1.0 && function.b == 0.0 &&
-                    function.c == 0.0 && function.d == 0.0) {
-                if (function.g == 1.0) {
-                    return DoubleUnaryOperator.identity();
-                }
-                double gamma = function.g;
-                return x -> absRcpResponse(x, gamma);
-            }
-            return x -> absRcpResponse(x, function.a, function.b,
-                    function.c, function.d, function.g);
-        }
-        return x -> absRcpResponse(x, function.a, function.b, function.c,
-                function.d, function.e, function.f, function.g);
-    }
-
-    public static @NonNull DoubleUnaryOperator computeEOTF(@NonNull TransferFunction function) {
-        if (function.e == 0.0 && function.f == 0.0) {
-            if (function.a == 1.0 && function.b == 0.0 &&
-                    function.c == 0.0 && function.d == 0.0) {
-                if (function.g == 1.0) {
-                    return DoubleUnaryOperator.identity();
-                }
-                double gamma = function.g;
-                return x -> absResponse(x, gamma);
-            }
-            return x -> absResponse(x, function.a, function.b,
-                    function.c, function.d, function.g);
-        }
-        return x -> absResponse(x, function.a, function.b, function.c,
-                function.d, function.e, function.f, function.g);
     }
 }

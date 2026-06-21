@@ -799,6 +799,7 @@ public final class ColorSpaces {
     public static @Nullable ColorSpace fromCICP(int primaries, int transfer) {
         float[] pri;
         float[] wp;
+        String pn;
         switch (primaries) {
             case Color.COLOR_PRIMARIES_BT709,
                  Color.COLOR_PRIMARIES_UNSPECIFIED -> {
@@ -826,6 +827,7 @@ public final class ColorSpaces {
 
                 pri = SRGB_PRIMARIES;
                 wp = ILLUMINANT_D65;
+                pn = "BT709";
             }
             case Color.COLOR_PRIMARIES_BT470M -> {
                 switch (transfer) {
@@ -844,6 +846,7 @@ public final class ColorSpaces {
 
                 pri = NTSC_1953_PRIMARIES;
                 wp = ILLUMINANT_C;
+                pn = "BT470M";
             }
             case Color.COLOR_PRIMARIES_BT470BG -> {
                 switch (transfer) {
@@ -862,6 +865,7 @@ public final class ColorSpaces {
 
                 pri = BT470_BG_PRIMARIES;
                 wp = ILLUMINANT_D65;
+                pn = "BT470BG";
             }
             case Color.COLOR_PRIMARIES_SMPTE170M,
                  Color.COLOR_PRIMARIES_SMPTE240M -> {
@@ -881,11 +885,13 @@ public final class ColorSpaces {
 
                 pri = SMPTE_C_PRIMARIES;
                 wp = ILLUMINANT_D65;
+                pn = "SMPTE170M";
             }
             case Color.COLOR_PRIMARIES_GENERIC_FILM -> {
 
                 pri = new float[]{0.681f, 0.319f, 0.243f, 0.692f, 0.145f, 0.049f};
                 wp = ILLUMINANT_C;
+                pn = "FILM";
             }
             case Color.COLOR_PRIMARIES_BT2020 -> {
                 switch (transfer) {
@@ -908,14 +914,16 @@ public final class ColorSpaces {
 
                 pri = BT2020_PRIMARIES;
                 wp = ILLUMINANT_D65;
+                pn = "BT2020";
             }
             case Color.COLOR_PRIMARIES_SMPTE428 -> {
                 if (transfer == Color.TRANSFER_FUNCTION_LINEAR) {
                     return CIE_XYZ_E;
                 }
 
-                pri = new float[]{1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f};
+                pri = new float[]{1f, 0f, 0f, 1f, 0f, 0f};
                 wp = ILLUMINANT_E;
+                pn = "XYZ";
             }
             case Color.COLOR_PRIMARIES_SMPTE431 -> {
                 if (transfer == Color.TRANSFER_FUNCTION_SMPTE428) {
@@ -924,6 +932,7 @@ public final class ColorSpaces {
 
                 pri = DCI_P3_PRIMARIES;
                 wp = ILLUMINANT_DCI;
+                pn = "P3-DCI";
             }
             case Color.COLOR_PRIMARIES_SMPTE432 -> {
                 switch (transfer) {
@@ -939,11 +948,13 @@ public final class ColorSpaces {
 
                 pri = DCI_P3_PRIMARIES;
                 wp = ILLUMINANT_D65;
+                pn = "P3-D65";
             }
             case Color.COLOR_PRIMARIES_EBU3213 -> {
 
                 pri = new float[]{0.630f, 0.340f, 0.295f, 0.605f, 0.155f, 0.077f};
                 wp = ILLUMINANT_D65;
+                pn = "EBU3213";
             }
             default -> {
                 return null;
@@ -954,25 +965,20 @@ public final class ColorSpaces {
         if (tf == null) {
             return null;
         }
-
-        if (primaries == Color.COLOR_PRIMARIES_SMPTE428) {
-            // special case XYZ
-            return new RGBColorSpace(
-                    "Generic XYZ",
-                    pri,
-                    wp,
-                    new float[]{
-                            1.0f, 0.0f, 0.0f,
-                            0.0f, 1.0f, 0.0f,
-                            0.0f, 0.0f, 1.0f
-                    },
-                    -2.0f, 2.0f,
-                    tf, MIN_ID
-            );
+        String tn;
+        if (tf.equals(TransferFunction.SRGB)) {
+            tn = "sRGB";
+        } else if (tf.equals(TransferFunction.SMPTE_170M)) {
+            tn = "SMPTE170M";
+        } else if (tf.equals(TransferFunction.SMPTE_240M)) {
+            tn = "SMPTE240M";
+        } else if (tf.equals(TransferFunction.LINEAR)) {
+            tn = "Linear";
+        } else {
+            tn = "Gamma " + tf.g;
         }
 
-        //TODO range and name
-        return new RGBColorSpace("Generic RGB",
+        return new RGBColorSpace(pn + " primaries with " + tn + " transfer",
                 pri, wp, tf);
     }
 
@@ -1001,6 +1007,70 @@ public final class ColorSpaces {
         sNamedColorSpaces[CIE_XYZ_E.getId()] = CIE_XYZ_E;
         sNamedColorSpaces[CIE_LAB.getId()] = CIE_LAB;
         sNamedColorSpaces[OK_LAB.getId()] = OK_LAB;
+    }
+
+    /**
+     * <p>Returns a named instance of {@link RGBColorSpace} that matches
+     * the specified RGB to CIE XYZ transform and transfer functions. If no
+     * instance can be found, this method returns null.</p>
+     *
+     * <p>The color transform matrix is assumed to target the CIE XYZ space
+     * a {@link ColorSpace#ILLUMINANT_D50 D50} standard illuminant.</p>
+     *
+     * @param toXYZD50 3x3 column-major transform matrix from RGB to the profile
+     *                 connection space CIE XYZ as an array of 9 floats, cannot be null
+     * @param function Parameters for the transfer functions
+     * @return A non-null {@link RGBColorSpace} if a match is found, null otherwise
+     */
+    @Nullable
+    public static RGBColorSpace match(
+            @Size(9) float @NonNull [] toXYZD50,
+            @NonNull TransferFunction function) {
+
+        for (ColorSpace colorSpace : sNamedColorSpaces) {
+            if (colorSpace.getModel() == MODEL_RGB) {
+                RGBColorSpace rgb = RGBColorSpace.adapt((RGBColorSpace) colorSpace, ILLUMINANT_D50_XYZ);
+                if (ColorSpace.compare(toXYZD50, rgb.mTransform) &&
+                        TransferFunction.compare(function, rgb.mTransferFunction)) {
+                    return (RGBColorSpace) colorSpace;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * <p>Returns a named instance of {@link RGBColorSpace} that matches
+     * the specified RGB to CIE XYZ transform and transfer functions. If no
+     * instance can be found, this method returns null.</p>
+     *
+     * @param unadaptedToXYZ      3x3 column-major transform matrix from RGB to the profile
+     *                            connection space CIE XYZ as an array of 9 floats, cannot be null
+     * @param unadaptedWhitePoint the unadapted white point
+     * @param function            Parameters for the transfer functions
+     * @return A non-null {@link RGBColorSpace} if a match is found, null otherwise
+     */
+    @Nullable
+    public static RGBColorSpace match(
+            @Size(9) float @NonNull [] unadaptedToXYZ,
+            @Size(min = 2) float @NonNull [] unadaptedWhitePoint,
+            @NonNull TransferFunction function) {
+
+        float[] whitePoint = xyWhitePoint(unadaptedWhitePoint);
+
+        for (ColorSpace colorSpace : sNamedColorSpaces) {
+            if (colorSpace.getModel() == MODEL_RGB) {
+                RGBColorSpace rgb = (RGBColorSpace) colorSpace;
+                if (ColorSpace.compare(unadaptedToXYZ, rgb.mTransform) &&
+                        ColorSpace.compare(whitePoint, rgb.mWhitePoint) &&
+                        TransferFunction.compare(function, rgb.mTransferFunction)) {
+                    return rgb;
+                }
+            }
+        }
+
+        return null;
     }
 
     @SuppressWarnings("Java9CollectionFactory")

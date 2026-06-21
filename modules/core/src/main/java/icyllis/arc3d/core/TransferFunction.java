@@ -20,7 +20,10 @@
 package icyllis.arc3d.core;
 
 import org.jetbrains.annotations.Contract;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+
+import java.util.function.DoubleUnaryOperator;
 
 /**
  * {@usesMathJax}
@@ -240,6 +243,48 @@ public class TransferFunction {
         this.g = g;
     }
 
+    /**
+     * Returns a new OETF representing the inverse of this function and
+     * capable of handling extended range colors. The returned object
+     * holds a strong reference to this.
+     */
+    public @NonNull DoubleUnaryOperator toOETF() {
+        if (e == 0.0 && f == 0.0) {
+            if (a == 1.0 && b == 0.0 &&
+                    c == 0.0 && d == 0.0) {
+                if (g == 1.0) {
+                    return DoubleUnaryOperator.identity();
+                }
+                return x -> absRcpResponse(x, g);
+            }
+            return x -> absRcpResponse(x, a, b,
+                    c, d, g);
+        }
+        return x -> absRcpResponse(x, a, b, c,
+                d, e, f, g);
+    }
+
+    /**
+     * Returns a new EOTF representing this function and
+     * capable of handling extended range colors. The returned object
+     * holds a strong reference to this.
+     */
+    public @NonNull DoubleUnaryOperator toEOTF() {
+        if (e == 0.0 && f == 0.0) {
+            if (a == 1.0 && b == 0.0 &&
+                    c == 0.0 && d == 0.0) {
+                if (g == 1.0) {
+                    return DoubleUnaryOperator.identity();
+                }
+                return x -> absResponse(x, g);
+            }
+            return x -> absResponse(x, a, b,
+                    c, d, g);
+        }
+        return x -> absResponse(x, a, b, c,
+                d, e, f, g);
+    }
+
     @SuppressWarnings("SimplifiableIfStatement")
     @Override
     public boolean equals(Object o) {
@@ -280,5 +325,94 @@ public class TransferFunction {
                 ", f=" + f +
                 ", g=" + g +
                 '}';
+    }
+
+    // Reciprocal piecewise gamma response
+    public static double rcpResponse(double x, double a, double b, double c, double d, double g) {
+        return x >= d * c ? (Math.pow(x, 1.0 / g) - b) / a : x / c;
+    }
+
+    // Piecewise gamma response
+    public static double response(double x, double a, double b, double c, double d, double g) {
+        return x >= d ? Math.pow(a * x + b, g) : c * x;
+    }
+
+    // Reciprocal piecewise gamma response
+    public static double rcpResponse(double x, double a, double b, double c, double d,
+                                     double e, double f, double g) {
+        return x >= d * c ? (Math.pow(x - e, 1.0 / g) - b) / a : (x - f) / c;
+    }
+
+    // Piecewise gamma response
+    public static double response(double x, double a, double b, double c, double d,
+                                  double e, double f, double g) {
+        return x >= d ? Math.pow(a * x + b, g) + e : c * x + f;
+    }
+
+    // Reciprocal piecewise gamma response, encoded as sign(x).f(abs(x)) for color
+    // spaces that allow negative values
+    public static double absRcpResponse(double x, double g) {
+        return Math.copySign(Math.pow(x < 0.0 ? -x : x, 1.0 / g), x);
+    }
+
+    // Piecewise gamma response, encoded as sign(x).f(abs(x)) for color spaces that
+    // allow negative values
+    public static double absResponse(double x, double g) {
+        return Math.copySign(Math.pow(x < 0.0 ? -x : x, g), x);
+    }
+
+    // Reciprocal piecewise gamma response, encoded as sign(x).f(abs(x)) for color
+    // spaces that allow negative values
+    public static double absRcpResponse(double x, double a, double b, double c, double d, double g) {
+        return Math.copySign(rcpResponse(x < 0.0 ? -x : x, a, b, c, d, g), x);
+    }
+
+    // Piecewise gamma response, encoded as sign(x).f(abs(x)) for color spaces that
+    // allow negative values
+    public static double absResponse(double x, double a, double b, double c, double d, double g) {
+        return Math.copySign(response(x < 0.0 ? -x : x, a, b, c, d, g), x);
+    }
+
+    // Reciprocal piecewise gamma response, encoded as sign(x).f(abs(x)) for color
+    // spaces that allow negative values
+    public static double absRcpResponse(double x, double a, double b, double c, double d,
+                                        double e, double f, double g) {
+        return Math.copySign(rcpResponse(x < 0.0 ? -x : x, a, b, c, d, e, f, g), x);
+    }
+
+    // Piecewise gamma response, encoded as sign(x).f(abs(x)) for color spaces that
+    // allow negative values
+    public static double absResponse(double x, double a, double b, double c, double d,
+                                     double e, double f, double g) {
+        return Math.copySign(response(x < 0.0 ? -x : x, a, b, c, d, e, f, g), x);
+    }
+
+    /**
+     * Compares two sets of parametric transfer functions parameters with a precision of 5e-4.
+     *
+     * @param a The first set of parameters to compare
+     * @param b The second set of parameters to compare
+     * @return True if the two sets are equal, false otherwise
+     */
+    public static boolean compare(
+            @Nullable TransferFunction a,
+            @Nullable TransferFunction b) {
+        if (a == null && b == null) return true;
+        return a != null && b != null &&
+                Math.abs(a.a - b.a) < 5e-4 &&
+                Math.abs(a.b - b.b) < 5e-4 &&
+                Math.abs(a.c - b.c) < 5e-4 &&
+                Math.abs(a.d - b.d) < 1e-3 && // Special case for variations in sRGB OETF/EOTF
+                Math.abs(a.e - b.e) < 5e-4 &&
+                Math.abs(a.f - b.f) < 5e-4 &&
+                Math.abs(a.g - b.g) < 5e-4;
+    }
+
+    public static boolean compare(double point,
+                                  @NonNull DoubleUnaryOperator a,
+                                  @NonNull DoubleUnaryOperator b) {
+        double rA = a.applyAsDouble(point);
+        double rB = b.applyAsDouble(point);
+        return Math.abs(rA - rB) <= 2e-4;
     }
 }
