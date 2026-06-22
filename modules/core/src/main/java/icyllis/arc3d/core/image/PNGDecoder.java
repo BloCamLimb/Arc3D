@@ -20,6 +20,7 @@
 package icyllis.arc3d.core.image;
 
 import icyllis.arc3d.core.ColorInfo;
+import icyllis.arc3d.core.ColorSpace;
 import icyllis.arc3d.core.ColorSpaces;
 import icyllis.arc3d.core.ContentLightLevelInformation;
 import icyllis.arc3d.core.ImageInfo;
@@ -260,9 +261,13 @@ public class PNGDecoder extends Decoder {
         }
 
         //TODO packed formats, color space info
+        ColorSpace colorSpace = ColorSpaces.SRGB;
+        if (metadata.any(PNGMetadata.CHUNK_cICP)) {
+            colorSpace = ColorSpaces.fromCICP(metadata.cICP_colorPrimaries, metadata.cICP_transferCharacteristics);
+        }
 
         return ImageInfo.make(metadata.IHDR_width, metadata.IHDR_height,
-                colorType, alphaType, ColorSpaces.SRGB);
+                colorType, alphaType, colorSpace);
     }
 
     public void readChunks() throws IOException {
@@ -533,7 +538,7 @@ public class PNGDecoder extends Decoder {
                 }
 
                 metadata.cICP_colorPrimaries = nextRawByte() & 0xFF;
-                metadata.cICP_transferFunction = nextRawByte() & 0xFF;
+                metadata.cICP_transferCharacteristics = nextRawByte() & 0xFF;
                 metadata.cICP_matrixCoefficients = nextRawByte() & 0xFF;
                 metadata.cICP_videoFullRangeFlag = nextRawByte() & 0xFF;
                 metadata.check_cICP(DecoderException::new);

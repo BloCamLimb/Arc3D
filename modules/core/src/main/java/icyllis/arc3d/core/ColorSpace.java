@@ -168,7 +168,7 @@ public abstract sealed class ColorSpace permits XYZColorSpace, RGBColorSpace,
      * Standard CIE 1931 2° illuminant E, encoded in xyY.
      * This illuminant has a color temperature of 5454K.
      */
-    public static final float[] ILLUMINANT_E = {1/3f, 1/3f};
+    public static final float[] ILLUMINANT_E = {0.33333f, 0.33333f};
     static final float[] ILLUMINANT_DCI = {0.314f, 0.351f};
 
     /**
@@ -231,6 +231,8 @@ public abstract sealed class ColorSpace permits XYZColorSpace, RGBColorSpace,
     static final float[] GRAY_PRIMARIES = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
 
     static final float[] ILLUMINANT_D50_XYZ = {0.964212f, 1.0f, 0.825188f};
+    // this is the legacy D50, but ICC requires exactly this instead of the above
+    static final float[] ICC_ILLUMINANT_D50_XYZ = {0.9642f, 1.0000f, 0.8249f};
 
     @NonNull
     private final String mName;
@@ -419,16 +421,16 @@ public abstract sealed class ColorSpace permits XYZColorSpace, RGBColorSpace,
      * <ul>
      *     <li>Its color model is {@link #MODEL_RGB}.</li>
      *     <li>
-     *         Its primaries are within 1e-3 of the true
+     *         Its primaries are within 5e-4 of the true
      *         {@link ColorSpaces#SRGB sRGB} primaries.
      *     </li>
      *     <li>
-     *         Its white point is within 1e-3 of the CIE standard
+     *         Its white point is within 5e-4 of the CIE standard
      *         illuminant {@link #ILLUMINANT_D65 D65}.
      *     </li>
      *     <li>Its opto-electronic transfer function is not linear.</li>
      *     <li>Its electro-optical transfer function is not linear.</li>
-     *     <li>Its transfer functions yield values within 1e-3 of {@link ColorSpaces#SRGB}.</li>
+     *     <li>Its transfer functions yield values within 5e-4 of {@link ColorSpaces#SRGB}.</li>
      *     <li>Its range is \([0..1]\).</li>
      * </ul>
      * <p>This method always returns true for {@link ColorSpaces#SRGB}.</p>
@@ -666,7 +668,7 @@ public abstract sealed class ColorSpace permits XYZColorSpace, RGBColorSpace,
 
 
     /**
-     * Compares two arrays of float with a precision of 1e-3.
+     * Compares two arrays of float with a precision of 5e-4.
      *
      * @param a The first array to compare
      * @param b The second array to compare
@@ -675,7 +677,7 @@ public abstract sealed class ColorSpace permits XYZColorSpace, RGBColorSpace,
     static boolean compare(float @NonNull[] a, float @NonNull[] b) {
         if (a == b) return true;
         for (int i = 0; i < a.length; i++) {
-            if (Float.compare(a[i], b[i]) != 0 && Math.abs(a[i] - b[i]) > 1e-3f) return false;
+            if (Float.compare(a[i], b[i]) != 0 && Math.abs(a[i] - b[i]) > 5e-4f) return false;
         }
         return true;
     }

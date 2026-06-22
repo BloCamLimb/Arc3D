@@ -790,6 +790,7 @@ public final class ColorSpaces {
      * for video signal type identification, from ITU-T H.273.
      * <p>
      * Defined constants can be found in {@link Color}.
+     * The return value would be {@link RGBColorSpace} in most cases.
      * If the code points are reserved, or not supported by Arc3D, null is returned.
      *
      * @param primaries the color primaries code point
@@ -804,22 +805,22 @@ public final class ColorSpaces {
             case Color.COLOR_PRIMARIES_BT709,
                  Color.COLOR_PRIMARIES_UNSPECIFIED -> {
                 switch (transfer) {
-                    case Color.TRANSFER_FUNCTION_BT709,
-                         Color.TRANSFER_FUNCTION_UNSPECIFIED,
-                         Color.TRANSFER_FUNCTION_SMPTE170M,
-                         Color.TRANSFER_FUNCTION_BT2020_10BIT,
-                         Color.TRANSFER_FUNCTION_BT2020_12BIT -> {
+                    case Color.TRANSFER_CHARACTERISTICS_BT709,
+                         Color.TRANSFER_CHARACTERISTICS_UNSPECIFIED,
+                         Color.TRANSFER_CHARACTERISTICS_SMPTE170M,
+                         Color.TRANSFER_CHARACTERISTICS_BT2020_10BIT,
+                         Color.TRANSFER_CHARACTERISTICS_BT2020_12BIT -> {
                         return BT709;
                     }
-                    case Color.TRANSFER_FUNCTION_LINEAR -> {
+                    case Color.TRANSFER_CHARACTERISTICS_LINEAR -> {
                         // there's no difference between non-extended and extended version
                         return LINEAR_SRGB;
                     }
-                    case Color.TRANSFER_FUNCTION_IEC61966_2_4 -> {
+                    case Color.TRANSFER_CHARACTERISTICS_IEC61966_2_4 -> {
                         // there's no difference between non-extended and extended version
                         return BT709;
                     }
-                    case Color.TRANSFER_FUNCTION_IEC61966_2_1 -> {
+                    case Color.TRANSFER_CHARACTERISTICS_IEC61966_2_1 -> {
                         // there's no difference between non-extended and extended version
                         return SRGB;
                     }
@@ -831,14 +832,14 @@ public final class ColorSpaces {
             }
             case Color.COLOR_PRIMARIES_BT470M -> {
                 switch (transfer) {
-                    case Color.TRANSFER_FUNCTION_BT709,
-                         Color.TRANSFER_FUNCTION_UNSPECIFIED,
-                         Color.TRANSFER_FUNCTION_SMPTE170M,
-                         Color.TRANSFER_FUNCTION_BT2020_10BIT,
-                         Color.TRANSFER_FUNCTION_BT2020_12BIT -> {
+                    case Color.TRANSFER_CHARACTERISTICS_BT709,
+                         Color.TRANSFER_CHARACTERISTICS_UNSPECIFIED,
+                         Color.TRANSFER_CHARACTERISTICS_SMPTE170M,
+                         Color.TRANSFER_CHARACTERISTICS_BT2020_10BIT,
+                         Color.TRANSFER_CHARACTERISTICS_BT2020_12BIT -> {
                         return NTSC_1953;
                     }
-                    case Color.TRANSFER_FUNCTION_IEC61966_2_4 -> {
+                    case Color.TRANSFER_CHARACTERISTICS_IEC61966_2_4 -> {
                         // there's no difference between non-extended and extended version
                         return NTSC_1953;
                     }
@@ -850,14 +851,14 @@ public final class ColorSpaces {
             }
             case Color.COLOR_PRIMARIES_BT470BG -> {
                 switch (transfer) {
-                    case Color.TRANSFER_FUNCTION_BT709,
-                         Color.TRANSFER_FUNCTION_UNSPECIFIED,
-                         Color.TRANSFER_FUNCTION_SMPTE170M,
-                         Color.TRANSFER_FUNCTION_BT2020_10BIT,
-                         Color.TRANSFER_FUNCTION_BT2020_12BIT -> {
+                    case Color.TRANSFER_CHARACTERISTICS_BT709,
+                         Color.TRANSFER_CHARACTERISTICS_UNSPECIFIED,
+                         Color.TRANSFER_CHARACTERISTICS_SMPTE170M,
+                         Color.TRANSFER_CHARACTERISTICS_BT2020_10BIT,
+                         Color.TRANSFER_CHARACTERISTICS_BT2020_12BIT -> {
                         return BT470_BG;
                     }
-                    case Color.TRANSFER_FUNCTION_IEC61966_2_4 -> {
+                    case Color.TRANSFER_CHARACTERISTICS_IEC61966_2_4 -> {
                         // there's no difference between non-extended and extended version
                         return BT470_BG;
                     }
@@ -870,14 +871,14 @@ public final class ColorSpaces {
             case Color.COLOR_PRIMARIES_SMPTE170M,
                  Color.COLOR_PRIMARIES_SMPTE240M -> {
                 switch (transfer) {
-                    case Color.TRANSFER_FUNCTION_BT709,
-                         Color.TRANSFER_FUNCTION_UNSPECIFIED,
-                         Color.TRANSFER_FUNCTION_SMPTE170M,
-                         Color.TRANSFER_FUNCTION_BT2020_10BIT,
-                         Color.TRANSFER_FUNCTION_BT2020_12BIT -> {
+                    case Color.TRANSFER_CHARACTERISTICS_BT709,
+                         Color.TRANSFER_CHARACTERISTICS_UNSPECIFIED,
+                         Color.TRANSFER_CHARACTERISTICS_SMPTE170M,
+                         Color.TRANSFER_CHARACTERISTICS_BT2020_10BIT,
+                         Color.TRANSFER_CHARACTERISTICS_BT2020_12BIT -> {
                         return SMPTE_C;
                     }
-                    case Color.TRANSFER_FUNCTION_IEC61966_2_4 -> {
+                    case Color.TRANSFER_CHARACTERISTICS_IEC61966_2_4 -> {
                         // there's no difference between non-extended and extended version
                         return SMPTE_C;
                     }
@@ -895,18 +896,18 @@ public final class ColorSpaces {
             }
             case Color.COLOR_PRIMARIES_BT2020 -> {
                 switch (transfer) {
-                    case Color.TRANSFER_FUNCTION_BT709,
-                         Color.TRANSFER_FUNCTION_UNSPECIFIED,
-                         Color.TRANSFER_FUNCTION_SMPTE170M,
-                         Color.TRANSFER_FUNCTION_BT2020_10BIT,
-                         Color.TRANSFER_FUNCTION_BT2020_12BIT -> {
+                    case Color.TRANSFER_CHARACTERISTICS_BT709,
+                         Color.TRANSFER_CHARACTERISTICS_UNSPECIFIED,
+                         Color.TRANSFER_CHARACTERISTICS_SMPTE170M,
+                         Color.TRANSFER_CHARACTERISTICS_BT2020_10BIT,
+                         Color.TRANSFER_CHARACTERISTICS_BT2020_12BIT -> {
                         return BT2020;
                     }
-                    case Color.TRANSFER_FUNCTION_LINEAR -> {
+                    case Color.TRANSFER_CHARACTERISTICS_LINEAR -> {
                         // there's no difference between non-extended and extended version
                         return LINEAR_BT2020;
                     }
-                    case Color.TRANSFER_FUNCTION_IEC61966_2_4 -> {
+                    case Color.TRANSFER_CHARACTERISTICS_IEC61966_2_4 -> {
                         // there's no difference between non-extended and extended version
                         return BT2020;
                     }
@@ -917,7 +918,7 @@ public final class ColorSpaces {
                 pn = "BT2020";
             }
             case Color.COLOR_PRIMARIES_SMPTE428 -> {
-                if (transfer == Color.TRANSFER_FUNCTION_LINEAR) {
+                if (transfer == Color.TRANSFER_CHARACTERISTICS_LINEAR) {
                     return CIE_XYZ_E;
                 }
 
@@ -926,7 +927,7 @@ public final class ColorSpaces {
                 pn = "XYZ";
             }
             case Color.COLOR_PRIMARIES_SMPTE431 -> {
-                if (transfer == Color.TRANSFER_FUNCTION_SMPTE428) {
+                if (transfer == Color.TRANSFER_CHARACTERISTICS_SMPTE428) {
                     return DCI_P3;
                 }
 
@@ -936,11 +937,11 @@ public final class ColorSpaces {
             }
             case Color.COLOR_PRIMARIES_SMPTE432 -> {
                 switch (transfer) {
-                    case Color.TRANSFER_FUNCTION_LINEAR -> {
+                    case Color.TRANSFER_CHARACTERISTICS_LINEAR -> {
                         // there's no difference between non-extended and extended version
                         return LINEAR_DISPLAY_P3;
                     }
-                    case Color.TRANSFER_FUNCTION_IEC61966_2_1 -> {
+                    case Color.TRANSFER_CHARACTERISTICS_IEC61966_2_1 -> {
                         // there's no difference between non-extended and extended version
                         return DISPLAY_P3;
                     }
@@ -1015,7 +1016,9 @@ public final class ColorSpaces {
      * instance can be found, this method returns null.</p>
      *
      * <p>The color transform matrix is assumed to target the CIE XYZ space
-     * a {@link ColorSpace#ILLUMINANT_D50 D50} standard illuminant.</p>
+     * an ICC Profile D50 (0.9642, 1.0000, 0.8249) standard illuminant, which is
+     * slightly different from the exact {@link ColorSpace#ILLUMINANT_D50 D50}
+     * standard illuminant.</p>
      *
      * @param toXYZD50 3x3 column-major transform matrix from RGB to the profile
      *                 connection space CIE XYZ as an array of 9 floats, cannot be null
@@ -1029,7 +1032,7 @@ public final class ColorSpaces {
 
         for (ColorSpace colorSpace : sNamedColorSpaces) {
             if (colorSpace.getModel() == MODEL_RGB) {
-                RGBColorSpace rgb = RGBColorSpace.adapt((RGBColorSpace) colorSpace, ILLUMINANT_D50_XYZ);
+                RGBColorSpace rgb = RGBColorSpace.adapt((RGBColorSpace) colorSpace, ICC_ILLUMINANT_D50_XYZ);
                 if (ColorSpace.compare(toXYZD50, rgb.mTransform) &&
                         TransferFunction.compare(function, rgb.mTransferFunction)) {
                     return (RGBColorSpace) colorSpace;

@@ -72,52 +72,52 @@ public class TransferFunction {
     public static @Nullable TransferFunction fromCICP(int transfer) {
         TransferFunction tf;
         switch (transfer) {
-            case Color.TRANSFER_FUNCTION_BT709,
-                 Color.TRANSFER_FUNCTION_UNSPECIFIED,
-                 Color.TRANSFER_FUNCTION_SMPTE170M,
-                 Color.TRANSFER_FUNCTION_BT2020_10BIT,
-                 Color.TRANSFER_FUNCTION_BT2020_12BIT -> {
+            case Color.TRANSFER_CHARACTERISTICS_BT709,
+                 Color.TRANSFER_CHARACTERISTICS_UNSPECIFIED,
+                 Color.TRANSFER_CHARACTERISTICS_SMPTE170M,
+                 Color.TRANSFER_CHARACTERISTICS_BT2020_10BIT,
+                 Color.TRANSFER_CHARACTERISTICS_BT2020_12BIT -> {
                 tf = SMPTE_170M;
             }
-            case Color.TRANSFER_FUNCTION_BT470M -> {
+            case Color.TRANSFER_CHARACTERISTICS_BT470M -> {
                 tf = GAMMA_2_2;
             }
-            case Color.TRANSFER_FUNCTION_BT470BG -> {
+            case Color.TRANSFER_CHARACTERISTICS_BT470BG -> {
                 tf = GAMMA_2_8;
             }
-            case Color.TRANSFER_FUNCTION_SMPTE240M -> {
+            case Color.TRANSFER_CHARACTERISTICS_SMPTE240M -> {
                 tf = SMPTE_240M;
             }
-            case Color.TRANSFER_FUNCTION_LINEAR -> {
+            case Color.TRANSFER_CHARACTERISTICS_LINEAR -> {
                 // there's no difference between non-extended and extended version
                 tf = LINEAR;
             }
-            case Color.TRANSFER_FUNCTION_LOG,
-                 Color.TRANSFER_FUNCTION_LOG_SQRT -> {
+            case Color.TRANSFER_CHARACTERISTICS_LOG,
+                 Color.TRANSFER_CHARACTERISTICS_LOG_SQRT -> {
                 // no support
                 return null;
             }
-            case Color.TRANSFER_FUNCTION_IEC61966_2_4 -> {
+            case Color.TRANSFER_CHARACTERISTICS_IEC61966_2_4 -> {
                 // there's no difference between non-extended and extended version
                 tf = SMPTE_170M;
             }
-            case Color.TRANSFER_FUNCTION_BT1361_ECG -> {
+            case Color.TRANSFER_CHARACTERISTICS_BT1361_ECG -> {
                 // this is deprecated in favor of IEC 61966-2-4
                 // we don't support it as well...
                 return null;
             }
-            case Color.TRANSFER_FUNCTION_IEC61966_2_1 -> {
+            case Color.TRANSFER_CHARACTERISTICS_IEC61966_2_1 -> {
                 tf = SRGB;
             }
-            case Color.TRANSFER_FUNCTION_SMPTE2084 -> {
+            case Color.TRANSFER_CHARACTERISTICS_SMPTE2084 -> {
                 //TODO PQ
                 return null;
             }
-            case Color.TRANSFER_FUNCTION_SMPTE428 -> {
+            case Color.TRANSFER_CHARACTERISTICS_SMPTE428 -> {
                 // there's scaling coefficient we don't care
                 tf = GAMMA_2_6;
             }
-            case Color.TRANSFER_FUNCTION_ARIB_STD_B67 -> {
+            case Color.TRANSFER_CHARACTERISTICS_ARIB_STD_B67 -> {
                 //TODO HLG
                 return null;
             }
@@ -285,6 +285,34 @@ public class TransferFunction {
                 d, e, f, g);
     }
 
+    /**
+     * A fallback method used to determine CICP transfer characteristics.
+     */
+    public int toCICP() {
+        if (equals(SRGB)) {
+            return Color.TRANSFER_CHARACTERISTICS_IEC61966_2_1;
+        }
+        if (equals(SMPTE_170M)) {
+            return Color.TRANSFER_CHARACTERISTICS_BT709;
+        }
+        if (equals(SMPTE_240M)) {
+            return Color.TRANSFER_CHARACTERISTICS_SMPTE240M;
+        }
+        if (equals(LINEAR)) {
+            return Color.TRANSFER_CHARACTERISTICS_LINEAR;
+        }
+        if (equals(GAMMA_2_2)) {
+            return Color.TRANSFER_CHARACTERISTICS_BT470M;
+        }
+        if (equals(GAMMA_2_6)) {
+            return Color.TRANSFER_CHARACTERISTICS_SMPTE428;
+        }
+        if (equals(GAMMA_2_8)) {
+            return Color.TRANSFER_CHARACTERISTICS_BT470BG;
+        }
+        return 0;
+    }
+
     @SuppressWarnings("SimplifiableIfStatement")
     @Override
     public boolean equals(Object o) {
@@ -397,7 +425,7 @@ public class TransferFunction {
     public static boolean compare(
             @Nullable TransferFunction a,
             @Nullable TransferFunction b) {
-        if (a == null && b == null) return true;
+        if (a == b) return true;
         return a != null && b != null &&
                 Math.abs(a.a - b.a) < 5e-4 &&
                 Math.abs(a.b - b.b) < 5e-4 &&

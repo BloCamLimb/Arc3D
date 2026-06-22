@@ -21,6 +21,7 @@ package icyllis.arc3d.core.test;
 
 import icyllis.arc3d.core.ChromaticAdaptation;
 import icyllis.arc3d.core.Color;
+import icyllis.arc3d.core.ColorProfile;
 import icyllis.arc3d.core.ColorSpace;
 import icyllis.arc3d.core.RGBColorSpace;
 import icyllis.arc3d.core.ColorSpaces;
@@ -29,6 +30,11 @@ import icyllis.arc3d.core.MathUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.awt.color.ICC_Profile;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.Locale;
 
 public class TestColorSpace {
@@ -72,6 +78,11 @@ public class TestColorSpace {
         var displayP3 = ColorSpaces.DISPLAY_P3;
 
 
+        float[] xyzMat = RGBColorSpace.computeXYZMatrix(new float[]{1, 1, 1, 1, 1, 1},
+                ColorSpace.ILLUMINANT_D65);
+        LOGGER.info("Gray XYZMat {}", xyzMat);
+        generateICCProfile();
+
         float[] col = new float[]{1, 0, 1, 1};
         testColor(ColorSpaces.DCI_P3, sRGB, col);
         testColor(displayP3, sRGB, col);
@@ -107,6 +118,64 @@ public class TestColorSpace {
 
         for (var that : ColorSpaces.getNamedColorSpaces()) {
             LOGGER.info("{} isWideGamut {}", that, that.isWideGamut());
+        }
+    }
+
+    public static void generateICCProfile() {
+        ColorProfile cp = new ColorProfile();
+
+        RGBColorSpace p3 = ColorSpaces.DISPLAY_P3;
+
+        cp.dataColorSpace = ICC_Profile.icSigRgbData;
+        cp.rTRC_para = p3.getTransferFunction();
+        cp.gTRC_para = p3.getTransferFunction();
+        cp.bTRC_para = p3.getTransferFunction();
+
+        cp.primaries = p3.getPrimaries();
+        cp.whitePoint = p3.getWhitePoint();
+
+        cp.description = p3.getName();
+
+        cp.cicp = true;
+        cp.cicp_colorPrimaries = Color.COLOR_PRIMARIES_SMPTE432;
+        cp.cicp_transferCharacteristics = Color.TRANSFER_CHARACTERISTICS_IEC61966_2_1;
+        cp.cicp_videoFullRangeFlag = 1;
+
+        writeICCProfile(cp, "my_display_p3");
+
+        RGBColorSpace srgb = ColorSpaces.SRGB;
+
+        cp.rTRC_para = srgb.getTransferFunction();
+        cp.gTRC_para = srgb.getTransferFunction();
+        cp.bTRC_para = srgb.getTransferFunction();
+
+        cp.primaries = srgb.getPrimaries();
+        cp.whitePoint = srgb.getWhitePoint();
+
+        cp.description = srgb.getName();
+
+        cp.cicp = true;
+        cp.cicp_colorPrimaries = Color.COLOR_PRIMARIES_BT709;
+        cp.cicp_transferCharacteristics = Color.TRANSFER_CHARACTERISTICS_IEC61966_2_1;
+        cp.cicp_videoFullRangeFlag = 1;
+
+        writeICCProfile(cp, "my_srgb");
+    }
+
+    public static void writeICCProfile(ColorProfile cp, String filename) {
+        byte[] data = cp.getData();
+
+        try {
+            Files.write(Path.of("run/" + filename + ".icc"), data,
+                    StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        try {
+            Files.write(Path.of("run/" + filename + "_lcms_cross.icc"), ICC_Profile.getInstance(data).getData(),
+                    StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 

@@ -127,32 +127,36 @@ public final class Color {
     //@formatter:on
 
     /**
-     * Color Transfer Characteristic.
+     * Color Transfer Characteristics.
      * These values match the ones defined by ISO/IEC 23091-2_2019 subclause 8.2.
      */
     //@formatter:off
     public static final int
             // Value 0 is reserved.
-            TRANSFER_FUNCTION_BT709        = 1,
-            TRANSFER_FUNCTION_UNSPECIFIED  = 2,
+            TRANSFER_CHARACTERISTICS_BT709        = 1,
+            TRANSFER_CHARACTERISTICS_UNSPECIFIED  = 2,
             // Value 3 is reserved.
-            TRANSFER_FUNCTION_BT470M       = 4,  // ITU-R BT470M / ITU-R BT1700 625 PAL & SECAM, gamma 2.2
-            TRANSFER_FUNCTION_BT470BG      = 5,  // ITU-R BT470BG, gamma 2.8
-            TRANSFER_FUNCTION_SMPTE170M    = 6,  // ITU-R BT601-6 525 or 625 / ITU-R BT1358 525 or 625 / ITU-R BT1700 NTSC
-            TRANSFER_FUNCTION_SMPTE240M    = 7,
-            TRANSFER_FUNCTION_LINEAR       = 8,  // "Linear transfer characteristics"
-            TRANSFER_FUNCTION_LOG          = 9,  // "Logarithmic transfer characteristic (100:1 range)"
-            TRANSFER_FUNCTION_LOG_SQRT     = 10, // "Logarithmic transfer characteristic (100 * Sqrt(10) : 1 range)"
-            TRANSFER_FUNCTION_IEC61966_2_4 = 11, // IEC 61966-2-4
-            TRANSFER_FUNCTION_BT1361_ECG   = 12, // ITU-R BT1361 Extended Colour Gamut
-            TRANSFER_FUNCTION_IEC61966_2_1 = 13, // IEC 61966-2-1 (sRGB or sYCC)
-            TRANSFER_FUNCTION_BT2020_10BIT = 14, // ITU-R BT2020 for 10-bit system
-            TRANSFER_FUNCTION_BT2020_12BIT = 15, // ITU-R BT2020 for 12-bit system
-            TRANSFER_FUNCTION_SMPTE2084    = 16, // SMPTE ST 2084, known as "Perceptual quantization"
-            TRANSFER_FUNCTION_SMPTE428     = 17, // SMPTE ST 428-1
-            TRANSFER_FUNCTION_ARIB_STD_B67 = 18; // ARIB STD-B67, known as "Hybrid log-gamma"
+            TRANSFER_CHARACTERISTICS_BT470M       = 4,  // ITU-R BT470M / ITU-R BT1700 625 PAL & SECAM, gamma 2.2
+            TRANSFER_CHARACTERISTICS_BT470BG      = 5,  // ITU-R BT470BG, gamma 2.8
+            TRANSFER_CHARACTERISTICS_SMPTE170M    = 6,  // ITU-R BT601-6 525 or 625 / ITU-R BT1358 525 or 625 / ITU-R BT1700 NTSC
+            TRANSFER_CHARACTERISTICS_SMPTE240M    = 7,
+            TRANSFER_CHARACTERISTICS_LINEAR       = 8,  // "Linear transfer characteristics"
+            TRANSFER_CHARACTERISTICS_LOG          = 9,  // "Logarithmic transfer characteristic (100:1 range)"
+            TRANSFER_CHARACTERISTICS_LOG_SQRT     = 10, // "Logarithmic transfer characteristic (100 * Sqrt(10) : 1 range)"
+            TRANSFER_CHARACTERISTICS_IEC61966_2_4 = 11, // IEC 61966-2-4
+            TRANSFER_CHARACTERISTICS_BT1361_ECG   = 12, // ITU-R BT1361 Extended Colour Gamut
+            TRANSFER_CHARACTERISTICS_IEC61966_2_1 = 13, // IEC 61966-2-1 (sRGB or sYCC)
+            TRANSFER_CHARACTERISTICS_BT2020_10BIT = 14, // ITU-R BT2020 for 10-bit system
+            TRANSFER_CHARACTERISTICS_BT2020_12BIT = 15, // ITU-R BT2020 for 12-bit system
+            TRANSFER_CHARACTERISTICS_SMPTE2084    = 16, // SMPTE ST 2084, known as "Perceptual quantization"
+            TRANSFER_CHARACTERISTICS_SMPTE428     = 17, // SMPTE ST 428-1
+            TRANSFER_CHARACTERISTICS_ARIB_STD_B67 = 18; // ARIB STD-B67, known as "Hybrid log-gamma"
     //@formatter:on
 
+    /**
+     * Matrix coefficients for YUV<->RGB conversion, also known as YUV color space.
+     * These values match the ones defined by ISO/IEC 23091-2_2019 subclause 8.3.
+     */
     public static final int
             MATRIX_COEFFICIENTS_IDENTITY = 0;
 

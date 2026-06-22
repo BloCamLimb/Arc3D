@@ -25,7 +25,6 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.function.Function;
 
@@ -103,7 +102,7 @@ public class PNGMetadata {
 
     // cICP chunk
     public int cICP_colorPrimaries;
-    public int cICP_transferFunction;
+    public int cICP_transferCharacteristics;
     public int cICP_matrixCoefficients;
     public int cICP_videoFullRangeFlag;
 
