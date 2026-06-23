@@ -53,6 +53,9 @@ public class TransferFunction {
 
     public static final TransferFunction SRGB =
             new TransferFunction(1 / 1.055013444855428, 0.055013444855428 / 1.055013444855428, 1 / 12.92, 0.04045, 2.4);
+    /**
+     * This is exactly the inverse of BT.709 OETF
+     */
     public static final TransferFunction SMPTE_170M =
             new TransferFunction(1 / 1.099296826809442, 0.099296826809442 / 1.099296826809442, 1 / 4.5, 0.0812428582986315, 1 / 0.45);
     public static final TransferFunction SMPTE_240M =
@@ -61,6 +64,9 @@ public class TransferFunction {
             new TransferFunction(1.0, 0.0, 0.0, 0.0, 1.0);
     public static final TransferFunction GAMMA_2_2 =
             new TransferFunction(1.0, 0.0, 0.0, 0.0, 2.2);
+    /**
+     * BT.1886 EOTF
+     */
     public static final TransferFunction GAMMA_2_4 =
             new TransferFunction(1.0, 0.0, 0.0, 0.0, 2.4);
     public static final TransferFunction GAMMA_2_6 =
@@ -69,7 +75,7 @@ public class TransferFunction {
             new TransferFunction(1.0, 0.0, 0.0, 0.0, 2.8);
 
     @Contract(pure = true)
-    public static @Nullable TransferFunction fromCICP(int transfer) {
+    public static @Nullable TransferFunction fromCICP(int transfer, boolean useBT1886) {
         TransferFunction tf;
         switch (transfer) {
             case Color.TRANSFER_CHARACTERISTICS_BT709,
@@ -77,7 +83,7 @@ public class TransferFunction {
                  Color.TRANSFER_CHARACTERISTICS_SMPTE170M,
                  Color.TRANSFER_CHARACTERISTICS_BT2020_10BIT,
                  Color.TRANSFER_CHARACTERISTICS_BT2020_12BIT -> {
-                tf = SMPTE_170M;
+                tf = useBT1886 ? GAMMA_2_4 : SMPTE_170M;
             }
             case Color.TRANSFER_CHARACTERISTICS_BT470M -> {
                 tf = GAMMA_2_2;
@@ -304,13 +310,41 @@ public class TransferFunction {
         if (equals(GAMMA_2_2)) {
             return Color.TRANSFER_CHARACTERISTICS_BT470M;
         }
+        if (equals(GAMMA_2_4)) {
+            return Color.TRANSFER_CHARACTERISTICS_BT709;
+        }
         if (equals(GAMMA_2_6)) {
             return Color.TRANSFER_CHARACTERISTICS_SMPTE428;
         }
         if (equals(GAMMA_2_8)) {
             return Color.TRANSFER_CHARACTERISTICS_BT470BG;
         }
+        //TODO PQ HLG
         return 0;
+    }
+
+    /**
+     * A fallback method used to compute an exponential approximation of EOTF.
+     *
+     * @param visual true to use visual approx, false to use linear approx
+     */
+    public double getGammaApprox(boolean visual) {
+        // brute force results...
+        if (compare(this, SRGB)) {
+            return visual ? 2.208 : 2.239;
+        }
+        if (compare(this, SMPTE_170M)) {
+            return visual ? 1.921 : 1.961;
+        }
+        if (compare(this, SMPTE_240M)) {
+            return visual ? 1.890 : 1.933;
+        }
+        if (a == 1.0 && b == 0.0 &&
+                c == 0.0 && d == 0.0 && e == 0.0 && f == 0.0) {
+            return g;
+        }
+        // fallback to 2.2 exact
+        return 2.2;
     }
 
     @SuppressWarnings("SimplifiableIfStatement")

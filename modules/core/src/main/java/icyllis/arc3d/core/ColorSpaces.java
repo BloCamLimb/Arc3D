@@ -795,9 +795,10 @@ public final class ColorSpaces {
      *
      * @param primaries the color primaries code point
      * @param transfer  the transfer characteristics code point
+     * @param useBT1886 whether to use BT.1886 EOTF
      * @return a color space representing the CICP, or null if not supported
      */
-    public static @Nullable ColorSpace fromCICP(int primaries, int transfer) {
+    public static @Nullable ColorSpace fromCICP(int primaries, int transfer, boolean useBT1886) {
         float[] pri;
         float[] wp;
         String pn;
@@ -810,7 +811,9 @@ public final class ColorSpaces {
                          Color.TRANSFER_CHARACTERISTICS_SMPTE170M,
                          Color.TRANSFER_CHARACTERISTICS_BT2020_10BIT,
                          Color.TRANSFER_CHARACTERISTICS_BT2020_12BIT -> {
-                        return BT709;
+                        if (!useBT1886) {
+                            return BT709;
+                        }
                     }
                     case Color.TRANSFER_CHARACTERISTICS_LINEAR -> {
                         // there's no difference between non-extended and extended version
@@ -837,7 +840,9 @@ public final class ColorSpaces {
                          Color.TRANSFER_CHARACTERISTICS_SMPTE170M,
                          Color.TRANSFER_CHARACTERISTICS_BT2020_10BIT,
                          Color.TRANSFER_CHARACTERISTICS_BT2020_12BIT -> {
-                        return NTSC_1953;
+                        if (!useBT1886) {
+                            return NTSC_1953;
+                        }
                     }
                     case Color.TRANSFER_CHARACTERISTICS_IEC61966_2_4 -> {
                         // there's no difference between non-extended and extended version
@@ -856,7 +861,9 @@ public final class ColorSpaces {
                          Color.TRANSFER_CHARACTERISTICS_SMPTE170M,
                          Color.TRANSFER_CHARACTERISTICS_BT2020_10BIT,
                          Color.TRANSFER_CHARACTERISTICS_BT2020_12BIT -> {
-                        return BT470_BG;
+                        if (!useBT1886) {
+                            return BT470_BG;
+                        }
                     }
                     case Color.TRANSFER_CHARACTERISTICS_IEC61966_2_4 -> {
                         // there's no difference between non-extended and extended version
@@ -876,7 +883,9 @@ public final class ColorSpaces {
                          Color.TRANSFER_CHARACTERISTICS_SMPTE170M,
                          Color.TRANSFER_CHARACTERISTICS_BT2020_10BIT,
                          Color.TRANSFER_CHARACTERISTICS_BT2020_12BIT -> {
-                        return SMPTE_C;
+                        if (!useBT1886) {
+                            return SMPTE_C;
+                        }
                     }
                     case Color.TRANSFER_CHARACTERISTICS_IEC61966_2_4 -> {
                         // there's no difference between non-extended and extended version
@@ -901,7 +910,9 @@ public final class ColorSpaces {
                          Color.TRANSFER_CHARACTERISTICS_SMPTE170M,
                          Color.TRANSFER_CHARACTERISTICS_BT2020_10BIT,
                          Color.TRANSFER_CHARACTERISTICS_BT2020_12BIT -> {
-                        return BT2020;
+                        if (!useBT1886) {
+                            return BT2020;
+                        }
                     }
                     case Color.TRANSFER_CHARACTERISTICS_LINEAR -> {
                         // there's no difference between non-extended and extended version
@@ -962,7 +973,7 @@ public final class ColorSpaces {
             }
         }
 
-        TransferFunction tf = TransferFunction.fromCICP(transfer);
+        TransferFunction tf = TransferFunction.fromCICP(transfer, useBT1886);
         if (tf == null) {
             return null;
         }

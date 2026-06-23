@@ -63,6 +63,7 @@ public class PNGDecoder extends Decoder {
     private boolean readHistogram = false;
     private boolean readSuggestedPalette = false;
     private boolean readExif = false;
+    private boolean useBT1886 = false;
 
     private static final int STAGE_TOP = 1;
     private static final int STAGE_IHDR = 2;
@@ -129,6 +130,14 @@ public class PNGDecoder extends Decoder {
 
     public void setReadExif(boolean readExif) {
         this.readExif = readExif;
+    }
+
+    public boolean getUseBT1886() {
+        return useBT1886;
+    }
+
+    public void setUseBT1886(boolean useBT1886) {
+        this.useBT1886 = useBT1886;
     }
 
     public void readHeader() throws IOException {
@@ -263,7 +272,8 @@ public class PNGDecoder extends Decoder {
         //TODO packed formats, color space info
         ColorSpace colorSpace = ColorSpaces.SRGB;
         if (metadata.any(PNGMetadata.CHUNK_cICP)) {
-            colorSpace = ColorSpaces.fromCICP(metadata.cICP_colorPrimaries, metadata.cICP_transferCharacteristics);
+            colorSpace = ColorSpaces.fromCICP(metadata.cICP_colorPrimaries,
+                    metadata.cICP_transferCharacteristics, useBT1886);
         }
 
         return ImageInfo.make(metadata.IHDR_width, metadata.IHDR_height,

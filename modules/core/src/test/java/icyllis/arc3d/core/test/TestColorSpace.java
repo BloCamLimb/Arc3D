@@ -27,6 +27,7 @@ import icyllis.arc3d.core.RGBColorSpace;
 import icyllis.arc3d.core.ColorSpaces;
 import icyllis.arc3d.core.ColorTransform;
 import icyllis.arc3d.core.MathUtil;
+import icyllis.arc3d.core.TransferFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,6 +78,18 @@ public class TestColorSpace {
         var sRGB = ColorSpaces.EXTENDED_SRGB;
         var displayP3 = ColorSpaces.DISPLAY_P3;
 
+        LOGGER.info("Gamma approx (linear) of sRGB {}",
+                approx(TransferFunction.SRGB, true));
+        LOGGER.info("Gamma approx (linear) of BT709 {}",
+                approx(TransferFunction.SMPTE_170M, true));
+        LOGGER.info("Gamma approx (linear) of SMPTE240M {}",
+                approx(TransferFunction.SMPTE_240M, true));
+        LOGGER.info("Gamma approx (visual) of sRGB {}",
+                approx(TransferFunction.SRGB, false));
+        LOGGER.info("Gamma approx (visual) of BT709 {}",
+                approx(TransferFunction.SMPTE_170M, false));
+        LOGGER.info("Gamma approx (visual) of SMPTE240M {}",
+                approx(TransferFunction.SMPTE_240M, false));
 
         float[] xyzMat = RGBColorSpace.computeXYZMatrix(new float[]{1, 1, 1, 1, 1, 1},
                 ColorSpace.ILLUMINANT_D65);
@@ -106,6 +119,17 @@ public class TestColorSpace {
                 ColorSpace.ILLUMINANT_D50, ChromaticAdaptation.BRADFORD);
         LOGGER.info("adapted P3 {}", adaptedP3.getTransform());
 
+        float[] someTransform = //{0.60974f, 0.20528f, 0.14919f, 0.31111f, 0.62567f, 0.06322f, 0.01947f, 0.06087f, 0.74457f};
+                {0.436065674f, 0.385147095f, 0.143066406f,
+                         0.222488403f, 0.716873169f, 0.060607910f,
+                         0.013916016f, 0.097076416f, 0.714096069f};
+        transpose3x3(someTransform);
+        float[] computedPri = RGBColorSpace.computePrimaries(someTransform);
+        float[] computedWhite = RGBColorSpace.computeWhitePoint(someTransform);
+        LOGGER.info("Computed pri {} and white {}", computedPri, ColorSpace.xyYToXYZ(computedWhite));
+        LOGGER.info("Match what {}", ColorSpaces.match(someTransform,
+                new TransferFunction((float)(1/1.055), (float)(0.055/1.055), (float)(1/12.92), 0.04045f, 0.0f, 0.0f, 2.4f)));
+
         assert ColorSpaces.SRGB.isSRGB();
         assert ColorSpaces.SRGB.isExtendedSRGB();
         assert !ColorSpaces.EXTENDED_SRGB.isSRGB();
@@ -119,6 +143,54 @@ public class TestColorSpace {
         for (var that : ColorSpaces.getNamedColorSpaces()) {
             LOGGER.info("{} isWideGamut {}", that, that.isWideGamut());
         }
+    }
+
+    public static TransferFunction approx(TransferFunction tf, boolean linear) {
+        double bestError = Double.POSITIVE_INFINITY;
+        TransferFunction best = null;
+        for (int i = 0; i < 10000; i++) {
+            double gamma = 1.8 + i / 1000.0;
+            TransferFunction can = new TransferFunction(
+                    1, 0, 0, 0, gamma
+            );
+            double err = error(tf, can, linear);
+            if (err < bestError) {
+                bestError = err;
+                best = can;
+            }
+        }
+        return best;
+    }
+
+    public static double error(TransferFunction origTF, TransferFunction gammaTF,
+                               boolean linear) {
+        var t1 = origTF.toEOTF();
+        var t2 = gammaTF.toEOTF();
+        var oetf = linear ? null : origTF.toOETF();
+        double acc = 0;
+        for (int i = 0; i < 1024; i++) {
+            double x = i / 1023.0;
+            if (linear) {
+                acc += Math.abs(t1.applyAsDouble(x) - t2.applyAsDouble(x));
+            } else {
+                acc += Math.abs(oetf.applyAsDouble(t1.applyAsDouble(x)) - oetf.applyAsDouble(t2.applyAsDouble(x)));
+            }
+        }
+        return acc;
+    }
+
+    public static void transpose3x3(float[] m) {
+        float t = m[1];
+        m[1] = m[3];
+        m[3] = t;
+
+        t = m[2];
+        m[2] = m[6];
+        m[6] = t;
+
+        t = m[5];
+        m[5] = m[7];
+        m[7] = t;
     }
 
     public static void generateICCProfile() {
