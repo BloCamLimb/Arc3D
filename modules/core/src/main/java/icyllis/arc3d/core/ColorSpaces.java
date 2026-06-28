@@ -1033,7 +1033,7 @@ public final class ColorSpaces {
      *
      * @param toXYZD50 3x3 column-major transform matrix from RGB to the profile
      *                 connection space CIE XYZ as an array of 9 floats, cannot be null
-     * @param function Parameters for the transfer functions
+     * @param function the transfer function
      * @return A non-null {@link RGBColorSpace} if a match is found, null otherwise
      */
     @Nullable
@@ -1056,28 +1056,28 @@ public final class ColorSpaces {
 
     /**
      * <p>Returns a named instance of {@link RGBColorSpace} that matches
-     * the specified RGB to CIE XYZ transform and transfer functions. If no
+     * the specified primaries, white point and transfer functions. If no
      * instance can be found, this method returns null.</p>
      *
-     * @param unadaptedToXYZ      3x3 column-major transform matrix from RGB to the profile
-     *                            connection space CIE XYZ as an array of 9 floats, cannot be null
-     * @param unadaptedWhitePoint the unadapted white point
-     * @param function            Parameters for the transfer functions
+     * @param primaries  the primaries
+     * @param whitePoint the white point
+     * @param function   the transfer function
      * @return A non-null {@link RGBColorSpace} if a match is found, null otherwise
      */
     @Nullable
     public static RGBColorSpace match(
-            @Size(9) float @NonNull [] unadaptedToXYZ,
-            @Size(min = 2) float @NonNull [] unadaptedWhitePoint,
+            @Size(min = 6) float @NonNull [] primaries,
+            @Size(min = 2) float @NonNull [] whitePoint,
             @NonNull TransferFunction function) {
 
-        float[] whitePoint = xyWhitePoint(unadaptedWhitePoint);
+        float[] xyPrimaries = RGBColorSpace.xyPrimaries(primaries);
+        float[] xyWhitePoint = xyWhitePoint(whitePoint);
 
         for (ColorSpace colorSpace : sNamedColorSpaces) {
             if (colorSpace.getModel() == MODEL_RGB) {
                 RGBColorSpace rgb = (RGBColorSpace) colorSpace;
-                if (ColorSpace.compare(unadaptedToXYZ, rgb.mTransform) &&
-                        ColorSpace.compare(whitePoint, rgb.mWhitePoint) &&
+                if (ColorSpace.compare(xyPrimaries, rgb.mPrimaries) &&
+                        ColorSpace.compare(xyWhitePoint, rgb.mWhitePoint) &&
                         TransferFunction.compare(function, rgb.mTransferFunction)) {
                     return rgb;
                 }
