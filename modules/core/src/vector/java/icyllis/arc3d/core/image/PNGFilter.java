@@ -17,9 +17,13 @@
  * License along with Arc3D. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package icyllis.arc3d.image;
+package icyllis.arc3d.core.image;
 
 public abstract class PNGFilter {
+
+    // the widest vector is 512 bits; allocating more eliminates the need to handle remainder scalar values
+    // (prevents index-out-of-bounds).
+    public static final int HEADROOM = 512/8;
 
     public static PNGFilter createInstance() {
         boolean hasIncubatorVector = false;
@@ -31,8 +35,7 @@ public abstract class PNGFilter {
         if (hasIncubatorVector) {
             return new PNGFilterIncubatorVector();
         } else {
-            throw new IllegalArgumentException();
-            //return new PNGFilterStandard();
+            return new PNGFilterStandard();
         }
     }
 
@@ -43,10 +46,20 @@ public abstract class PNGFilter {
     public abstract void decodeSub6(byte[] curr, int count);
     public abstract void decodeSub8(byte[] curr, int count);
 
+    // dest and curr may NOT be the same array
+    public abstract void encodeSub(byte[] curr, byte[] dest, int count, int bpp);
+
     // auto vectorization, fastest
     public static void decodeUp(byte[] curr, byte[] prev, int count) {
         for (int i = 0; i < count; i++) {
             curr[i] = (byte) ((curr[i] & 0xFF) + (prev[i] & 0xFF));
+        }
+    }
+
+    // auto vectorization, fastest
+    public static void encodeUp(byte[] curr, byte[] prev, byte[] dest, int count) {
+        for (int i = 0; i < count; i++) {
+            dest[i] = (byte) ((curr[i] & 0xFF) - (prev[i] & 0xFF));
         }
     }
 
@@ -63,6 +76,9 @@ public abstract class PNGFilter {
     public abstract void decodeAverage4(byte[] curr, byte[] prev, int count);
     public abstract void decodeAverage6(byte[] curr, byte[] prev, int count);
     public abstract void decodeAverage8(byte[] curr, byte[] prev, int count);
+
+    // dest and curr may NOT be the same array
+    public abstract void encodeAverage(byte[] curr, byte[] prev, byte[] dest, int count, int bpp);
 
     // this is an optimized version from stb_image.h => stbi__paeth
     // equivalent to paeth_std, but much faster
@@ -110,4 +126,9 @@ public abstract class PNGFilter {
     public abstract void decodePaeth4(byte[] curr, byte[] prev, int count);
     public abstract void decodePaeth6(byte[] curr, byte[] prev, int count);
     public abstract void decodePaeth8(byte[] curr, byte[] prev, int count);
+
+    // dest and curr may NOT be the same array
+    public abstract void encodePaeth(byte[] curr, byte[] prev, byte[] dest, int count, int bpp);
+
+    public abstract long sumOfAbs(byte[] arr, int count);
 }

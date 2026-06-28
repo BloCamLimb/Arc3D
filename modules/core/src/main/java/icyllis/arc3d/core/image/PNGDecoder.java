@@ -28,7 +28,6 @@ import icyllis.arc3d.core.MasteringDisplayColorVolume;
 import icyllis.arc3d.core.PixelUtils;
 import icyllis.arc3d.core.Pixmap;
 import icyllis.arc3d.core.Rect2ic;
-import icyllis.arc3d.image.PNGFilter;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
@@ -814,12 +813,12 @@ public class PNGDecoder extends Decoder {
 
         boolean is16 = bitDepth == 16;
         int bytesPerPixel = metadata.numChannels() << (is16 ? 1 : 0);
-        // reserve 32 bytes for the filter type (1 byte) of next row,
+        // reserve 64 bytes for the filter type (1 byte) of next row,
         // and tail padding for vector instructions
-        int rowBytes = computeRowBytes(width, 32);
+        int rowBytes = computeRowBytes(width, PNGFilter.HEADROOM);
         // allocate heap buffer (BIG ENDIAN)
-        ByteBuffer currScanlineBuf = ByteBuffer.allocate(rowBytes + 32);
-        ByteBuffer prevScanlineBuf = ByteBuffer.allocate(rowBytes + 32);
+        ByteBuffer currScanlineBuf = ByteBuffer.allocate(rowBytes + PNGFilter.HEADROOM);
+        ByteBuffer prevScanlineBuf = ByteBuffer.allocate(rowBytes + PNGFilter.HEADROOM);
 
         // read the filter of first scanline
         readScanlineBytes(currScanlineBuf.limit(1));
@@ -923,7 +922,7 @@ public class PNGDecoder extends Decoder {
                                     .put(currScanlineBuf.asShortBuffer());
                         } else {
                             PixelUtils.mixedMemCopy(currScanlineBuf.array(), 0,
-                                    dstPixels.getBase(), dstAddr, passRowBytes);
+                                    dstBase, dstAddr, passRowBytes);
                         }
                     }
                 } else {
@@ -1167,14 +1166,7 @@ public class PNGDecoder extends Decoder {
     }
 
     public int computeRowBytes(int width, int reserve) throws IOException {
-        assert width > 0;
-        long rowBytes = (long) metadata.numChannels() *
-                metadata.IHDR_bitDepth * width;
-        rowBytes = (rowBytes + 7) / 8;
-        if (rowBytes <= 0 || rowBytes > Integer.MAX_VALUE - reserve - 8) {
-            throw new DecoderException("Scanline is too big");
-        }
-        return (int) rowBytes;
+        return metadata.computeRowBytes(width, reserve, DecoderException::new);
     }
 
     private void readScanlineBytes(ByteBuffer dst) throws IOException {

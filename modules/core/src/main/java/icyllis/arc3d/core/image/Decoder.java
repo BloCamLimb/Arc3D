@@ -132,7 +132,7 @@ public abstract class Decoder implements AutoCloseable {
             }
         }
         if (dst.hasRemaining())
-            throw new IOException("Insufficient bytes provided: " + dst.remaining() + " bytes more are needed");
+            throw new DecoderException("Insufficient bytes provided: " + dst.remaining() + " bytes more are needed");
     }
 
     protected void skip(long n) throws IOException {

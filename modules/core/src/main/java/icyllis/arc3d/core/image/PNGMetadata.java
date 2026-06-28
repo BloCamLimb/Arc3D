@@ -181,6 +181,18 @@ public class PNGMetadata {
         return (presentChunks & mask) != 0;
     }
 
+    public void setIHDR(int width, int height, int bitDepth, int colorType,
+                        int interlaceMethod) {
+        set(CHUNK_IHDR);
+        IHDR_width = width;
+        IHDR_height = height;
+        IHDR_bitDepth = bitDepth;
+        IHDR_colorType = colorType;
+        IHDR_compressionMethod = COMPRESSION_METHOD_DEFLATE;
+        IHDR_filterMethod = FILTER_METHOD_ADAPTIVE;
+        IHDR_interlaceMethod = interlaceMethod;
+    }
+
     public void checkIHDR(Function<String, ? extends IOException> ex) throws IOException {
         if (IHDR_width <= 0) {
             throw ex.apply("Invalid image width: " + IHDR_width);
@@ -276,6 +288,14 @@ public class PNGMetadata {
         }
     }
 
+    public void set_cICP(int colorPrimaries, int transferCharacteristics, int matrixCoefficients, int videoFullRangeFlag) {
+        set(CHUNK_cICP);
+        cICP_colorPrimaries = colorPrimaries;
+        cICP_transferCharacteristics = transferCharacteristics;
+        cICP_matrixCoefficients = matrixCoefficients;
+        cICP_videoFullRangeFlag = videoFullRangeFlag;
+    }
+
     public void check_cICP(Function<String, ? extends IOException> ex) throws IOException {
         if (cICP_matrixCoefficients != 0) {
             throw ex.apply("cICP matrix coefficients must be 0!");
@@ -287,5 +307,17 @@ public class PNGMetadata {
 
     public int numChannels() {
         return PNG.numChannels(IHDR_colorType);
+    }
+
+    public int computeRowBytes(int width, int reserve,
+                               Function<String, ? extends IOException> ex) throws IOException {
+        assert width > 0;
+        long rowBytes = (long) numChannels() *
+                IHDR_bitDepth * width;
+        rowBytes = (rowBytes + 7) / 8;
+        if (rowBytes <= 0 || rowBytes > Integer.MAX_VALUE - reserve - 8) {
+            throw ex.apply("Scanline is too big");
+        }
+        return (int) rowBytes;
     }
 }

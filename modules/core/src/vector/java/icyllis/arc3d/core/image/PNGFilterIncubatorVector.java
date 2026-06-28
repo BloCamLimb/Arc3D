@@ -17,9 +17,10 @@
  * License along with Arc3D. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package icyllis.arc3d.image;
+package icyllis.arc3d.core.image;
 
 import jdk.incubator.vector.ByteVector;
+import jdk.incubator.vector.IntVector;
 import jdk.incubator.vector.ShortVector;
 import jdk.incubator.vector.VectorMask;
 import jdk.incubator.vector.VectorOperators;
@@ -36,6 +37,21 @@ public class PNGFilterIncubatorVector extends PNGFilter {
 
     private static final VectorSpecies<Byte> B64 = ByteVector.SPECIES_64;
     private static final VectorSpecies<Short> S128 = ShortVector.SPECIES_128;
+
+    // at most 512
+    private static final VectorSpecies<Byte> B512_A;
+
+    static {
+        var preferred = ByteVector.SPECIES_PREFERRED;
+        if (preferred.vectorBitSize() >= 512) {
+            B512_A = ByteVector.SPECIES_512;
+        } else {
+            B512_A = preferred;
+        }
+    }
+
+    private static final VectorSpecies<Byte> B_WIDE = ByteVector.SPECIES_PREFERRED;
+    private static final VectorSpecies<Integer> I_WIDE = B_WIDE.withLanes(int.class);
 
     public static final VarHandle BYTE_ARRAY_AS_INT =
             MethodHandles.byteArrayViewVarHandle(int[].class, ByteOrder.nativeOrder());
@@ -139,6 +155,27 @@ public class PNGFilterIncubatorVector extends PNGFilter {
         }
     }
 
+    @Override
+    public void encodeSub(byte[] curr, byte[] dest, int count, int bpp) {
+        /*ByteVector carry = ByteVector.zero(ByteVector.SPECIES_128);
+        for (int i = 0; i < count; i += 16) {
+            ByteVector v = ByteVector.fromArray(ByteVector.SPECIES_128, curr, i);
+
+            ByteVector prev = v.unslice(8).add(carry);
+            ByteVector out  = v.sub(prev);
+
+            carry = v.slice(8);
+            out.intoArray(dest, i);
+        }*/
+        System.arraycopy(curr, 0, dest, 0, bpp);
+
+        for (int i = bpp; i < count; i += B512_A.length()) {
+            ByteVector a = ByteVector.fromArray(B512_A, curr, i - bpp);
+            ByteVector x = ByteVector.fromArray(B512_A, curr, i);
+            x.sub(a).intoArray(dest, i);
+        }
+    }
+
     // 1.2 times faster than standard implementation
     @Override
     public void decodeAverage3(byte[] curr, byte[] prev, int count) {
@@ -225,6 +262,24 @@ public class PNGFilterIncubatorVector extends PNGFilter {
             x = x.add(a.add(b).lanewise(VectorOperators.LSHR, (short) 1)
                     .convertShape(VectorOperators.S2B, B64, 0));
             x.intoArray(curr, i);
+        }
+    }
+
+    // 8.0 times faster than standard implementation, if 256 species (AVX2) is used
+    @Override
+    public void encodeAverage(byte[] curr, byte[] prev, byte[] dest, int count, int bpp) {
+        for (int i = 0; i < bpp; i++) {
+            dest[i] = (byte) ((curr[i] & 0xFF) - ((prev[i] & 0xFF) >> 1));
+        }
+        for (int i = bpp; i < count; i += B512_A.length()) {
+            ByteVector x = ByteVector.fromArray(B512_A, curr, i);
+            ByteVector a = ByteVector.fromArray(B512_A, curr, i - bpp);
+            ByteVector b = ByteVector.fromArray(B512_A, prev, i);
+
+            // avg(a,b) = (a & b) + ((a ^ b) >>> 1)
+            ByteVector avg = a.and(b).add(a.lanewise(VectorOperators.XOR, b).lanewise(VectorOperators.LSHR, (byte) 1));
+
+            x.sub(avg).intoArray(dest, i);
         }
     }
 
@@ -340,5 +395,86 @@ public class PNGFilterIncubatorVector extends PNGFilter {
                     .convertShape(VectorOperators.S2B, B64, 0));
             x.intoArray(curr, i);
         }
+    }
+
+    @Override
+    public void encodePaeth(byte[] curr, byte[] prev, byte[] dest, int count, int bpp) {
+        for (int i = 0; i < bpp; i++) {
+            dest[i] = (byte) ((curr[i] & 0xFF) - (prev[i] & 0xFF));
+        }
+        for (int i = bpp; i < count; i += 8) {
+            ByteVector x = ByteVector.fromArray(B64, curr, i);
+            ShortVector a = (ShortVector) ByteVector.fromArray(B64, curr, i - bpp)
+                    .convertShape(VectorOperators.ZERO_EXTEND_B2S, S128, 0);
+            ShortVector b = (ShortVector) ByteVector.fromArray(B64, prev, i)
+                    .convertShape(VectorOperators.ZERO_EXTEND_B2S, S128, 0);
+            ShortVector c = (ShortVector) ByteVector.fromArray(B64, prev, i - bpp)
+                    .convertShape(VectorOperators.ZERO_EXTEND_B2S, S128, 0);
+
+            x.sub(paeth(a, b, c).convertShape(VectorOperators.S2B, B64, 0))
+                    .intoArray(dest, i);
+        }
+    }
+
+    // 4.7 times faster than standard implementation, if 256 species (AVX2) is used
+    // 4.0 times faster, if 128 species is used
+    @Override
+    public long sumOfAbs(byte[] arr, int count) {
+        long totalSum = 0L;
+        int i = 0;
+        final int speciesLength = B_WIDE.length();
+        final int upperBound = B_WIDE.loopBound(count);
+
+        IntVector acc0 = IntVector.zero(I_WIDE);
+        IntVector acc1 = IntVector.zero(I_WIDE);
+        IntVector acc2 = IntVector.zero(I_WIDE);
+        IntVector acc3 = IntVector.zero(I_WIDE);
+
+        int blockCount = 0;
+
+        for (; i < upperBound; i += speciesLength) {
+            ByteVector bv = ByteVector.fromArray(B_WIDE, arr, i);
+
+            IntVector iv0 = ((IntVector) bv.convert(VectorOperators.B2I, 0)).abs();
+            IntVector iv1 = ((IntVector) bv.convert(VectorOperators.B2I, 1)).abs();
+            IntVector iv2 = ((IntVector) bv.convert(VectorOperators.B2I, 2)).abs();
+            IntVector iv3 = ((IntVector) bv.convert(VectorOperators.B2I, 3)).abs();
+
+            acc0 = acc0.add(iv0);
+            acc1 = acc1.add(iv1);
+            acc2 = acc2.add(iv2);
+            acc3 = acc3.add(iv3);
+
+            blockCount += speciesLength;
+
+            // avoid overflow, since abs is 128 at most, (16000000 + 1024) * 128 < 2^31
+            if (blockCount >= 16_000_000) {
+                totalSum += acc0.reduceLanes(VectorOperators.ADD);
+                totalSum += acc1.reduceLanes(VectorOperators.ADD);
+                totalSum += acc2.reduceLanes(VectorOperators.ADD);
+                totalSum += acc3.reduceLanes(VectorOperators.ADD);
+
+                acc0 = IntVector.zero(I_WIDE);
+                acc1 = IntVector.zero(I_WIDE);
+                acc2 = IntVector.zero(I_WIDE);
+                acc3 = IntVector.zero(I_WIDE);
+                blockCount = 0;
+            }
+        }
+
+        // remainder blocks
+        if (blockCount > 0) {
+            totalSum += acc0.reduceLanes(VectorOperators.ADD);
+            totalSum += acc1.reduceLanes(VectorOperators.ADD);
+            totalSum += acc2.reduceLanes(VectorOperators.ADD);
+            totalSum += acc3.reduceLanes(VectorOperators.ADD);
+        }
+
+        // remainder scalars
+        for (; i < count; i++) {
+            totalSum += Math.abs(arr[i]);
+        }
+
+        return totalSum;
     }
 }

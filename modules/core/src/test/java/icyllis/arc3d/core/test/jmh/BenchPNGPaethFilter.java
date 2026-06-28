@@ -19,7 +19,7 @@
 
 package icyllis.arc3d.core.test.jmh;
 
-import icyllis.arc3d.image.PNGFilter;
+import icyllis.arc3d.core.image.PNGFilter;
 import jdk.incubator.vector.ByteVector;
 import jdk.incubator.vector.ShortVector;
 import jdk.incubator.vector.VectorMask;

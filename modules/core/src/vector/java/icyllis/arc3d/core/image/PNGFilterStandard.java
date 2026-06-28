@@ -17,7 +17,7 @@
  * License along with Arc3D. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package icyllis.arc3d.image;
+package icyllis.arc3d.core.image;
 
 /**
  * Standard PNG filtering engine, relying on auto-vectorization and loop unrolling.
@@ -67,6 +67,14 @@ public class PNGFilterStandard extends PNGFilter {
     }
 
     @Override
+    public void encodeSub(byte[] curr, byte[] dest, int count, int bpp) {
+        System.arraycopy(curr, 0, dest, 0, bpp);
+        for (int i = bpp; i < count; i++) {
+            dest[i] = (byte) ((curr[i] & 0xFF) - (curr[i - bpp] & 0xFF));
+        }
+    }
+
+    @Override
     public void decodeAverage3(byte[] curr, byte[] prev, int count) {
         decodeAverage(curr, prev, count, 3);
     }
@@ -84,6 +92,16 @@ public class PNGFilterStandard extends PNGFilter {
     @Override
     public void decodeAverage8(byte[] curr, byte[] prev, int count) {
         decodeAverage(curr, prev, count, 8);
+    }
+
+    @Override
+    public void encodeAverage(byte[] curr, byte[] prev, byte[] dest, int count, int bpp) {
+        for (int i = 0; i < bpp; i++) {
+            dest[i] = (byte) ((curr[i] & 0xFF) - ((prev[i] & 0xFF) >> 1));
+        }
+        for (int i = bpp; i < count; i++) {
+            dest[i] = (byte) ((curr[i] & 0xFF) - (((prev[i] & 0xFF) + (curr[i - bpp] & 0xFF)) >> 1));
+        }
     }
 
     // 4.1 times faster than reference implementation
@@ -108,5 +126,26 @@ public class PNGFilterStandard extends PNGFilter {
     @Override
     public void decodePaeth8(byte[] curr, byte[] prev, int count) {
         decodePaeth(curr, prev, count, 8);
+    }
+
+    @Override
+    public void encodePaeth(byte[] curr, byte[] prev, byte[] dest, int count, int bpp) {
+        for (int i = 0; i < bpp; i++) {
+            dest[i] = (byte) ((curr[i] & 0xFF) - (prev[i] & 0xFF));
+        }
+        for (int i = bpp; i < count; i++) {
+            dest[i] = (byte) ((curr[i] & 0xFF) - paeth(curr[i - bpp] & 0xFF, prev[i] & 0xFF, prev[i - bpp] & 0xFF));
+        }
+    }
+
+    @Override
+    public long sumOfAbs(byte[] arr, int count) {
+        long totalSum = 0L;
+
+        for (int i = 0; i < count; i++) {
+            totalSum += Math.abs(arr[i]);
+        }
+
+        return totalSum;
     }
 }
