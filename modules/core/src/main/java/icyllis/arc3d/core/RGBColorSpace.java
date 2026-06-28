@@ -693,7 +693,7 @@ public non-sealed class RGBColorSpace extends ColorSpace {
     RGBColorSpace(@NonNull RGBColorSpace colorSpace,
                   @Size(9) float @NonNull [] transform,
                   @Size(min = 2, max = 3) float @NonNull [] whitePoint) {
-        this(colorSpace.getName(), colorSpace.mPrimaries, whitePoint, transform,
+        this(colorSpace.getName(), computePrimaries(transform), whitePoint, transform,
                 colorSpace.mOETF, colorSpace.mEOTF, colorSpace.mMin, colorSpace.mMax,
                 colorSpace.mTransferFunction, MIN_ID);
     }
