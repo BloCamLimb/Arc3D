@@ -24,16 +24,19 @@ import org.jspecify.annotations.Nullable;
 
 import java.awt.color.ICC_Profile;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.ShortBuffer;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Objects;
+import java.util.function.DoubleUnaryOperator;
 
 /**
- * Represents a partial ICC Profile used by Arc3D.
+ * Represents a partial ICC Profile used by Arc3D Color Management System.
  */
-//TODO
 public class ColorProfile {
 
     // Gray or RGB
@@ -42,16 +45,16 @@ public class ColorProfile {
     public String description;
 
     public TransferFunction rTRC_para;
-    public char[] rTRC_table;
+    public ShortBuffer rTRC_table;
 
     public TransferFunction gTRC_para;
-    public char[] gTRC_table;
+    public ShortBuffer gTRC_table;
 
     public TransferFunction bTRC_para;
-    public char[] bTRC_table;
+    public ShortBuffer bTRC_table;
 
     public TransferFunction kTRC_para;
-    public char[] kTRC_table;
+    public ShortBuffer kTRC_table;
 
     public @Size(6) float[] primaries;
     public @Size(2) float[] whitePoint;
@@ -153,6 +156,445 @@ public class ColorProfile {
         return pn + " primaries with " + tn + " transfer";
     }
 
+    public void setColorSpace(@NonNull RGBColorSpace colorSpace) {
+        dataColorSpace = ICC_Profile.icSigRgbData;
+
+        description = colorSpace.getName();
+        primaries = colorSpace.getPrimaries();
+        whitePoint = colorSpace.getWhitePoint();
+
+        rTRC_para = gTRC_para = bTRC_para = colorSpace.getTransferFunction();
+        rTRC_table = gTRC_table = bTRC_table = null;
+        kTRC_para = null;
+        kTRC_table = null;
+
+        cicp = false;
+
+        originalTagCount = 0;
+        originalData = null;
+        originalProfile = null;
+    }
+
+    public @Nullable ColorSpace toColorSpace(boolean useBT1886) {
+        if (dataColorSpace == ICC_Profile.icSigRgbData) {
+
+            if (cicp && cicp_matrixCoefficients == Color.MATRIX_COEFFICIENTS_IDENTITY &&
+                    cicp_videoFullRangeFlag != 0) {
+                return ColorSpaces.fromCICP(cicp_colorPrimaries, cicp_transferCharacteristics, useBT1886);
+            }
+
+            if (primaries != null && whitePoint != null) {
+                TransferFunction tf = rTRC_para;
+                if (tf != null) {
+                    if (!tf.equals(gTRC_para) || !tf.equals(bTRC_para)) {
+                        tf = null;
+                    }
+                }
+                if (tf != null) {
+                    RGBColorSpace matched = ColorSpaces.match(primaries, whitePoint, tf);
+                    if (matched != null) {
+                        return matched;
+                    }
+
+                    return new RGBColorSpace("Some RGB", primaries, whitePoint, tf);
+                }
+            }
+
+        } else if (dataColorSpace == ICC_Profile.icSigGrayData) {
+            if (whitePoint != null && kTRC_para != null) {
+                return new RGBColorSpace("Some Gray", new float[]{1, 0, 0, 1, 0, 0}, whitePoint, kTRC_para);
+            }
+        }
+        return null;
+    }
+
+    public static boolean approx(ShortBuffer table, TransferFunction tf) {
+        int N = Math.max(table.remaining(), 256);
+        float scale = 1.0f / (N - 1);
+        DoubleUnaryOperator eotf = tf.toEOTF();
+        for (int i = 0; i < N; i++) {
+            float x = i * scale;
+            float rA = evalCurve(table, x);
+            float rB = (float) eotf.applyAsDouble(x);
+            if (!(Math.abs(rA - rB) <= 5e-4)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static float evalCurve(ShortBuffer table, float x) {
+        float ix = MathUtil.clamp(x, 0f, 1f) * (table.remaining() - 1);
+        int lo = (int) ix;
+        int hi = (int) (ix + 1.0f - Math.ulp(ix + 1.0f));
+        float l = (table.get(lo) & 0xFFFF) * (1 / 65535.0f);
+        float h = (table.get(hi) & 0xFFFF) * (1 / 65535.0f);
+        return MathUtil.lerp(l, h, ix - lo);
+    }
+
+    @Override
+    public String toString() {
+        return "ColorProfile{" +
+                "dataColorSpace=" + Integer.toHexString(dataColorSpace) +
+                ", description='" + description + '\'' +
+                ", rTRC_para=" + rTRC_para +
+                ", rTRC_table=" + rTRC_table +
+                ", gTRC_para=" + gTRC_para +
+                ", gTRC_table=" + gTRC_table +
+                ", bTRC_para=" + bTRC_para +
+                ", bTRC_table=" + bTRC_table +
+                ", kTRC_para=" + kTRC_para +
+                ", kTRC_table=" + kTRC_table +
+                ", primaries=" + Arrays.toString(primaries) +
+                ", whitePoint=" + Arrays.toString(whitePoint) +
+                ", renderingIntent=" + renderingIntent +
+                ", cicp=" + cicp +
+                ", cicp_colorPrimaries=" + cicp_colorPrimaries +
+                ", cicp_transferCharacteristics=" + cicp_transferCharacteristics +
+                ", cicp_matrixCoefficients=" + cicp_matrixCoefficients +
+                ", cicp_videoFullRangeFlag=" + cicp_videoFullRangeFlag +
+                ", originalTagCount=" + originalTagCount +
+                ", originalProfile=" + originalProfile +
+                '}';
+    }
+
+    /**
+     * Attempts to parse the given ICC profile data and returns a {@code ColorProfile}.
+     * Throws {@link IllegalArgumentException} if the data does not represent a valid ICC profile.
+     * <p>
+     * Regardless of whether the profile can be resolved, {@link #originalData} and
+     * {@link #originalTagCount} are always initialized.
+     *
+     * @throws IllegalArgumentException the data does not represent a valid ICC profile
+     */
+    public static @NonNull ColorProfile parseICC(byte @NonNull [] data)
+            throws IllegalArgumentException {
+        ByteBuffer buffer = ByteBuffer.wrap(data)
+                .order(ByteOrder.BIG_ENDIAN);
+
+        if (buffer.remaining() < TOC_OFFSET) {
+            throw new IllegalArgumentException("ICC data size is too small");
+        }
+        if (buffer.getInt(ICC_Profile.icHdrMagic) != PROFILE_FILE_SIGNATURE) {
+            throw new IllegalArgumentException("Bad ICC magic");
+        }
+        if (buffer.remaining() < buffer.getInt(ICC_Profile.icHdrSize)) {
+            throw new IllegalArgumentException("ICC data size is smaller than the declared size");
+        }
+
+        boolean resolvable = true;
+
+        int deviceClass = buffer.getInt(ICC_Profile.icHdrDeviceClass);
+        switch (deviceClass) {
+            case ICC_Profile.icSigInputClass:
+            case ICC_Profile.icSigDisplayClass:
+                break;
+            case ICC_Profile.icSigOutputClass:
+            case ICC_Profile.icSigLinkClass:
+            case ICC_Profile.icSigColorSpaceClass:
+            case ICC_Profile.icSigAbstractClass:
+            case ICC_Profile.icSigNamedColorClass:
+                resolvable = false;
+                break;
+            default:
+                throw new IllegalArgumentException("Bad ICC device class: " + Integer.toHexString(deviceClass));
+        }
+
+        int dataColorSpace = buffer.getInt(ICC_Profile.icHdrColorSpace);
+        switch (dataColorSpace) {
+            case ICC_Profile.icSigRgbData:
+            case ICC_Profile.icSigGrayData:
+                break;
+            default:
+                resolvable = false;
+                break;
+        }
+
+        if (deviceClass != ICC_Profile.icSigLinkClass) {
+            int pcs = buffer.getInt(ICC_Profile.icHdrPcs);
+            switch (pcs) {
+                case ICC_Profile.icSigXYZData:
+                    break;
+                case ICC_Profile.icSigLabData:
+                    resolvable = false;
+                    break;
+                default:
+                    throw new IllegalArgumentException("Bad ICC PCS: " + Integer.toHexString(pcs));
+            }
+        }
+
+        int renderingIntent = buffer.getInt(ICC_Profile.icHdrRenderingIntent);
+        if (renderingIntent < 0 || renderingIntent > 3) {
+            throw new IllegalArgumentException("Bad ICC rendering intent: " + Integer.toHexString(renderingIntent));
+        }
+
+        int tagCount = buffer.getInt(HEADER_SIZE);
+        int dataBegin = TOC_OFFSET + tagCount * TOC_RECORD_SIZE;
+        if (tagCount < 0 || tagCount > 16777216 || buffer.remaining() < dataBegin) {
+            throw new IllegalArgumentException("ICC data size is too small to hold tag table");
+        }
+
+        ColorProfile result = new ColorProfile();
+
+        result.dataColorSpace = dataColorSpace;
+        result.renderingIntent = renderingIntent;
+
+        boolean hasDescription = false;
+        boolean hasCopyright = false;
+        float[] whitePoint = null;
+        float[] chromaticAdaptation = null;
+        float[] xyzMatrix = null;
+        Object rTRC = null;
+        Object gTRC = null;
+        Object bTRC = null;
+        Object kTRC = null;
+
+        for (int i = 0, offset = TOC_OFFSET; i < tagCount; i++, offset += TOC_RECORD_SIZE) {
+            int tagType = buffer.getInt(offset);
+            int tagOffset = buffer.getInt(offset + 4);
+            int tagSize = buffer.getInt(offset + 8);
+            if (tagOffset < dataBegin ||
+                    tagOffset + tagSize > buffer.remaining()) {
+                throw new IllegalArgumentException("ICC tag data is out of range");
+            }
+            switch (tagType) {
+                case ICC_Profile.icSigProfileDescriptionTag -> {
+                    if (hasDescription) {
+                        throw new IllegalArgumentException("Duplicate profile description");
+                    }
+                    hasDescription = true;
+                    result.description = readText(buffer, tagOffset, tagSize);
+                }
+                case ICC_Profile.icSigCopyrightTag -> {
+                    if (hasCopyright) {
+                        throw new IllegalArgumentException("Duplicate copyright");
+                    }
+                    hasCopyright = true;
+                    System.out.println(readText(buffer, tagOffset, tagSize));
+                }
+                case ICC_Profile.icSigMediaWhitePointTag -> {
+                    if (whitePoint != null) {
+                        throw new IllegalArgumentException("Duplicate media white point");
+                    }
+                    whitePoint = new float[3];
+                    if (!readXYZ(buffer, tagOffset, tagSize, whitePoint, 0)) {
+                        throw new IllegalArgumentException("Invalid media white point");
+                    }
+                }
+                case ICC_Profile.icSigChromaticAdaptationTag -> {
+                    if (chromaticAdaptation != null) {
+                        throw new IllegalArgumentException("Duplicate chromatic adaptation");
+                    }
+                    chromaticAdaptation = new float[9];
+                    if (!readChad(buffer, tagOffset, tagSize, chromaticAdaptation)) {
+                        throw new IllegalArgumentException("Invalid chromatic adaptation");
+                    }
+                }
+                case ICC_Profile.icSigRedMatrixColumnTag -> {
+                    if (xyzMatrix == null) {
+                        xyzMatrix = new float[9];
+                    }
+                    if (!readXYZ(buffer, tagOffset, tagSize, xyzMatrix, 0)) {
+                        throw new IllegalArgumentException("Invalid red matrix column");
+                    }
+                }
+                case ICC_Profile.icSigGreenMatrixColumnTag -> {
+                    if (xyzMatrix == null) {
+                        xyzMatrix = new float[9];
+                    }
+                    if (!readXYZ(buffer, tagOffset, tagSize, xyzMatrix, 3)) {
+                        throw new IllegalArgumentException("Invalid green matrix column");
+                    }
+                }
+                case ICC_Profile.icSigBlueMatrixColumnTag -> {
+                    if (xyzMatrix == null) {
+                        xyzMatrix = new float[9];
+                    }
+                    if (!readXYZ(buffer, tagOffset, tagSize, xyzMatrix, 6)) {
+                        throw new IllegalArgumentException("Invalid blue matrix column");
+                    }
+                }
+                case ICC_Profile.icSigRedTRCTag -> {
+                    if (rTRC != null) {
+                        throw new IllegalArgumentException("Duplicate red TRC");
+                    }
+                    rTRC = readTRC(buffer, tagOffset, tagSize);
+                    if (rTRC == null) {
+                        throw new IllegalArgumentException("Invalid red TRC");
+                    }
+                }
+                case ICC_Profile.icSigGreenTRCTag -> {
+                    if (gTRC != null) {
+                        throw new IllegalArgumentException("Duplicate green TRC");
+                    }
+                    gTRC = readTRC(buffer, tagOffset, tagSize);
+                    if (gTRC == null) {
+                        throw new IllegalArgumentException("Invalid green TRC");
+                    }
+                }
+                case ICC_Profile.icSigBlueTRCTag -> {
+                    if (bTRC != null) {
+                        throw new IllegalArgumentException("Duplicate blue TRC");
+                    }
+                    bTRC = readTRC(buffer, tagOffset, tagSize);
+                    if (bTRC == null) {
+                        throw new IllegalArgumentException("Invalid blue TRC");
+                    }
+                }
+                case ICC_Profile.icSigGrayTRCTag -> {
+                    if (kTRC != null) {
+                        throw new IllegalArgumentException("Duplicate gray TRC");
+                    }
+                    kTRC = readTRC(buffer, tagOffset, tagSize);
+                    if (kTRC == null) {
+                        throw new IllegalArgumentException("Invalid gray TRC");
+                    }
+                }
+                case icSigcicpTag -> {
+                    if (result.cicp) {
+                        throw new IllegalArgumentException("Duplicate CICP");
+                    }
+                    if (tagSize < 12) {
+                        throw new IllegalArgumentException("Invalid CICP");
+                    }
+                    result.cicp = true;
+                    result.cicp_colorPrimaries = buffer.get(tagOffset + 8) & 0xFF;
+                    result.cicp_transferCharacteristics = buffer.get(tagOffset + 9) & 0xFF;
+                    result.cicp_matrixCoefficients = buffer.get(tagOffset + 10) & 0xFF;
+                    result.cicp_videoFullRangeFlag = buffer.get(tagOffset + 11) & 0xFF;
+                }
+            }
+        }
+
+        if (!hasDescription || !hasCopyright) {
+            // ICC always requires these
+            throw new IllegalArgumentException("Missing profile description or copyright");
+        }
+
+        resolve:
+        if (resolvable) {
+            // ICC requires mediaWhitePointTag, except for DeviceLink
+            if (whitePoint == null) {
+                throw new IllegalArgumentException("Missing media white point");
+            }
+
+            if (dataColorSpace == ICC_Profile.icSigRgbData) {
+                if (rTRC == null || gTRC == null || bTRC == null) {
+                    break resolve;
+                }
+                // simplify trc
+                if (rTRC.equals(gTRC)) {
+                    gTRC = rTRC;
+                }
+                if (rTRC.equals(bTRC)) {
+                    bTRC = rTRC;
+                }
+                if (rTRC instanceof TransferFunction) {
+                    result.rTRC_para = (TransferFunction) rTRC;
+                } else {
+                    result.rTRC_table = (ShortBuffer) rTRC;
+                }
+                if (gTRC instanceof TransferFunction) {
+                    result.gTRC_para = (TransferFunction) gTRC;
+                } else {
+                    result.gTRC_table = (ShortBuffer) gTRC;
+                }
+                if (bTRC instanceof TransferFunction) {
+                    result.bTRC_para = (TransferFunction) bTRC;
+                } else {
+                    result.bTRC_table = (ShortBuffer) bTRC;
+                }
+                if (rTRC == gTRC && rTRC == bTRC && rTRC instanceof ShortBuffer) {
+                    // make parametric fitting
+                    if (approx((ShortBuffer) rTRC, TransferFunction.SRGB)) {
+                        result.rTRC_para = result.gTRC_para = result.bTRC_para = TransferFunction.SRGB;
+                        rTRC = gTRC = bTRC = TransferFunction.SRGB;
+                    }
+                }
+            } else {
+                if (kTRC == null) {
+                    break resolve;
+                }
+                if (kTRC instanceof TransferFunction) {
+                    result.kTRC_para = (TransferFunction) kTRC;
+                } else {
+                    result.kTRC_table = (ShortBuffer) kTRC;
+                }
+            }
+
+            if (chromaticAdaptation != null) {
+                // OK now we want to compute the actual adopted white point and primaries
+                float[] invChad = ColorSpace.inverse3x3(chromaticAdaptation);
+
+                // The legacy Display P3 profile generated by Apple (Copyright Apple Inc., 2015/2017)
+                // has the original white point, but ICCv4 requires adapted white point.
+                // Thus we ignore it and always compute from ICC D50 illuminant
+                float[] unadaptedWhitePoint = ColorSpace.xyWhitePoint(
+                        ColorSpace.mul3x3Float3(invChad, ColorSpace.ICC_ILLUMINANT_D50_XYZ.clone())
+                );
+
+                if (dataColorSpace == ICC_Profile.icSigRgbData) {
+                    float[] unadaptedXYZMatrix = ColorSpace.mul3x3(
+                            invChad, xyzMatrix
+                    );
+
+                    float[] actualWhitePoint = RGBColorSpace.computeWhitePoint(
+                            unadaptedXYZMatrix
+                    );
+                    float[] actualPrimaries = RGBColorSpace.computePrimaries(
+                            unadaptedXYZMatrix
+                    );
+
+                    if (!ColorSpace.compare(unadaptedWhitePoint, actualWhitePoint) &&
+                            !ColorSpace.compare(ColorSpace.xyWhitePoint(whitePoint), actualWhitePoint)) {
+                        throw new IllegalArgumentException("Unadapted media white point does not match colorant matrix");
+                    }
+
+                    result.whitePoint = actualWhitePoint;
+                    result.primaries = actualPrimaries;
+                } else {
+                    result.whitePoint = unadaptedWhitePoint;
+                }
+            } else {
+                // No chad, this generally means the white point is PCS illuminant.
+                // However, this could also be due to some software (like Google Skia)
+                // not following the ICCv4 specification and losing the chad matrix;
+                // we will first attempt to derive it.
+                if (dataColorSpace == ICC_Profile.icSigRgbData) {
+
+                    RGBColorSpace matched = null;
+                    if (rTRC == gTRC && rTRC == bTRC &&
+                            rTRC instanceof TransferFunction function) {
+                        matched = ColorSpaces.match(xyzMatrix, function);
+                    }
+
+                    float[] actualWhitePoint;
+                    float[] actualPrimaries;
+                    if (matched != null) {
+                        actualWhitePoint = matched.getWhitePoint();
+                        actualPrimaries = matched.getPrimaries();
+                    } else {
+                        actualWhitePoint = RGBColorSpace.computeWhitePoint(
+                                xyzMatrix
+                        );
+                        actualPrimaries = RGBColorSpace.computePrimaries(
+                                xyzMatrix
+                        );
+                    }
+                    result.whitePoint = actualWhitePoint;
+                    result.primaries = actualPrimaries;
+                } else {
+                    result.whitePoint = ColorSpace.xyWhitePoint(whitePoint);
+                }
+            }
+        }
+
+        result.originalTagCount = tagCount;
+        result.originalData = data;
+
+        return result;
+    }
+
     public static final int HEADER_SIZE = 128;
     // Header plus the size of the tag count (4)
     public static final int TOC_OFFSET = HEADER_SIZE + 4;
@@ -231,7 +673,7 @@ public class ColorProfile {
             tags.put(ICC_Profile.icSigRedTRCTag, writeTRC(
                     rTRC_para, rTRC_table
             ));
-            if (Objects.equals(gTRC_para, rTRC_para) && Arrays.equals(gTRC_table, rTRC_table)) {
+            if (Objects.equals(gTRC_para, rTRC_para) && Objects.equals(gTRC_table, rTRC_table)) {
                 // null means duplicate previous tag data
                 tags.put(ICC_Profile.icSigGreenTRCTag, null);
             } else {
@@ -239,7 +681,7 @@ public class ColorProfile {
                         gTRC_para, gTRC_table
                 ));
             }
-            if (Objects.equals(bTRC_para, gTRC_para) && Arrays.equals(bTRC_table, gTRC_table)) {
+            if (Objects.equals(bTRC_para, gTRC_para) && Objects.equals(bTRC_table, gTRC_table)) {
                 // null means duplicate previous tag data
                 tags.put(ICC_Profile.icSigBlueTRCTag, null);
             } else {
@@ -373,6 +815,47 @@ public class ColorProfile {
         return buffer.array();
     }
 
+    public static @Nullable String readText(ByteBuffer buffer, int offset, int size) {
+        if (size < 8) {
+            return null;
+        }
+        int type = buffer.getInt(offset);
+        switch (type) {
+            case icSigMultiLocalizedUnicodeType -> {
+                if (size < 28) {
+                    return null;
+                }
+                int stringLength = buffer.getInt(offset + 20);
+                int stringOffset = buffer.getInt(offset + 24);
+                if (stringLength < 0 || stringLength % 2 != 0) {
+                    return null;
+                }
+                if (stringOffset < 28 || stringOffset > size - stringLength) {
+                    return null;
+                }
+                return buffer
+                        .slice(offset + stringOffset, stringLength)
+                        .order(ByteOrder.BIG_ENDIAN)
+                        .asCharBuffer()
+                        .toString();
+            }
+            case 0x74657874 -> {
+                // 'text'
+                String str = new String(buffer.array(),
+                        buffer.arrayOffset() + offset + 8, size - 8,
+                        StandardCharsets.US_ASCII);
+                int tail = str.length();
+                while (tail > 0 && str.charAt(tail - 1) == '\0')
+                    tail--;
+                return str.substring(0, tail);
+            }
+            // there's legacy 'desc' but we don't handle
+            default -> {
+                return null;
+            }
+        }
+    }
+
     public static byte @NonNull [] writeXYZ(float x, float y, float z) {
         ByteBuffer buffer = ByteBuffer.allocate(
                 20
@@ -386,6 +869,18 @@ public class ColorProfile {
                 .putInt(Math.round(z * 65536f));
 
         return buffer.array();
+    }
+
+    public static boolean readXYZ(ByteBuffer buffer, int offset, int size,
+                                  float[] dst, int dstBegin) {
+        if (size < 20 || buffer.getInt(offset) != ICC_Profile.icSigXYZData) {
+            return false;
+        }
+
+        dst[dstBegin] = buffer.getInt(offset + 8) * (1.0f / 65536.0f);
+        dst[dstBegin + 1] = buffer.getInt(offset + 12) * (1.0f / 65536.0f);
+        dst[dstBegin + 2] = buffer.getInt(offset + 16) * (1.0f / 65536.0f);
+        return true;
     }
 
     public static byte @NonNull [] writeChad(float @NonNull [] m) {
@@ -409,26 +904,42 @@ public class ColorProfile {
         return buffer.array();
     }
 
-    public static byte @NonNull [] writeTRC(TransferFunction tf, char[] table) {
+    public static boolean readChad(ByteBuffer buffer, int offset, int size,
+                                   float[] dst) {
+        if (size < 44 || buffer.getInt(offset) != icSigS15Fixed16ArrayType) {
+            return false;
+        }
+
+        dst[0] = buffer.getInt(offset + 8) * (1.0f / 65536.0f);
+        dst[3] = buffer.getInt(offset + 12) * (1.0f / 65536.0f);
+        dst[6] = buffer.getInt(offset + 16) * (1.0f / 65536.0f);
+        dst[1] = buffer.getInt(offset + 20) * (1.0f / 65536.0f);
+        dst[4] = buffer.getInt(offset + 24) * (1.0f / 65536.0f);
+        dst[7] = buffer.getInt(offset + 28) * (1.0f / 65536.0f);
+        dst[2] = buffer.getInt(offset + 32) * (1.0f / 65536.0f);
+        dst[5] = buffer.getInt(offset + 36) * (1.0f / 65536.0f);
+        dst[8] = buffer.getInt(offset + 40) * (1.0f / 65536.0f);
+        return true;
+    }
+
+    public static byte @NonNull [] writeTRC(TransferFunction para, ShortBuffer table) {
         ByteBuffer buffer;
         if (table != null) {
-            assert table.length > 1;
+            assert table.remaining() > 1;
             buffer = ByteBuffer.allocate(
-                    12 + MathUtil.align4(table.length * 2)
+                    12 + MathUtil.align4(table.remaining() * 2)
             );
             buffer
                     .putInt(icSigCurveType)
                     .putInt(0) // Reserved
-                    .putInt(table.length);
-            for (char v : table) {
-                buffer.putChar(v);
-            }
+                    .putInt(table.remaining());
+            buffer.asShortBuffer().put(table);
         } else {
             int functionType;
-            if (tf.e == 0.0 && tf.f == 0.0) {
-                if (tf.a == 1.0 && tf.b == 0.0 &&
-                        tf.c == 0.0 && tf.d == 0.0) {
-                    if (tf.g == 1.0) {
+            if (para.e == 0.0 && para.f == 0.0) {
+                if (para.a == 1.0 && para.b == 0.0 &&
+                        para.c == 0.0 && para.d == 0.0) {
+                    if (para.g == 1.0) {
                         functionType = -1;
                     } else {
                         functionType = 0;
@@ -453,16 +964,16 @@ public class ColorProfile {
                         .putInt(0) // Reserved
                         .putShort((short) functionType)
                         .putShort((short) 0); // Reserved
-                buffer.putInt((int) Math.round(tf.g * 65536));
+                buffer.putInt((int) Math.round(para.g * 65536));
                 if (functionType >= 3) {
-                    buffer.putInt((int) Math.round(tf.a * 65536));
-                    buffer.putInt((int) Math.round(tf.b * 65536));
-                    buffer.putInt((int) Math.round(tf.c * 65536));
-                    buffer.putInt((int) Math.round(tf.d * 65536));
+                    buffer.putInt((int) Math.round(para.a * 65536));
+                    buffer.putInt((int) Math.round(para.b * 65536));
+                    buffer.putInt((int) Math.round(para.c * 65536));
+                    buffer.putInt((int) Math.round(para.d * 65536));
                 }
                 if (functionType == 4) {
-                    buffer.putInt((int) Math.round(tf.e * 65536));
-                    buffer.putInt((int) Math.round(tf.f * 65536));
+                    buffer.putInt((int) Math.round(para.e * 65536));
+                    buffer.putInt((int) Math.round(para.f * 65536));
                 }
             } else {
                 buffer
@@ -472,6 +983,80 @@ public class ColorProfile {
             }
         }
         return buffer.array();
+    }
+
+    // Returns TransferFunction para, ShortBuffer table, or null
+    public static @Nullable Object readTRC(ByteBuffer buffer, int offset, int size) {
+        if (size < 12) {
+            return null;
+        }
+        switch (buffer.getInt(offset)) {
+            case icSigCurveType -> {
+                int count = buffer.getInt(offset + 8);
+                if (count < 0 || count > 16777216 || size < 12 + count * 2) {
+                    return null;
+                }
+                if (count < 2) {
+                    float gamma = count == 0 ? 1.0f : buffer.getChar(offset + 12) * (1.0f / 256.0f);
+                    if (gamma == 1.0f) {
+                        return TransferFunction.LINEAR;
+                    }
+                    return new TransferFunction(1.0, 0.0, 0.0, 0.0, gamma);
+                }
+                return buffer
+                        .slice(offset + 12, count * 2)
+                        .order(ByteOrder.BIG_ENDIAN)
+                        .asShortBuffer();
+            }
+            case icSigParametricCurveType -> {
+                if (size < 16) {
+                    return null;
+                }
+                int functionType = buffer.getShort(offset + 8) & 0xFFFF;
+                float gamma = buffer.getInt(offset + 12) * (1.0f / 65536.0f);
+                if (functionType == 0) {
+                    if (gamma == 1.0f) {
+                        return TransferFunction.LINEAR;
+                    }
+                    return new TransferFunction(1.0, 0.0, 0.0, 0.0, gamma);
+                }
+                float a, b, c = 0, d = 0, e = 0, f = 0;
+                switch (functionType) {
+                    case 4:
+                        if (size < 40) {
+                            return null;
+                        }
+                        f = buffer.getInt(offset + 36) * (1.0f / 65536.0f);
+                        e = buffer.getInt(offset + 32) * (1.0f / 65536.0f);
+                        // fallthrough
+                    case 3:
+                        if (size < 32) {
+                            return null;
+                        }
+                        d = buffer.getInt(offset + 28) * (1.0f / 65536.0f);
+                        // fallthrough
+                    case 2:
+                        if (size < 28) {
+                            return null;
+                        }
+                        c = buffer.getInt(offset + 24) * (1.0f / 65536.0f);
+                        // fallthrough
+                    case 1:
+                        if (size < 24) {
+                            return null;
+                        }
+                        b = buffer.getInt(offset + 20) * (1.0f / 65536.0f);
+                        a = buffer.getInt(offset + 16) * (1.0f / 65536.0f);
+                        break;
+                    default:
+                        return null;
+                }
+                return new TransferFunction(a, b, c, d, e, f, gamma);
+            }
+            default -> {
+                return null;
+            }
+        }
     }
 
     public static byte @NonNull [] writeChromaticity(@Size(6) float[] primaries) {

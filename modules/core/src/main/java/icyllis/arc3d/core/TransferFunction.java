@@ -464,10 +464,10 @@ public class TransferFunction {
                 Math.abs(a.a - b.a) < 5e-4 &&
                 Math.abs(a.b - b.b) < 5e-4 &&
                 Math.abs(a.c - b.c) < 5e-4 &&
-                Math.abs(a.d - b.d) < 1e-3 && // Special case for variations in sRGB OETF/EOTF
+                Math.abs(a.d - b.d) < 2e-3 && // Special case for variations in sRGB OETF/EOTF
                 Math.abs(a.e - b.e) < 5e-4 &&
                 Math.abs(a.f - b.f) < 5e-4 &&
-                Math.abs(a.g - b.g) < 5e-4;
+                Math.abs(a.g - b.g) < 2e-3; // ICC 'curv' has error (1/512)
     }
 
     public static boolean compare(double point,
@@ -475,6 +475,6 @@ public class TransferFunction {
                                   @NonNull DoubleUnaryOperator b) {
         double rA = a.applyAsDouble(point);
         double rB = b.applyAsDouble(point);
-        return Math.abs(rA - rB) <= 2e-4;
+        return Math.abs(rA - rB) <= 5e-4;
     }
 }
