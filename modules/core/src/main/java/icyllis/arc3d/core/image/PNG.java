@@ -21,6 +21,11 @@ package icyllis.arc3d.core.image;
 
 public final class PNG {
 
+    public static final byte[] FILE_SIGNATURE = {
+            (byte) 137, (byte) 80, (byte) 78, (byte) 71,
+            (byte) 13, (byte) 10, (byte) 26, (byte) 10
+    };
+
     //   Color    Allowed    Interpretation
     //   Type    Bit Depths
     //

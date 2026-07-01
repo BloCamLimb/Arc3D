@@ -19,15 +19,7 @@
 
 package icyllis.arc3d.core.image;
 
-import icyllis.arc3d.core.ColorInfo;
-import icyllis.arc3d.core.ColorSpace;
-import icyllis.arc3d.core.ColorSpaces;
-import icyllis.arc3d.core.ContentLightLevelInformation;
-import icyllis.arc3d.core.ImageInfo;
-import icyllis.arc3d.core.MasteringDisplayColorVolume;
-import icyllis.arc3d.core.PixelUtils;
-import icyllis.arc3d.core.Pixmap;
-import icyllis.arc3d.core.Rect2ic;
+import icyllis.arc3d.core.*;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
@@ -58,18 +50,15 @@ public class PNGDecoder extends Decoder {
 
     private PNGMetadata metadata;
 
-    private boolean readText = false;
     private boolean readHistogram = false;
     private boolean readSuggestedPalette = false;
-    private boolean readExif = false;
-    private boolean useBT1886 = false;
 
-    private static final int STAGE_TOP = 1;
-    private static final int STAGE_IHDR = 2;
-    private static final int STAGE_FIRST_IDAT = 3;
-    private static final int STAGE_AFTER_IDAT = 4;
-    private static final int STAGE_IEND = 5;
-    private int stage = 0;
+    private static final int STATE_TOP = 1;
+    private static final int STATE_IHDR = 2;
+    private static final int STATE_FIRST_IDAT = 3;
+    private static final int STATE_AFTER_IDAT = 4;
+    private static final int STATE_IEND = 5;
+    private int state = 0;
 
     private int chunkType;
     private int chunkLength;
@@ -77,12 +66,40 @@ public class PNGDecoder extends Decoder {
 
     private Inflater inflater;
 
+    private ColorProfile colorProfile;
+    private ColorSpace colorSpace;
+
     public PNGDecoder() {
     }
 
+    @Override
     public void reset() {
         metadata = new PNGMetadata();
-        stage = 0;
+        state = 0;
+        chunkType = 0;
+        chunkLength = 0;
+        chunkRemaining = 0;
+        colorProfile = null;
+        colorSpace = null;
+        if (inflater != null) {
+            inflater.reset();
+        }
+    }
+
+    public boolean getReadHistogram() {
+        return readHistogram;
+    }
+
+    public void setReadHistogram(boolean readHistogram) {
+        this.readHistogram = readHistogram;
+    }
+
+    public boolean getReadSuggestedPalette() {
+        return readSuggestedPalette;
+    }
+
+    public void setReadSuggestedPalette(boolean readSuggestedPalette) {
+        this.readSuggestedPalette = readSuggestedPalette;
     }
 
     @Override
@@ -95,67 +112,33 @@ public class PNGDecoder extends Decoder {
         return metadata.IHDR_height;
     }
 
+    @Override
+    public @Nullable ColorProfile getColorProfile() {
+        return colorProfile;
+    }
+
+    @Override
+    public @Nullable ColorSpace getColorSpace() {
+        return colorSpace;
+    }
+
     public PNGMetadata getMetadata() {
         return metadata;
     }
 
-    public boolean isReadText() {
-        return readText;
-    }
-
-    public void setReadText(boolean readText) {
-        this.readText = readText;
-    }
-
-    public boolean isReadHistogram() {
-        return readHistogram;
-    }
-
-    public void setReadHistogram(boolean readHistogram) {
-        this.readHistogram = readHistogram;
-    }
-
-    public boolean isReadSuggestedPalette() {
-        return readSuggestedPalette;
-    }
-
-    public void setReadSuggestedPalette(boolean readSuggestedPalette) {
-        this.readSuggestedPalette = readSuggestedPalette;
-    }
-
-    public boolean isReadExif() {
-        return readExif;
-    }
-
-    public void setReadExif(boolean readExif) {
-        this.readExif = readExif;
-    }
-
-    public boolean getUseBT1886() {
-        return useBT1886;
-    }
-
-    public void setUseBT1886(boolean useBT1886) {
-        this.useBT1886 = useBT1886;
-    }
-
+    @Override
     public void readHeader() throws IOException {
         ensureReadBuffer();
 
         reset();
 
-        if (nextRawByte() != (byte)137 ||
-                nextRawByte() != (byte)80 ||
-                nextRawByte() != (byte)78 ||
-                nextRawByte() != (byte)71 ||
-                nextRawByte() != (byte)13 ||
-                nextRawByte() != (byte)10 ||
-                nextRawByte() != (byte)26 ||
-                nextRawByte() != (byte)10) {
-            throw new DecoderException("Not a PNG image");
+        for (byte b : FILE_SIGNATURE) {
+            if (nextRawByte() != b) {
+                throw new DecoderException("Not a PNG image");
+            }
         }
 
-        stage = STAGE_TOP;
+        state = STATE_TOP;
 
         int IHDR_length = readInt();
         int IHDR_type = readInt();
@@ -186,10 +169,11 @@ public class PNGDecoder extends Decoder {
         metadata.checkIHDR(DecoderException::new);
         metadata.set(PNGMetadata.CHUNK_IHDR);
 
-        stage = STAGE_IHDR;
+        state = STATE_IHDR;
     }
 
-    public ImageInfo getBestImageInfo() {
+    @Override
+    public @NonNull ImageInfo getInfo() {
         @ColorInfo.ColorType
         int colorType = ColorInfo.CT_UNKNOWN;
         @ColorInfo.AlphaType
@@ -268,26 +252,91 @@ public class PNGDecoder extends Decoder {
             }
         }
 
-        //TODO packed formats, color space info
-        ColorSpace colorSpace = ColorSpaces.SRGB;
-        if (metadata.any(PNGMetadata.CHUNK_cICP)) {
-            colorSpace = ColorSpaces.fromCICP(metadata.cICP_colorPrimaries,
-                    metadata.cICP_transferCharacteristics, useBT1886);
+        //TODO packed formats
+        ColorSpace colorSpace = this.colorSpace;
+        if (colorProfile != null && colorSpace == null) {
+            colorSpace = ColorSpaces.SRGB;
         }
 
         return ImageInfo.make(metadata.IHDR_width, metadata.IHDR_height,
                 colorType, alphaType, colorSpace);
     }
 
+    private void setColorProfile() {
+        // PNG spec:
+        // The RGB color space in which color samples are situated may be specified in one of four ways:
+        //
+        // 1 by CICP image format signaling metadata;
+        // 2 by an ICC profile;
+        // 3 by specifying explicitly that the color space is sRGB when the samples conform to this color space;
+        // 4 by specifying a gamma value and the 1931 CIE x,y chromaticities of the red, green, and blue primaries
+        //   used in the image and the reference white point.
+
+        ColorProfile colorProfile = null;
+        if (metadata.any(PNGMetadata.CHUNK_iCCP)) {
+            try {
+                colorProfile = ColorProfile.parseICC(metadata.iCCP_profile);
+            } catch (IllegalArgumentException ignored) {
+                //TODO warning
+            }
+        }
+        if (metadata.any(PNGMetadata.CHUNK_cICP)) {
+            // this will override ICC profile cicp tag
+            if (colorProfile == null) {
+                colorProfile = new ColorProfile();
+            }
+            colorProfile.cicp = true;
+            colorProfile.cicp_colorPrimaries = metadata.cICP_colorPrimaries;
+            colorProfile.cicp_transferCharacteristics = metadata.cICP_transferCharacteristics;
+            colorProfile.cicp_matrixCoefficients = metadata.cICP_matrixCoefficients;
+            colorProfile.cicp_videoFullRangeFlag = metadata.cICP_videoFullRangeFlag;
+        }
+        if (colorProfile == null &&
+                metadata.any(PNGMetadata.CHUNK_sRGB)) {
+            // fallback
+            colorProfile = new ColorProfile();
+            colorProfile.setColorSpace(ColorSpaces.SRGB);
+        }
+        if (colorProfile == null &&
+                metadata.any(PNGMetadata.CHUNK_cHRM) &&
+                metadata.any(PNGMetadata.CHUNK_gAMA) &&
+                metadata.gAMA_gamma > 0) {
+            // fallback
+            colorProfile = new ColorProfile();
+            colorProfile.primaries = new float[]{
+                    metadata.cHRM_redX * (1 / 100000f),
+                    metadata.cHRM_redY * (1 / 100000f),
+                    metadata.cHRM_greenX * (1 / 100000f),
+                    metadata.cHRM_greenY * (1 / 100000f),
+                    metadata.cHRM_blueX * (1 / 100000f),
+                    metadata.cHRM_blueY * (1 / 100000f),
+            };
+            colorProfile.whitePoint = new float[]{
+                    metadata.cHRM_whitePointX * (1 / 100000f),
+                    metadata.cHRM_whitePointY * (1 / 100000f),
+            };
+            colorProfile.rTRC_para = colorProfile.gTRC_para = colorProfile.bTRC_para =
+                    new TransferFunction(1, 0, 0, 0, 100000D / metadata.gAMA_gamma);
+        }
+
+        this.colorProfile = colorProfile;
+
+        ColorSpace colorSpace = null;
+        if (colorProfile != null) {
+            colorSpace = colorProfile.toColorSpace(useBT1886);
+        }
+        this.colorSpace = colorSpace;
+    }
+
     public void readChunks() throws IOException {
-        if (stage < STAGE_IHDR) {
+        if (state < STATE_IHDR) {
             throw new DecoderException("No IHDR chunk");
         }
-        if (stage >= STAGE_IEND) {
+        if (state >= STATE_IEND) {
             return;
         }
 
-        while (stage < STAGE_FIRST_IDAT || stage >= STAGE_AFTER_IDAT) {
+        while (state < STATE_FIRST_IDAT || state >= STATE_AFTER_IDAT) {
             if (chunkRemaining == 0) {
                 readChunkHeader();
             } else if (chunkRemaining != chunkLength) {
@@ -301,18 +350,19 @@ public class PNGDecoder extends Decoder {
                     throw new DecoderException("PLTE is required before IDAT");
                 }
 
-                if (stage >= STAGE_FIRST_IDAT) {
+                if (state >= STATE_FIRST_IDAT) {
                     throw new DecoderException("Unexpected IDAT chunk");
                 }
 
-                stage = STAGE_FIRST_IDAT;
+                state = STATE_FIRST_IDAT;
+                setColorProfile();
                 return;
             }
 
             if (isCriticalChunk(chunkType)) {
                 if (chunkType == PLTE_TYPE) {
                     if (metadata.any(PNGMetadata.CHUNK_bKGD | PNGMetadata.CHUNK_hIST | PNGMetadata.CHUNK_tRNS)
-                            || stage >= STAGE_FIRST_IDAT) {
+                            || state >= STATE_FIRST_IDAT) {
                         throw new DecoderException("PLTE must appear before bKGD, hIST, tRNS, IDAT");
                     }
 
@@ -344,21 +394,21 @@ public class PNGDecoder extends Decoder {
                     metadata.PLTE_entries = entries;
 
                 } else if (chunkType == IEND_TYPE) {
-                    if (stage < STAGE_AFTER_IDAT) {
+                    if (state < STATE_AFTER_IDAT) {
                         throw new DecoderException("Got IEND without IDAT");
                     }
                     if (chunkLength != 0) {
                         throw new DecoderException("Bad IEND");
                     }
                     readCRC();
-                    stage = STAGE_IEND;
+                    state = STATE_IEND;
                     return;
                 } else {
                     throw new DecoderException("Invalid critical chunk: " + Integer.toHexString(chunkType));
                 }
 
             } else if (chunkType == tRNS_TYPE) {
-                if (stage >= STAGE_FIRST_IDAT) {
+                if (state >= STATE_FIRST_IDAT) {
                     throw new DecoderException("tRNS must appear before IDAT");
                 }
                 if (metadata.any(PNGMetadata.CHUNK_tRNS)) {
@@ -398,7 +448,7 @@ public class PNGDecoder extends Decoder {
 
             } else if (chunkType == cHRM_TYPE) {
                 if (metadata.any(PNGMetadata.CHUNK_PLTE)
-                        || stage >= STAGE_FIRST_IDAT) {
+                        || state >= STATE_FIRST_IDAT) {
                     throw new DecoderException("cHRM must appear before PLTE and IDAT");
                 }
                 if (metadata.any(PNGMetadata.CHUNK_cHRM)) {
@@ -420,7 +470,7 @@ public class PNGDecoder extends Decoder {
 
             } else if (chunkType == gAMA_TYPE) {
                 if (metadata.any(PNGMetadata.CHUNK_PLTE)
-                        || stage >= STAGE_FIRST_IDAT) {
+                        || state >= STATE_FIRST_IDAT) {
                     throw new DecoderException("gAMA must appear before PLTE and IDAT");
                 }
                 if (metadata.any(PNGMetadata.CHUNK_gAMA)) {
@@ -435,7 +485,7 @@ public class PNGDecoder extends Decoder {
 
             } else if (chunkType == iCCP_TYPE) {
                 if (metadata.any(PNGMetadata.CHUNK_PLTE)
-                        || stage >= STAGE_FIRST_IDAT) {
+                        || state >= STATE_FIRST_IDAT) {
                     throw new DecoderException("iCCP must appear before PLTE and IDAT");
                 }
                 if (metadata.any(PNGMetadata.CHUNK_iCCP)) {
@@ -471,7 +521,7 @@ public class PNGDecoder extends Decoder {
 
             } else if (chunkType == sBIT_TYPE) {
                 if (metadata.any(PNGMetadata.CHUNK_PLTE)
-                        || stage >= STAGE_FIRST_IDAT) {
+                        || state >= STATE_FIRST_IDAT) {
                     throw new DecoderException("sBIT must appear before PLTE and IDAT");
                 }
                 if (metadata.any(PNGMetadata.CHUNK_sBIT)) {
@@ -517,7 +567,7 @@ public class PNGDecoder extends Decoder {
 
             } else if (chunkType == sRGB_TYPE) {
                 if (metadata.any(PNGMetadata.CHUNK_PLTE)
-                        || stage >= STAGE_FIRST_IDAT) {
+                        || state >= STATE_FIRST_IDAT) {
                     throw new DecoderException("sRGB must appear before PLTE and IDAT");
                 }
                 if (metadata.any(PNGMetadata.CHUNK_sRGB)) {
@@ -535,7 +585,7 @@ public class PNGDecoder extends Decoder {
 
             } else if (chunkType == cICP_TYPE) {
                 if (metadata.any(PNGMetadata.CHUNK_PLTE)
-                        || stage >= STAGE_FIRST_IDAT) {
+                        || state >= STATE_FIRST_IDAT) {
                     throw new DecoderException("cICP must appear before PLTE and IDAT");
                 }
                 if (metadata.any(PNGMetadata.CHUNK_cICP)) {
@@ -556,7 +606,7 @@ public class PNGDecoder extends Decoder {
 
             } else if (chunkType == mDCV_TYPE) {
                 if (metadata.any(PNGMetadata.CHUNK_PLTE)
-                        || stage >= STAGE_FIRST_IDAT) {
+                        || state >= STATE_FIRST_IDAT) {
                     throw new DecoderException("mDCV must appear before PLTE and IDAT");
                 }
                 if (metadata.any(PNGMetadata.CHUNK_mDCV)) {
@@ -582,7 +632,7 @@ public class PNGDecoder extends Decoder {
 
             } else if (chunkType == cLLI_TYPE) {
                 if (metadata.any(PNGMetadata.CHUNK_PLTE)
-                        || stage >= STAGE_FIRST_IDAT) {
+                        || state >= STATE_FIRST_IDAT) {
                     throw new DecoderException("mDCV must appear before PLTE and IDAT");
                 }
                 if (metadata.any(PNGMetadata.CHUNK_cLLI)) {
@@ -729,7 +779,7 @@ public class PNGDecoder extends Decoder {
     }
 
     public void skipImage() throws IOException {
-        if (chunkType != IDAT_TYPE || stage != STAGE_FIRST_IDAT) {
+        if (chunkType != IDAT_TYPE || state != STATE_FIRST_IDAT) {
             throw new DecoderException("Not IDAT");
         }
 
@@ -742,7 +792,7 @@ public class PNGDecoder extends Decoder {
 
     public void decodeImage(@NonNull Pixmap dstPixels,
                             @Nullable Rect2ic srcRegion) throws IOException {
-        if (chunkType != IDAT_TYPE || stage != STAGE_FIRST_IDAT) {
+        if (chunkType != IDAT_TYPE || state != STATE_FIRST_IDAT) {
             throw new DecoderException("Not IDAT");
         }
 
@@ -949,7 +999,7 @@ public class PNGDecoder extends Decoder {
         // prevent accidental data sharing. A decoder should ignore these trailing bytes.
         skip(chunkRemaining);
         chunkRemaining = 0;
-        stage = STAGE_AFTER_IDAT;
+        state = STATE_AFTER_IDAT;
     }
 
     private static int readPackedSample(ByteBuffer scanline, int sampleIndex, int bitDepth) {

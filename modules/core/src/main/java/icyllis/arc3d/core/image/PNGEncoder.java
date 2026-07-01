@@ -93,14 +93,9 @@ public class PNGEncoder extends Encoder {
 
         ensureWriteBuffer();
 
-        writeByte((byte)137);
-        writeByte((byte)80);
-        writeByte((byte)78);
-        writeByte((byte)71);
-        writeByte((byte)13);
-        writeByte((byte)10);
-        writeByte((byte)26);
-        writeByte((byte)10);
+        for (byte b : FILE_SIGNATURE) {
+            writeByte(b);
+        }
 
         startChunk(13, IHDR_TYPE);
 

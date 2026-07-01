@@ -19,6 +19,12 @@
 
 package icyllis.arc3d.core.image;
 
+import icyllis.arc3d.core.ColorProfile;
+import icyllis.arc3d.core.ColorSpace;
+import icyllis.arc3d.core.ImageInfo;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -46,6 +52,10 @@ public abstract class Decoder implements AutoCloseable {
 
     protected ByteBuffer buffer;
 
+    protected boolean readText = false;
+    protected boolean readExif = false;
+    protected boolean useBT1886 = false;
+
     public void setInput(InputStream in) {
         stream = in;
         channel = null;
@@ -70,9 +80,51 @@ public abstract class Decoder implements AutoCloseable {
         return buffer;
     }
 
+    public void reset() {
+    }
+
+    public boolean getReadText() {
+        return readText;
+    }
+
+    public void setReadText(boolean readText) {
+        this.readText = readText;
+    }
+
+    public boolean getReadExif() {
+        return readExif;
+    }
+
+    public void setReadExif(boolean readExif) {
+        this.readExif = readExif;
+    }
+
+    public boolean getUseBT1886() {
+        return useBT1886;
+    }
+
+    public void setUseBT1886(boolean useBT1886) {
+        this.useBT1886 = useBT1886;
+    }
+
     public abstract int getWidth();
 
     public abstract int getHeight();
+
+    public abstract @Nullable ColorProfile getColorProfile();
+
+    public abstract @Nullable ColorSpace getColorSpace();
+
+    /**
+     * @throws IOException I/O errors
+     * @throws UnsupportedOperationException input is invalid
+     */
+    public abstract void readHeader() throws IOException;
+
+    /**
+     * Returns the best image info of the encoded image data.
+     */
+    public abstract @NonNull ImageInfo getInfo();
 
     protected void ensureReadBuffer() {
         if (buffer == null) {
@@ -90,8 +142,8 @@ public abstract class Decoder implements AutoCloseable {
      * Return the next byte from the internal buffer, refilling from source as needed.
      */
     protected byte nextRawByte() throws IOException {
-        if (buffer.hasRemaining()) return buffer.get();
-        refill();
+        if (!buffer.hasRemaining())
+            refill();
         return buffer.get();
     }
 

@@ -19,9 +19,14 @@
 
 package icyllis.arc3d.core.image;
 
+import icyllis.arc3d.core.Color;
 import icyllis.arc3d.core.ColorInfo;
+import icyllis.arc3d.core.ColorProfile;
+import icyllis.arc3d.core.ColorSpace;
+import icyllis.arc3d.core.ImageInfo;
 import icyllis.arc3d.core.Pixmap;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
 
 import java.io.IOException;
@@ -81,6 +86,17 @@ public class PNMImageReader extends Decoder {
         return height;
     }
 
+    @Override
+    public @Nullable ColorProfile getColorProfile() {
+        return null;
+    }
+
+    @Override
+    public @Nullable ColorSpace getColorSpace() {
+        return null;
+    }
+
+    @Override
     public void readHeader() throws IOException {
         ensureReadBuffer();
 
@@ -126,6 +142,14 @@ public class PNMImageReader extends Decoder {
                 throw new IOException(
                         "Expected whitespace after header, got 0x" + hex(ws));
         }
+    }
+
+    @Override
+    public @NonNull ImageInfo getInfo() {
+        int colorType = getBestColorType(true, true);
+        int alphaType = (ColorInfo.colorTypeChannelFlags(colorType) & Color.COLOR_CHANNEL_A) != 0
+                ? ColorInfo.AT_UNPREMUL : ColorInfo.AT_OPAQUE;
+        return ImageInfo.make(width, height, colorType, alphaType, null);
     }
 
     public void readPixels(@NonNull Pixmap dst) throws IOException {

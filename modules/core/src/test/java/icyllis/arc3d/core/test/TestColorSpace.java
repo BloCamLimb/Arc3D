@@ -78,7 +78,7 @@ public class TestColorSpace {
         var sRGB = ColorSpaces.EXTENDED_SRGB;
         var displayP3 = ColorSpaces.DISPLAY_P3;
 
-        LOGGER.info("Gamma approx (linear) of sRGB {}",
+        /*LOGGER.info("Gamma approx (linear) of sRGB {}",
                 approx(TransferFunction.SRGB, true));
         LOGGER.info("Gamma approx (linear) of BT709 {}",
                 approx(TransferFunction.SMPTE_170M, true));
@@ -89,7 +89,7 @@ public class TestColorSpace {
         LOGGER.info("Gamma approx (visual) of BT709 {}",
                 approx(TransferFunction.SMPTE_170M, false));
         LOGGER.info("Gamma approx (visual) of SMPTE240M {}",
-                approx(TransferFunction.SMPTE_240M, false));
+                approx(TransferFunction.SMPTE_240M, false));*/
 
         float[] xyzMat = RGBColorSpace.computeXYZMatrix(new float[]{1, 1, 1, 1, 1, 1},
                 ColorSpace.ILLUMINANT_D65);
@@ -129,6 +129,26 @@ public class TestColorSpace {
         LOGGER.info("Computed pri {} and white {}", computedPri, ColorSpace.xyYToXYZ(computedWhite));
         LOGGER.info("Match what {}", ColorSpaces.match(someTransform,
                 new TransferFunction((float)(1/1.055), (float)(0.055/1.055), (float)(1/12.92), 0.04045f, 0.0f, 0.0f, 2.4f)));
+        someTransform = new float[]{0.60974f, 0.31111f, 0.01947f, 0.20528f, 0.62567f, 0.06087f, 0.14919f, 0.06322f, 0.74457f};
+        LOGGER.info("Match what {}", ColorSpaces.match(someTransform,
+                new TransferFunction(1, 0, 0, 0, 2.19921875)));
+
+        {
+            var someTF = new TransferFunction(0.947998046875, 0.052001953125, 0.076995849609375, 0.03900146484375, 0.0, 0.0, 2.399993896484375);
+            /*var some = new RGBColorSpace("A", ,
+                    , TransferFunction.GAMMA_2_4);
+                    var adp = RGBColorSpace.adapt(some, ColorSpace.ILLUMINANT_D65);
+                    var adpTx = adp.getTransform();*/
+            LOGGER.info("Match what {}",
+                    ColorSpaces.match(new float[]{0.6800135f, 0.32001078f, 0.26499933f, 0.6900024f, 0.14999372f, 0.059991274f},
+                            new float[]{0.31270096f, 0.32900274f}, someTF ));
+
+            someTransform = new float[]{0.4543f, 0.24191f, 0.01489f, 0.35335f, 0.67363f, 0.09064f, 0.15665f, 0.08446f, 0.71957f};
+            someTransform = ColorSpace.mul3x3(ChromaticAdaptation.BRADFORD.computeTransform(
+                    ColorSpace.ILLUMINANT_D50, ColorSpace.ILLUMINANT_D65
+            ), someTransform);
+            LOGGER.info("Pri {}", RGBColorSpace.computePrimaries(someTransform));
+        }
 
         assert ColorSpaces.SRGB.isSRGB();
         assert ColorSpaces.SRGB.isExtendedSRGB();
@@ -140,9 +160,9 @@ public class TestColorSpace {
         assert !ColorSpaces.SRGB.equals(ColorSpaces.EXTENDED_SRGB);
         assert ColorSpaces.SRGB.equals(ColorSpaces.EXTENDED_SRGB, true);
 
-        for (var that : ColorSpaces.getNamedColorSpaces()) {
+        /*for (var that : ColorSpaces.getNamedColorSpaces()) {
             LOGGER.info("{} isWideGamut {}", that, that.isWideGamut());
-        }
+        }*/
     }
 
     public static TransferFunction approx(TransferFunction tf, boolean linear) {
@@ -232,6 +252,13 @@ public class TestColorSpace {
         cp.cicp_videoFullRangeFlag = 1;
 
         writeICCProfile(cp, "my_srgb");
+
+        try {
+            Files.write(Path.of("run/builtin_srgb.icc"), ICC_Profile.getInstance(java.awt.color.ColorSpace.CS_sRGB).getData(),
+                    StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public static void writeICCProfile(ColorProfile cp, String filename) {
