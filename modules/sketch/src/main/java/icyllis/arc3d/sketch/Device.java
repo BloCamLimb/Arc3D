@@ -53,14 +53,6 @@ public abstract class Device extends RefCnt {
         mBounds.set(0, 0, info.width(), info.height());
     }
 
-    /**
-     * Internal resize for optimization purposes.
-     */
-    void resize(int width, int height) {
-        mInfo.resize(width, height);
-        mBounds.set(0, 0, width, height);
-    }
-
     @Override
     protected void deallocate() {
     }

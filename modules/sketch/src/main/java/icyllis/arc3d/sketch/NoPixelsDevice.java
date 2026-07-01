@@ -49,15 +49,19 @@ public class NoPixelsDevice extends Device {
     }
 
     //TODO should be reviewed if there's picture support
-    public final void resetForNextPicture(int left, int top, int right, int bottom) {
-        resize(right - left, bottom - top);
-        setOrigin(null, left, top);
+    public final boolean resetForNextPicture(@NonNull Rect2ic bounds) {
+        if (getWidth() != bounds.width() ||
+                getHeight() != bounds.height()) {
+            return false;
+        }
+        setOrigin(null, bounds.left(), bounds.top());
         for (int i = mClipIndex; i > 0; i--) {
             pop();
         }
         var clip = mClipStack[0];
         clip.setRect(getBounds());
         clip.mDeferredSaveCount = 0;
+        return true;
     }
 
     @NonNull

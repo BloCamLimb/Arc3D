@@ -138,7 +138,8 @@ public final class GraniteImage extends Image {
     @Override
     public String toString() {
         return "GraniteImage{" +
-                "mContext=" + mContext +
+                "mInfo=" + mInfo +
+                ", mContext=" + mContext +
                 ", mImageProxyView=" + mImageProxyView +
                 '}';
     }

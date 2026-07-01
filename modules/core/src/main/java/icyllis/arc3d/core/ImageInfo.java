@@ -34,9 +34,9 @@ import java.util.Objects;
 public final class ImageInfo {
 
     @Size(min = 0)
-    private int width;
+    private final int width;
     @Size(min = 0)
-    private int height;
+    private final int height;
     @ColorInfo.ColorType
     private final short colorType;
     @ColorInfo.AlphaType
@@ -133,15 +133,6 @@ public final class ImageInfo {
         colorType = (short) ct;
         alphaType = (short) at;
         colorSpace = cs;
-    }
-
-    /**
-     * Internal resize for optimization purposes. ImageInfo should be created immutable.
-     */
-    @ApiStatus.Internal
-    public void resize(int width, int height) {
-        this.width = width;
-        this.height = height;
     }
 
     /**
