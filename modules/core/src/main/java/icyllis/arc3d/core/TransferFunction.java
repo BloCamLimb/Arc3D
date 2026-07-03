@@ -74,6 +74,58 @@ public class TransferFunction {
     public static final TransferFunction GAMMA_2_8 =
             new TransferFunction(1.0, 0.0, 0.0, 0.0, 2.8);
 
+    /**
+     * @see #makePQ(double)
+     */
+    public static final double TYPE_PQ = -5.0;
+    /**
+     * @see #makeHLG(double, double, double)
+     */
+    public static final double TYPE_HLG = -6.0;
+
+    /**
+     * If the g is special, the function no longer represents the ICC parametric curve,
+     * but PQ or HLG. Reference luminance is stored in {@link #a}; peak luminance
+     * is stored in {@link #b}; system gamma is stored in {@link #c}; d,e,f are zeros.
+     */
+    public static boolean isSpecialG(double g) {
+        return g == TYPE_PQ || g == TYPE_HLG;
+    }
+
+    /**
+     * Create a special transfer function that represents SMPTE ST2084
+     * (perceptual quantization) EOTF/OETF.
+     * <p>
+     * When performing EOTF, the given reference white (1.0) is mapped to 10000 cd/m².
+     * When performing OETF, 10000 cd/m² (1.0) is mapped to the given reference white.
+     *
+     * @param referenceLuminance the reference white luminance in cd/m², also known as SDR white level
+     */
+    public static @NonNull TransferFunction makePQ(double referenceLuminance) {
+        return new TransferFunction(referenceLuminance, 10000.0, 1.0, 0.0, TYPE_PQ);
+    }
+
+    /**
+     * Create a special transfer function that represents ARIB STD-B67
+     * (hybrid log gamma) EOTF/OETF.
+     * <p>
+     * When performing EOTF, first peforms OOTF, the given reference white (1.0) is mapped to peak luminance.
+     * When performing OETF, peak luminance (1.0) is mapped to the given reference white, and performs OOTF.
+     *
+     * @param referenceLuminance the reference white luminance in cd/m², also known as SDR white level
+     * @param peakLuminance      the peak white luminance in cd/m²
+     * @param systemGamma        the system gamma for the OOTF
+     */
+    public static @NonNull TransferFunction makeHLG(double referenceLuminance,
+                                                    double peakLuminance,
+                                                    double systemGamma) {
+        return new TransferFunction(referenceLuminance, peakLuminance, systemGamma, 0.0, TYPE_HLG);
+    }
+
+    // reference
+    public static final TransferFunction PQ = makePQ(203.0);
+    public static final TransferFunction HLG = makeHLG(203.0, 1000.0, 1.2);
+
     @Contract(pure = true)
     public static @Nullable TransferFunction fromCICP(int transfer, boolean useBT1886) {
         TransferFunction tf;
@@ -116,16 +168,14 @@ public class TransferFunction {
                 tf = SRGB;
             }
             case Color.TRANSFER_CHARACTERISTICS_SMPTE2084 -> {
-                //TODO PQ
-                return null;
+                tf = PQ;
             }
             case Color.TRANSFER_CHARACTERISTICS_SMPTE428 -> {
                 // there's scaling coefficient we don't care
                 tf = GAMMA_2_6;
             }
             case Color.TRANSFER_CHARACTERISTICS_ARIB_STD_B67 -> {
-                //TODO HLG
-                return null;
+                tf = HLG;
             }
             default -> {
                 return null;
@@ -209,35 +259,44 @@ public class TransferFunction {
             throw new IllegalArgumentException("Parameters cannot be NaN");
         }
 
-        // Next representable float after 1.0
-        // We use doubles here but the representation inside our native code is often floats
-        if (!(d >= 0.0 && d <= 1.0f + Math.ulp(1.0f))) {
-            throw new IllegalArgumentException("Parameter d must be in the range [0..1], " +
-                    "was " + d);
-        }
+        if (isSpecialG(g)) {
+            if (!(a > 0.0 && b > 0.0 && c > 0.0)) {
+                throw new IllegalArgumentException("Parameter a,b,c must be positive");
+            }
+            if (!(d == 0.0 && e == 0.0 && f == 0.0)) {
+                throw new IllegalArgumentException("Parameter d,e,f must be zero");
+            }
+        } else {
+            // Next representable float after 1.0
+            // We use doubles here but the representation inside our shader code is floats
+            if (!(d >= 0.0 && d <= 1.0f + Math.ulp(1.0f))) {
+                throw new IllegalArgumentException("Parameter d must be in the range [0..1], " +
+                        "was " + d);
+            }
 
-        if (d == 0.0 && (a == 0.0 || g == 0.0)) {
-            throw new IllegalArgumentException(
-                    "Parameter a or g is zero, the transfer function is constant");
-        }
+            if (d == 0.0 && (a == 0.0 || g == 0.0)) {
+                throw new IllegalArgumentException(
+                        "Parameter a or g is zero, the transfer function is constant");
+            }
 
-        if (d >= 1.0 && c == 0.0) {
-            throw new IllegalArgumentException(
-                    "Parameter c is zero, the transfer function is constant");
-        }
+            if (d >= 1.0 && c == 0.0) {
+                throw new IllegalArgumentException(
+                        "Parameter c is zero, the transfer function is constant");
+            }
 
-        if ((a == 0.0 || g == 0.0) && c == 0.0) {
-            throw new IllegalArgumentException("Parameter a or g is zero," +
-                    " and c is zero, the transfer function is constant");
-        }
+            if ((a == 0.0 || g == 0.0) && c == 0.0) {
+                throw new IllegalArgumentException("Parameter a or g is zero," +
+                        " and c is zero, the transfer function is constant");
+            }
 
-        if (c < 0.0) {
-            throw new IllegalArgumentException("The transfer function must be increasing");
-        }
+            if (c < 0.0) {
+                throw new IllegalArgumentException("The transfer function must be increasing");
+            }
 
-        if (a < 0.0 || g < 0.0) {
-            throw new IllegalArgumentException("The transfer function must be " +
-                    "positive or increasing");
+            if (a < 0.0 || g < 0.0) {
+                throw new IllegalArgumentException("The transfer function must be " +
+                        "positive or increasing");
+            }
         }
 
         this.a = a;
@@ -255,6 +314,12 @@ public class TransferFunction {
      * holds a strong reference to this.
      */
     public @NonNull DoubleUnaryOperator toOETF() {
+        if (g == TYPE_PQ) {
+            return x -> absRcpResponsePQ(x * a / b);
+        }
+        if (g == TYPE_HLG) {
+            return x -> absRcpResponseHLG(x * a / b);
+        }
         if (e == 0.0 && f == 0.0) {
             if (a == 1.0 && b == 0.0 &&
                     c == 0.0 && d == 0.0) {
@@ -276,6 +341,12 @@ public class TransferFunction {
      * holds a strong reference to this.
      */
     public @NonNull DoubleUnaryOperator toEOTF() {
+        if (g == TYPE_PQ) {
+            return x -> absResponsePQ(x * b / a);
+        }
+        if (g == TYPE_HLG) {
+            return x -> absResponseHLG(x * b / a);
+        }
         if (e == 0.0 && f == 0.0) {
             if (a == 1.0 && b == 0.0 &&
                     c == 0.0 && d == 0.0) {
@@ -289,38 +360,6 @@ public class TransferFunction {
         }
         return x -> absResponse(x, a, b, c,
                 d, e, f, g);
-    }
-
-    /**
-     * A fallback method used to determine CICP transfer characteristics.
-     */
-    public int toCICP() {
-        if (equals(SRGB)) {
-            return Color.TRANSFER_CHARACTERISTICS_IEC61966_2_1;
-        }
-        if (equals(SMPTE_170M)) {
-            return Color.TRANSFER_CHARACTERISTICS_BT709;
-        }
-        if (equals(SMPTE_240M)) {
-            return Color.TRANSFER_CHARACTERISTICS_SMPTE240M;
-        }
-        if (equals(LINEAR)) {
-            return Color.TRANSFER_CHARACTERISTICS_LINEAR;
-        }
-        if (equals(GAMMA_2_2)) {
-            return Color.TRANSFER_CHARACTERISTICS_BT470M;
-        }
-        if (equals(GAMMA_2_4)) {
-            return Color.TRANSFER_CHARACTERISTICS_BT709;
-        }
-        if (equals(GAMMA_2_6)) {
-            return Color.TRANSFER_CHARACTERISTICS_SMPTE428;
-        }
-        if (equals(GAMMA_2_8)) {
-            return Color.TRANSFER_CHARACTERISTICS_BT470BG;
-        }
-        //TODO PQ HLG
-        return 0;
     }
 
     /**
@@ -447,6 +486,67 @@ public class TransferFunction {
     public static double absResponse(double x, double a, double b, double c, double d,
                                      double e, double f, double g) {
         return Math.copySign(response(x < 0.0 ? -x : x, a, b, c, d, e, f, g), x);
+    }
+
+    public static final double PQ_c1 =  107 / 128.0;
+    public static final double PQ_c2 = 2413 / 128.0;
+    public static final double PQ_c3 = 2392 / 128.0;
+    public static final double PQ_m = 2523 / 32.0;
+    public static final double PQ_n = 1305 / 8192.0;
+
+    // SMPTE ST2084
+    public static double rcpResponsePQ(double x) {
+        double p = Math.pow(x, PQ_n);
+        return Math.pow((PQ_c1 + PQ_c2 * p) / (1.0 + PQ_c3 * p), PQ_m);
+    }
+
+    // SMPTE ST2084
+    public static double responsePQ(double x) {
+        double p = Math.pow(x, 1.0 / PQ_m);
+        return Math.pow((p - PQ_c1) / (PQ_c2 - PQ_c3 * p), 1.0 / PQ_n);
+    }
+
+    // SMPTE ST2084
+    public static double absRcpResponsePQ(double x) {
+        return Math.copySign(rcpResponsePQ(x < 0.0 ? -x : x), x);
+    }
+
+    // SMPTE ST2084
+    public static double absResponsePQ(double x) {
+        return Math.copySign(responsePQ(x < 0.0 ? -x : x), x);
+    }
+
+    public static final double HLG_a = 0.17883277;
+    public static final double HLG_b = 0.28466892;
+    public static final double HLG_c = 0.55991073;
+
+    // ARIB STD-B67
+    public static double rcpResponseHLG(double x) {
+        return x <= 0.5 ? x * x / 3.0 : (Math.exp((x - HLG_c) / HLG_a) + HLG_b) / 12.0;
+    }
+
+    // ARIB STD-B67
+    public static double responseHLG(double x) {
+        return x <= 1 / 12.0 ? Math.sqrt(3.0 * x) : HLG_a * Math.log(12.0 * x - HLG_b) + HLG_c;
+    }
+
+    // ARIB STD-B67
+    public static double absRcpResponseHLG(double x) {
+        return Math.copySign(rcpResponseHLG(x < 0.0 ? -x : x), x);
+    }
+
+    // ARIB STD-B67
+    public static double absResponseHLG(double x) {
+        return Math.copySign(responseHLG(x < 0.0 ? -x : x), x);
+    }
+
+    /**
+     * Compute a system gamma for HLG system.
+     */
+    public static double getSystemGamma(double peakLuminance, double surroundLuminance) {
+        double log2 = Math.log(2);
+        return 1.2 * Math.pow(1.111, Math.log(peakLuminance / 1000) / log2)
+                * Math.pow(0.98, Math.log(surroundLuminance / 5) / log2);
     }
 
     /**
