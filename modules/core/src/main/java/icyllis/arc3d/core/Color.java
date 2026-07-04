@@ -123,7 +123,7 @@ public final class Color {
             COLOR_PRIMARIES_SMPTE431     = 11, // SMPTE ST 431-2 (2011) / DCI P3
             COLOR_PRIMARIES_SMPTE432     = 12, // SMPTE ST 432-1 (2010) / P3 D65 / Display P3
             // Values 13-21 are reserved.
-            COLOR_PRIMARIES_EBU3213      = 22;
+            COLOR_PRIMARIES_EBU3213      = 22; // JEDEC P22 phosphors
     //@formatter:on
 
     /**
@@ -152,13 +152,6 @@ public final class Color {
             TRANSFER_CHARACTERISTICS_SMPTE428     = 17, // SMPTE ST 428-1
             TRANSFER_CHARACTERISTICS_ARIB_STD_B67 = 18; // ARIB STD-B67, known as "Hybrid log-gamma"
     //@formatter:on
-
-    /**
-     * Matrix coefficients for YUV<->RGB conversion, also known as YUV color space.
-     * These values match the ones defined by ISO/IEC 23091-2_2019 subclause 8.3.
-     */
-    public static final int
-            MATRIX_COEFFICIENTS_IDENTITY = 0;
 
     /**
      * Return the alpha component of a color int. This is the same as saying
