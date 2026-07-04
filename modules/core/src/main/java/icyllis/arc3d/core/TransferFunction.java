@@ -260,8 +260,9 @@ public class TransferFunction {
         }
 
         if (isSpecialG(g)) {
-            if (!(a > 0.0 && b > 0.0 && c > 0.0)) {
-                throw new IllegalArgumentException("Parameter a,b,c must be positive");
+            // reference luminance (a) and peak luminance (b)
+            if (!(a > 0.0 && b > 0.0)) {
+                throw new IllegalArgumentException("Parameter a,b must be positive");
             }
             if (!(d == 0.0 && e == 0.0 && f == 0.0)) {
                 throw new IllegalArgumentException("Parameter d,e,f must be zero");
@@ -315,10 +316,10 @@ public class TransferFunction {
      */
     public @NonNull DoubleUnaryOperator toOETF() {
         if (g == TYPE_PQ) {
-            return x -> absRcpResponsePQ(x * a / b);
+            return TransferFunction::absRcpResponsePQ;
         }
         if (g == TYPE_HLG) {
-            return x -> absRcpResponseHLG(x * a / b);
+            return TransferFunction::absRcpResponseHLG;
         }
         if (e == 0.0 && f == 0.0) {
             if (a == 1.0 && b == 0.0 &&
@@ -342,10 +343,10 @@ public class TransferFunction {
      */
     public @NonNull DoubleUnaryOperator toEOTF() {
         if (g == TYPE_PQ) {
-            return x -> absResponsePQ(x * b / a);
+            return TransferFunction::absResponsePQ;
         }
         if (g == TYPE_HLG) {
-            return x -> absResponseHLG(x * b / a);
+            return TransferFunction::absResponseHLG;
         }
         if (e == 0.0 && f == 0.0) {
             if (a == 1.0 && b == 0.0 &&
@@ -503,7 +504,7 @@ public class TransferFunction {
     // SMPTE ST2084
     public static double responsePQ(double x) {
         double p = Math.pow(x, 1.0 / PQ_m);
-        return Math.pow((p - PQ_c1) / (PQ_c2 - PQ_c3 * p), 1.0 / PQ_n);
+        return Math.pow(Math.max(p - PQ_c1, 0.0) / (PQ_c2 - PQ_c3 * p), 1.0 / PQ_n);
     }
 
     // SMPTE ST2084
@@ -522,12 +523,12 @@ public class TransferFunction {
 
     // ARIB STD-B67
     public static double rcpResponseHLG(double x) {
-        return x <= 0.5 ? x * x / 3.0 : (Math.exp((x - HLG_c) / HLG_a) + HLG_b) / 12.0;
+        return x <= 1 / 12.0 ? Math.sqrt(3.0 * x) : HLG_a * Math.log(12.0 * x - HLG_b) + HLG_c;
     }
 
     // ARIB STD-B67
     public static double responseHLG(double x) {
-        return x <= 1 / 12.0 ? Math.sqrt(3.0 * x) : HLG_a * Math.log(12.0 * x - HLG_b) + HLG_c;
+        return x <= 0.5 ? x * x / 3.0 : (Math.exp((x - HLG_c) / HLG_a) + HLG_b) / 12.0;
     }
 
     // ARIB STD-B67
