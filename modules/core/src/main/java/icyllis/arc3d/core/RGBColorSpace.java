@@ -271,11 +271,8 @@ public non-sealed class RGBColorSpace extends ColorSpace {
             @NonNull @Size(min = 1) String name,
             @Size(9) float @NonNull [] toXYZ,
             @NonNull TransferFunction function) {
-        // Note: when isGray() returns false, this passes null for the transform for
-        // consistency with other constructors, which compute the transform from the primaries
-        // and white point.
-        this(name, isGray(toXYZ) ? GRAY_PRIMARIES : computePrimaries(toXYZ),
-                computeWhitePoint(toXYZ), isGray(toXYZ) ? toXYZ : null, 0.0f, 1.0f, function, MIN_ID);
+        this(name, computePrimaries(toXYZ), computeWhitePoint(toXYZ), null,
+                0.0f, 1.0f, function, MIN_ID);
     }
 
     /**

@@ -23,6 +23,7 @@ import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -801,7 +802,6 @@ public final class ColorSpaces {
     public static @Nullable ColorSpace fromCICP(int primaries, int transfer, boolean useBT1886) {
         float[] pri;
         float[] wp;
-        String pn;
         switch (primaries) {
             case Color.COLOR_PRIMARIES_BT709,
                  Color.COLOR_PRIMARIES_UNSPECIFIED -> {
@@ -831,7 +831,6 @@ public final class ColorSpaces {
 
                 pri = SRGB_PRIMARIES;
                 wp = ILLUMINANT_D65;
-                pn = "BT709";
             }
             case Color.COLOR_PRIMARIES_BT470M -> {
                 switch (transfer) {
@@ -852,7 +851,6 @@ public final class ColorSpaces {
 
                 pri = NTSC_1953_PRIMARIES;
                 wp = ILLUMINANT_C;
-                pn = "BT470M";
             }
             case Color.COLOR_PRIMARIES_BT470BG -> {
                 switch (transfer) {
@@ -873,7 +871,6 @@ public final class ColorSpaces {
 
                 pri = BT470_BG_PRIMARIES;
                 wp = ILLUMINANT_D65;
-                pn = "BT470BG";
             }
             case Color.COLOR_PRIMARIES_SMPTE170M,
                  Color.COLOR_PRIMARIES_SMPTE240M -> {
@@ -895,13 +892,11 @@ public final class ColorSpaces {
 
                 pri = SMPTE_C_PRIMARIES;
                 wp = ILLUMINANT_D65;
-                pn = "SMPTE170M";
             }
             case Color.COLOR_PRIMARIES_GENERIC_FILM -> {
 
                 pri = new float[]{0.681f, 0.319f, 0.243f, 0.692f, 0.145f, 0.049f};
                 wp = ILLUMINANT_C;
-                pn = "FILM";
             }
             case Color.COLOR_PRIMARIES_BT2020 -> {
                 switch (transfer) {
@@ -926,16 +921,14 @@ public final class ColorSpaces {
 
                 pri = BT2020_PRIMARIES;
                 wp = ILLUMINANT_D65;
-                pn = "BT2020";
             }
             case Color.COLOR_PRIMARIES_SMPTE428 -> {
                 if (transfer == Color.TRANSFER_CHARACTERISTICS_LINEAR) {
                     return CIE_XYZ_E;
                 }
 
-                pri = new float[]{1f, 0f, 0f, 1f, 0f, 0f};
+                pri = XYZ_PRIMARIES;
                 wp = ILLUMINANT_E;
-                pn = "XYZ";
             }
             case Color.COLOR_PRIMARIES_SMPTE431 -> {
                 if (transfer == Color.TRANSFER_CHARACTERISTICS_SMPTE428) {
@@ -944,7 +937,6 @@ public final class ColorSpaces {
 
                 pri = DCI_P3_PRIMARIES;
                 wp = ILLUMINANT_DCI;
-                pn = "P3-DCI";
             }
             case Color.COLOR_PRIMARIES_SMPTE432 -> {
                 switch (transfer) {
@@ -960,13 +952,11 @@ public final class ColorSpaces {
 
                 pri = DCI_P3_PRIMARIES;
                 wp = ILLUMINANT_D65;
-                pn = "P3-D65";
             }
             case Color.COLOR_PRIMARIES_EBU3213 -> {
 
-                pri = new float[]{0.630f, 0.340f, 0.295f, 0.605f, 0.155f, 0.077f};
+                pri = EBU3213_PRIMARIES;
                 wp = ILLUMINANT_D65;
-                pn = "EBU3213";
             }
             default -> {
                 return null;
@@ -977,21 +967,140 @@ public final class ColorSpaces {
         if (tf == null) {
             return null;
         }
-        String tn;
-        if (tf.equals(TransferFunction.SRGB)) {
-            tn = "sRGB";
-        } else if (tf.equals(TransferFunction.SMPTE_170M)) {
-            tn = "SMPTE170M";
-        } else if (tf.equals(TransferFunction.SMPTE_240M)) {
-            tn = "SMPTE240M";
-        } else if (tf.equals(TransferFunction.LINEAR)) {
-            tn = "Linear";
-        } else {
-            tn = "Gamma " + tf.g;
-        }
+        String name = nameCICP(primaries, transfer, useBT1886);
 
-        return new RGBColorSpace(pn + " primaries with " + tn + " transfer",
-                pri, wp, tf);
+        return new RGBColorSpace(name != null ? name : "Some RGB", pri, wp, tf);
+    }
+
+    public static @Nullable String nameCICP(int primaries, int transfer, boolean useBT1886) {
+        String pn;
+        switch (primaries) {
+            case Color.COLOR_PRIMARIES_BT709,
+                 Color.COLOR_PRIMARIES_UNSPECIFIED -> {
+                pn = "BT709";
+            }
+            case Color.COLOR_PRIMARIES_BT470M -> {
+                pn = "BT470M";
+            }
+            case Color.COLOR_PRIMARIES_BT470BG -> {
+                pn = "BT470BG";
+            }
+            case Color.COLOR_PRIMARIES_SMPTE170M,
+                 Color.COLOR_PRIMARIES_SMPTE240M -> {
+                pn = "SMPTE170M";
+            }
+            case Color.COLOR_PRIMARIES_GENERIC_FILM -> {
+                pn = "FILM";
+            }
+            case Color.COLOR_PRIMARIES_BT2020 -> {
+                pn = "BT2020";
+            }
+            case Color.COLOR_PRIMARIES_SMPTE428 -> {
+                pn = "XYZ";
+            }
+            case Color.COLOR_PRIMARIES_SMPTE431 -> {
+                pn = "P3-DCI";
+            }
+            case Color.COLOR_PRIMARIES_SMPTE432 -> {
+                pn = "P3-D65";
+            }
+            case Color.COLOR_PRIMARIES_EBU3213 -> {
+                pn = "EBU3213";
+            }
+            default -> {
+                return null;
+            }
+        }
+        String tn;
+        switch (transfer) {
+            case Color.TRANSFER_CHARACTERISTICS_BT709,
+                 Color.TRANSFER_CHARACTERISTICS_UNSPECIFIED,
+                 Color.TRANSFER_CHARACTERISTICS_SMPTE170M,
+                 Color.TRANSFER_CHARACTERISTICS_BT2020_10BIT,
+                 Color.TRANSFER_CHARACTERISTICS_BT2020_12BIT -> {
+                tn = useBT1886 ? "2.4" : "SMPTE170M";
+            }
+            case Color.TRANSFER_CHARACTERISTICS_BT470M -> {
+                tn = "2.2";
+            }
+            case Color.TRANSFER_CHARACTERISTICS_BT470BG -> {
+                tn = "2.8";
+            }
+            case Color.TRANSFER_CHARACTERISTICS_SMPTE240M -> {
+                tn = "SMPTE240M";
+            }
+            case Color.TRANSFER_CHARACTERISTICS_LINEAR -> {
+                tn = "Linear";
+            }
+            case Color.TRANSFER_CHARACTERISTICS_IEC61966_2_4 -> {
+                tn = "SMPTE170M";
+            }
+            case Color.TRANSFER_CHARACTERISTICS_IEC61966_2_1 -> {
+                tn = "sRGB";
+            }
+            case Color.TRANSFER_CHARACTERISTICS_SMPTE2084 -> {
+                tn = "PQ";
+            }
+            case Color.TRANSFER_CHARACTERISTICS_SMPTE428 -> {
+                tn = "2.6";
+            }
+            case Color.TRANSFER_CHARACTERISTICS_ARIB_STD_B67 -> {
+                tn = "HLG";
+            }
+            default -> {
+                return null;
+            }
+        }
+        return pn + " primaries with " + tn + " transfer";
+    }
+
+    public static @Nullable String namePrimaries(@Size(6) float @NonNull [] primaries,
+                                                 @Size(2) float @NonNull [] whitePoint) {
+        String pn;
+        if (compare(primaries, SRGB_PRIMARIES) && compare(whitePoint, ILLUMINANT_D65)) {
+            pn = "BT709";
+        } else if (compare(primaries, NTSC_1953_PRIMARIES) && compare(whitePoint, ILLUMINANT_C)) {
+            pn = "BT470M";
+        } else if (compare(primaries, BT470_BG_PRIMARIES) && compare(whitePoint, ILLUMINANT_D65)) {
+            pn = "BT470BG";
+        } else if (compare(primaries, SMPTE_C_PRIMARIES) && compare(whitePoint, ILLUMINANT_D65)) {
+            pn = "SMPTE170M";
+        } else if (compare(primaries, DCI_P3_PRIMARIES) && compare(whitePoint, ILLUMINANT_DCI)) {
+            pn = "P3-DCI";
+        } else if (compare(primaries, DCI_P3_PRIMARIES) && compare(whitePoint, ILLUMINANT_D65)) {
+            pn = "P3-D65";
+        } else if (compare(primaries, BT2020_PRIMARIES) && compare(whitePoint, ILLUMINANT_D65)) {
+            pn = "BT2020";
+        } else if (compare(primaries, XYZ_PRIMARIES) && compare(whitePoint, ILLUMINANT_E)) {
+            pn = "XYZ";
+        } else if (compare(primaries, EBU3213_PRIMARIES) && compare(whitePoint, ILLUMINANT_D65)) {
+            pn = "EBU3213";
+        } else {
+            pn = null;
+        }
+        return pn;
+    }
+
+    public static @Nullable String nameTransfer(@NonNull TransferFunction tf) {
+        String tn;
+        if (TransferFunction.compare(tf, TransferFunction.SRGB)) {
+            tn = "sRGB";
+        } else if (TransferFunction.compare(tf, TransferFunction.SMPTE_170M)) {
+            tn = "SMPTE170M";
+        } else if (TransferFunction.compare(tf, TransferFunction.SMPTE_240M)) {
+            tn = "SMPTE240M";
+        } else if (TransferFunction.compare(tf, TransferFunction.LINEAR)) {
+            tn = "Linear";
+        } else if (tf.g == TransferFunction.TYPE_PQ) {
+            tn = "PQ";
+        } else if (tf.g == TransferFunction.TYPE_HLG) {
+            tn = "HLG";
+        } else if (tf.a == 1 && tf.b == 0 && tf.c == 0 && tf.d == 0 && tf.e == 0 && tf.f == 0) {
+            tn = new DecimalFormat("0.0##").format(tf.g);
+        } else {
+            tn = null;
+        }
+        return tn;
     }
 
     static final ColorSpace[] sNamedColorSpaces = new ColorSpace[22];

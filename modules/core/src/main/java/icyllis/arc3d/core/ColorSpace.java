@@ -199,11 +199,21 @@ public abstract sealed class ColorSpace permits XYZColorSpace, RGBColorSpace,
     public static final int MODEL_LAB = 1;
 
     /**
+     * This is based on {@link #MODEL_RGB}.
+     */
+    public static final int MODEL_YCbCr = 3;
+
+    /**
      * The RGB model is a color model with 3 components that
      * refer to the three additive primaries: red, green
      * and blue.
      */
     public static final int MODEL_RGB = 5;
+
+    /**
+     * This is based on {@link #MODEL_RGB}.
+     */
+    public static final int MODEL_GRAY = 6;
 
     /**
      * The CMYK model is a color model with 4 components that
@@ -225,10 +235,12 @@ public abstract sealed class ColorSpace permits XYZColorSpace, RGBColorSpace,
             { 0.680f, 0.320f, 0.265f, 0.690f, 0.150f, 0.060f };
     static final float[] BT2020_PRIMARIES =
             { 0.708f, 0.292f, 0.170f, 0.797f, 0.131f, 0.046f };
+    // JEDEC P22 phosphors
+    static final float[] EBU3213_PRIMARIES = {0.630f, 0.340f, 0.295f, 0.605f, 0.155f, 0.077f};
     /**
-     * A gray color space does not have meaningful primaries, so we use this arbitrary set.
+     * Also for gray color space, because it does not have meaningful primaries.
      */
-    static final float[] GRAY_PRIMARIES = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+    static final float[] XYZ_PRIMARIES = {1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f};
 
     static final float[] ILLUMINANT_D50_XYZ = {0.964212f, 1.0f, 0.825188f};
     // this is the legacy D50, but ICC requires exactly this instead of the above
@@ -301,8 +313,10 @@ public abstract sealed class ColorSpace permits XYZColorSpace, RGBColorSpace,
      */
     public static int getComponentCount(int model) {
         return switch (model) {
+            case MODEL_GRAY -> 1;
             case MODEL_XYZ,
                  MODEL_LAB,
+                 MODEL_YCbCr,
                  MODEL_RGB -> 3;
             case MODEL_CMYK -> 4;
             default -> throw new AssertionError(model);
