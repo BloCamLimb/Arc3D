@@ -225,14 +225,27 @@ public class Pixmap {
      * and returns undefined values or may crash. Fails if color type is unknown or
      * pixel data is NULL.
      * <p>
-     * If the max bits per channel for the color type is greater than 8, or colors are premultiplied,
-     * then color precision may be lost in the conversion. Otherwise, precision will not be lost.
-     * If the color space is not sRGB, then this method will perform color space transformation,
-     * which can be slow.
+     * If the color type is not one of the followings, or the colors are premultiplied,
+     * or the color space is not sRGB, cause an {@link UnsupportedOperationException}.
+     * <ul>
+     *     <li>{@link ColorInfo#CT_BGR_565}</li>
+     *     <li>{@link ColorInfo#CT_BGRA_5551}</li>
+     *     <li>{@link ColorInfo#CT_RGBA_1010102}</li>
+     *     <li>{@link ColorInfo#CT_BGRA_1010102}</li>
+     *     <li>{@link ColorInfo#CT_R_8}</li>
+     *     <li>{@link ColorInfo#CT_RG_88}</li>
+     *     <li>{@link ColorInfo#CT_RGB_888}</li>
+     *     <li>{@link ColorInfo#CT_RGBA_8888}</li>
+     *     <li>{@link ColorInfo#CT_BGRA_8888}</li>
+     *     <li>{@link ColorInfo#CT_GRAY_8}</li>
+     *     <li>{@link ColorInfo#CT_GRAY_ALPHA_88}</li>
+     *     <li>{@link ColorInfo#CT_ALPHA_8}</li>
+     * </ul>
      *
      * @param x column index, zero or greater, and less than width()
      * @param y row index, zero or greater, and less than height()
      * @return pixel converted to unpremultiplied color
+     * @throws UnsupportedOperationException not supported
      * @see #getColor4f(int, int, float[])
      */
     @ColorInt
@@ -240,31 +253,61 @@ public class Pixmap {
         assert getBase() != null || getAddress() != MemoryUtil.NULL;
         assert x < getWidth();
         assert y < getHeight();
-        Object base = getBase();
-        long addr = getAddress(x, y);
-        var ct = getColorType();
         var at = getAlphaType();
         var cs = getColorSpace();
         if (at != ColorInfo.AT_PREMUL && (cs == null || cs.isExtendedSRGB())) {
-            // no alpha type and color space conversion
-            try {
-                return PixelUtils.load(ct, base == null)
-                        .load(base, addr);
-            } catch (UnsupportedOperationException ignored) {
-                // high precision fallback
-            }
+            Object base = getBase();
+            return PixelUtils.load(getColorType(), base == null)
+                    .load(base, getAddress(x, y));
         }
+        throw new UnsupportedOperationException();
+    }
 
-        var srcInfo = new ImageInfo(1, 1, ct, at, cs);
-        var dstInfo = new ImageInfo(1, 1, ColorInfo.CT_BGRA_8888,
-                ColorInfo.AT_UNPREMUL, ColorSpaces.SRGB);
-        int[] col = new int[1];
-        boolean res = PixelUtils.convertPixels(
-                srcInfo, base, addr, getRowBytes(),
-                dstInfo, col, 0, getRowBytes()
-        );
-        assert res;
-        return col[0];
+    /**
+     * Sets the pixel value at (x, y), from {@link ColorInfo#CT_BGRA_8888} to {@link #getColorType()}.
+     * This method will not perform alpha type or color space transformation,
+     * the given color should have {@link #getAlphaType()} and be in {@link ColorSpaces#SRGB}.
+     * <p>
+     * Input is not validated: out of bounds values of x or y trigger an assertion error;
+     * and returns undefined values or may crash. Fails if color type is unknown or
+     * pixel data is NULL.
+     * <p>
+     * If the color type is not one of the followings, or the colors are premultiplied,
+     * or the color space is not sRGB, cause an {@link UnsupportedOperationException}.
+     * <ul>
+     *     <li>{@link ColorInfo#CT_BGR_565}</li>
+     *     <li>{@link ColorInfo#CT_BGRA_5551}</li>
+     *     <li>{@link ColorInfo#CT_RGBA_1010102}</li>
+     *     <li>{@link ColorInfo#CT_BGRA_1010102}</li>
+     *     <li>{@link ColorInfo#CT_R_8}</li>
+     *     <li>{@link ColorInfo#CT_RG_88}</li>
+     *     <li>{@link ColorInfo#CT_RGB_888}</li>
+     *     <li>{@link ColorInfo#CT_RGBA_8888}</li>
+     *     <li>{@link ColorInfo#CT_BGRA_8888}</li>
+     *     <li>{@link ColorInfo#CT_GRAY_8}</li>
+     *     <li>{@link ColorInfo#CT_GRAY_ALPHA_88}</li>
+     *     <li>{@link ColorInfo#CT_ALPHA_8}</li>
+     * </ul>
+     *
+     * @param x   column index, zero or greater, and less than width()
+     * @param y   row index, zero or greater, and less than height()
+     * @param src unpremultiplied or opaque color to set
+     * @throws UnsupportedOperationException not supported
+     * @see #setColor4f(int, int, float[])
+     */
+    public void setColor(int x, int y, @ColorInt int src) {
+        assert getBase() != null || getAddress() != MemoryUtil.NULL;
+        assert x < getWidth();
+        assert y < getHeight();
+        var at = getAlphaType();
+        var cs = getColorSpace();
+        if (at != ColorInfo.AT_PREMUL && (cs == null || cs.isExtendedSRGB())) {
+            Object base = getBase();
+            PixelUtils.store(getColorType(), base == null)
+                    .store(base, getAddress(x, y), src);
+            return;
+        }
+        throw new UnsupportedOperationException();
     }
 
     /**
@@ -312,49 +355,62 @@ public class Pixmap {
     }
 
     /**
-     * Copies a Rect of pixels to dst. Copy starts at (srcX, srcY), and does not
-     * exceed Pixmap (width(), height()). dst specifies width, height, ColorType,
-     * AlphaType, and ColorSpace of destination.  Returns true if pixels are copied.
-     * Returns false if dst address equals nullptr, or dst.rowBytes() is less than
-     * dst ImageInfo::minRowBytes.
-     * <p>
-     * Pixels are copied only if pixel conversion is possible. Returns
-     * false if pixel conversion is not possible.
-     * <p>
-     * srcX and srcY may be negative to copy only top or left of source. Returns
-     * false pixmap width() or height() is zero or negative. Returns false if:
-     * srcX >= pixmap width(), or if srcY >= pixmap height().
+     * Copies a rect of pixels from {@code src} into this pixmap, with no vertical flip
+     * and default rendering intent / chromatic adaptation.
      *
-     * @param dst  ImageInfo and pixel address to write to
-     * @param srcX column index whose absolute value is less than width()
-     * @param srcY row index whose absolute value is less than height()
-     * @return true if pixels are copied to dst
+     * @param src    the source pixmap to copy pixels from
+     * @param srcX   x-axis offset into src, may be negative
+     * @param srcY   y-axis offset into src, may be negative
+     * @param dstX   x-axis offset into this pixmap, may be negative
+     * @param dstY   y-axis offset into this pixmap, may be negative
+     * @param width  width of the rect to copy, in pixels
+     * @param height height of the rect to copy, in pixels
+     * @return true if pixels are changed
+     * @see #setPixels(Pixmap, int, int, int, int, int, int, boolean, int, ChromaticAdaptation)
      */
-    public boolean readPixels(@NonNull Pixmap dst, int srcX, int srcY) {
-        ImageInfo dstInfo = dst.getInfo();
-        if (srcX < 0 || srcY < 0 ||
-                srcX + dstInfo.width() > getWidth() ||
-                srcY + dstInfo.height() > getHeight()) {
-            return false;
-        }
-
-        long srcAddr = getAddress(srcX, srcY);
-        ImageInfo srcInfo = getInfo().makeWH(dstInfo.width(), dstInfo.height());
-        return PixelUtils.convertPixels(
-                srcInfo, getBase(), srcAddr, getRowBytes(),
-                dstInfo, dst.getBase(), dst.getAddress(), dst.getRowBytes()
-        );
+    public boolean setPixels(@NonNull Pixmap src, int srcX, int srcY,
+                             int dstX, int dstY, int width, int height) {
+        return setPixels(src, srcX, srcY, dstX, dstY, width, height, false);
     }
 
     /**
-     * Copies a Rect of pixels from src. Copy starts at (dstX, dstY), and does not exceed
-     * (src.width(), src.height()).
+     * Copies a rect of pixels from {@code src} into this pixmap, with default
+     * rendering intent (relative colorimetric) and chromatic adaptation (Bradford).
+     *
+     * @param src    the source pixmap to copy pixels from
+     * @param srcX   x-axis offset into src, may be negative
+     * @param srcY   y-axis offset into src, may be negative
+     * @param dstX   x-axis offset into this pixmap, may be negative
+     * @param dstY   y-axis offset into this pixmap, may be negative
+     * @param width  width of the rect to copy, in pixels
+     * @param height height of the rect to copy, in pixels
+     * @param flipY  if true, flip src vertically while copying
+     * @return true if pixels are changed
+     * @see #setPixels(Pixmap, int, int, int, int, int, int, boolean, int, ChromaticAdaptation)
+     */
+    public boolean setPixels(@NonNull Pixmap src, int srcX, int srcY,
+                             int dstX, int dstY, int width, int height,
+                             boolean flipY) {
+        return setPixels(src, srcX, srcY, dstX, dstY, width, height, flipY,
+                ColorTransform.RELATIVE_COLORIMETRIC, ChromaticAdaptation.BRADFORD);
+    }
+
+    /**
+     * Copies a rect of pixels from src into this, performs ColorType, AlphaType,
+     * and ColorSpace conversion. Copy starts at (dstX, dstY), and does not exceed
+     * (width, height). Addresses (offsets) must be aligned to bytes-per-pixel
+     * (except for non-power-of-two), scaling is not allowed.
      * <p>
      * src specifies width, height, ColorType, AlphaType, ColorSpace, pixel storage,
      * and row bytes of source. src.rowBytes() specifics the gap from one source
      * row to the next. Returns true if pixels are copied. Returns false if:
-     * - src pixel storage equals nullptr
-     * - src.rowBytes is less than ImageInfo::minRowBytes()
+     * <ul>
+     *     <li>pixel storage equals nullptr</li>
+     *     <li>rowBytes is less than ImageInfo::minRowBytes()</li>
+     *     <li>colorType is unknown</li>
+     *     <li>width or height is zero</li>
+     *     <li>address or rowBytes is not aligned</li>
+     * </ul>
      * <p>
      * Pixels are copied only if pixel conversion is possible. Returns
      * false if pixel conversion is not possible.
@@ -362,25 +418,71 @@ public class Pixmap {
      * dstX and dstY may be negative to copy only top or left of source. Returns
      * false if width() or height() is zero or negative.
      * Returns false if dstX >= pixmap width(), or if dstY >= pixmap height().
+     * <p>
+     * Steps:
+     * <ol>
+     *     <li>unpack from src color type to RGBA_F32</li>
+     *     <li>unpremultiply alpha</li>
+     *     <li>linearize (EOTF)</li>
+     *     <li>apply src OOTF</li>
+     *     <li>convert src to XYZ</li>
+     *     <li>chromatic adaptation</li>
+     *     <li>convert XYZ to dst</li>
+     *     <li>apply dst OOTF</li>
+     *     <li>encode (OETF)</li>
+     *     <li>premultiply alpha</li>
+     *     <li>pack from RGBA_F32 to dst color type</li>
+     * </ol>
      *
-     * @param src  source Pixmap: ImageInfo, pixels, row bytes
-     * @param dstX column index whose absolute value is less than width()
-     * @param dstY row index whose absolute value is less than height()
-     * @return true if src pixels are copied to pixmap
+     * @param src             the source pixmap to copy pixels from
+     * @param srcX            x-axis offset into src, may be negative
+     * @param srcY            y-axis offset into src, may be negative
+     * @param dstX            x-axis offset into this pixmap, may be negative
+     * @param dstY            y-axis offset into this pixmap, may be negative
+     * @param width           requested width of the rect to copy, in pixels;
+     *                        the actual copied width may be smaller after clipping
+     *                        against src and dst bounds
+     * @param height          requested height of the rect to copy, in pixels;
+     *                        the actual copied height may be smaller after clipping
+     *                        against src and dst bounds
+     * @param flipY           if true, flip src vertically while copying
+     * @param renderingIntent the rendering intent used for color space conversion,
+     *                        e.g. {@link ColorTransform#RELATIVE_COLORIMETRIC}
+     * @param adaptation      the chromatic adaptation method used for color space
+     *                        conversion
+     * @return true if pixels are changed
      */
-    public boolean writePixels(@NonNull Pixmap src, int dstX, int dstY) {
-        ImageInfo srcInfo = src.getInfo();
-        if (dstX < 0 || dstY < 0 ||
-                dstX + srcInfo.width() > getWidth() ||
-                dstY + srcInfo.height() > getHeight()) {
+    public boolean setPixels(@NonNull Pixmap src, int srcX, int srcY,
+                             int dstX, int dstY, int width, int height,
+                             boolean flipY, int renderingIntent,
+                             @NonNull ChromaticAdaptation adaptation) {
+        // compute clip, promote to long first and then do operations to avoid overflow
+        long iMin = Math.max(0L, Math.max(-(long) srcX, -(long) dstX));
+        long iMax = Math.min(width, Math.min((long) src.getWidth() - srcX, (long) getWidth() - dstX));
+        long jMin = Math.max(0L, Math.max(-(long) srcY, -(long) dstY));
+        long jMax = Math.min(height, Math.min((long) src.getHeight() - srcY, (long) getHeight() - dstY));
+
+        if (iMax <= iMin || jMax <= jMin) {
             return false;
         }
 
-        long dstAddr = getAddress(dstX, dstY);
-        ImageInfo dstInfo = getInfo().makeWH(srcInfo.width(), srcInfo.height());
+        // the following operations should never cause ArithmeticException, just assert
+        int w = Math.toIntExact(iMax - iMin);
+        int h = Math.toIntExact(jMax - jMin);
+
+        int srcOffX = Math.toIntExact(srcX + iMin);
+        int srcOffY = Math.toIntExact(srcY + jMin);
+        int dstOffX = Math.toIntExact(dstX + iMin);
+        int dstOffY = Math.toIntExact(dstY + jMin);
+
+        long srcAddr = src.getAddress(srcOffX, srcOffY);
+        long dstAddr = getAddress(dstOffX, dstOffY);
+        ImageInfo srcInfo = src.getInfo().makeWH(w, h);
+        ImageInfo dstInfo = getInfo().makeWH(w, h);
         return PixelUtils.convertPixels(
-                srcInfo, src.getBase(), src.getAddress(), src.getRowBytes(),
-                dstInfo, getBase(), dstAddr, getRowBytes()
+                srcInfo, src.getBase(), srcAddr, src.getRowBytes(),
+                dstInfo, getBase(), dstAddr, getRowBytes(),
+                flipY, renderingIntent, adaptation
         );
     }
 

@@ -2023,7 +2023,8 @@ public class PixelUtils {
 
     /**
      * Performs color type, alpha type, and color space conversion.
-     * Addresses (offsets) must be aligned to bytes-per-pixel, scaling is not allowed.
+     * Addresses (offsets) must be aligned to bytes-per-pixel (except for non-power-of-two),
+     * scaling is not allowed.
      */
     public static boolean convertPixels(@NonNull Pixmap src, @NonNull Pixmap dst) {
         return convertPixels(src.getInfo(), src.getBase(), src.getAddress(), src.getRowBytes(),
@@ -2042,7 +2043,8 @@ public class PixelUtils {
 
     /**
      * Performs color type, alpha type, and color space conversion.
-     * Addresses (offsets) must be aligned to bytes-per-pixel, scaling is not allowed.
+     * Addresses (offsets) must be aligned to bytes-per-pixel (except for non-power-of-two),
+     * scaling is not allowed.
      */
     public static boolean convertPixels(@NonNull ImageInfo srcInfo, Object srcBase,
                                         long srcAddr, long srcRowBytes,
@@ -2050,6 +2052,20 @@ public class PixelUtils {
                                         long dstAddr, long dstRowBytes) {
         return convertPixels(srcInfo, srcBase, srcAddr, srcRowBytes,
                 dstInfo, dstBase, dstAddr, dstRowBytes, false);
+    }
+
+    /**
+     * Performs color type, alpha type, color space, and origin conversion.
+     * Addresses (offsets) must be aligned to bytes-per-pixel (except for non-power-of-two),
+     * scaling is not allowed.
+     */
+    public static boolean convertPixels(@NonNull ImageInfo srcInfo, Object srcBase,
+                                        long srcAddr, long srcRowBytes,
+                                        @NonNull ImageInfo dstInfo, Object dstBase,
+                                        long dstAddr, long dstRowBytes,
+                                        boolean flipY) {
+        return convertPixels(srcInfo, srcBase, srcAddr, srcRowBytes, dstInfo, dstBase, dstAddr, dstRowBytes,
+                flipY, ColorTransform.RELATIVE_COLORIMETRIC, ChromaticAdaptation.BRADFORD);
     }
 
     private static int checkAlignment(Object base, long addr, long rowBytes, @ColorInfo.ColorType int ct) {
@@ -2072,7 +2088,8 @@ public class PixelUtils {
                                         long srcAddr, long srcRowBytes,
                                         @NonNull ImageInfo dstInfo, Object dstBase,
                                         long dstAddr, long dstRowBytes,
-                                        boolean flipY) {
+                                        boolean flipY, int renderingIntent,
+                                        @NonNull ChromaticAdaptation adaptation) {
         if (!srcInfo.isValid() || !dstInfo.isValid()) {
             return false;
         }
@@ -2170,7 +2187,7 @@ public class PixelUtils {
             // high precision pipeline
             final PixelOp load = loadOp(srcCT, srcBase == null);
             final boolean unpremul = (flags & kColorSpaceXformFlagUnpremul) != 0;
-            final ColorTransform transform = csXform ? new ColorTransform(srcCS, dstCS) : null;
+            final ColorTransform transform = csXform ? new ColorTransform(srcCS, dstCS, renderingIntent, adaptation) : null;
             final boolean premul = (flags & kColorSpaceXformFlagPremul) != 0;
             final PixelOp store = storeOp(dstCT, dstBase == null);
 
