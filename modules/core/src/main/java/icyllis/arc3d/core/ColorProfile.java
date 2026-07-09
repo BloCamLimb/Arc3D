@@ -31,7 +31,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
-import java.util.Objects;
 import java.util.function.DoubleUnaryOperator;
 
 /**
@@ -41,119 +40,26 @@ public class ColorProfile {
 
     // Gray or RGB
     public int dataColorSpace = ICC_Profile.icSigRgbData;
+    public int renderingIntent = ICC_Profile.icMediaRelativeColorimetric;
 
     public String description;
-
-    public TransferFunction rTRC_para;
-    public ShortBuffer rTRC_table;
-
-    public TransferFunction gTRC_para;
-    public ShortBuffer gTRC_table;
-
-    public TransferFunction bTRC_para;
-    public ShortBuffer bTRC_table;
-
-    public TransferFunction kTRC_para;
-    public ShortBuffer kTRC_table;
 
     public @Size(6) float[] primaries;
     public @Size(2) float[] whitePoint;
 
-    public int renderingIntent = ICC_Profile.icMediaRelativeColorimetric;
+    public TransferFunction transferFunction;
 
     public boolean cicp;
     public int cicp_colorPrimaries;
     public int cicp_transferCharacteristics;
-    public int cicp_matrixCoefficients = Color.MATRIX_COEFFICIENTS_IDENTITY;
+    public int cicp_matrixCoefficients = YUVInfo.MATRIX_COEFFICIENTS_IDENTITY;
     public int cicp_videoFullRangeFlag = 1;
 
     public int originalTagCount;
     public byte @Nullable [] originalData;
     public @Nullable ICC_Profile originalProfile;
 
-    public String getDefaultDescription() {
-        if (!cicp) {
-            return "Generic RGB";
-        }
-        String pn;
-        switch (cicp_colorPrimaries) {
-            case Color.COLOR_PRIMARIES_BT709,
-                 Color.COLOR_PRIMARIES_UNSPECIFIED -> {
-                pn = "BT709";
-            }
-            case Color.COLOR_PRIMARIES_BT470M -> {
-                pn = "BT470M";
-            }
-            case Color.COLOR_PRIMARIES_BT470BG -> {
-                pn = "BT470BG";
-            }
-            case Color.COLOR_PRIMARIES_SMPTE170M,
-                 Color.COLOR_PRIMARIES_SMPTE240M -> {
-                pn = "SMPTE170M";
-            }
-            case Color.COLOR_PRIMARIES_GENERIC_FILM -> {
-                pn = "FILM";
-            }
-            case Color.COLOR_PRIMARIES_BT2020 -> {
-                pn = "BT2020";
-            }
-            case Color.COLOR_PRIMARIES_SMPTE428 -> {
-                pn = "XYZ";
-            }
-            case Color.COLOR_PRIMARIES_SMPTE431 -> {
-                pn = "P3-DCI";
-            }
-            case Color.COLOR_PRIMARIES_SMPTE432 -> {
-                pn = "P3-D65";
-            }
-            case Color.COLOR_PRIMARIES_EBU3213 -> {
-                pn = "EBU3213";
-            }
-            default -> {
-                return null;
-            }
-        }
-
-        String tn;
-        switch (cicp_transferCharacteristics) {
-            case Color.TRANSFER_CHARACTERISTICS_BT709,
-                 Color.TRANSFER_CHARACTERISTICS_UNSPECIFIED,
-                 Color.TRANSFER_CHARACTERISTICS_SMPTE170M,
-                 Color.TRANSFER_CHARACTERISTICS_BT2020_10BIT,
-                 Color.TRANSFER_CHARACTERISTICS_BT2020_12BIT,
-                 Color.TRANSFER_CHARACTERISTICS_IEC61966_2_4 -> {
-                tn = "SMPTE170M";
-            }
-            case Color.TRANSFER_CHARACTERISTICS_BT470M -> {
-                tn = "Gamma 2.2";
-            }
-            case Color.TRANSFER_CHARACTERISTICS_BT470BG -> {
-                tn = "Gamma 2.8";
-            }
-            case Color.TRANSFER_CHARACTERISTICS_SMPTE240M -> {
-                tn = "SMPTE240M";
-            }
-            case Color.TRANSFER_CHARACTERISTICS_LINEAR -> {
-                tn = "Linear";
-            }
-            case Color.TRANSFER_CHARACTERISTICS_IEC61966_2_1 -> {
-                tn = "sRGB";
-            }
-            case Color.TRANSFER_CHARACTERISTICS_SMPTE2084 -> {
-                tn = "PQ";
-            }
-            case Color.TRANSFER_CHARACTERISTICS_SMPTE428 -> {
-                tn = "Gamma 2.6";
-            }
-            case Color.TRANSFER_CHARACTERISTICS_ARIB_STD_B67 -> {
-                tn = "HLG";
-            }
-            default -> {
-                return null;
-            }
-        }
-
-        return pn + " primaries with " + tn + " transfer";
+    public ColorProfile() {
     }
 
     public void setColorSpace(@NonNull RGBColorSpace colorSpace) {
@@ -162,11 +68,7 @@ public class ColorProfile {
         description = colorSpace.getName();
         primaries = colorSpace.getPrimaries();
         whitePoint = colorSpace.getWhitePoint();
-
-        rTRC_para = gTRC_para = bTRC_para = colorSpace.getTransferFunction();
-        rTRC_table = gTRC_table = bTRC_table = null;
-        kTRC_para = null;
-        kTRC_table = null;
+        transferFunction = colorSpace.getTransferFunction();
 
         cicp = false;
 
@@ -178,85 +80,120 @@ public class ColorProfile {
     public @Nullable ColorSpace toColorSpace(boolean useBT1886) {
         if (dataColorSpace == ICC_Profile.icSigRgbData) {
 
-            if (cicp && cicp_matrixCoefficients == Color.MATRIX_COEFFICIENTS_IDENTITY &&
+            if (cicp &&
+                    cicp_matrixCoefficients == YUVInfo.MATRIX_COEFFICIENTS_IDENTITY &&
                     cicp_videoFullRangeFlag != 0) {
                 return ColorSpaces.fromCICP(cicp_colorPrimaries, cicp_transferCharacteristics, useBT1886);
             }
 
-            if (primaries != null && whitePoint != null) {
-                TransferFunction tf = rTRC_para;
-                if (tf != null) {
-                    if (!tf.equals(gTRC_para) || !tf.equals(bTRC_para)) {
-                        tf = null;
-                    }
+            if (primaries != null && whitePoint != null && transferFunction != null) {
+                RGBColorSpace matched = ColorSpaces.match(primaries, whitePoint, transferFunction);
+                if (matched != null) {
+                    return matched;
                 }
-                if (tf != null) {
-                    RGBColorSpace matched = ColorSpaces.match(primaries, whitePoint, tf);
-                    if (matched != null) {
-                        return matched;
-                    }
 
-                    return new RGBColorSpace("Some RGB", primaries, whitePoint, tf);
-                }
+                return new RGBColorSpace(getDefaultDescription(), primaries, whitePoint, transferFunction);
             }
 
         } else if (dataColorSpace == ICC_Profile.icSigGrayData) {
-            if (whitePoint != null && kTRC_para != null) {
-                return new RGBColorSpace("Some Gray", new float[]{1, 0, 0, 1, 0, 0}, whitePoint, kTRC_para);
+            if (whitePoint != null && transferFunction != null) {
+                return new RGBColorSpace(getDefaultDescription(), ColorSpace.XYZ_PRIMARIES, whitePoint, transferFunction);
             }
         }
         return null;
     }
 
-    public static boolean approx(ShortBuffer table, TransferFunction tf) {
+    public static boolean compare(@NonNull ShortBuffer table, @NonNull TransferFunction tf) {
         int N = Math.max(table.remaining(), 256);
-        float scale = 1.0f / (N - 1);
-        DoubleUnaryOperator eotf = tf.toEOTF();
+        double scale = 1.0 / (N - 1);
+        DoubleUnaryOperator A = x -> evalCurve(table, x);
+        DoubleUnaryOperator B = tf.toEOTF();
         for (int i = 0; i < N; i++) {
-            float x = i * scale;
-            float rA = evalCurve(table, x);
-            float rB = (float) eotf.applyAsDouble(x);
-            if (!(Math.abs(rA - rB) <= 5e-4)) {
+            double x = i * scale;
+            if (!TransferFunction.compare(x, A, B)) {
                 return false;
             }
         }
         return true;
     }
 
-    public static float evalCurve(ShortBuffer table, float x) {
-        float ix = MathUtil.clamp(x, 0f, 1f) * (table.remaining() - 1);
+    public static double evalCurve(@NonNull ShortBuffer table, double x) {
+        int n = table.remaining() - 1;
+        double ix = MathUtil.clamp(x, 0, 1) * n;
         int lo = (int) ix;
-        int hi = (int) (ix + 1.0f - Math.ulp(ix + 1.0f));
-        float l = (table.get(lo) & 0xFFFF) * (1 / 65535.0f);
-        float h = (table.get(hi) & 0xFFFF) * (1 / 65535.0f);
+        int hi = Math.min(lo + 1, n);
+        double l = (table.get(lo) & 0xFFFF) * (1 / 65535.0);
+        double h = (table.get(hi) & 0xFFFF) * (1 / 65535.0);
         return MathUtil.lerp(l, h, ix - lo);
+    }
+
+    public @NonNull String getDefaultDescription() {
+        if (cicp) {
+            String name = ColorSpaces.nameCICP(cicp_colorPrimaries, cicp_transferCharacteristics,
+                    false);
+            if (name != null) {
+                return name;
+            }
+        }
+        if (dataColorSpace == ICC_Profile.icSigRgbData) {
+            if (primaries != null && whitePoint != null && transferFunction != null) {
+                String pn = ColorSpaces.namePrimaries(primaries, whitePoint);
+                String tn = ColorSpaces.nameTransfer(transferFunction);
+                if (pn != null || tn != null) {
+                    return (pn != null ? pn : "Unknown") + " primaries with " +
+                            (tn != null ? tn : "Unknown") + " transfer";
+                }
+            }
+            return "Some RGB";
+        } else if (dataColorSpace == ICC_Profile.icSigGrayData) {
+            if (transferFunction != null) {
+                String tn = ColorSpaces.nameTransfer(transferFunction);
+                return "Gray with " + (tn != null ? tn : "Unknown") + " transfer";
+            }
+        }
+        return "Unknown";
     }
 
     @Override
     public String toString() {
         return "ColorProfile{" +
-                "dataColorSpace=" + Integer.toHexString(dataColorSpace) +
+                "dataColorSpace=0x" + Integer.toHexString(dataColorSpace) +
+                ", renderingIntent=" + renderingIntent +
                 ", description='" + description + '\'' +
-                ", rTRC_para=" + rTRC_para +
-                ", rTRC_table=" + rTRC_table +
-                ", gTRC_para=" + gTRC_para +
-                ", gTRC_table=" + gTRC_table +
-                ", bTRC_para=" + bTRC_para +
-                ", bTRC_table=" + bTRC_table +
-                ", kTRC_para=" + kTRC_para +
-                ", kTRC_table=" + kTRC_table +
                 ", primaries=" + Arrays.toString(primaries) +
                 ", whitePoint=" + Arrays.toString(whitePoint) +
-                ", renderingIntent=" + renderingIntent +
+                ", transferFunction=" + transferFunction +
                 ", cicp=" + cicp +
                 ", cicp_colorPrimaries=" + cicp_colorPrimaries +
                 ", cicp_transferCharacteristics=" + cicp_transferCharacteristics +
                 ", cicp_matrixCoefficients=" + cicp_matrixCoefficients +
                 ", cicp_videoFullRangeFlag=" + cicp_videoFullRangeFlag +
                 ", originalTagCount=" + originalTagCount +
+                ", originalData=" + (originalData == null ? "null" : originalData.length + " bytes") +
                 ", originalProfile=" + originalProfile +
                 '}';
     }
+
+
+    public static final int HEADER_SIZE = 128;
+    // Header plus the size of the tag count (4)
+    public static final int TOC_OFFSET = HEADER_SIZE + 4;
+    // Contains a signature (4), offset (4), and size (4).
+    public static final int TOC_RECORD_SIZE = 12;
+
+    public static final int PROFILE_FILE_SIGNATURE = 0x61637370; // 'acsp'
+
+    /**
+     * ICC Profile Tag Signature: 'cicp'.
+     * <p>
+     * Added in ICC v4.4
+     */
+    public static final int icSigcicpTag = 0x63696370;
+
+    public static final int icSigMultiLocalizedUnicodeType = 0x6D6C7563; // 'mluc'
+    public static final int icSigS15Fixed16ArrayType = 0x73663332; // 'sf32'
+    public static final int icSigCurveType = 0x63757276;  // 'curv'
+    public static final int icSigParametricCurveType = 0x70617261;  // 'para'
 
     /**
      * Attempts to parse the given ICC profile data and returns a {@code ColorProfile}.
@@ -297,7 +234,7 @@ public class ColorProfile {
                 resolvable = false;
                 break;
             default:
-                throw new IllegalArgumentException("Bad ICC device class: " + Integer.toHexString(deviceClass));
+                throw new IllegalArgumentException("Bad ICC device class: 0x" + Integer.toHexString(deviceClass));
         }
 
         int dataColorSpace = buffer.getInt(ICC_Profile.icHdrColorSpace);
@@ -319,13 +256,13 @@ public class ColorProfile {
                     resolvable = false;
                     break;
                 default:
-                    throw new IllegalArgumentException("Bad ICC PCS: " + Integer.toHexString(pcs));
+                    throw new IllegalArgumentException("Bad ICC PCS: 0x" + Integer.toHexString(pcs));
             }
         }
 
         int renderingIntent = buffer.getInt(ICC_Profile.icHdrRenderingIntent);
         if (renderingIntent < 0 || renderingIntent > 3) {
-            throw new IllegalArgumentException("Bad ICC rendering intent: " + Integer.toHexString(renderingIntent));
+            throw new IllegalArgumentException("Bad ICC rendering intent: " + renderingIntent);
         }
 
         int tagCount = buffer.getInt(HEADER_SIZE);
@@ -370,7 +307,6 @@ public class ColorProfile {
                         throw new IllegalArgumentException("Duplicate copyright");
                     }
                     hasCopyright = true;
-                    System.out.println(readText(buffer, tagOffset, tagSize));
                 }
                 case ICC_Profile.icSigMediaWhitePointTag -> {
                     if (whitePoint != null) {
@@ -483,42 +419,29 @@ public class ColorProfile {
                     break resolve;
                 }
                 // simplify trc
-                if (rTRC.equals(gTRC)) {
-                    gTRC = rTRC;
+                if (!rTRC.equals(gTRC) || !rTRC.equals(bTRC)) {
+                    break resolve;
                 }
-                if (rTRC.equals(bTRC)) {
-                    bTRC = rTRC;
-                }
-                if (rTRC instanceof TransferFunction) {
-                    result.rTRC_para = (TransferFunction) rTRC;
-                } else {
-                    result.rTRC_table = (ShortBuffer) rTRC;
-                }
-                if (gTRC instanceof TransferFunction) {
-                    result.gTRC_para = (TransferFunction) gTRC;
-                } else {
-                    result.gTRC_table = (ShortBuffer) gTRC;
-                }
-                if (bTRC instanceof TransferFunction) {
-                    result.bTRC_para = (TransferFunction) bTRC;
-                } else {
-                    result.bTRC_table = (ShortBuffer) bTRC;
-                }
-                if (rTRC == gTRC && rTRC == bTRC && rTRC instanceof ShortBuffer) {
+                if (rTRC instanceof ShortBuffer) {
                     // make parametric fitting
-                    if (approx((ShortBuffer) rTRC, TransferFunction.SRGB)) {
-                        result.rTRC_para = result.gTRC_para = result.bTRC_para = TransferFunction.SRGB;
-                        rTRC = gTRC = bTRC = TransferFunction.SRGB;
+                    if (compare((ShortBuffer) rTRC, TransferFunction.SRGB)) {
+                        rTRC = TransferFunction.SRGB;
                     }
                 }
+                if (rTRC instanceof TransferFunction) {
+                    result.transferFunction = (TransferFunction) rTRC;
+                } else {
+                    break resolve;
+                }
             } else {
+                assert dataColorSpace == ICC_Profile.icSigGrayData;
                 if (kTRC == null) {
                     break resolve;
                 }
                 if (kTRC instanceof TransferFunction) {
-                    result.kTRC_para = (TransferFunction) kTRC;
+                    result.transferFunction = (TransferFunction) kTRC;
                 } else {
-                    result.kTRC_table = (ShortBuffer) kTRC;
+                    break resolve;
                 }
             }
 
@@ -562,11 +485,7 @@ public class ColorProfile {
                 // we will first attempt to derive it.
                 if (dataColorSpace == ICC_Profile.icSigRgbData) {
 
-                    RGBColorSpace matched = null;
-                    if (rTRC == gTRC && rTRC == bTRC &&
-                            rTRC instanceof TransferFunction function) {
-                        matched = ColorSpaces.match(xyzMatrix, function);
-                    }
+                    RGBColorSpace matched = ColorSpaces.match(xyzMatrix, result.transferFunction);
 
                     float[] actualWhitePoint;
                     float[] actualPrimaries;
@@ -574,6 +493,7 @@ public class ColorProfile {
                         actualWhitePoint = matched.getWhitePoint();
                         actualPrimaries = matched.getPrimaries();
                     } else {
+                        //TODO unadapt using media white point?
                         actualWhitePoint = RGBColorSpace.computeWhitePoint(
                                 xyzMatrix
                         );
@@ -594,26 +514,6 @@ public class ColorProfile {
 
         return result;
     }
-
-    public static final int HEADER_SIZE = 128;
-    // Header plus the size of the tag count (4)
-    public static final int TOC_OFFSET = HEADER_SIZE + 4;
-    // Contains a signature (4), offset (4), and size (4).
-    public static final int TOC_RECORD_SIZE = 12;
-
-    public static final int PROFILE_FILE_SIGNATURE = 0x61637370; // 'acsp'
-
-    /**
-     * ICC Profile Tag Signature: 'cicp'.
-     * <p>
-     * Added in ICC v4.4
-     */
-    public static final int icSigcicpTag = 0x63696370;
-
-    public static final int icSigMultiLocalizedUnicodeType = 0x6D6C7563; // 'mluc'
-    public static final int icSigS15Fixed16ArrayType = 0x73663332; // 'sf32'
-    public static final int icSigCurveType = 0x63757276;  // 'curv'
-    public static final int icSigParametricCurveType = 0x70617261;  // 'para'
 
     /**
      * Save the profile and return the binary ICC profile data.
@@ -669,31 +569,20 @@ public class ColorProfile {
             ));
         }
 
-        if (rTRC_para != null || rTRC_table != null) {
-            tags.put(ICC_Profile.icSigRedTRCTag, writeTRC(
-                    rTRC_para, rTRC_table
-            ));
-            if (Objects.equals(gTRC_para, rTRC_para) && Objects.equals(gTRC_table, rTRC_table)) {
+        if (transferFunction != null) {
+            if (dataColorSpace == ICC_Profile.icSigRgbData) {
+                tags.put(ICC_Profile.icSigRedTRCTag, writeTRC(
+                        transferFunction, null
+                ));
                 // null means duplicate previous tag data
                 tags.put(ICC_Profile.icSigGreenTRCTag, null);
-            } else {
-                tags.put(ICC_Profile.icSigGreenTRCTag, writeTRC(
-                        gTRC_para, gTRC_table
-                ));
-            }
-            if (Objects.equals(bTRC_para, gTRC_para) && Objects.equals(bTRC_table, gTRC_table)) {
                 // null means duplicate previous tag data
                 tags.put(ICC_Profile.icSigBlueTRCTag, null);
-            } else {
-                tags.put(ICC_Profile.icSigBlueTRCTag, writeTRC(
-                        bTRC_para, bTRC_table
+            } else if (dataColorSpace == ICC_Profile.icSigGrayData) {
+                tags.put(ICC_Profile.icSigGrayTRCTag, writeTRC(
+                        transferFunction, null
                 ));
             }
-        }
-        if (kTRC_para != null || kTRC_table != null) {
-            tags.put(ICC_Profile.icSigGrayTRCTag, writeTRC(
-                    kTRC_para, kTRC_table
-            ));
         }
 
         if (cicp) {
@@ -833,11 +722,15 @@ public class ColorProfile {
                 if (stringOffset < 28 || stringOffset > size - stringLength) {
                     return null;
                 }
-                return buffer
+                String str = buffer
                         .slice(offset + stringOffset, stringLength)
                         .order(ByteOrder.BIG_ENDIAN)
                         .asCharBuffer()
                         .toString();
+                int tail = str.length();
+                while (tail > 0 && str.charAt(tail - 1) == '\0')
+                    tail--;
+                return str.substring(0, tail);
             }
             case 0x74657874 -> {
                 // 'text'
@@ -849,7 +742,23 @@ public class ColorProfile {
                     tail--;
                 return str.substring(0, tail);
             }
-            // there's legacy 'desc' but we don't handle
+            case 0x64657363 -> {
+                // 'desc'
+                if (size < 12) {
+                    return null;
+                }
+                int stringLength = buffer.getInt(offset + 8);
+                if (stringLength < 0 || 12 > size - stringLength) {
+                    return null;
+                }
+                String str = new String(buffer.array(),
+                        buffer.arrayOffset() + offset + 12, stringLength,
+                        StandardCharsets.US_ASCII);
+                int tail = str.length();
+                while (tail > 0 && str.charAt(tail - 1) == '\0')
+                    tail--;
+                return str.substring(0, tail);
+            }
             default -> {
                 return null;
             }
