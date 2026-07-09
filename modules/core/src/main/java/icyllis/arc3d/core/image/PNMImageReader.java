@@ -25,6 +25,7 @@ import icyllis.arc3d.core.ColorProfile;
 import icyllis.arc3d.core.ColorSpace;
 import icyllis.arc3d.core.ImageInfo;
 import icyllis.arc3d.core.Pixmap;
+import icyllis.arc3d.core.Rect2ic;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
@@ -150,6 +151,12 @@ public class PNMImageReader extends Decoder {
         int alphaType = (ColorInfo.colorTypeChannelFlags(colorType) & Color.COLOR_CHANNEL_A) != 0
                 ? ColorInfo.AT_UNPREMUL : ColorInfo.AT_OPAQUE;
         return ImageInfo.make(width, height, colorType, alphaType, null);
+    }
+
+    @Override
+    public void decodeImage(@NonNull Pixmap dstPixels,
+                            @Nullable Rect2ic srcRegion) throws IOException {
+        readPixels(dstPixels);
     }
 
     public void readPixels(@NonNull Pixmap dst) throws IOException {

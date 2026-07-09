@@ -22,6 +22,8 @@ package icyllis.arc3d.core.image;
 import icyllis.arc3d.core.ColorProfile;
 import icyllis.arc3d.core.ColorSpace;
 import icyllis.arc3d.core.ImageInfo;
+import icyllis.arc3d.core.Pixmap;
+import icyllis.arc3d.core.Rect2ic;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -41,7 +43,7 @@ import java.nio.channels.SeekableByteChannel;
  * <p>
  * Decoder instance can be reused for decoding multiple inputs for performance.
  */
-//PNG/JPEG/GIF/PNM/PAM/PFM/RADIANCE/OPENEXR/KTX2
+//PNG/JPEG/GIF/BMP/PSD/TIFF/Radiance/OpenEXR/KTX2/PNM/PAM/PFM/TGA/PIC
 public abstract class Decoder implements AutoCloseable {
 
     // either
@@ -117,6 +119,7 @@ public abstract class Decoder implements AutoCloseable {
 
     /**
      * @throws IOException I/O errors
+     * @throws DecoderException decoding errors
      * @throws UnsupportedOperationException input is invalid
      */
     public abstract void readHeader() throws IOException;
@@ -125,6 +128,15 @@ public abstract class Decoder implements AutoCloseable {
      * Returns the best image info of the encoded image data.
      */
     public abstract @NonNull ImageInfo getInfo();
+
+    /**
+     * @param dstPixels destination
+     * @param srcRegion region of interest to decode, or entire image
+     * @throws IOException I/O errors
+     * @throws DecoderException decoding errors
+     */
+    public abstract void decodeImage(@NonNull Pixmap dstPixels,
+                                     @Nullable Rect2ic srcRegion) throws IOException;
 
     protected void ensureReadBuffer() {
         if (buffer == null) {
@@ -148,7 +160,7 @@ public abstract class Decoder implements AutoCloseable {
     }
 
     protected void readFully(ByteBuffer dst) throws IOException {
-        int avail = buffer.remaining();
+        int avail = buffer != null ? buffer.remaining() : 0;
         if (avail > 0) {
             int copy = Math.min(avail, dst.remaining());
             int dstPos = dst.position();
@@ -158,6 +170,7 @@ public abstract class Decoder implements AutoCloseable {
             buffer.position(srcPos + copy);
         }
         if (stream != null) {
+            assert buffer != null && buffer.hasArray();
             while (dst.hasRemaining()) {
                 int n;
                 if (dst.hasArray()) {
@@ -184,12 +197,12 @@ public abstract class Decoder implements AutoCloseable {
             }
         }
         if (dst.hasRemaining())
-            throw new DecoderException("Insufficient bytes provided: " + dst.remaining() + " bytes more are needed");
+            throw new EOFException("Insufficient bytes provided: " + dst.remaining() + " bytes more are needed");
     }
 
     protected void skip(long n) throws IOException {
         if (n <= 0) return;
-        if (buffer.hasRemaining()) {
+        if (buffer != null && buffer.hasRemaining()) {
             int count = (int) Math.min(n, buffer.remaining());
             buffer.position(buffer.position() + count);
             n -= count;

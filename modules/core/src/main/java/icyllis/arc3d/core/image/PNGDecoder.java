@@ -24,6 +24,16 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
 
+import java.awt.Point;
+import java.awt.Transparency;
+import java.awt.color.ICC_ColorSpace;
+import java.awt.color.ICC_Profile;
+import java.awt.image.BufferedImage;
+import java.awt.image.ColorConvertOp;
+import java.awt.image.ComponentColorModel;
+import java.awt.image.DataBuffer;
+import java.awt.image.DataBufferByte;
+import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
@@ -31,6 +41,7 @@ import java.nio.ShortBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Hashtable;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
@@ -182,6 +193,7 @@ public class PNGDecoder extends Decoder {
         int bitDepth = metadata.IHDR_bitDepth;
         boolean tRNS = metadata.any(PNGMetadata.CHUNK_tRNS);
 
+        //TODO packed formats
         switch (metadata.IHDR_colorType) {
             case COLOR_TYPE_GRAYSCALE -> {
                 if (bitDepth <= 8) {
@@ -252,9 +264,9 @@ public class PNGDecoder extends Decoder {
             }
         }
 
-        //TODO packed formats
         ColorSpace colorSpace = this.colorSpace;
         if (colorProfile != null && colorSpace == null) {
+            // non-parametric, convert to sRGB
             colorSpace = ColorSpaces.SRGB;
         }
 
@@ -276,7 +288,7 @@ public class PNGDecoder extends Decoder {
         if (metadata.any(PNGMetadata.CHUNK_iCCP)) {
             try {
                 colorProfile = ColorProfile.parseICC(metadata.iCCP_profile);
-            } catch (IllegalArgumentException ignored) {
+            } catch (IllegalArgumentException e) {
                 //TODO warning
             }
         }
@@ -315,7 +327,7 @@ public class PNGDecoder extends Decoder {
                     metadata.cHRM_whitePointX * (1 / 100000f),
                     metadata.cHRM_whitePointY * (1 / 100000f),
             };
-            colorProfile.rTRC_para = colorProfile.gTRC_para = colorProfile.bTRC_para =
+            colorProfile.transferFunction =
                     new TransferFunction(1, 0, 0, 0, 100000D / metadata.gAMA_gamma);
         }
 
@@ -790,6 +802,7 @@ public class PNGDecoder extends Decoder {
         }
     }
 
+    @Override
     public void decodeImage(@NonNull Pixmap dstPixels,
                             @Nullable Rect2ic srcRegion) throws IOException {
         if (chunkType != IDAT_TYPE || state != STATE_FIRST_IDAT) {
@@ -1000,6 +1013,63 @@ public class PNGDecoder extends Decoder {
         skip(chunkRemaining);
         chunkRemaining = 0;
         state = STATE_AFTER_IDAT;
+
+        // do color xform
+        var dstCS = dstPixels.getColorSpace();
+        if (colorProfile != null && dstCS != null &&
+                !dstCS.equals(colorSpace, true) &&
+                (ColorInfo.colorTypeChannelFlags(dstCT) & Color.COLOR_CHANNEL_FLAGS_RGB) == Color.COLOR_CHANNEL_FLAGS_RGB) {
+            if (colorSpace != null) {
+                // Arc3D CMS
+                PixelUtils.convertPixels(
+                        new Pixmap(dstPixels.getInfo().makeColorSpace(colorSpace), dstPixels),
+                        dstPixels
+                );
+            }
+            //TODO
+
+            /* else if (colorProfile.originalData != null) {
+                // Little CMS
+                WritableRaster raster;
+                if (dstPixels.getBase() == null) {
+                    var dataBuffer = new NativeDataBuffer(
+                            dstPixels.getAddress(),
+                            is16 ? DataBuffer.TYPE_USHORT : DataBuffer.TYPE_BYTE,
+                            (int) dstPixels.getInfo().computeMinByteSize()
+                    );
+
+                    // this can do RGB -> RGBA expansion, pad alpha with 255
+                    raster = new NativeWritableRaster(
+                            sampleModel, dataBuffer, new Point()
+                    );
+                } else {
+                    if (pixelStride == 4) {
+                        throw new DecoderException("Cannot do RGBA expansion for heap buffer, use off-heap or RGB_888 instead");
+                    }
+
+                    var dataBuffer = new DataBufferByte((byte[]) dstPixels.getBase(),
+                            (int) dstPixels.getInfo().computeMinByteSize(), (int) dstPixels.getAddress());
+
+                    raster = WritableRaster.createWritableRaster(
+                            sampleModel, dataBuffer, new Point()
+                    );
+                }
+
+                var colorModel = new ComponentColorModel(
+                        cs,
+                        false, false, Transparency.OPAQUE, DataBuffer.TYPE_BYTE
+                );
+
+                BufferedImage destination = new BufferedImage(colorModel, raster, false, new Hashtable<>());
+
+                ColorProfile dstProfile = new ColorProfile();
+                dstProfile.setColorSpace((RGBColorSpace) dstCS);
+                var cs = new ICC_ColorSpace(ICC_Profile.getInstance(dstProfile.getData()));
+                var iccCS = new ICC_ColorSpace(ICC_Profile.getInstance(colorProfile.originalData));
+                var convert = new ColorConvertOp(iccCS, cs, null);
+
+            }*/
+        }
     }
 
     private static int readPackedSample(ByteBuffer scanline, int sampleIndex, int bitDepth) {
