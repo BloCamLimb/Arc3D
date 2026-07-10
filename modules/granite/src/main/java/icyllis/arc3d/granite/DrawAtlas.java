@@ -27,6 +27,7 @@ import icyllis.arc3d.core.Rect2i;
 import icyllis.arc3d.core.Rect2ic;
 import icyllis.arc3d.core.RectanglePacker;
 import icyllis.arc3d.core.SharedPtr;
+import icyllis.arc3d.core.util.ObjectArrayList;
 import icyllis.arc3d.engine.Caps;
 import icyllis.arc3d.engine.Engine;
 import icyllis.arc3d.engine.ISurface;
@@ -36,7 +37,6 @@ import icyllis.arc3d.engine.ImageProxyView;
 import icyllis.arc3d.engine.Swizzle;
 import icyllis.arc3d.granite.task.ImageUploadTask;
 import icyllis.arc3d.granite.task.RenderPassTask;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.NonNull;
 import org.lwjgl.system.MemoryUtil;
 

@@ -20,10 +20,10 @@
 package icyllis.arc3d.sketch.shaders;
 
 import icyllis.arc3d.core.*;
+import icyllis.arc3d.core.util.FloatArrayList;
 import icyllis.arc3d.sketch.Matrix;
 import icyllis.arc3d.sketch.Matrixc;
 import icyllis.arc3d.sketch.Point;
-import it.unimi.dsi.fastutil.floats.FloatArrayList;
 import org.jetbrains.annotations.VisibleForTesting;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;

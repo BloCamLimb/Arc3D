@@ -20,6 +20,9 @@
 package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.*;
+import icyllis.arc3d.core.util.IntArrays;
+import icyllis.arc3d.core.util.ObjectIntOpenHashMap;
+import icyllis.arc3d.core.util.ObjectArrayList;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.shading.UniformHandler;
 import icyllis.arc3d.granite.task.DrawTask;
@@ -27,9 +30,6 @@ import icyllis.arc3d.granite.task.ImageUploadTask;
 import icyllis.arc3d.granite.task.RenderPassTask;
 import icyllis.arc3d.granite.task.Task;
 import icyllis.arc3d.granite.task.TaskList;
-import it.unimi.dsi.fastutil.ints.IntArrays;
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -60,7 +60,7 @@ public final class SurfaceDrawContext implements AutoCloseable {
     private byte mPendingLoadOp = LoadOp.kLoad;
     private final float[] mPendingClearColor = new float[4];
 
-    private final Object2IntOpenHashMap<GraphicsPipelineDesc> mPipelineToIndex = new Object2IntOpenHashMap<>();
+    private final ObjectIntOpenHashMap<GraphicsPipelineDesc> mPipelineToIndex = new ObjectIntOpenHashMap<>();
     private ObjectArrayList<GraphicsPipelineDesc> mIndexToPipeline = new ObjectArrayList<>();
 
     private final GraphicsPipelineDesc mLookupDesc = new GraphicsPipelineDesc();

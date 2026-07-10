@@ -19,7 +19,8 @@
 
 package icyllis.arc3d.compiler.lex;
 
-import it.unimi.dsi.fastutil.ints.IntList;
+import icyllis.arc3d.core.util.IntArrayList;
+import icyllis.arc3d.core.util.IntList;
 import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.NonNull;
 
@@ -67,7 +68,7 @@ public interface NFAState {
 
         @Override
         public IntList next() {
-            return IntList.of();
+            return new IntArrayList();
         }
     }
 

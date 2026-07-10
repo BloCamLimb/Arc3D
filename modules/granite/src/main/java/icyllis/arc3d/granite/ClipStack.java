@@ -20,6 +20,7 @@
 package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.*;
+import icyllis.arc3d.core.util.ObjectArrayList;
 import icyllis.arc3d.granite.geom.BoundsManager;
 import icyllis.arc3d.granite.geom.EdgeAAQuad;
 import icyllis.arc3d.granite.geom.Rect;
@@ -31,7 +32,6 @@ import icyllis.arc3d.sketch.Paint;
 import icyllis.arc3d.sketch.Path;
 import icyllis.arc3d.sketch.RRect;
 import icyllis.arc3d.sketch.Shape;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jetbrains.annotations.UnmodifiableView;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;

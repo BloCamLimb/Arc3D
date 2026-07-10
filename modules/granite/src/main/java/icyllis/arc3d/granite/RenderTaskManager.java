@@ -20,6 +20,7 @@
 package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.*;
+import icyllis.arc3d.core.util.ObjectObjectOpenHashMap;
 import icyllis.arc3d.engine.Device;
 import icyllis.arc3d.engine.FlushInfo;
 import icyllis.arc3d.engine.ImageProxyView;
@@ -30,7 +31,6 @@ import icyllis.arc3d.engine.TopologicalSort;
 import icyllis.arc3d.engine.UniqueID;
 import icyllis.arc3d.granite.trash.OpFlushState;
 import icyllis.arc3d.granite.trash.ops.OpsTask;
-import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -45,8 +45,8 @@ public class RenderTaskManager {
     @SharedPtr
     private final ArrayList<RenderTask> mDAG = new ArrayList<>();
 
-    private final Reference2ObjectOpenHashMap<UniqueID, RenderTask> mLastRenderTasks =
-            new Reference2ObjectOpenHashMap<>();
+    private final ObjectObjectOpenHashMap<UniqueID, RenderTask> mLastRenderTasks =
+            new ObjectObjectOpenHashMap<>();
     private OpsTask mActiveOpsTask = null;
 
     private final OpFlushState mFlushState;

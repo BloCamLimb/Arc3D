@@ -19,7 +19,7 @@
 
 package icyllis.arc3d.engine;
 
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import icyllis.arc3d.core.util.ObjectObjectOpenHashMap;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -35,7 +35,7 @@ import java.util.function.Predicate;
  * {@code LinkedList} values will be automatically removed.
  */
 @NotThreadSafe
-public class LinkedListMultimap<K, V> extends Object2ObjectOpenHashMap<K, LinkedListMultimap.ListNode<V>> {
+public class LinkedListMultimap<K, V> extends ObjectObjectOpenHashMap<K, LinkedListMultimap.ListNode<V>> {
 
     private V outerValue;
 

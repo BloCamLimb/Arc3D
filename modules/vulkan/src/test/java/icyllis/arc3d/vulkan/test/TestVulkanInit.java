@@ -20,14 +20,13 @@
 package icyllis.arc3d.vulkan.test;
 
 import icyllis.arc3d.core.SharedPtr;
+import icyllis.arc3d.core.util.ObjectIntOpenHashMap;
 import icyllis.arc3d.engine.ContextOptions;
 import icyllis.arc3d.engine.ImmediateContext;
 import icyllis.arc3d.vulkan.*;
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.glfw.GLFWVulkan;
 import org.lwjgl.system.MemoryStack;
-import org.lwjgl.util.tinyfd.TinyFileDialogs;
 import org.lwjgl.vulkan.*;
 import org.slf4j.Logger;
 
@@ -50,8 +49,8 @@ public class TestVulkanInit implements AutoCloseable {
     private int mGraphicsQueueIndex = -1;
     private int mComputeQueueIndex = -1;
 
-    private final Object2IntOpenHashMap<String> mInstanceExtensions = new Object2IntOpenHashMap<>();
-    private final Object2IntOpenHashMap<String> mDeviceExtensions = new Object2IntOpenHashMap<>();
+    private final ObjectIntOpenHashMap<String> mInstanceExtensions = new ObjectIntOpenHashMap<>();
+    private final ObjectIntOpenHashMap<String> mDeviceExtensions = new ObjectIntOpenHashMap<>();
     private VkPhysicalDeviceFeatures2 mPhysicalDeviceFeatures2;
 
     private int mPhysicalDeviceVersion;

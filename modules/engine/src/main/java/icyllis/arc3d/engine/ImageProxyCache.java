@@ -20,12 +20,9 @@
 package icyllis.arc3d.engine;
 
 import icyllis.arc3d.core.PixelRef;
-import icyllis.arc3d.core.Pixmap;
-import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.RefCnt;
 import icyllis.arc3d.core.SharedPtr;
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import org.jspecify.annotations.NonNull;
+import icyllis.arc3d.core.util.ObjectObjectOpenHashMap;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
@@ -41,7 +38,7 @@ public final class ImageProxyCache {
 
     // This holds the texture proxies that have unique keys. The resourceCache does not get a ref
     // on these proxies, but they must send a message to the resourceCache when they are deleted.
-    private final Object2ObjectOpenHashMap<IUniqueKey, ImageProxy> mUniquelyKeyedProxies;
+    private final ObjectObjectOpenHashMap<IUniqueKey, ImageProxy> mUniquelyKeyedProxies;
 
     public ImageProxyCache(Context context) {
         mContext = context;
@@ -51,7 +48,7 @@ public final class ImageProxyCache {
             mDirect = null; // deferred
         }*/
 
-        mUniquelyKeyedProxies = new Object2ObjectOpenHashMap<>();
+        mUniquelyKeyedProxies = new ObjectObjectOpenHashMap<>();
     }
 
     /**

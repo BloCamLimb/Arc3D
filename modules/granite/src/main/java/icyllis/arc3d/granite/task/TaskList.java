@@ -20,11 +20,11 @@
 package icyllis.arc3d.granite.task;
 
 import icyllis.arc3d.core.SharedPtr;
+import icyllis.arc3d.core.util.ObjectArrayList;
+import icyllis.arc3d.core.util.ObjectList;
 import icyllis.arc3d.engine.CommandBuffer;
 import icyllis.arc3d.engine.ImmediateContext;
 import icyllis.arc3d.granite.RecordingContext;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import it.unimi.dsi.fastutil.objects.ObjectList;
 import org.jspecify.annotations.NonNull;
 
 import java.util.function.Consumer;

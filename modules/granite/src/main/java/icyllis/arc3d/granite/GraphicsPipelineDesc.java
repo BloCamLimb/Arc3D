@@ -19,9 +19,9 @@
 
 package icyllis.arc3d.granite;
 
+import icyllis.arc3d.core.util.ObjectArrayList;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.shading.GraphicsPipelineBuilder;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 /**
  * Descriptor of a graphics pipeline in Granite Renderer.

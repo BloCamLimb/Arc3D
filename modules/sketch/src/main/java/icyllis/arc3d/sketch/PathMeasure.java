@@ -20,8 +20,8 @@
 package icyllis.arc3d.sketch;
 
 import icyllis.arc3d.core.MathUtil;
-import it.unimi.dsi.fastutil.floats.FloatArrayList;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
+import icyllis.arc3d.core.util.FloatArrayList;
+import icyllis.arc3d.core.util.IntArrayList;
 import org.intellij.lang.annotations.MagicConstant;
 import org.jspecify.annotations.Nullable;
 

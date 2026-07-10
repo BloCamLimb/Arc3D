@@ -72,8 +72,6 @@ subprojects {
         compileOnly 'org.jetbrains:annotations:26.0.2'
         compileOnly 'org.jspecify:jspecify:1.0.0'
 
-        implementation "it.unimi.dsi:fastutil:${fastutil_version}"
-
         testImplementation 'org.openjdk.jmh:jmh-core:1.37'
         testAnnotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.37'
 

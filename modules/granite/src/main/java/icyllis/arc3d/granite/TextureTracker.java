@@ -19,7 +19,7 @@
 
 package icyllis.arc3d.granite;
 
-import it.unimi.dsi.fastutil.ints.IntArrays;
+import icyllis.arc3d.core.util.IntArrays;
 import org.jspecify.annotations.NonNull;
 
 import java.util.Arrays;

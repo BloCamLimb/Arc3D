@@ -21,6 +21,7 @@ package icyllis.arc3d.granite.trash.ops;
 
 import icyllis.arc3d.core.Rect2f;
 import icyllis.arc3d.core.Rect2i;
+import icyllis.arc3d.core.util.ObjectOpenHashSet;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.trash.GraphicsPipelineDesc_Old;
 import icyllis.arc3d.granite.ClipResult_old;
@@ -28,7 +29,6 @@ import icyllis.arc3d.granite.trash.OpFlushState;
 import icyllis.arc3d.granite.RecordingContext;
 import icyllis.arc3d.granite.RenderTask;
 import icyllis.arc3d.granite.RenderTaskManager;
-import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 

@@ -20,8 +20,6 @@
 package icyllis.arc3d.core.test.jmh;
 
 import icyllis.arc3d.core.MathUtil;
-import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
-import it.unimi.dsi.fastutil.shorts.Short2IntOpenHashMap;
 import jdk.incubator.vector.ByteVector;
 import jdk.incubator.vector.IntVector;
 import jdk.incubator.vector.VectorOperators;

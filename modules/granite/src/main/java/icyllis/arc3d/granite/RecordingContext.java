@@ -20,6 +20,7 @@
 package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.*;
+import icyllis.arc3d.core.util.ObjectArrayList;
 import icyllis.arc3d.engine.Context;
 import icyllis.arc3d.engine.Device;
 import icyllis.arc3d.engine.Engine;
@@ -31,8 +32,6 @@ import icyllis.arc3d.granite.task.TaskList;
 import icyllis.arc3d.core.ColorInfo;
 import icyllis.arc3d.sketch.Image;
 import icyllis.arc3d.sketch.Surface;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import it.unimi.dsi.fastutil.objects.ReferenceArrayList;
 import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.Nullable;
 
@@ -52,8 +51,8 @@ public final class RecordingContext extends Context {
     private final GlyphStrikeCache mGlyphStrikeCache;
     private final TextBlobCache mTextBlobCache;
 
-    private final ReferenceArrayList<@SharedPtr GraniteDevice> mTrackedDevices =
-            new ReferenceArrayList<>();
+    private final ObjectArrayList<@SharedPtr GraniteDevice> mTrackedDevices =
+            new ObjectArrayList<>();
 
     private RecordingContext(Device device) {
         super(device);

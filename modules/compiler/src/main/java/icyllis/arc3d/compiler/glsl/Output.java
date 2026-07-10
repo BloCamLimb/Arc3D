@@ -19,7 +19,7 @@
 
 package icyllis.arc3d.compiler.glsl;
 
-import it.unimi.dsi.fastutil.bytes.ByteArrays;
+import icyllis.arc3d.core.util.ByteArrays;
 import org.jspecify.annotations.NonNull;
 
 import java.nio.ByteBuffer;

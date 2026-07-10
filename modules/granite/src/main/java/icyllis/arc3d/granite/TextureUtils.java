@@ -22,18 +22,18 @@ package icyllis.arc3d.granite;
 import icyllis.arc3d.core.*;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.task.ImageUploadTask;
-import it.unimi.dsi.fastutil.objects.ObjectIntPair;
 import org.jspecify.annotations.Nullable;
 
 public class TextureUtils {
 
     @Nullable
-    public static ObjectIntPair<@SharedPtr ImageProxyView> makePixmapProxyView(
+    public static @SharedPtr ImageProxyView makePixmapProxyView(
             RecordingContext context,
             Pixmap pixmap,
             boolean mipmapped,
             boolean budgeted,
-            String label
+            String label,
+            int[] actualColorType
     ) {
         if (!pixmap.getInfo().isValid()) {
             return null;
@@ -124,9 +124,10 @@ public class TextureUtils {
         context.addTask(task); // move
 
         proxy.ref();
-        return ObjectIntPair.of(new ImageProxyView(proxy, // move
+        actualColorType[0] = dstCT;
+        return new ImageProxyView(proxy, // move
                 Engine.SurfaceOrigin.kUpperLeft,
-                readSwizzle), dstCT);
+                readSwizzle); // move
     }
 
     @Nullable
@@ -138,15 +139,16 @@ public class TextureUtils {
             boolean budgeted,
             String label
     ) {
-        var result = makePixmapProxyView(context, pixmap, mipmapped, budgeted, label);
+        int[] newColorType = {0};
+        var result = makePixmapProxyView(context, pixmap, mipmapped, budgeted, label, newColorType);
         if (result == null) {
             return null;
         }
 
         return new GraniteImage(
                 context,
-                result.first(),     // move
-                result.rightInt(),  // new color type
+                result,     // move
+                newColorType[0],
                 pixmap.getAlphaType(),
                 pixmap.getColorSpace()
         );

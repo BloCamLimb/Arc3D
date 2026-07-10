@@ -12,9 +12,6 @@ If you're looking for a framework that already fully integrates Arc3D, check out
 [ModernUI](https://github.com/BloCamLimb/ModernUI).
 
 ### Dependencies
-* fastutil
-
-If arc3d-core is used, the following LWJGL modules are needed:
 * lwjgl (core)
 
 If arc3d-engine is used, at least one of the following to provide 3D API binding:

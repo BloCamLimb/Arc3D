@@ -1,0 +1,218 @@
+/*
+ * This file is part of Arc3D.
+ *
+ * Copyright (C) 2026 BloCamLimb <pocamelards@gmail.com>
+ *
+ * Arc3D is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 3 of the License, or (at your option) any later version.
+ *
+ * Arc3D is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with Arc3D. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/*
+ * Copyright (C) 2002-2024 Sebastiano Vigna
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package icyllis.arc3d.core.util;
+
+import java.util.Iterator;
+import java.util.Objects;
+
+/**
+ * A class providing static methods and objects that do useful things with type-specific iterators.
+ *
+ * @see Iterator
+ */
+public final class LongIterators {
+	private LongIterators() {
+	}
+
+	/**
+	 * Unwraps an iterator into an array starting at a given offset for a given number of elements.
+	 *
+	 * <p>
+	 * This method iterates over the given type-specific iterator and stores the elements returned, up
+	 * to a maximum of {@code length}, in the given array starting at {@code offset}. The number of
+	 * actually unwrapped elements is returned (it may be less than {@code max} if the iterator emits
+	 * less than {@code max} elements).
+	 *
+	 * @param i a type-specific iterator.
+	 * @param array an array to contain the output of the iterator.
+	 * @param offset the first element of the array to be returned.
+	 * @param max the maximum number of elements to unwrap.
+	 * @return the number of elements unwrapped.
+	 */
+	public static int unwrap(final LongIterator i, final long array[], int offset, final int max) {
+		if (max < 0) throw new IllegalArgumentException("The maximum number of elements (" + max + ") is negative");
+		if (offset < 0 || offset + max > array.length) throw new IllegalArgumentException();
+		int j = max;
+		while (j-- != 0 && i.hasNext()) array[offset++] = i.nextLong();
+		return max - j - 1;
+	}
+
+	/**
+	 * Unwraps an iterator into an array.
+	 *
+	 * <p>
+	 * This method iterates over the given type-specific iterator and stores the elements returned in
+	 * the given array. The iteration will stop when the iterator has no more elements or when the end
+	 * of the array has been reached.
+	 *
+	 * @param i a type-specific iterator.
+	 * @param array an array to contain the output of the iterator.
+	 * @return the number of elements unwrapped.
+	 */
+	public static int unwrap(final LongIterator i, final long array[]) {
+		return unwrap(i, array, 0, array.length);
+	}
+
+	/**
+	 * Unwraps an iterator, returning an array, with a limit on the number of elements.
+	 *
+	 * <p>
+	 * This method iterates over the given type-specific iterator and returns an array containing the
+	 * elements returned by the iterator. At most {@code max} elements will be returned.
+	 *
+	 * @param i a type-specific iterator.
+	 * @param max the maximum number of elements to be unwrapped.
+	 * @return an array containing the elements returned by the iterator (at most {@code max}).
+	 */
+
+	public static long[] unwrap(final LongIterator i, int max) {
+		if (max < 0) throw new IllegalArgumentException("The maximum number of elements (" + max + ") is negative");
+		long array[] = new long[16];
+		int j = 0;
+		while (max-- != 0 && i.hasNext()) {
+			if (j == array.length) array = LongArrays.grow(array, j + 1);
+			array[j++] = i.nextLong();
+		}
+		return LongArrays.trim(array, j);
+	}
+
+	/**
+	 * Unwraps an iterator, returning an array.
+	 *
+	 * <p>
+	 * This method iterates over the given type-specific iterator and returns an array containing the
+	 * elements returned by the iterator.
+	 *
+	 * @param i a type-specific iterator.
+	 * @return an array containing the elements returned by the iterator.
+	 */
+	public static long[] unwrap(final LongIterator i) {
+		return unwrap(i, Integer.MAX_VALUE);
+	}
+
+	/**
+	 * Unwraps an iterator into a type-specific collection, with a limit on the number of elements.
+	 *
+	 * <p>
+	 * This method iterates over the given type-specific iterator and stores the elements returned, up
+	 * to a maximum of {@code max}, in the given type-specific collection. The number of actually
+	 * unwrapped elements is returned (it may be less than {@code max} if the iterator emits less than
+	 * {@code max} elements).
+	 *
+	 * @param i a type-specific iterator.
+	 * @param c a type-specific collection array to contain the output of the iterator.
+	 * @param max the maximum number of elements to unwrap.
+	 * @return the number of elements unwrapped. Note that this is the number of elements returned by
+	 *         the iterator, which is not necessarily the number of elements that have been added to the
+	 *         collection (because of duplicates).
+	 */
+	public static int unwrap(final LongIterator i, final LongCollection c, final int max) {
+		if (max < 0) throw new IllegalArgumentException("The maximum number of elements (" + max + ") is negative");
+		int j = max;
+		while (j-- != 0 && i.hasNext()) c.add(i.nextLong());
+		return max - j - 1;
+	}
+
+	/**
+	 * Unwraps an iterator into a type-specific collection.
+	 *
+	 * <p>
+	 * This method iterates over the given type-specific iterator and stores the elements returned in
+	 * the given type-specific collection. The returned count on the number unwrapped elements is a
+	 * long, so that it will work also with very large collections.
+	 *
+	 * @param i a type-specific iterator.
+	 * @param c a type-specific collection to contain the output of the iterator.
+	 * @return the number of elements unwrapped. Note that this is the number of elements returned by
+	 *         the iterator, which is not necessarily the number of elements that have been added to the
+	 *         collection (because of duplicates).
+	 */
+	public static long unwrap(final LongIterator i, final LongCollection c) {
+		long n = 0;
+		while (i.hasNext()) {
+			c.add(i.nextLong());
+			n++;
+		}
+		return n;
+	}
+
+	/**
+	 * Returns whether an element returned by the given iterator satisfies the given predicate.
+	 * <p>
+	 * Short circuit evaluation is performed; the first {@code true} from the predicate terminates the
+	 * loop.
+	 * 
+	 * @return true if an element returned by {@code iterator} satisfies {@code predicate}.
+	 */
+	public static boolean any(final LongIterator iterator, final java.util.function.LongPredicate predicate) {
+		return indexOf(iterator, predicate) != -1;
+	}
+
+	/**
+	 * Returns whether all elements returned by the given iterator satisfy the given predicate.
+	 * <p>
+	 * Short circuit evaluation is performed; the first {@code false} from the predicate terminates the
+	 * loop.
+	 * 
+	 * @return true if all elements returned by {@code iterator} satisfy {@code predicate}.
+	 */
+	public static boolean all(final LongIterator iterator, final java.util.function.LongPredicate predicate) {
+		Objects.requireNonNull(predicate);
+		do {
+			if (!iterator.hasNext()) return true;
+		} while (predicate.test(iterator.nextLong()));
+		return false;
+	}
+
+	/**
+	 * Returns the index of the first element returned by the given iterator that satisfies the given
+	 * predicate, or &minus;1 if no such element was found.
+	 * <p>
+	 * The next element returned by the iterator always considered element 0, even for
+	 * {@link java.util.ListIterator ListIterators}. In other words
+	 * {@link java.util.ListIterator#nextIndex ListIterator.nextIndex} is ignored.
+	 * 
+	 * @return the index of the first element returned by {@code iterator} that satisfies
+	 *         {@code predicate}, or &minus;1 if no such element was found.
+	 */
+	public static int indexOf(final LongIterator iterator, final java.util.function.LongPredicate predicate) {
+		Objects.requireNonNull(predicate);
+		for (int i = 0; iterator.hasNext(); ++i) {
+			if (predicate.test(iterator.nextLong())) return i;
+		}
+		return -1;
+	}
+}

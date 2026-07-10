@@ -23,7 +23,6 @@ import icyllis.arc3d.core.*;
 import icyllis.arc3d.engine.Device;
 import icyllis.arc3d.engine.Image;
 import icyllis.arc3d.engine.*;
-import it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryStack;
@@ -64,7 +63,7 @@ public final class GLDevice extends Device {
     private GLOpsRenderPass mCachedOpsRenderPass;
 
     private final ArrayDeque<FlushInfo.FinishedCallback> mFinishedCallbacks = new ArrayDeque<>();
-    private final LongArrayFIFOQueue mFinishedFences = new LongArrayFIFOQueue();
+    private final ArrayDeque<Long> mFinishedFences = new ArrayDeque<>();
 
     /*
      * Represents a certain resource ID is bound, but no {@link Resource} object is associated with.
@@ -1082,19 +1081,19 @@ public final class GLDevice extends Device {
     @Override
     public void addFinishedCallback(FlushInfo.FinishedCallback callback) {
         mFinishedCallbacks.addLast(callback);
-        mFinishedFences.enqueue(insertFence());
+        mFinishedFences.addLast(insertFence());
         assert (mFinishedCallbacks.size() == mFinishedFences.size());
     }
 
     @Override
     public void checkFinishedCallbacks() {
         // Bail after the first unfinished sync since we expect they signal in the order inserted.
-        while (!mFinishedCallbacks.isEmpty() && checkFence(mFinishedFences.firstLong())) {
+        while (!mFinishedCallbacks.isEmpty() && checkFence(mFinishedFences.getFirst())) {
             // While we are processing a proc we need to make sure to remove it from the callback list
             // before calling it. This is because the client could trigger a call (e.g. calling
             // flushAndSubmit(/*sync=*/true)) that has us process the finished callbacks. We also must
             // process deleting the fence before a client may abandon the context.
-            deleteFence(mFinishedFences.dequeueLong());
+            deleteFence(mFinishedFences.removeFirst());
             mFinishedCallbacks.removeFirst().onFinished(true);
         }
         assert (mFinishedCallbacks.size() == mFinishedFences.size());
@@ -1107,7 +1106,7 @@ public final class GLDevice extends Device {
             // flushAndSubmit(/*sync=*/true)) that has us process the finished callbacks. We also must
             // process deleting the fence before a client may abandon the context.
             if (cleanup) {
-                deleteFence(mFinishedFences.dequeueLong());
+                deleteFence(mFinishedFences.removeFirst());
             }
             mFinishedCallbacks.removeFirst().onFinished(true);
         }

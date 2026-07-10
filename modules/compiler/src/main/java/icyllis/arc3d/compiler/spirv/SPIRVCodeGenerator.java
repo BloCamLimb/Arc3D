@@ -22,15 +22,24 @@ package icyllis.arc3d.compiler.spirv;
 import icyllis.arc3d.compiler.*;
 import icyllis.arc3d.compiler.analysis.Analysis;
 import icyllis.arc3d.compiler.tree.*;
-import it.unimi.dsi.fastutil.ints.*;
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
-import it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap;
+import icyllis.arc3d.core.MathUtil;
+import icyllis.arc3d.core.util.IntIntOpenHashMap;
+import icyllis.arc3d.core.util.IntObjectOpenHashMap;
+import icyllis.arc3d.core.util.IntArrayList;
+import icyllis.arc3d.core.util.IntList;
+import icyllis.arc3d.core.util.IntOpenHashSet;
+import icyllis.arc3d.core.util.IntStack;
+import icyllis.arc3d.core.util.ObjectIntOpenHashMap;
+import icyllis.arc3d.core.util.ReferenceIntOpenHashMap;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.nio.ByteBuffer;
-import java.nio.IntBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.BitSet;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Objects;
 
 import static icyllis.arc3d.compiler.GLSLstd450.*;
 import static org.lwjgl.util.spvc.Spv.*;
@@ -66,8 +75,8 @@ public final class SPIRVCodeGenerator extends CodeGenerator {
     // key is a pointer to symbol table, hash is based on address (reference equality)
     // struct type to SpvId[MemoryLayout.ordinal + 1], no memory layout is at [0]
     private final HashMap<Type, int[]> mStructTable = new HashMap<>();
-    private final Reference2IntOpenHashMap<FunctionDeclaration> mFunctionTable = new Reference2IntOpenHashMap<>();
-    private final Reference2IntOpenHashMap<Variable> mVariableTable = new Reference2IntOpenHashMap<>();
+    private final ReferenceIntOpenHashMap<FunctionDeclaration> mFunctionTable = new ReferenceIntOpenHashMap<>();
+    private final ReferenceIntOpenHashMap<Variable> mVariableTable = new ReferenceIntOpenHashMap<>();
 
     // reused arrays storing SpvId; there are nested calls, but won't be too deep
     private final IntArrayList[] mIdListPool = new IntArrayList[6];
@@ -79,11 +88,11 @@ public final class SPIRVCodeGenerator extends CodeGenerator {
     private int mInstBuilderPoolSize = 0;
 
     // A map of instruction -> SpvId:
-    private final Object2IntOpenHashMap<Instruction> mOpCache = new Object2IntOpenHashMap<>();
+    private final ObjectIntOpenHashMap<Instruction> mOpCache = new ObjectIntOpenHashMap<>();
     // A map of SpvId -> instruction:
-    private final Int2ObjectOpenHashMap<Instruction> mSpvIdCache = new Int2ObjectOpenHashMap<>();
+    private final IntObjectOpenHashMap<Instruction> mSpvIdCache = new IntObjectOpenHashMap<>();
     // A map of SpvId -> value SpvId:
-    final Int2IntOpenHashMap mStoreCache = new Int2IntOpenHashMap();
+    final IntIntOpenHashMap mStoreCache = new IntIntOpenHashMap();
 
     // "Reachable" ops are instructions which can safely be accessed from the current block.
     // For instance, if our SPIR-V contains `%3 = OpFAdd %1 %2`, we would be able to access and
@@ -731,7 +740,7 @@ public final class SPIRVCodeGenerator extends CodeGenerator {
                     }
                     offset = fieldOffset;
                 } else {
-                    offset = MemoryLayout.align(offset, alignment);
+                    offset = MathUtil.alignTo(offset, alignment);
                 }
 
                 if (field.modifiers().layoutBuiltin() >= 0) {
@@ -1336,8 +1345,7 @@ public final class SPIRVCodeGenerator extends CodeGenerator {
             case FUNCTION_CALL -> writeFunctionCall((FunctionCall) expr, output);
             case CONSTRUCTOR_COMPOUND -> writeConstructorCompound((ConstructorCompound) expr, output);
             case CONSTRUCTOR_SPLAT -> writeConstructorVectorSplat((ConstructorSplat) expr, output);
-            case CONSTRUCTOR_DIAGONAL ->
-                    writeConstructorDiagonalMatrix((ConstructorDiagonal) expr, output);
+            case CONSTRUCTOR_DIAGONAL -> writeConstructorDiagonalMatrix((ConstructorDiagonal) expr, output);
             case CONSTRUCTOR_SCALAR_CAST -> writeConstructorScalarCast((ConstructorScalarCast) expr, output);
             case CONSTRUCTOR_COMPOUND_CAST -> writeConstructorCompoundCast((ConstructorCompoundCast) expr, output);
             case CONSTRUCTOR_ARRAY, CONSTRUCTOR_STRUCT -> writeCompositeConstructor((ConstructorCall) expr, output);
@@ -3271,7 +3279,7 @@ public final class SPIRVCodeGenerator extends CodeGenerator {
         }
 
         // Add global variables to the list of interface variables.
-        for (var it = mVariableTable.reference2IntEntrySet().fastIterator(); it.hasNext(); ) {
+        for (var it = mVariableTable.object2IntEntrySet().fastIterator(); it.hasNext(); ) {
             var e = it.next();
             Variable variable = e.getKey();
             if (variable.getStorage() == Variable.kGlobal_Storage) {

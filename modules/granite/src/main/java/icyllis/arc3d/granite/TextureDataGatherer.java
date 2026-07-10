@@ -21,12 +21,12 @@ package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.SharedPtr;
+import icyllis.arc3d.core.util.IntArrayList;
+import icyllis.arc3d.core.util.IntArrays;
+import icyllis.arc3d.core.util.ObjectIntOpenHashMap;
+import icyllis.arc3d.core.util.ObjectArrayList;
 import icyllis.arc3d.engine.ImageProxyView;
 import icyllis.arc3d.engine.SamplerDesc;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntArrays;
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.NonNull;
 
 import java.util.function.ToIntFunction;
@@ -41,7 +41,7 @@ import java.util.function.ToIntFunction;
  */
 public final class TextureDataGatherer implements AutoCloseable {
 
-    private final Object2IntOpenHashMap<@RawPtr ImageProxyView> mTextureToIndex = new Object2IntOpenHashMap<>();
+    private final ObjectIntOpenHashMap<@RawPtr ImageProxyView> mTextureToIndex = new ObjectIntOpenHashMap<>();
     private ObjectArrayList<@SharedPtr ImageProxyView> mIndexToTexture = new ObjectArrayList<>();
     private final ToIntFunction<@RawPtr ImageProxyView> mTextureAccumulator = texture -> {
         int index = mIndexToTexture.size();
@@ -51,7 +51,7 @@ public final class TextureDataGatherer implements AutoCloseable {
         return index;
     };
 
-    private final Object2IntOpenHashMap<SamplerDesc> mSamplerToIndex = new Object2IntOpenHashMap<>();
+    private final ObjectIntOpenHashMap<SamplerDesc> mSamplerToIndex = new ObjectIntOpenHashMap<>();
     private ObjectArrayList<SamplerDesc> mIndexToSampler = new ObjectArrayList<>();
     private final ToIntFunction<SamplerDesc> mSamplerAccumulator = sampler -> {
         int index = mIndexToSampler.size();

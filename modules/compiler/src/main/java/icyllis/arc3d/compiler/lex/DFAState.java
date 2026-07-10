@@ -19,7 +19,7 @@
 
 package icyllis.arc3d.compiler.lex;
 
-import it.unimi.dsi.fastutil.ints.IntList;
+import icyllis.arc3d.core.util.IntList;
 import org.jetbrains.annotations.Unmodifiable;
 
 public class DFAState {

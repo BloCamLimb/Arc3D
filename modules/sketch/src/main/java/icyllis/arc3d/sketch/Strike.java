@@ -19,7 +19,7 @@
 
 package icyllis.arc3d.sketch;
 
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import icyllis.arc3d.core.util.IntObjectOpenHashMap;
 import org.jspecify.annotations.NonNull;
 import org.jetbrains.annotations.ApiStatus;
 
@@ -43,8 +43,8 @@ public final class Strike {
     private final ReentrantLock mLock = new ReentrantLock();
 
     @GuardedBy("mLock")
-    private final Int2ObjectOpenHashMap<Glyph> mGlyphs =
-            new Int2ObjectOpenHashMap<>();
+    private final IntObjectOpenHashMap<Glyph> mGlyphs =
+            new IntObjectOpenHashMap<>();
     @GuardedBy("mLock")
     private final ScalerContext mScalerContext;
     @GuardedBy("mLock")

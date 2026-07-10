@@ -21,12 +21,12 @@ package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.RefCnt;
 import icyllis.arc3d.core.SharedPtr;
+import icyllis.arc3d.core.util.ObjectArrayList;
 import icyllis.arc3d.engine.CommandBuffer;
 import icyllis.arc3d.engine.ImmediateContext;
 import icyllis.arc3d.engine.Resource;
 import icyllis.arc3d.engine.Task;
 import icyllis.arc3d.granite.task.TaskList;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 /**
  * The task of rendering a frame, created by {@link RecordingContext},

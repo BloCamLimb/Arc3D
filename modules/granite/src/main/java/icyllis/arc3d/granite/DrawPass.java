@@ -20,10 +20,10 @@
 package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.*;
+import icyllis.arc3d.core.util.ObjectArrayList;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.shading.GraphicsPipelineBuilder;
 import icyllis.arc3d.granite.shading.UniformHandler;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 /**
  * A draw pass represents a render pass, with limited and sorted draw commands.

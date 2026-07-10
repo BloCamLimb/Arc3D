@@ -19,7 +19,8 @@
 
 package icyllis.arc3d.compiler.lex;
 
-import it.unimi.dsi.fastutil.ints.IntList;
+import icyllis.arc3d.core.util.IntArrayList;
+import icyllis.arc3d.core.util.IntList;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.NonNull;
@@ -104,7 +105,7 @@ public interface RegexNode {
             int[] result = new int[xn.size() + yn.size()];
             xn.getElements(0, result, 0, xn.size());
             yn.getElements(0, result, xn.size(), yn.size());
-            return IntList.of(result);
+            return IntArrayList.of(result);
         };
     }
 
@@ -116,7 +117,7 @@ public interface RegexNode {
     static RegexNode Dot() {
         return (nfa, next) -> {
             int state = nfa.add(NFAState.Filter(ch -> ch != '\n' && ch != '\r', next));
-            return IntList.of(state);
+            return IntArrayList.of(state);
         };
     }
 
@@ -132,11 +133,11 @@ public interface RegexNode {
             next.getElements(0, loop, 0, next.size());
             int state = nfa.add((NFAState) null);
             loop[next.size()] = state;
-            IntList left = x.transition(nfa, IntList.of(loop));
+            IntList left = x.transition(nfa, IntArrayList.of(loop));
             int[] result = new int[left.size() + next.size()];
             left.getElements(0, result, 0, left.size());
             next.getElements(0, result, left.size(), next.size());
-            return nfa.replace(state, IntList.of(result));
+            return nfa.replace(state, IntArrayList.of(result));
         };
     }
 
@@ -152,7 +153,7 @@ public interface RegexNode {
             next.getElements(0, loop, 0, next.size());
             int state = nfa.add((NFAState) null);
             loop[next.size()] = state;
-            IntList result = x.transition(nfa, IntList.of(loop));
+            IntList result = x.transition(nfa, IntArrayList.of(loop));
             return nfa.replace(state, result);
         };
     }
@@ -169,7 +170,7 @@ public interface RegexNode {
             int[] result = new int[left.size() + next.size()];
             left.getElements(0, result, 0, left.size());
             next.getElements(0, result, left.size(), next.size());
-            return IntList.of(result);
+            return IntArrayList.of(result);
         };
     }
 
@@ -184,7 +185,7 @@ public interface RegexNode {
         @Override
         public IntList transition(NFA nfa, @Unmodifiable IntList next) {
             int state = nfa.add(NFAState.Filter(ch -> ch == mChar, next));
-            return IntList.of(state);
+            return IntArrayList.of(state);
         }
 
         @Override
@@ -210,7 +211,7 @@ public interface RegexNode {
         @Override
         public IntList transition(NFA nfa, @Unmodifiable IntList next) {
             int state = nfa.add(NFAState.Filter(ch -> ch >= mStart && ch <= mEnd, next));
-            return IntList.of(state);
+            return IntArrayList.of(state);
         }
 
         @Override
@@ -247,7 +248,7 @@ public interface RegexNode {
         @Override
         public IntList transition(NFA nfa, @Unmodifiable IntList next) {
             int state = nfa.add(NFAState.Filter(ch -> get(ch) ^ mExclusive, next));
-            return IntList.of(state);
+            return IntArrayList.of(state);
         }
 
         @Override

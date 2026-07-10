@@ -19,8 +19,8 @@
 
 package icyllis.arc3d.compiler.lex;
 
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntList;
+import icyllis.arc3d.core.util.IntArrayList;
+import icyllis.arc3d.core.util.IntList;
 import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.NonNull;
 
@@ -58,7 +58,7 @@ public class NFAtoDFA {
     @NonNull
     public DFA convert() {
         // create state 0, the "reject" state
-        getOrCreate(IntList.of());
+        getOrCreate(new IntArrayList());
         // create a state representing being in all of the NFA's start states at once
         var n = new IntArrayList(mNFA.mStartStates);
         n.sort(null);

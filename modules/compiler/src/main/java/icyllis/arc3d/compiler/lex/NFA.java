@@ -19,8 +19,8 @@
 
 package icyllis.arc3d.compiler.lex;
 
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntList;
+import icyllis.arc3d.core.util.IntArrayList;
+import icyllis.arc3d.core.util.IntList;
 import org.jspecify.annotations.NonNull;
 
 import java.util.ArrayList;
@@ -44,7 +44,7 @@ public class NFA {
         // we reserve token 0 for END_OF_FILE, so this starts at 1
         int token = ++mTokenIndex;
         int state = add(NFAState.Accept(token));
-        mStartStates.addAll(node.transition(this, IntList.of(state)));
+        mStartStates.addAll(node.transition(this, IntArrayList.of(state)));
     }
 
     /**

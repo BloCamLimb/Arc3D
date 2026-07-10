@@ -23,6 +23,8 @@ import icyllis.arc3d.compiler.tree.Type;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import static icyllis.arc3d.core.MathUtil.alignTo;
+
 /**
  * Standard layout for interface blocks, according to OpenGL and Vulkan specification.
  */
@@ -105,7 +107,7 @@ public enum MemoryLayout {
                     assert (align & 15) == 0;
                 }
                 if (out != null) {
-                    out[1] = align(out[0], align); // matrix stride
+                    out[1] = alignTo(out[0], align); // matrix stride
                     out[0] = out[1] * type.getCols();
                 }
                 yield align;
@@ -117,7 +119,7 @@ public enum MemoryLayout {
                     assert (align & 15) == 0;
                 }
                 if (out != null) {
-                    out[2] = align(out[0], align); // array stride
+                    out[2] = alignTo(out[0], align); // array stride
                     out[0] = type.isUnsizedArray()
                             ? out[2] // count 1 for runtime sized array
                             : out[2] * type.getArraySize();
@@ -130,7 +132,7 @@ public enum MemoryLayout {
                     int memberAlign = alignment(field.type(), out);
                     align = Math.max(align, memberAlign);
                     if (out != null) {
-                        size = align(size, memberAlign);
+                        size = alignTo(size, memberAlign);
                         size += out[0];
                     }
                 }
@@ -141,7 +143,7 @@ public enum MemoryLayout {
                 if (out != null) {
                     if (this != Scalar) {
                         // add tail padding
-                        size = align(size, align);
+                        size = alignTo(size, align);
                     }
                     out[0] = size;
                     out[1] = out[2] = 0; // clear matrix and array stride
@@ -163,7 +165,7 @@ public enum MemoryLayout {
                 // Any ArrayStride or MatrixStride decoration must be a multiple of the alignment of the array or
                 // matrix as defined above.
                 int size = size(type.getElementType());
-                yield align(size, alignment(type));
+                yield alignTo(size, alignment(type));
             }
             default -> throw new UnsupportedOperationException();
         };
@@ -199,13 +201,13 @@ public enum MemoryLayout {
                 int size = 0;
                 for (var field : type.getFields()) {
                     int memberAlign = alignment(field.type());
-                    size = align(size, memberAlign);
+                    size = alignTo(size, memberAlign);
                     size += size(field.type());
                 }
                 if (this != Scalar) {
                     int align = alignment(type);
                     // add tail padding
-                    size = align(size, align);
+                    size = alignTo(size, align);
                 }
                 yield size;
             }
@@ -233,10 +235,5 @@ public enum MemoryLayout {
             }
             default -> false;
         };
-    }
-
-    public static int align(int offset, int alignment) {
-        assert alignment > 0 && (alignment & (alignment - 1)) == 0;
-        return (offset + alignment - 1) & -alignment;
     }
 }

@@ -20,6 +20,7 @@
 package icyllis.arc3d.granite.test;
 
 import icyllis.arc3d.core.Matrix4;
+import icyllis.arc3d.core.util.ObjectArrayList;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.*;
 import icyllis.arc3d.granite.geom.AnalyticBoxStep;
@@ -27,7 +28,6 @@ import icyllis.arc3d.granite.RecordingContext;
 import icyllis.arc3d.opengl.*;
 import icyllis.arc3d.sketch.Matrix;
 import icyllis.arc3d.sketch.RRect;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.*;
 import org.lwjgl.util.tinyfd.TinyFileDialogs;

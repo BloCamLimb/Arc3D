@@ -22,12 +22,17 @@ package icyllis.arc3d.compiler;
 import icyllis.arc3d.compiler.lex.Lexer;
 import icyllis.arc3d.compiler.lex.Token;
 import icyllis.arc3d.compiler.tree.*;
-import it.unimi.dsi.fastutil.longs.*;
+import icyllis.arc3d.core.util.LongArrayList;
+import icyllis.arc3d.core.util.LongStack;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.util.spvc.Spv;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * Consumes Arc3D shading language source text and invokes DSL functions to
@@ -43,7 +48,7 @@ public class Parser {
     private final String mSource;
     private final Lexer mLexer;
 
-    private final LongArrayList mPushback = new LongArrayList(1);
+    private final LongStack mPushback = new LongArrayList(1);
 
     private LinkedHashMap<String, String> mExtensions;
     private ArrayList<Map.Entry<String, Boolean>> mIncludes;

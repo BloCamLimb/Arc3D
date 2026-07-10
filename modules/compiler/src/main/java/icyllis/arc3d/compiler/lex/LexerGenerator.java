@@ -19,12 +19,17 @@
 
 package icyllis.arc3d.compiler.lex;
 
-import it.unimi.dsi.fastutil.ints.*;
+import icyllis.arc3d.core.util.IntIntOpenHashMap;
+import icyllis.arc3d.core.util.IntArrayList;
+import icyllis.arc3d.core.util.IntComparators;
+import icyllis.arc3d.core.util.IntList;
+import icyllis.arc3d.core.util.IntOpenHashSet;
 import org.jspecify.annotations.NonNull;
 
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Generates the {@link Lexer} class.
@@ -194,7 +199,7 @@ public class LexerGenerator {
             // Copy all the transitions for this state into a flat array, and into a histogram (counting
             // the number of unique state-transition values). Most states only transition to a few
             // possible new states.
-            var transitionSet = new IntArraySet();
+            var transitionSet = new IntOpenHashSet();
             var data = new IntArrayList(numTransitions);
             data.size(numTransitions);
             for (int t = 0; t < numTransitions; ++t) {
@@ -218,7 +223,7 @@ public class LexerGenerator {
                 result.v.sort(IntComparators.OPPOSITE_COMPARATOR);
 
                 // Create a mapping from real values to small values.
-                var translationTable = new Int2IntArrayMap();
+                var translationTable = new IntIntOpenHashMap();
                 for (int index = 0; index < result.v.size(); ++index) {
                     translationTable.put(result.v.getInt(index), index);
                 }

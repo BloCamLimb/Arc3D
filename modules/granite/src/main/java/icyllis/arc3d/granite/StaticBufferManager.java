@@ -20,9 +20,9 @@
 package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.*;
+import icyllis.arc3d.core.util.ObjectArrayList;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.task.CopyBufferTask;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import static org.lwjgl.system.MemoryUtil.NULL;
 

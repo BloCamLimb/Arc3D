@@ -19,9 +19,8 @@
 
 package icyllis.arc3d.opengl;
 
+import icyllis.arc3d.core.util.IntObjectOpenHashMap;
 import icyllis.arc3d.engine.BackendFormat;
-import it.unimi.dsi.fastutil.Hash;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import org.jspecify.annotations.NonNull;
 import org.lwjgl.system.NativeType;
 
@@ -33,8 +32,8 @@ import static icyllis.arc3d.engine.Engine.BackendApi;
 @Immutable
 public final class GLBackendFormat extends BackendFormat {
 
-    private static final Int2ObjectOpenHashMap<GLBackendFormat> FORMATS =
-            new Int2ObjectOpenHashMap<>(16, Hash.FAST_LOAD_FACTOR);
+    private static final IntObjectOpenHashMap<GLBackendFormat> FORMATS =
+            new IntObjectOpenHashMap<>(16, 0.5f);
 
     private final int mFormat;
 

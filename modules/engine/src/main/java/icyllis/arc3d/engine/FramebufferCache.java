@@ -20,7 +20,7 @@
 package icyllis.arc3d.engine;
 
 import icyllis.arc3d.core.*;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import icyllis.arc3d.core.util.ObjectArrayList;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 

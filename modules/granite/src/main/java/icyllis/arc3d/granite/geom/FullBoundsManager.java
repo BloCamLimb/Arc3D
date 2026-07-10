@@ -22,9 +22,9 @@ package icyllis.arc3d.granite.geom;
 import icyllis.arc3d.core.Rect2f;
 import icyllis.arc3d.core.Rect2fc;
 import icyllis.arc3d.core.Rect2ic;
+import icyllis.arc3d.core.util.FloatArrayList;
+import icyllis.arc3d.core.util.IntArrayList;
 import icyllis.arc3d.granite.Draw;
-import it.unimi.dsi.fastutil.floats.FloatArrayList;
-import it.unimi.dsi.fastutil.shorts.ShortArrayList;
 
 /**
  * A BoundsManager that tracks every draw and can exactly determine all queries
@@ -35,16 +35,16 @@ public final class FullBoundsManager extends BoundsManager {
     // rects and orders are parallel, hold repeated L T R B values
     private final FloatArrayList mRects;
     // painter's orders
-    private final ShortArrayList mOrders;
+    private final IntArrayList mOrders;
 
     public FullBoundsManager() {
         mRects = new FloatArrayList();
-        mOrders = new ShortArrayList();
+        mOrders = new IntArrayList();
     }
 
     public FullBoundsManager(int capacity) {
         mRects = new FloatArrayList(capacity * 4);
-        mOrders = new ShortArrayList(capacity);
+        mOrders = new IntArrayList(capacity);
     }
 
     @Override
@@ -54,13 +54,13 @@ public final class FullBoundsManager extends BoundsManager {
 
         float al = bounds.left(), at = bounds.top(), ar = bounds.right(), ab = bounds.bottom();
         float[] r = mRects.elements();
-        short[] orders = mOrders.elements();
+        int[] orders = mOrders.elements();
         int limit = mOrders.size();
         int max = Draw.MIN_SEQUENCE_VALUE;
         for (int i = 0, j = 0; j < limit; i += 4, j += 1) {
             // fast overlap check
             if (ar > r[i] && ab > r[i+1] && r[i+2] > al && r[i+3] > at) {
-                max = Math.max(max, Short.toUnsignedInt(orders[j]));
+                max = Math.max(max, orders[j]);
             }
         }
         return max;
@@ -73,13 +73,13 @@ public final class FullBoundsManager extends BoundsManager {
 
         float al = bounds.left(), at = bounds.top(), ar = bounds.right(), ab = bounds.bottom();
         float[] r = mRects.elements();
-        short[] orders = mOrders.elements();
+        int[] orders = mOrders.elements();
         int limit = mOrders.size();
         int max = Draw.MIN_SEQUENCE_VALUE;
         for (int i = 0, j = 0; j < limit; i += 4, j += 1) {
             // fast overlap check
             if (ar > r[i] && ab > r[i+1] && r[i+2] > al && r[i+3] > at) {
-                max = Math.max(max, Short.toUnsignedInt(orders[j]));
+                max = Math.max(max, orders[j]);
             }
         }
         return max;
@@ -93,7 +93,7 @@ public final class FullBoundsManager extends BoundsManager {
         r.add(bounds.top());
         r.add(bounds.right());
         r.add(bounds.bottom());
-        mOrders.add((short) order);
+        mOrders.add(order);
     }
 
     @Override
@@ -109,7 +109,7 @@ public final class FullBoundsManager extends BoundsManager {
     public void transferTo(BoundsManager other) {
         var tmp = new Rect2f();
         float[] r = mRects.elements();
-        short[] orders = mOrders.elements();
+        int[] orders = mOrders.elements();
         int limit = mOrders.size();
         for (int i = 0, j = 0; j < limit; i += 4, j += 1) {
             tmp.set(r[i], r[i|1], r[i|2], r[i|3]);

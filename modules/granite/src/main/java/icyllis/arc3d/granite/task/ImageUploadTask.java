@@ -20,10 +20,10 @@
 package icyllis.arc3d.granite.task;
 
 import icyllis.arc3d.core.*;
+import icyllis.arc3d.core.util.ObjectArrayList;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.GraniteUtil;
 import icyllis.arc3d.granite.RecordingContext;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
 

@@ -21,6 +21,7 @@ package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.MathUtil;
 import icyllis.arc3d.core.SharedPtr;
+import icyllis.arc3d.core.util.ObjectArrayList;
 import icyllis.arc3d.engine.Buffer;
 import icyllis.arc3d.engine.BufferBindInfo;
 import icyllis.arc3d.engine.BufferSliceInfo;
@@ -30,7 +31,6 @@ import icyllis.arc3d.engine.Resource;
 import icyllis.arc3d.engine.ResourceProvider;
 import icyllis.arc3d.engine.VertexInputLayout;
 import icyllis.arc3d.granite.task.Task;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 

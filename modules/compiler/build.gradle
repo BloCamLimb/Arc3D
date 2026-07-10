@@ -3,6 +3,8 @@ repositories {
 }
 
 dependencies {
+    api project(':arc3d-core')
+
     compileOnly "org.lwjgl:lwjgl-spvc:${lwjgl_version}" // we only use the Spv header
 
     testImplementation "org.lwjgl:lwjgl:${lwjgl_version}"

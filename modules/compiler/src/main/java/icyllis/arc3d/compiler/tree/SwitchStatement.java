@@ -22,7 +22,6 @@ package icyllis.arc3d.compiler.tree;
 import icyllis.arc3d.compiler.ConstantFolder;
 import icyllis.arc3d.compiler.Context;
 import icyllis.arc3d.compiler.SymbolTable;
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import org.jspecify.annotations.NonNull;
 
 import java.util.*;
@@ -103,7 +102,7 @@ public final class SwitchStatement extends Statement {
 
     private static List<SwitchCase> find_duplicate_cases(List<Statement> cases) {
         ArrayList<SwitchCase> duplicateCases = new ArrayList<>();
-        LongOpenHashSet intValues = new LongOpenHashSet();
+        HashSet<Long> intValues = new HashSet<>();
         boolean foundDefault = false;
 
         for (Statement stmt : cases) {
