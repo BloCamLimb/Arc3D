@@ -23,9 +23,12 @@ import icyllis.arc3d.sketch.BlendMode;
 import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.RefCnt;
 import icyllis.arc3d.core.SharedPtr;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-public final class BlendShader implements Shader {
+import java.lang.ref.Cleaner;
+
+public final class BlendShader extends RefCnt implements Shader {
 
     private final BlendMode mMode;
     @SharedPtr
@@ -65,23 +68,10 @@ public final class BlendShader implements Shader {
         return new BlendShader(mode, src, dst); // move
     }
 
-    // We can leak the ref countability to the underlying object in this scenario
-
     @Override
-    public void ref() {
-        mSrc.ref();
-        mDst.ref();
-    }
-
-    @Override
-    public void unref() {
+    protected void deallocate() {
         mSrc.unref();
         mDst.unref();
-    }
-
-    @Override
-    public boolean isTriviallyCounted() {
-        return mSrc.isTriviallyCounted() && mDst.isTriviallyCounted();
     }
 
     public BlendMode getMode() {
@@ -96,5 +86,11 @@ public final class BlendShader implements Shader {
     @RawPtr
     public Shader getDst() {
         return mDst;
+    }
+
+    @Override
+    public Cleaner.@NonNull Cleanable registerWithCleaner(
+            @NonNull Cleaner cleaner, @NonNull Object wrapper) {
+        return cleaner.register(wrapper, this::unref);
     }
 }

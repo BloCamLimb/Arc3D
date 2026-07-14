@@ -40,7 +40,7 @@ import java.util.Arrays;
  */
 public final class ColorShader implements Shader {
 
-    // stored in non-premultiplied alpha, extended sRGB
+    // stored in non-premultiplied alpha, extended range in the given color space
     private final float mR;
     private final float mG;
     private final float mB;

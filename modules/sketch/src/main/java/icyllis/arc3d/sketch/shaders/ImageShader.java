@@ -28,6 +28,8 @@ import icyllis.arc3d.sketch.Paint;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.lang.ref.Cleaner;
+
 public final class ImageShader extends RefCnt implements Shader {
 
     @SharedPtr
@@ -99,7 +101,7 @@ public final class ImageShader extends RefCnt implements Shader {
 
     @Override
     protected void deallocate() {
-        RefCnt.move(mImage);
+        mImage.unref();
     }
 
     @Override
@@ -130,8 +132,9 @@ public final class ImageShader extends RefCnt implements Shader {
     }
 
     @Override
-    public boolean isTriviallyCounted() {
-        return false;
+    public Cleaner.@NonNull Cleanable registerWithCleaner(
+            @NonNull Cleaner cleaner, @NonNull Object wrapper) {
+        return cleaner.register(wrapper, this::unref);
     }
 
     /**

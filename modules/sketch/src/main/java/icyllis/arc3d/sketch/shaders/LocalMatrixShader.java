@@ -26,6 +26,8 @@ import icyllis.arc3d.core.SharedPtr;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.lang.ref.Cleaner;
+
 public final class LocalMatrixShader implements Shader {
 
     @SharedPtr
@@ -50,8 +52,9 @@ public final class LocalMatrixShader implements Shader {
     }
 
     @Override
-    public boolean isTriviallyCounted() {
-        return mBase.isTriviallyCounted();
+    public Cleaner.@Nullable Cleanable registerWithCleaner(
+            @NonNull Cleaner cleaner, @NonNull Object wrapper) {
+        return mBase.registerWithCleaner(cleaner, wrapper);
     }
 
     @Override

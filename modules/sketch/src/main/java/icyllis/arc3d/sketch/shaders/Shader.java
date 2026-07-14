@@ -29,6 +29,8 @@ import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.lang.ref.Cleaner;
+
 /**
  * Shaders specify the source color(s) for what is being drawn. If a paint
  * has no shader, then the paint's color is used. If the paint has a
@@ -160,7 +162,7 @@ public sealed interface Shader extends RefCounted
         return new LocalMatrixShader(base, lm); // move
     }
 
-    // Only ImageShader is ref-counted
+    // Only ImageShader,BlendShader is ref-counted
     @Override
     default void ref() {
     }
@@ -170,12 +172,23 @@ public sealed interface Shader extends RefCounted
     }
 
     /**
-     * A return value of true means that its ref/unref is unnecessary, for example, they are
-     * just no op. So callers can perform some optimizations.
-     * Subclass can override this method to indicate that an instance is trivially counted.
-     * For the same instance, the return value of this method must remain unchanged.
+     * Tries to register this object with the given cleaner and wrapper object.
+     * <p>
+     * By default, Shader's ref and unref are no-ops, meaning it does not require cleanup.
+     * In such cases, this method returns null. Otherwise, this method performs the actual
+     * registration.
+     * <p>
+     * The wrapper object must NOT be referred by this object.
+     * The wrapper object must have <em>identity</em>.
+     * The wrapper object must own a reference count to this object.
+     * The wrapper object should be closeable.
+     *
+     * @param cleaner the cleaner
+     * @param wrapper the wrapper to monitor
+     * @return a {@code Cleanable} instance representing the registry entry
      */
-    default boolean isTriviallyCounted() {
-        return true;
+    default Cleaner.@Nullable Cleanable registerWithCleaner(
+            @NonNull Cleaner cleaner, @NonNull Object wrapper) {
+        return null;
     }
 }
