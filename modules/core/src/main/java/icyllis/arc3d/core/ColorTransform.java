@@ -112,6 +112,11 @@ public final class ColorTransform {
     @Size(9)
     private final float @Nullable [] mTransform;
 
+    @Size(4)
+    private final float @Nullable [] mSourceOOTF;
+    @Size(4)
+    private final float @Nullable [] mDestinationOOTF;
+
     /**
      * <p>Creates a new transform between a source and a destination color space.
      * If the source and destination color spaces do not have the same white point,
@@ -182,7 +187,24 @@ public final class ColorTransform {
         mDestinationRGB = destination.getModel() == ColorSpace.MODEL_RGB
                 ? (RGBColorSpace) destination : null;
         mIntent = intent;
-        mTransform = computeTransform(source, destination, intent, adaptation);
+        var transform = computeTransform(source, destination, intent, adaptation);
+        float scale = computeYScale(mSourceRGB, mDestinationRGB);
+        if (scale != 1) {
+            if (transform != null) {
+                for (int i = 0; i < transform.length; i++) {
+                    transform[i] *= scale;
+                }
+            } else {
+                transform = new float[]{
+                        scale, 0, 0,
+                        0, scale, 0,
+                        0, 0, scale
+                };
+            }
+        }
+        mTransform = transform;
+        mSourceOOTF = computeOOTF(mSourceRGB, false);
+        mDestinationOOTF = computeOOTF(mDestinationRGB, true);
     }
 
     /**
@@ -261,6 +283,61 @@ public final class ColorTransform {
     }
 
     /**
+     * Compute the scale factor which is the amount that values in linear space
+     * will be scaled to map peak luminance and reference luminance.
+     *
+     * @param source      the source color space
+     * @param destination the destination color space
+     * @return a scale factor, since preScale and postScale are same.
+     */
+    public static float computeYScale(@Nullable RGBColorSpace source,
+                                      @Nullable RGBColorSpace destination) {
+        float scale = 1;
+        TransferFunction tf;
+        if (source != null && (tf = source.getTransferFunction()) != null &&
+                TransferFunction.isSpecialG(tf.g)) {
+            // reference luminance (a) and peak luminance (b)
+            scale *= (float) (tf.b / tf.a);
+        }
+        if (destination != null && (tf = destination.getTransferFunction()) != null &&
+                TransferFunction.isSpecialG(tf.g)) {
+            scale /= (float) (tf.b / tf.a);
+        }
+        return scale;
+    }
+
+    /**
+     * Compute the parameters of the opto-optical transfer function (OOTF) used by
+     * hybrid-log gamma (HLG) system. The first three components are factors used to
+     * compute Y, the last component is system gamma minus one.
+     * If OOTF is not needed, returns null.
+     *
+     * @param space an RGB color space
+     * @param dst   true if the space is destination space (OOTF-OETF),
+     *              false if the space is source space (EOTF-OOTF)
+     * @return the OOTF parameters if needed
+     */
+    @Size(4)
+    public static float @Nullable [] computeOOTF(@Nullable RGBColorSpace space, boolean dst) {
+        TransferFunction tf;
+        if (space == null || (tf = space.mTransferFunction) == null ||
+                !TransferFunction.isSpecialG(tf.g)) {
+            return null;
+        }
+        float systemGamma = (float) tf.c;
+        if (systemGamma == 1) {
+            return null;
+        }
+        float[] ootf = new float[4];
+        float[] transform = space.mTransform;
+        ootf[0] = transform[1];
+        ootf[1] = transform[4];
+        ootf[2] = transform[7];
+        ootf[3] = dst ? (1 / systemGamma) - 1 : systemGamma - 1;
+        return ootf;
+    }
+
+    /**
      * Returns the source color space this connector will convert from.
      *
      * @return A non-null instance of {@link ColorSpace}
@@ -326,6 +403,9 @@ public final class ColorTransform {
     public float @NonNull [] transform(@Size(min = 3) float @NonNull [] v) {
         if (mSourceRGB != null) {
             mSourceRGB.toLinear(v);
+            if (mSourceOOTF != null) {
+                applyOOTF(v, mSourceOOTF);
+            }
         } else {
             mSource.toXYZ(v);
         }
@@ -333,6 +413,9 @@ public final class ColorTransform {
             ColorSpace.mul3x3Float3(mTransform, v);
         }
         if (mDestinationRGB != null) {
+            if (mDestinationOOTF != null) {
+                applyOOTF(v, mDestinationOOTF);
+            }
             mDestinationRGB.fromLinear(v);
         } else {
             mDestination.fromXYZ(v);
@@ -353,6 +436,9 @@ public final class ColorTransform {
     public float @NonNull [] transformExtended(@Size(min = 3) float @NonNull [] v) {
         if (mSourceRGB != null) {
             mSourceRGB.toLinearExtended(v);
+            if (mSourceOOTF != null) {
+                applyOOTF(v, mSourceOOTF);
+            }
         } else {
             mSource.toXYZExtended(v);
         }
@@ -360,10 +446,23 @@ public final class ColorTransform {
             ColorSpace.mul3x3Float3(mTransform, v);
         }
         if (mDestinationRGB != null) {
+            if (mDestinationOOTF != null) {
+                applyOOTF(v, mDestinationOOTF);
+            }
             mDestinationRGB.fromLinearExtended(v);
         } else {
             mDestination.fromXYZExtended(v);
         }
         return v;
+    }
+
+    private static void applyOOTF(@Size(min = 3) float @NonNull [] v,
+                                  @Size(4) float @NonNull [] ootf) {
+        float lum = v[0] * ootf[0] + v[1] * ootf[1] + v[2] * ootf[2];
+        // the function must be invertible, so use magnitude
+        float factor = (float) Math.pow(Math.abs(lum), ootf[3]);
+        v[0] *= factor;
+        v[1] *= factor;
+        v[2] *= factor;
     }
 }

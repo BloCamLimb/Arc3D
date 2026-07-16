@@ -19,15 +19,8 @@
 
 package icyllis.arc3d.core.test;
 
-import icyllis.arc3d.core.ChromaticAdaptation;
-import icyllis.arc3d.core.Color;
-import icyllis.arc3d.core.ColorProfile;
-import icyllis.arc3d.core.ColorSpace;
-import icyllis.arc3d.core.RGBColorSpace;
-import icyllis.arc3d.core.ColorSpaces;
-import icyllis.arc3d.core.ColorTransform;
-import icyllis.arc3d.core.MathUtil;
-import icyllis.arc3d.core.TransferFunction;
+import icyllis.arc3d.core.*;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +37,7 @@ public class TestColorSpace {
 
     public static void main(String[] args) {
 
-        for (int i = 0; i < 1000; i++) {
+        /*for (int i = 0; i < 1000; i++) {
             int finalI = i;
             new Thread(() -> {
                     new RGBColorSpace("A", new float[]{
@@ -53,7 +46,7 @@ public class TestColorSpace {
 
             }).start();
             var cs = ColorSpaces.EXTENDED_SRGB;
-        }
+        }*/
 
         var cs = ColorSpaces.SRGB;
         float[] v = {0.4f, 0.8f, 0.7f};
@@ -91,7 +84,7 @@ public class TestColorSpace {
         LOGGER.info("Gamma approx (visual) of SMPTE240M {}",
                 approx(TransferFunction.SMPTE_240M, false));*/
 
-        float[] xyzMat = RGBColorSpace.computeXYZMatrix(new float[]{1, 1, 1, 1, 1, 1},
+        float[] xyzMat = RGBColorSpace.computeXYZMatrix(new float[]{1, 0, 0, 1, 0, 0},
                 ColorSpace.ILLUMINANT_D65);
         LOGGER.info("Gray XYZMat {}", xyzMat);
         generateICCProfile();
@@ -110,6 +103,7 @@ public class TestColorSpace {
         testRgbTransform(displayP3, sRGB);
         testRgbTransform(ColorSpaces.ACESCG, sRGB);
 
+        LOGGER.info("{}", ColorSpaces.BT2020.getTransform());
         LOGGER.info("{}", ColorSpaces.DCI_P3.getTransform());
         LOGGER.info("{}", sRGB.getTransform());
         LOGGER.info("{}", ChromaticAdaptation.BRADFORD.computeTransform(
@@ -150,6 +144,8 @@ public class TestColorSpace {
             LOGGER.info("Pri {}", RGBColorSpace.computePrimaries(someTransform));
         }
 
+        testOOTF(ColorSpaces.BT2020, new float[]{-0.36f, -0.56f, 0.13f});
+
         assert ColorSpaces.SRGB.isSRGB();
         assert ColorSpaces.SRGB.isExtendedSRGB();
         assert !ColorSpaces.EXTENDED_SRGB.isSRGB();
@@ -163,6 +159,37 @@ public class TestColorSpace {
         /*for (var that : ColorSpaces.getNamedColorSpaces()) {
             LOGGER.info("{} isWideGamut {}", that, that.isWideGamut());
         }*/
+    }
+
+    private static void testOOTF(RGBColorSpace space, float[] color) {
+        float[] srcOOTF = new float[4];
+        float systemGamma = 1.2f;
+        float[] transform = space.getTransform();
+        srcOOTF[0] = transform[1];
+        srcOOTF[1] = transform[4];
+        srcOOTF[2] = transform[7];
+        srcOOTF[3] = systemGamma - 1;
+        float[] dstOOTF = new float[4];
+        dstOOTF[0] = transform[1];
+        dstOOTF[1] = transform[4];
+        dstOOTF[2] = transform[7];
+        dstOOTF[3] = (1 / systemGamma) - 1;
+
+        float[] a = color.clone();
+        applyOOTF(a, srcOOTF);
+        LOGGER.info("OOTF Before {}", color);
+        LOGGER.info("OOTF After {}", a);
+        applyOOTF(a, dstOOTF);
+        LOGGER.info("OOTF Inv {}", a);
+    }
+
+    private static void applyOOTF(@Size(min = 3) float @NonNull [] v,
+                                  @Size(4) float @NonNull [] ootf) {
+        float lum = v[0] * ootf[0] + v[1] * ootf[1] + v[2] * ootf[2];
+        float factor = (float) Math.pow(Math.abs(lum), ootf[3]);
+        v[0] *= factor;
+        v[1] *= factor;
+        v[2] *= factor;
     }
 
     public static TransferFunction approx(TransferFunction tf, boolean linear) {
@@ -219,9 +246,7 @@ public class TestColorSpace {
         RGBColorSpace p3 = ColorSpaces.DISPLAY_P3;
 
         cp.dataColorSpace = ICC_Profile.icSigRgbData;
-        cp.rTRC_para = p3.getTransferFunction();
-        cp.gTRC_para = p3.getTransferFunction();
-        cp.bTRC_para = p3.getTransferFunction();
+        cp.transferFunction = p3.getTransferFunction();
 
         cp.primaries = p3.getPrimaries();
         cp.whitePoint = p3.getWhitePoint();
@@ -237,9 +262,7 @@ public class TestColorSpace {
 
         RGBColorSpace srgb = ColorSpaces.SRGB;
 
-        cp.rTRC_para = srgb.getTransferFunction();
-        cp.gTRC_para = srgb.getTransferFunction();
-        cp.bTRC_para = srgb.getTransferFunction();
+        cp.transferFunction = srgb.getTransferFunction();
 
         cp.primaries = srgb.getPrimaries();
         cp.whitePoint = srgb.getWhitePoint();
