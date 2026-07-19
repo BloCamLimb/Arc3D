@@ -26,6 +26,7 @@ import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.nio.channels.WritableByteChannel;
 
+//PNG/JPEG/GIF/TIFF/Radiance/OpenEXR/KTX2/PNM/PAM/PFM
 public abstract class Encoder implements AutoCloseable {
 
     // either

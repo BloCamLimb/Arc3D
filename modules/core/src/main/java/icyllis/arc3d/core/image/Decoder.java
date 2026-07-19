@@ -43,7 +43,7 @@ import java.nio.channels.SeekableByteChannel;
  * <p>
  * Decoder instance can be reused for decoding multiple inputs for performance.
  */
-//PNG/JPEG/GIF/BMP/PSD/TIFF/Radiance/OpenEXR/KTX2/PNM/PAM/PFM/TGA/PIC
+//PNG/JPEG/GIF/TIFF/Radiance/OpenEXR/KTX2/PNM/PAM/PFM/BMP/TGA/PIC
 public abstract class Decoder implements AutoCloseable {
 
     // either

@@ -19,7 +19,7 @@
 
 package icyllis.arc3d.core.image;
 
-import java.nio.BufferUnderflowException;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
@@ -32,7 +32,7 @@ public final class LZWDecoder {
     private static final int MAX_TABLE_SIZE = 1 << 12;
 
     // input data buffer
-    private ByteBuffer mData;
+    private Decoder mInput;
 
     private int mInitCodeSize;
     // ClearCode = (1 << L) + 0;
@@ -47,9 +47,7 @@ public final class LZWDecoder {
     private int mTableIndex;
     private int mPrevCode;
 
-    private int mBlockPos;
-    private int mBlockLength;
-    private final byte[] mBlock = new byte[255];
+    private final ByteBuffer mBlock = ByteBuffer.allocate(255);
     private int mInData;
     private int mInBits;
 
@@ -70,13 +68,12 @@ public final class LZWDecoder {
     /**
      * Reset the decoder with the given input data buffer.
      *
-     * @param data the compressed data
+     * @param input the compressed data stream
      * @return the string table
      */
-    public byte[] setData(ByteBuffer data, int initCodeSize) {
-        mData = data;
-        mBlockPos = 0;
-        mBlockLength = 0;
+    public byte[] init(Decoder input, int initCodeSize) {
+        mInput = input;
+        mBlock.limit(0);
         mInData = 0;
         mInBits = 0;
         mInitCodeSize = initCodeSize;
@@ -87,11 +84,11 @@ public final class LZWDecoder {
     }
 
     /**
-     * Decode next string of data, which can be accessed by {@link #setData(ByteBuffer, int)} method.
+     * Decode next string of data, which can be accessed by {@link #init(Decoder, int)} method.
      *
-     * @return the length of string, or -1 on EOF
+     * @return the length of string, or -1 on EOI
      */
-    public int readString() {
+    public int readString() throws IOException {
         int code = getNextCode();
         if (code == mEndOfInfo) {
             return -1;
@@ -162,21 +159,18 @@ public final class LZWDecoder {
         mPrevCode = 0;
     }
 
-    private int getNextCode() {
+    private int getNextCode() throws IOException {
         while (mInBits < mCodeSize) {
-            if (mBlockPos == mBlockLength) {
-                mBlockPos = 0;
-                try {
-                    if ((mBlockLength = mData.get() & 0xFF) > 0) {
-                        mData.get(mBlock, 0, mBlockLength);
-                    } else {
-                        return mEndOfInfo;
-                    }
-                } catch (BufferUnderflowException e) {
-                    return mEndOfInfo;
+            if (!mBlock.hasRemaining()) {
+                int len = mInput.nextRawByte() & 0xFF;
+                if (len > 0) {
+                    mInput.readFully(mBlock.position(0).limit(len));
+                    mBlock.rewind();
+                } else {
+                    throw new DecoderException("Unexpected block terminator while reading LZW codes");
                 }
             }
-            mInData |= (mBlock[mBlockPos++] & 0xFF) << mInBits;
+            mInData |= (mBlock.get() & 0xFF) << mInBits;
             mInBits += 8;
         }
         int code = mInData & mCodeMask;
