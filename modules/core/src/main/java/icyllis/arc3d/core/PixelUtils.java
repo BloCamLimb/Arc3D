@@ -22,7 +22,6 @@ package icyllis.arc3d.core;
 import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
 import org.lwjgl.system.MemoryUtil;
-import org.lwjgl.system.libc.LibCString;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
@@ -78,16 +77,15 @@ public class PixelUtils {
         if (srcRowBytes < trimRowBytes || dstRowBytes < trimRowBytes || trimRowBytes < 0 || trimRowBytes > Integer.MAX_VALUE) {
             throw new IllegalArgumentException();
         }
-        // benchmark shows that memcpy is faster than Unsafe.copyMemory at bigger size, on OpenJDK 21
         if (srcRowBytes == trimRowBytes && dstRowBytes == trimRowBytes && !flipY) {
-            LibCString.nmemcpy(dstAddr, srcAddr, trimRowBytes * rowCount);
+            MemoryUtil.memCopy(srcAddr, dstAddr, trimRowBytes * rowCount);
         } else {
             if (flipY) {
                 dstAddr += dstRowBytes * (rowCount - 1);
                 dstRowBytes = -dstRowBytes;
             }
             for (int i = 0; i < rowCount; ++i) {
-                LibCString.nmemcpy(dstAddr, srcAddr, trimRowBytes);
+                MemoryUtil.memCopy(srcAddr, dstAddr, trimRowBytes);
                 srcAddr += srcRowBytes;
                 dstAddr += dstRowBytes;
             }

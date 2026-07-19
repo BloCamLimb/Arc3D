@@ -126,6 +126,49 @@ public class TestMemCpy {
     //TestMemCpy.offheap_libc                       160  avgt    3  13.156 ±  7.239  ns/op
     //TestMemCpy.offheap_libc                       256  avgt    3  14.187 ±  0.817  ns/op
     //TestMemCpy.offheap_libc                      1024  avgt    3  21.129 ± 10.903  ns/op
+
+    // Liberica 25, LWJGL 3.4.2
+    //Benchmark                                (length)  Mode  Cnt   Score     Error  Units
+    //TestMemCpy.array_baseline                      32  avgt    3   4.937 ±   0.376  ns/op
+    //TestMemCpy.array_baseline                     160  avgt    3   5.690 ±   0.673  ns/op
+    //TestMemCpy.array_baseline                     256  avgt    3   9.396 ±  84.788  ns/op
+    //TestMemCpy.array_baseline                    1024  avgt    3  17.075 ± 102.864  ns/op
+    //TestMemCpy.array_to_offheap_LWJGL              32  avgt    3   7.834 ±   0.732  ns/op
+    //TestMemCpy.array_to_offheap_LWJGL             160  avgt    3   9.430 ±   1.297  ns/op
+    //TestMemCpy.array_to_offheap_LWJGL             256  avgt    3  10.680 ±   1.052  ns/op
+    //TestMemCpy.array_to_offheap_LWJGL            1024  avgt    3  17.264 ±   3.698  ns/op
+    //TestMemCpy.array_to_offheap_base_region        32  avgt    3  34.396 ±   2.219  ns/op
+    //TestMemCpy.array_to_offheap_base_region       160  avgt    3  40.235 ±   2.852  ns/op
+    //TestMemCpy.array_to_offheap_base_region       256  avgt    3  41.866 ±   2.174  ns/op
+    //TestMemCpy.array_to_offheap_base_region      1024  avgt    3  44.621 ±   1.582  ns/op
+    //TestMemCpy.array_to_offheap_baseline           32  avgt    3  13.716 ±   3.280  ns/op
+    //TestMemCpy.array_to_offheap_baseline          160  avgt    3  14.912 ±   0.964  ns/op
+    //TestMemCpy.array_to_offheap_baseline          256  avgt    3  16.470 ±   0.920  ns/op
+    //TestMemCpy.array_to_offheap_baseline         1024  avgt    3  26.020 ±  10.412  ns/op
+    //TestMemCpy.array_to_offheap_bytebuffer         32  avgt    3  14.091 ±   3.961  ns/op
+    //TestMemCpy.array_to_offheap_bytebuffer        160  avgt    3  15.218 ±   1.599  ns/op
+    //TestMemCpy.array_to_offheap_bytebuffer        256  avgt    3  16.896 ±   0.595  ns/op
+    //TestMemCpy.array_to_offheap_bytebuffer       1024  avgt    3  23.783 ±   0.867  ns/op
+    //TestMemCpy.array_unsafe_baseline               32  avgt    3  13.884 ±   2.156  ns/op
+    //TestMemCpy.array_unsafe_baseline              160  avgt    3  15.071 ±   0.931  ns/op
+    //TestMemCpy.array_unsafe_baseline              256  avgt    3  17.417 ±   2.925  ns/op
+    //TestMemCpy.array_unsafe_baseline             1024  avgt    3  32.406 ±   3.704  ns/op
+    //TestMemCpy.offheap_LWJGL                       32  avgt    3   7.643 ±   0.328  ns/op
+    //TestMemCpy.offheap_LWJGL                      160  avgt    3   9.083 ±   0.133  ns/op
+    //TestMemCpy.offheap_LWJGL                      256  avgt    3   9.603 ±   1.008  ns/op
+    //TestMemCpy.offheap_LWJGL                     1024  avgt    3  16.248 ±   3.812  ns/op
+    //TestMemCpy.offheap_baseline                    32  avgt    3  13.757 ±   2.287  ns/op
+    //TestMemCpy.offheap_baseline                   160  avgt    3  14.998 ±   1.266  ns/op
+    //TestMemCpy.offheap_baseline                   256  avgt    3  17.005 ±   1.275  ns/op
+    //TestMemCpy.offheap_baseline                  1024  avgt    3  23.808 ±   1.310  ns/op
+    //TestMemCpy.offheap_java                        32  avgt    3   3.687 ±   0.463  ns/op
+    //TestMemCpy.offheap_java                       160  avgt    3   9.981 ±   0.537  ns/op
+    //TestMemCpy.offheap_java                       256  avgt    3  13.872 ±   1.049  ns/op
+    //TestMemCpy.offheap_java                      1024  avgt    3  45.103 ±   4.528  ns/op
+    //TestMemCpy.offheap_libc                        32  avgt    3  11.571 ±   1.709  ns/op
+    //TestMemCpy.offheap_libc                       160  avgt    3  12.383 ±   6.044  ns/op
+    //TestMemCpy.offheap_libc                       256  avgt    3  13.141 ±   0.452  ns/op
+    //TestMemCpy.offheap_libc                      1024  avgt    3  20.102 ±   1.481  ns/op
     public static void main(String[] args) throws RunnerException {
         Options opt = new OptionsBuilder()
                 .include(TestMemCpy.class.getSimpleName())
@@ -148,13 +191,13 @@ public class TestMemCpy {
     private static final long f = nmemAlloc(BUFFER_SIZE);
     private static final long t = nmemAlloc(BUFFER_SIZE);
 
-    private static final Object a = new byte[BUFFER_SIZE];
-    private static final Object b = new byte[BUFFER_SIZE];
+    private static final byte[] a = new byte[BUFFER_SIZE];
+    private static final byte[] b = new byte[BUFFER_SIZE];
 
     @Param({"32", "160", "256", "1024"})
     public int length;
 
-    /*@Benchmark
+    @Benchmark
     public void offheap_LWJGL() {
         memCopy(f, t, length);
     }
@@ -162,9 +205,9 @@ public class TestMemCpy {
     @Benchmark
     public void offheap_baseline() {
         UNSAFE.copyMemory(null, f, null, t, length);
-    }*/
+    }
 
-    /*@Benchmark
+    @Benchmark
     public void array_to_offheap_baseline() {
         UNSAFE.copyMemory(a, Unsafe.ARRAY_BYTE_BASE_OFFSET, null, t, length);
     }
@@ -195,7 +238,7 @@ public class TestMemCpy {
     @Benchmark
     public void offheap_libc() {
         nmemcpy(t, f, length);
-    }*/
+    }
 
     @Benchmark
     public void array_baseline() {
