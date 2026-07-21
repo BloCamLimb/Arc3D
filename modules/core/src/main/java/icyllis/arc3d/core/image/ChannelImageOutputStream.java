@@ -32,7 +32,7 @@ import java.util.Objects;
  */
 public class ChannelImageOutputStream extends ImageOutputStreamImpl {
 
-    protected final SeekableByteChannel channel;
+    public final SeekableByteChannel channel;
 
     private ByteBuffer bb = null;
     private byte[] bs = null;

@@ -23,47 +23,33 @@ import org.jspecify.annotations.NonNull;
 
 import javax.imageio.stream.ImageInputStreamImpl;
 import java.io.IOException;
+import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
-import java.nio.channels.SeekableByteChannel;
 import java.util.Objects;
 
 /**
- * Similar to {@link ChannelImageOutputStream}, but read-only.
- * <p>
- * This class does not provide additional buffering; performance and the ability to
- * decode depend entirely on the implementation of SeekableByteChannel.
+ * Using an entire {@link ByteBuffer} as input.
  * <p>
  * Like the base class, this does not provide thread safety guarantees.
- * <p>
- * No SPI is registered for this, used directly.
  */
-public class ChannelImageInputStream extends ImageInputStreamImpl {
+public class BufferImageInputStream extends ImageInputStreamImpl {
 
-    public final SeekableByteChannel channel;
+    public final ByteBuffer buffer;
 
-    private ByteBuffer bb = null;
-    private byte[] bs = null;
-    private byte[] b1 = null;
-
-    /**
-     * Will close the channel when this is closed. No concurrency.
-     */
-    public ChannelImageInputStream(@NonNull SeekableByteChannel channel) {
-        this.channel = channel;
-        try {
-            streamPos = channel.position();
-        } catch (IOException ignored) {
-        }
+    public BufferImageInputStream(@NonNull ByteBuffer buffer) {
+        this.buffer = buffer;
+        streamPos = buffer.position();
     }
 
     @Override
     public int read() throws IOException {
-        if (b1 == null)
-            b1 = new byte[1];
-        int n = this.read(b1);
-        if (n == 1)
-            return b1[0] & 0xff;
-        return -1;
+        checkClosed();
+        bitOffset = 0;
+        try {
+            return buffer.get() & 0xFF;
+        } catch (BufferUnderflowException e) {
+            return -1;
+        }
     }
 
     @Override
@@ -74,18 +60,13 @@ public class ChannelImageInputStream extends ImageInputStreamImpl {
         if (len == 0) {
             return 0;
         }
-
-        ByteBuffer bb = ((this.bs == bs)
-                ? this.bb
-                : ByteBuffer.wrap(bs));
-        bb.limit(Math.min(off + len, bb.capacity()));
-        bb.position(off);
-        this.bb = bb;
-        this.bs = bs;
-        int n = channel.read(bb);
-        if (n != -1) {
-            streamPos += n;
+        if (!buffer.hasRemaining()) {
+            return -1;
         }
+        int n = Math.min(buffer.remaining(), len);
+        assert n > 0;
+        buffer.get(bs, off, n);
+        streamPos += n;
         return n;
     }
 
@@ -93,7 +74,7 @@ public class ChannelImageInputStream extends ImageInputStreamImpl {
     public long length() {
         try {
             checkClosed();
-            return channel.size();
+            return buffer.limit();
         } catch (IOException e) {
             return -1L;
         }
@@ -102,13 +83,7 @@ public class ChannelImageInputStream extends ImageInputStreamImpl {
     @Override
     public void seek(long pos) throws IOException {
         super.seek(pos);
-        channel.position(pos);
-        streamPos = channel.position();
-    }
-
-    @Override
-    public void close() throws IOException {
-        super.close();
-        channel.close();
+        buffer.position((int) pos);
+        streamPos = buffer.position();
     }
 }
