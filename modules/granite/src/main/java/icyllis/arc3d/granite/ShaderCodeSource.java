@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2024-2025 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2024-2026 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -35,6 +35,7 @@ import static icyllis.arc3d.granite.FragmentStage.*;
 /**
  * Manage all the fragment shader code snippets, used by Granite renderer.
  */
+@SuppressWarnings({"FieldCanBeLocal", "FieldMayBeFinal", "ForLoopReplaceableByForEach"})
 public class ShaderCodeSource {
 
     // common uniform definitions
@@ -49,14 +50,19 @@ public class ShaderCodeSource {
             new Uniform(ShaderDataType.kInt, "u_TileModeX");
     private static final Uniform TILE_MODE_Y =
             new Uniform(ShaderDataType.kInt, "u_TileModeY");
-    private static final Uniform XFORM_FLAGS =
-            new Uniform(ShaderDataType.kInt, "u_XformFlags");
-    private static final Uniform XFORM_SRC_TF =
-            new Uniform(ShaderDataType.kFloat4, "u_XformSrcTf", 2);
+
     private static final Uniform XFORM_GAMUT_TRANSFORM =
             new Uniform(ShaderDataType.kFloat3x3, "u_XformGamutTransform");
-    private static final Uniform XFORM_DST_TF =
-            new Uniform(ShaderDataType.kFloat4, "u_XformDstTf", 2);
+    private static final Uniform XFORM_SRC_GABC =
+            new Uniform(ShaderDataType.kFloat4, "u_XformSrcGABC");
+    private static final Uniform XFORM_SRC_DEFW =
+            new Uniform(ShaderDataType.kFloat4, "u_XformSrcDEFW");
+    private static final Uniform XFORM_DST_GABC =
+            new Uniform(ShaderDataType.kFloat4, "u_XformDstGABC");
+    private static final Uniform XFORM_DST_DEFW =
+            new Uniform(ShaderDataType.kFloat4, "u_XformDstDEFW");
+    private static final Uniform XFORM_MODE =
+            new Uniform(ShaderDataType.kFloat, "u_Mode");
 
     private static final Uniform GRAD_COLOR_SPACE =
             new Uniform(ShaderDataType.kInt, "u_ColorSpace");
@@ -76,102 +82,164 @@ public class ShaderCodeSource {
             new Uniform(ShaderDataType.kFloat4, "u_Offsets", 2);
 
     // 8x8 lime and white checkerboard
-    public static final String ARC_ERROR = """
+    public static String ARC_ERROR = """
             vec4 arc_error(vec2 coords) {
                 uint v = ((uint(coords.x) >> 3) ^ (uint(coords.y) >> 3)) & 1;
                 return mix(vec4(1.0), vec4(0.0,1.0,0.0,1.0), float(v));
             }
             """;
-    public static final String ARC_PASSTHROUGH = """
+    public static String ARC_PASSTHROUGH = """
             vec4 arc_passthrough(vec4 inColor) {
                 return inColor;
             }
             """;
-    public static final String ARC_SOLID_COLOR = """
+    public static String ARC_SOLID_COLOR = """
             vec4 arc_solid_color(vec4 color) {
                 return color;
             }
             """;
-    public static final String ARC_RGB_OPAQUE = """
+    public static String ARC_RGB_OPAQUE = """
             vec4 arc_rgb_opaque(vec4 paintColor) {
                 return vec4(paintColor.rgb, 1.0);
             }
             """;
-    public static final String ARC_ALPHA_ONLY = """
+    public static String ARC_ALPHA_ONLY = """
             vec4 arc_alpha_only(vec4 paintColor) {
                 return vec4(0.0, 0.0, 0.0, paintColor.a);
             }
             """;
     // transfer function
-    private static final String PRIV_TRANSFER_FUNCTION = """
-            float _transfer_function(float x, vec4 tf[2]) {
-                float G = tf[0][0], A = tf[0][1], B = tf[0][2], C = tf[0][3],
-                      D = tf[1][0], E = tf[1][1], F = tf[1][2];
-                float s = sign(x);
+    private static String PRIV_TRANSFER_FUNCTION = """
+            float3 _transfer_function(float3 x, float4 gabc, float3 def) {
+                float3 s = sign(x);
                 x = abs(x);
-                x = mix(pow(A * x + B, G) + E, (C * x) + F, x < D);
+                x = mix(pow(gabc[1] * x + gabc[2], float3(gabc[0])) + def[1],
+                        (gabc[3] * x) + def[2],
+                        lessThan(x, float3(def[0])));
+                return s * x;
+            }
+            float3 _inv_transfer_function(float3 x, float4 gabc, float3 def) {
+                float3 s = sign(x);
+                x = abs(x);
+                x = mix((pow(x - def[1], float3(1.0 / gabc[0])) - gabc[2]) / gabc[1],
+                        (x - def[2]) / gabc[3],
+                        lessThan(x, float3(def[0] * gabc[3])));
                 return s * x;
             }
             """;
-    private static final String PRIV_INV_TRANSFER_FUNCTION = """
-            float _inv_transfer_function(float x, vec4 tf[2]) {
-                float G = tf[0][0], A = tf[0][1], B = tf[0][2], C = tf[0][3],
-                      D = tf[1][0], E = tf[1][1], F = tf[1][2];
-                float s = sign(x);
+    private static String PRIV_PQ_TRANSFER_FUNCTION = """
+            float3 _pq_transfer_function(float3 x) {
+                const float PQ_c1 =  107 / 128.0;
+                const float PQ_c2 = 2413 / 128.0;
+                const float PQ_c3 = 2392 / 128.0;
+                const float PQ_m = 2523 / 32.0;
+                const float PQ_n = 1305 / 8192.0;
+                float3 s = sign(x);
                 x = abs(x);
-                x = mix((pow(x - E, 1.0 / G) - B) / A, (x - F) / C, x < D * C);
+                float3 p = pow(x, float3(1.0 / PQ_m));
+                x = pow(max(p - PQ_c1, 0.0) / (PQ_c2 - PQ_c3 * p), float3(1.0 / PQ_n));
+                return x;
+            }
+            float3 _inv_pq_transfer_function(float3 x) {
+                const float PQ_c1 =  107 / 128.0;
+                const float PQ_c2 = 2413 / 128.0;
+                const float PQ_c3 = 2392 / 128.0;
+                const float PQ_m = 2523 / 32.0;
+                const float PQ_n = 1305 / 8192.0;
+                float3 s = sign(x);
+                x = abs(x);
+                float3 p = pow(x, float3(PQ_n));
+                x = pow((PQ_c1 + PQ_c2 * p) / (1.0 + PQ_c3 * p), float3(PQ_m));
                 return s * x;
             }
             """;
-    static {
-        //noinspection ConstantValue
-        assert PixelUtils.kColorSpaceXformFlagUnpremul == 0x1;
-        //noinspection ConstantValue
-        assert PixelUtils.kColorSpaceXformFlagLinearize == 0x2;
-        //noinspection ConstantValue
-        assert PixelUtils.kColorSpaceXformFlagGamutTransform == 0x4;
-        //noinspection ConstantValue
-        assert PixelUtils.kColorSpaceXformFlagEncode == 0x8;
-        //noinspection ConstantValue
-        assert PixelUtils.kColorSpaceXformFlagPremul == 0x10;
-    }
-    // We have 7 source coefficients and 7 destination coefficients. We pass them via two vec4 arrays;
-    // In std140, this arrangement is much more efficient than a simple array of scalars, which
-    // vec4 array and mat3 are always vec4 aligned
-    public static final String ARC_COLOR_SPACE_TRANSFORM = """
-            vec4 arc_color_space_transform(vec4 color,
-                                           int flags,
-                                           vec4 srcTf[2],
-                                           mat3 gamutTransform,
-                                           vec4 dstTf[2]) {
-                const int kColorSpaceXformFlagUnpremul = 0x1;
-                const int kColorSpaceXformFlagLinearize = 0x2;
-                const int kColorSpaceXformFlagGamutTransform = 0x4;
-                const int kColorSpaceXformFlagEncode = 0x8;
-                const int kColorSpaceXformFlagPremul = 0x10;
-                
-                if (bool(flags & kColorSpaceXformFlagUnpremul)) {
-                    color.rgb /= max(color.a, 1e-7);
+    private static String PRIV_HLG_TRANSFER_FUNCTION = """
+            float3 _hlg_transfer_function(float3 x) {
+                const float HLG_a = 0.17883277;
+                const float HLG_b = 0.28466892;
+                const float HLG_c = 0.55991073;
+                float3 s = sign(x);
+                x = abs(x);
+                x = mix((exp((x - HLG_c) / HLG_a) + HLG_b) / 12.0,
+                        x * x / 3.0,
+                        lessThanEqual(x, float3(0.5)));
+                return s * x;
+            }
+            float3 _inv_hlg_transfer_function(float3 x) {
+                const float HLG_a = 0.17883277;
+                const float HLG_b = 0.28466892;
+                const float HLG_c = 0.55991073;
+                float3 s = sign(x);
+                x = abs(x);
+                x = mix(HLG_a * log(12.0 * x - HLG_b) + HLG_c,
+                        sqrt(3.0 * x),
+                        lessThanEqual(x, float3(1 / 12.0)));
+                return s * x;
+            }
+            """;
+    // You may read PixelUtils, ColorTransform, TransferFunction, FragmentHelpers
+    // to understand the parameters
+    public static String ARC_COLOR_SPACE_TRANSFORM = """
+            float4 arc_color_space_transform(float4 color,
+                                             float3x3 gamutTransform,
+                                             float4 srcGABC,
+                                             float4 srcDEFW,
+                                             float4 dstGABC,
+                                             float4 dstDEFW) {
+                float3 col = color.rgb;
+                if (srcDEFW.w < 0) {
+                    col /= max(color.a, 1e-6);
                 }
-                        
-                if (bool(flags & kColorSpaceXformFlagLinearize)) {
-                    color.r = _transfer_function(color.r, srcTf);
-                    color.g = _transfer_function(color.g, srcTf);
-                    color.b = _transfer_function(color.b, srcTf);
+            
+                if (srcGABC.x > 0) {
+                    col = _transfer_function(col, srcGABC, srcDEFW.xyz);
+                } else if (srcGABC.x < 0) {
+                    if (srcGABC.x < -5.5) {
+                        col = _hlg_transfer_function(col);
+                    } else if (srcGABC.x < -4.5) {
+                        col = _pq_transfer_function(col);
+                    }
+                    float systemGamma = srcGABC.w;
+                    if (systemGamma != 1) {
+                        float lum = dot(col, srcDEFW.xyz);
+                        col *= pow(abs(lum), systemGamma - 1);
+                    }
+                    col *= srcGABC[2] / srcGABC[1];
                 }
-                if (bool(flags & kColorSpaceXformFlagGamutTransform)) {
-                    color.rgb = gamutTransform * color.rgb;
+            
+                col = gamutTransform * col;
+            
+                if (dstGABC.x > 0) {
+                    col = _inv_transfer_function(col, dstGABC, dstDEFW.xyz);
+                } else if (dstGABC.x < 0) {
+                    col /= dstGABC[2] / dstGABC[1];
+                    float systemGamma = dstGABC.w;
+                    if (systemGamma != 1) {
+                        float lum = dot(col, dstDEFW.xyz);
+                        col *= pow(abs(lum), (1 / systemGamma) - 1);
+                    }
+                    if (dstGABC.x < -5.5) {
+                        col = _inv_hlg_transfer_function(col);
+                    } else if (dstGABC.x < -4.5) {
+                        col = _inv_pq_transfer_function(col);
+                    }
                 }
-                if (bool(flags & kColorSpaceXformFlagEncode)) {
-                    color.r = _inv_transfer_function(color.r, dstTf);
-                    color.g = _inv_transfer_function(color.g, dstTf);
-                    color.b = _inv_transfer_function(color.b, dstTf);
-                }
-                        
-                if (bool(flags & kColorSpaceXformFlagPremul)) {
-                    color.rgb *= color.a;
-                }
-                return color;
+            
+                col *= max(color.a, dstDEFW.w);
+                return float4(col, color.a);
+            }
+            """;
+    // premul or no-op, mode = 0 premul, mode = 1 no-op
+    public static String ARC_CONDITIONAL_PREMUL = """
+            float4 arc_conditional_premul(float4 color,
+                                          float mode) {
+                return float4(color.rgb * max(color.a, mode), color.a);
+            }
+            """;
+    // unconditional unpremul
+    private static String ARC_UNPREMUL = """
+            float4 arc_unpremul(float4 color) {
+                return float4(color.rgb / max(color.a, 1e-6), color.a);
             }
             """;
     static {
@@ -187,29 +255,29 @@ public class ShaderCodeSource {
     // t.y < 0 means out of bounds, then color will be (0,0,0,0)
     // if any component is out of bounds, then that component is 0,
     // and (s.x * s.y) is 0, this eliminates branch
-    private static final String PRIV_TILE_GRAD = """
+    private static String PRIV_TILE_GRAD = """
             vec2 _tile_grad(int tileMode, vec2 t) {
                 const int kTileModeRepeat = 0;
                 const int kTileModeMirror = 1;
                 const int kTileModeClamp  = 2;
                 const int kTileModeDecal  = 3;
-                
+            
                 switch (tileMode) {
                     case kTileModeRepeat:
                         t.x = fract(t.x);
                         break;
-                        
+            
                     case kTileModeMirror: {
                         float s = t.x - 1.0;
                         s = s - 2.0 * floor(s * 0.5) - 1.0;
                         t.x = abs(s);
                         break;
                     }
-                    
+            
                     case kTileModeClamp:
                         t.x = clamp(t.x, 0.0, 1.0);
                         break;
-                        
+            
                     case kTileModeDecal: {
                         vec2 s = vec2(step(0.0, t.x), step(t.x, 1.0));
                         t.y = s.x * s.y - 0.5;
@@ -219,7 +287,7 @@ public class ShaderCodeSource {
                 return t;
             }
             """;
-    private static final String PRIV_COLORIZE_GRAD_4 = """
+    private static String PRIV_COLORIZE_GRAD_4 = """
             vec4 _colorize_grad_4(vec4 colors[4], vec4 offsets, vec2 t) {
                 vec4 result;
                 if (t.y < 0.0) {
@@ -243,7 +311,7 @@ public class ShaderCodeSource {
             """;
     // Unrolled binary search through intervals
     // ( .. 0), (0 .. 1), (1 .. 2), (2 .. 3), (3 .. 4), (4 .. 5), (5 .. 6), (6 .. 7), (7 .. ).
-    private static final String PRIV_COLORIZE_GRAD_8 = """
+    private static String PRIV_COLORIZE_GRAD_8 = """
             vec4 _colorize_grad_8(vec4 colors[8], vec4 offsets[2], vec2 t) {
                 vec4 result;
                 if (t.y < 0.0) {
@@ -300,12 +368,12 @@ public class ShaderCodeSource {
     // pixels along the same column or row can have slightly different interpolated t values
     // causing pixels to choose the wrong offset when colorizing. This helps ensure pixels
     // along the same column or row choose the same gradient offsets.
-    private static final String PRIV_LINEAR_GRAD_LAYOUT = """
+    private static String PRIV_LINEAR_GRAD_LAYOUT = """
             vec2 _linear_grad_layout(vec2 pos) {
                 return vec2(pos.x + 0.00001, 1);
             }
             """;
-    private static final String PRIV_RADIAL_GRAD_LAYOUT = """
+    private static String PRIV_RADIAL_GRAD_LAYOUT = """
             vec2 _radial_grad_layout(vec2 pos) {
                 float t = length(pos);
                 return vec2(t, 1);
@@ -313,26 +381,26 @@ public class ShaderCodeSource {
             """;
     // Hardcode pi/2 for the angle when x == 0, to avoid undefined behavior.
     // 0.1591549430918953 is 1/(2*pi), used since atan returns values [-pi, pi]
-    private static final String PRIV_ANGULAR_GRAD_LAYOUT = """
+    private static String PRIV_ANGULAR_GRAD_LAYOUT = """
             vec2 _angular_grad_layout(vec2 pos, float bias, float scale) {
                 float angle = mix(sign(pos.y) * -1.5707963267948966, atan(-pos.y, -pos.x), pos.x != 0.0);
                 float t = (angle * 0.1591549430918953 + 0.5 + bias) * scale;
                 return vec2(t, 1);
             }
             """;
-    private static final String PRIV_CSS_LAB_TO_XYZ = """
+    private static String PRIV_CSS_LAB_TO_XYZ = """
             vec3 _css_lab_to_xyz(vec3 lab) {
                 const float B = 841.0 / 108.0;
                 const float C = 4.0 / 29.0;
                 const float D = 6.0 / 29.0;
-                        
+            
                 vec3 f;
                 f[1] = (lab[0] + 16.0) / 116.0;
                 f[0] = f[1] + (lab[1] * 0.002);
                 f[2] = f[1] - (lab[2] * 0.005);
-                        
+            
                 vec3 xyz = mix((1.0 / B) * (f - C), pow(f, vec3(3)), greaterThan(f, vec3(D)));
-                        
+            
                 const vec3 D50 = vec3(0.964212, 1.0, 0.825188);
                 return xyz * D50;
             }
@@ -342,7 +410,7 @@ public class ShaderCodeSource {
      * actually takes "HCL". This is also used to do the same polar transform for OkHCL to OkLAB.
      * @see GradientShader
      */
-    private static final String PRIV_CSS_HCL_TO_LAB = """
+    private static String PRIV_CSS_HCL_TO_LAB = """
             vec3 _css_hcl_to_lab(vec3 hcl) {
                 return vec3(
                     hcl[2],
@@ -351,16 +419,16 @@ public class ShaderCodeSource {
                 );
             }
             """;
-    private static final String PRIV_CSS_OKLAB_TO_LINEAR_SRGB = """
+    private static String PRIV_CSS_OKLAB_TO_LINEAR_SRGB = """
             vec3 _css_oklab_to_linear_srgb(vec3 oklab) {
                 float l_ = oklab.x + 0.3963377774 * oklab.y + 0.2158037573 * oklab.z,
                       m_ = oklab.x - 0.1055613458 * oklab.y - 0.0638541728 * oklab.z,
                       s_ = oklab.x - 0.0894841775 * oklab.y - 1.2914855480 * oklab.z;
-                        
+            
                 float l = l_*l_*l_,
                       m = m_*m_*m_,
                       s = s_*s_*s_;
-                        
+            
                 return vec3(
                     +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
                     -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
@@ -368,7 +436,7 @@ public class ShaderCodeSource {
                 );
             }
             """;
-    private static final String PRIV_OKLAB_GAMUT_MAP_TO_LINEAR_SRGB = """
+    private static String PRIV_OKLAB_GAMUT_MAP_TO_LINEAR_SRGB = """
             vec3 _css_oklab_gamut_map_to_linear_srgb(vec3 oklab) {
                 // Constants for the normal vector of the plane formed by white, black, and
                 // the specified vertex of the gamut.
@@ -378,7 +446,7 @@ public class ShaderCodeSource {
                 const vec2 normal_C = vec2(-0.171122, 0.985250);
                 const vec2 normal_G = vec2(0.460276, 0.887776);
                 const vec2 normal_Y = vec2(0.947925, 0.318495);
-                        
+            
                 // For the triangles formed by white (W) or black (K) with the vertices
                 // of Yellow and Red (YR), Red and Magenta (RM), etc, the constants to be
                 // used to compute the intersection of a line of constant hue and luminance
@@ -401,9 +469,9 @@ public class ShaderCodeSource {
                 const float c0_GY = 0.081709;
                 const vec2 cW_GY = vec2(-0.034601, -0.002215);
                 const vec2 cK_GY = vec2( 0.012185,  0.338031);
-                        
+            
                 vec2 ab = oklab.yz;
-                        
+            
                 // Find the planes to intersect with and set the constants based on those
                 // planes.
                 float c0;
@@ -434,10 +502,10 @@ public class ShaderCodeSource {
                         c0 = c0_BC; cW = cW_BC; cK = cK_BC;
                     }
                 }
-                        
+            
                 // Perform the intersection.
                 float alpha = 1.0;
-                        
+            
                 // Intersect with the plane with white.
                 float w_denom = dot(cW, ab);
                 if (w_denom > 0.0) {
@@ -447,7 +515,7 @@ public class ShaderCodeSource {
                         alpha = min(alpha, w_num / w_denom);
                     }
                 }
-                        
+            
                 // Intersect with the plane with black.
                 float k_denom = dot(cK, ab);
                 if (k_denom > 0.0) {
@@ -457,28 +525,28 @@ public class ShaderCodeSource {
                         alpha = min(alpha,  k_num / k_denom);
                     }
                 }
-                        
+            
                 // Attenuate the ab coordinate by alpha.
                 oklab.yz *= alpha;
-                        
+            
                 return _css_oklab_to_linear_srgb(oklab);
             }
             """;
-    private static final String PRIV_CSS_HSL_TO_SRGB = """
+    private static String PRIV_CSS_HSL_TO_SRGB = """
             vec3 _css_hsl_to_srgb(vec3 hsl) {
                 hsl.x = mod(hsl.x, 360.0);
                 if (hsl.x < 0.0) {
                     hsl.x += 360.0;
                 }
-                        
+            
                 hsl.yz /= 100.0;
-                        
+            
                 vec3 k = mod(vec3(0, 8, 4) + hsl.x/30.0, 12.0);
                 float a = hsl.y * min(hsl.z, 1.0 - hsl.z);
                 return hsl.z - a * clamp(min(k - 3.0, 9.0 - k), -1.0, 1.0);
             }
             """;
-    private static final String PRIV_CSS_HWB_TO_SRGB = """
+    private static String PRIV_CSS_HWB_TO_SRGB = """
             vec3 _css_hwb_to_srgb(vec3 hwb) {
                 vec3 rgb;
                 hwb.yz /= 100.0;
@@ -496,7 +564,7 @@ public class ShaderCodeSource {
     /**
      * @see GradientShader
      */
-    private static final String PRIV_INTERPOLATED_TO_RGB_UNPREMUL = """
+    private static String PRIV_INTERPOLATED_TO_RGB_UNPREMUL = """
             vec4 _interpolated_to_rgb_unpremul(vec4 color, int colorSpace, int doUnpremul) {
                 const int kDestination   = 0;
                 const int kSRGB          = 1;
@@ -509,17 +577,17 @@ public class ShaderCodeSource {
                 const int kLCH           = 8;
                 const int kOKLCH         = 9;
                 const int kOKLCHGamutMap = 10;
-                
+            
                 if (bool(doUnpremul)) {
                     switch (colorSpace) {
                         case kLab:
                         case kOKLab:
-                        case kOKLabGamutMap: color.rgb /= max(color.a, 1e-7); break;
+                        case kOKLabGamutMap: color.rgb /= max(color.a, 1e-6); break;
                         case kHSL:
                         case kHWB:
                         case kLCH:
                         case kOKLCH:
-                        case kOKLCHGamutMap: color.gb /= max(color.a, 1e-7); break;
+                        case kOKLCHGamutMap: color.gb /= max(color.a, 1e-6); break;
                     }
                 }
                 switch (colorSpace) {
@@ -551,7 +619,7 @@ public class ShaderCodeSource {
                 return color;
             }
             """;
-    public static final String ARC_LINEAR_GRAD_4_SHADER = """
+    public static String ARC_LINEAR_GRAD_4_SHADER = """
             vec4 arc_linear_grad_4_shader(vec2 coords,
                                           vec4 colors[4],
                                           vec4 offsets,
@@ -564,7 +632,7 @@ public class ShaderCodeSource {
                 return _interpolated_to_rgb_unpremul(color, colorSpace, doUnpremul);
             }
             """;
-    public static final String ARC_LINEAR_GRAD_8_SHADER = """
+    public static String ARC_LINEAR_GRAD_8_SHADER = """
             vec4 arc_linear_grad_8_shader(vec2 coords,
                                           vec4 colors[8],
                                           vec4 offsets[2],
@@ -577,7 +645,7 @@ public class ShaderCodeSource {
                 return _interpolated_to_rgb_unpremul(color, colorSpace, doUnpremul);
             }
             """;
-    public static final String ARC_RADIAL_GRAD_4_SHADER = """
+    public static String ARC_RADIAL_GRAD_4_SHADER = """
             vec4 arc_radial_grad_4_shader(vec2 coords,
                                           vec4 colors[4],
                                           vec4 offsets,
@@ -590,7 +658,7 @@ public class ShaderCodeSource {
                 return _interpolated_to_rgb_unpremul(color, colorSpace, doUnpremul);
             }
             """;
-    public static final String ARC_RADIAL_GRAD_8_SHADER = """
+    public static String ARC_RADIAL_GRAD_8_SHADER = """
             vec4 arc_radial_grad_8_shader(vec2 coords,
                                           vec4 colors[8],
                                           vec4 offsets[2],
@@ -603,7 +671,7 @@ public class ShaderCodeSource {
                 return _interpolated_to_rgb_unpremul(color, colorSpace, doUnpremul);
             }
             """;
-    public static final String ARC_ANGULAR_GRAD_4_SHADER = """
+    public static String ARC_ANGULAR_GRAD_4_SHADER = """
             vec4 arc_angular_grad_4_shader(vec2 coords,
                                            vec4 colors[4],
                                            vec4 offsets,
@@ -618,7 +686,7 @@ public class ShaderCodeSource {
                 return _interpolated_to_rgb_unpremul(color, colorSpace, doUnpremul);
             }
             """;
-    public static final String ARC_ANGULAR_GRAD_8_SHADER = """
+    public static String ARC_ANGULAR_GRAD_8_SHADER = """
             vec4 arc_angular_grad_8_shader(vec2 coords,
                                            vec4 colors[8],
                                            vec4 offsets[2],
@@ -633,31 +701,31 @@ public class ShaderCodeSource {
                 return _interpolated_to_rgb_unpremul(color, colorSpace, doUnpremul);
             }
             """;
-    private static final String PRIV_TILE = """
+    private static String PRIV_TILE = """
             float _tile(int tileMode, float f, float low, float high) {
                 const int kTileModeRepeat = 0;
                 const int kTileModeMirror = 1;
                 const int kTileModeClamp  = 2;
                 const int kTileModeDecal  = 3;
-                
+            
                 switch (tileMode) {
                     case kTileModeRepeat: {
                         float length = high - low;
                         f = mod(f - low, length) + low;
                         break;
                     }
-                        
+            
                     case kTileModeMirror: {
                         float length = high - low;
                         float t = mod(f - low, length * 2.0);
                         f = mix(t, length * 2.0 - t, step(length, t)) + low;
                         break;
                     }
-                    
+            
                     case kTileModeClamp:
                         f = clamp(f, low, high);
                         break;
-                        
+            
                     default: // kTileModeDecal
                         break;
                 }
@@ -671,7 +739,7 @@ public class ShaderCodeSource {
         assert SamplerDesc.FILTER_LINEAR  == 1;
     }
     // kLinearInset make sure we don't touch an outer row or column with a weight of 0 when linear filtering.
-    private static final String PRIV_SAMPLE_IMAGE_SUBSET = """
+    private static String PRIV_SAMPLE_IMAGE_SUBSET = """
             vec4 _sample_image_subset(vec2 pos,
                                       vec2 invImageSize,
                                       vec4 subset,
@@ -687,7 +755,7 @@ public class ShaderCodeSource {
                 const int kFilterModeNearest = 0;
                 const int kFilterModeLinear  = 1;
                 const float kLinearInset = 0.5 + 0.00001;
-                
+            
                 // Do hard-edge shader transitions to the border color for nearest-neighbor decal tiling at the
                 // subset boundaries. Snap the input coordinates to nearest neighbor before comparing to the
                 // subset rect, to avoid GPU interpolation errors.
@@ -703,10 +771,10 @@ public class ShaderCodeSource {
                 if (!all(bvec4(test))) {
                     return vec4(0);
                 }
-                
+            
                 pos.x = _tile(tileModeX, pos.x, subset.x, subset.z);
                 pos.y = _tile(tileModeY, pos.y, subset.y, subset.w);
-                
+            
                 // Clamp to an inset subset to prevent sampling neighboring texels when coords fall exactly at
                 // texel boundaries.
                 vec4 insetClamp;
@@ -717,13 +785,13 @@ public class ShaderCodeSource {
                 }
                 vec2 clampedPos = clamp(pos, insetClamp.xy, insetClamp.zw);
                 vec4 color = texture(s, clampedPos * invImageSize);
-                
+            
                 if (filterMode == kFilterModeLinear) {
                     // Remember the amount the coord moved for clamping. This is used to implement shader-based
                     // filtering for repeat and decal tiling.
                     vec2 error = pos - clampedPos;
                     vec2 absError = abs(error);
-                        
+            
                     // Do 1 or 3 more texture reads depending on whether both x and y tiling modes are repeat
                     // and whether we're near a single subset edge or a corner. Then blend the multiple reads
                     // using the error values calculated above.
@@ -753,18 +821,18 @@ public class ShaderCodeSource {
                             color = mix(color, extraColorY, absError.y);
                         }
                     }
-                        
+            
                     // Do soft edge shader filtering for decal tiling and linear filtering using the error
                     // values calculated above.
                     color *= mix(1.0, max(1 - absError.x, 0), tileModeX == kTileModeDecal);
                     color *= mix(1.0, max(1 - absError.y, 0), tileModeY == kTileModeDecal);
                 }
-                        
+            
                 return color;
             }
             """;
     // simplified version from above, assuming filter is nearest and pos is clamped
-    private static final String PRIV_SAMPLE_CUBIC_IMAGE_SUBSET = """
+    private static String PRIV_SAMPLE_CUBIC_IMAGE_SUBSET = """
             vec4 _sample_cubic_image_subset(vec2 pos,
                                             vec4 subset,
                                             int tileModeX,
@@ -775,7 +843,7 @@ public class ShaderCodeSource {
                 const int kTileModeClamp  = 2;
                 const int kTileModeDecal  = 3;
                 const float kLinearInset = 0.5 + 0.00001;
-                
+            
                 vec4 test = vec4(1.0);
                 if (tileModeX == kTileModeDecal) {
                     test.xz = vec2(step(subset.x, pos.x), step(pos.x, subset.z));
@@ -786,20 +854,20 @@ public class ShaderCodeSource {
                 if (!all(bvec4(test))) {
                     return vec4(0);
                 }
-                
+            
                 pos.x = _tile(tileModeX, pos.x, subset.x, subset.z);
                 pos.y = _tile(tileModeY, pos.y, subset.y, subset.w);
-                
+            
                 // Clamp to an inset subset to prevent sampling neighboring texels when coords fall exactly at
                 // texel boundaries.
                 vec4 insetClamp = vec4(floor(subset.xy) + kLinearInset, ceil(subset.zw) - kLinearInset);
                 vec2 clampedPos = clamp(pos, insetClamp.xy, insetClamp.zw);
                 vec4 color = texelFetch(s, ivec2(clampedPos), 0);
-                        
+            
                 return color;
             }
             """;
-    private static final String PRIV_CUBIC_FILTER_IMAGE = """
+    private static String PRIV_CUBIC_FILTER_IMAGE = """
             vec4 _cubic_filter_image(vec2 pos,
                                      vec4 subset,
                                      int tileModeX,
@@ -812,14 +880,14 @@ public class ShaderCodeSource {
                 const int kCubicClampUnpremul = 0;
                 const int kCubicClampPremul   = 1;
                 const float kLinearInset = 0.5 + 0.00001;
-                
+            
                 // Determine pos's fractional offset f between texel centers.
                 vec2 f = fract(pos - 0.5);
                 // Sample 16 points at 1-pixel intervals from [p - 1.5 ... p + 1.5].
                 pos -= 1.5;
                 // Snap to texel centers to prevent sampling neighboring texels.
                 pos = floor(pos) + 0.5;
-                        
+            
                 vec4 wx = coeffs * vec4(1.0, f.x, f.x * f.x, f.x * f.x * f.x);
                 vec4 wy = coeffs * vec4(1.0, f.y, f.y * f.y, f.y * f.y * f.y);
                 vec4 color = vec4(0);
@@ -841,7 +909,7 @@ public class ShaderCodeSource {
                 return color;
             }
             """;
-    public static final String ARC_IMAGE_SHADER = """
+    public static String ARC_IMAGE_SHADER = """
             vec4 arc_image_shader(vec2 coords,
                                   vec2 invImageSize,
                                   vec4 subset,
@@ -854,7 +922,7 @@ public class ShaderCodeSource {
                                          filterMode, vec2(kLinearInset), s);
             }
             """;
-    public static final String ARC_CUBIC_IMAGE_SHADER = """
+    public static String ARC_CUBIC_IMAGE_SHADER = """
             vec4 arc_cubic_image_shader(vec2 coords,
                                         vec4 subset,
                                         mat4 cubicCoeffs,
@@ -866,7 +934,7 @@ public class ShaderCodeSource {
                                         cubicCoeffs, cubicClamp, s);
             }
             """;
-    public static final String ARC_HW_IMAGE_SHADER = """
+    public static String ARC_HW_IMAGE_SHADER = """
             vec4 arc_hw_image_shader(vec2 coords,
                                      vec2 invImageSize,
                                      sampler2D s) {
@@ -874,7 +942,7 @@ public class ShaderCodeSource {
             }
             """;
     public static final boolean USE_BAYER_MATRIX = false;
-    public static final String ARC_DITHER_SHADER = USE_BAYER_MATRIX ? """
+    public static String ARC_DITHER_SHADER = USE_BAYER_MATRIX ? """
             vec4 arc_dither_shader(vec4 color,
                                    float range) {
                 // Unrolled 8x8 Bayer matrix
@@ -906,7 +974,7 @@ public class ShaderCodeSource {
                 return vec4(clamp(color.rgb + dithering * range, 0.0, color.a), color.a);
             }
             """;
-    public static final String ARC_ANALYTIC_RRECT_SHADER = """
+    public static String ARC_ANALYTIC_RRECT_SHADER = """
             float4 arc_analytic_rrect_shader(float2 coords,
                                              float4 rect,
                                              float4 radii,
@@ -941,102 +1009,102 @@ public class ShaderCodeSource {
      *
      * @see BlendMode
      */
-    public static final String BLEND_CLEAR = """
+    public static String BLEND_CLEAR = """
             vec4 blend_clear(vec4 src, vec4 dst) {
                 return vec4(0);
             }
             """;
-    public static final String BLEND_SRC = """
+    public static String BLEND_SRC = """
             vec4 blend_src(vec4 src, vec4 dst) {
                 return src;
             }
             """;
-    public static final String BLEND_DST = """
+    public static String BLEND_DST = """
             vec4 blend_dst(vec4 src, vec4 dst) {
                 return dst;
             }
             """;
-    public static final String BLEND_SRC_OVER = """
+    public static String BLEND_SRC_OVER = """
             vec4 blend_src_over(vec4 src, vec4 dst) {
                 return src + dst * (1 - src.a);
             }
             """;
-    public static final String BLEND_DST_OVER = """
+    public static String BLEND_DST_OVER = """
             vec4 blend_dst_over(vec4 src, vec4 dst) {
                 return src * (1 - dst.a) + dst;
             }
             """;
-    public static final String BLEND_SRC_IN = """
+    public static String BLEND_SRC_IN = """
             vec4 blend_src_in(vec4 src, vec4 dst) {
                 return src * dst.a;
             }
             """;
-    public static final String BLEND_DST_IN = """
+    public static String BLEND_DST_IN = """
             vec4 blend_dst_in(vec4 src, vec4 dst) {
                 return dst * src.a;
             }
             """;
-    public static final String BLEND_SRC_OUT = """
+    public static String BLEND_SRC_OUT = """
             vec4 blend_src_out(vec4 src, vec4 dst) {
                 return src * (1 - dst.a);
             }
             """;
-    public static final String BLEND_DST_OUT = """
+    public static String BLEND_DST_OUT = """
             vec4 blend_dst_out(vec4 src, vec4 dst) {
                 return dst * (1 - src.a);
             }
             """;
-    public static final String BLEND_SRC_ATOP = """
+    public static String BLEND_SRC_ATOP = """
             vec4 blend_src_atop(vec4 src, vec4 dst) {
                 return src * dst.a + dst * (1 - src.a);
             }
             """;
-    public static final String BLEND_DST_ATOP = """
+    public static String BLEND_DST_ATOP = """
             vec4 blend_dst_atop(vec4 src, vec4 dst) {
                 return src * (1 - dst.a) + dst * src.a;
             }
             """;
-    public static final String BLEND_XOR = """
+    public static String BLEND_XOR = """
             vec4 blend_xor(vec4 src, vec4 dst) {
                 return src * (1 - dst.a) + dst * (1 - src.a);
             }
             """;
-    public static final String BLEND_PLUS = """
+    public static String BLEND_PLUS = """
             vec4 blend_plus(vec4 src, vec4 dst) {
                 return src + dst;
             }
             """;
-    public static final String BLEND_PLUS_CLAMPED = """
+    public static String BLEND_PLUS_CLAMPED = """
             vec4 blend_plus_clamped(vec4 src, vec4 dst) {
                 return min(src + dst, 1);
             }
             """;
-    public static final String BLEND_MINUS = """
+    public static String BLEND_MINUS = """
             vec4 blend_minus(vec4 src, vec4 dst) {
                 return dst - src;
             }
             """;
-    public static final String BLEND_MINUS_CLAMPED = """
+    public static String BLEND_MINUS_CLAMPED = """
             vec4 blend_minus_clamped(vec4 src, vec4 dst) {
                 return max(dst - src, 0);
             }
             """;
-    public static final String BLEND_MODULATE = """
+    public static String BLEND_MODULATE = """
             vec4 blend_modulate(vec4 src, vec4 dst) {
                 return src * dst;
             }
             """;
-    public static final String BLEND_MULTIPLY = """
+    public static String BLEND_MULTIPLY = """
             vec4 blend_multiply(vec4 src, vec4 dst) {
                 return src * dst + src * (1 - dst.a) + dst * (1 - src.a);
             }
             """;
-    public static final String BLEND_SCREEN = """
+    public static String BLEND_SCREEN = """
             vec4 blend_screen(vec4 src, vec4 dst) {
                 return src + dst - src * dst;
             }
             """;
-    public static final String BLEND_OVERLAY = """
+    public static String BLEND_OVERLAY = """
             vec4 blend_overlay(vec4 src, vec4 dst) {
                 vec3 s = src.rgb,       d = dst.rgb;
                 vec3 sa = vec3(src.a),  da = vec3(dst.a);
@@ -1047,17 +1115,17 @@ public class ShaderCodeSource {
                             src.a + dst.a * (1 - src.a));
             }
             """;
-    public static final String BLEND_DARKEN = """
+    public static String BLEND_DARKEN = """
             vec4 blend_darken(vec4 src, vec4 dst) {
                 return src + dst - max(src * dst.a, dst * src.a);
             }
             """;
-    public static final String BLEND_LIGHTEN = """
+    public static String BLEND_LIGHTEN = """
             vec4 blend_lighten(vec4 src, vec4 dst) {
                 return src + dst - min(src * dst.a, dst * src.a);
             }
             """;
-    public static final String BLEND_COLOR_DODGE = """
+    public static String BLEND_COLOR_DODGE = """
             vec4 blend_color_dodge(vec4 src, vec4 dst) {
                 vec3 s = src.rgb,       d = dst.rgb;
                 vec3 sa = vec3(src.a),  da = vec3(dst.a);
@@ -1069,7 +1137,7 @@ public class ShaderCodeSource {
                             src.a + dst.a * (1 - src.a));
             }
             """;
-    public static final String BLEND_COLOR_BURN = """
+    public static String BLEND_COLOR_BURN = """
             vec4 blend_color_burn(vec4 src, vec4 dst) {
                 vec3 s = src.rgb,       d = dst.rgb;
                 vec3 sa = vec3(src.a),  da = vec3(dst.a);
@@ -1081,7 +1149,7 @@ public class ShaderCodeSource {
                             src.a + dst.a * (1 - src.a));
             }
             """;
-    public static final String BLEND_HARD_LIGHT = """
+    public static String BLEND_HARD_LIGHT = """
             vec4 blend_hard_light(vec4 src, vec4 dst) {
                 vec3 s = src.rgb,       d = dst.rgb;
                 vec3 sa = vec3(src.a),  da = vec3(dst.a);
@@ -1092,7 +1160,7 @@ public class ShaderCodeSource {
                             src.a + dst.a * (1 - src.a));
             }
             """;
-    public static final String BLEND_SOFT_LIGHT = """
+    public static String BLEND_SOFT_LIGHT = """
             vec4 blend_soft_light(vec4 src, vec4 dst) {
                 vec3 s = src.rgb,       d = dst.rgb;
                 vec3 sa = vec3(src.a),  da = vec3(dst.a);
@@ -1106,19 +1174,19 @@ public class ShaderCodeSource {
                             src.a + dst.a * (1 - src.a));
             }
             """;
-    public static final String BLEND_DIFFERENCE = """
+    public static String BLEND_DIFFERENCE = """
             vec4 blend_difference(vec4 src, vec4 dst) {
                 return vec4(src.rgb + dst.rgb - 2 * min(src.rgb * dst.a, dst.rgb * src.a),
                             src.a + dst.a * (1 - src.a));
             }
             """;
-    public static final String BLEND_EXCLUSION = """
+    public static String BLEND_EXCLUSION = """
             vec4 blend_exclusion(vec4 src, vec4 dst) {
                 return vec4(src.rgb + dst.rgb - 2 * (src.rgb * dst.rgb),
                             src.a + dst.a * (1 - src.a));
             }
             """;
-    public static final String BLEND_SUBTRACT = """
+    public static String BLEND_SUBTRACT = """
             vec4 blend_subtract(vec4 src, vec4 dst) {
                 return vec4(src.rgb * (1 - dst.a) + dst.rgb - min(src.rgb * dst.a, dst.rgb * src.a),
                             src.a + dst.a * (1 - src.a));
@@ -1128,7 +1196,7 @@ public class ShaderCodeSource {
      * This can produce undefined results from {@link BlendMode#blend_divide}
      * if values out of range.
      */
-    public static final String BLEND_DIVIDE = """
+    public static String BLEND_DIVIDE = """
             vec4 blend_divide(vec4 src, vec4 dst) {
                 vec3 numer = dst.rgb * src.a;
                 vec3 denom = src.rgb * dst.a;
@@ -1141,19 +1209,19 @@ public class ShaderCodeSource {
                             src.a + dst.a * (1 - src.a));
             }
             """;
-    public static final String BLEND_LINEAR_DODGE = """
+    public static String BLEND_LINEAR_DODGE = """
             vec4 blend_linear_dodge(vec4 src, vec4 dst) {
                 return vec4(min(src.rgb + dst.rgb, src.a * dst.a + src.rgb * (1 - dst.a) + dst.rgb * (1 - src.a)),
                             src.a + dst.a * (1 - src.a));
             }
             """;
-    public static final String BLEND_LINEAR_BURN = """
+    public static String BLEND_LINEAR_BURN = """
             vec4 blend_linear_burn(vec4 src, vec4 dst) {
                 return vec4(max(src.rgb + dst.rgb - src.a * dst.a, src.rgb * (1 - dst.a) + dst.rgb * (1 - src.a)),
                             src.a + dst.a * (1 - src.a));
             }
             """;
-    public static final String BLEND_VIVID_LIGHT = """
+    public static String BLEND_VIVID_LIGHT = """
             vec4 blend_vivid_light(vec4 src, vec4 dst) {
                 vec3 s = src.rgb,       d = dst.rgb;
                 vec3 sa = vec3(src.a),  da = vec3(dst.a);
@@ -1167,7 +1235,7 @@ public class ShaderCodeSource {
                             src.a + dst.a * (1 - src.a));
             }
             """;
-    public static final String BLEND_LINEAR_LIGHT = """
+    public static String BLEND_LINEAR_LIGHT = """
             vec4 blend_linear_light(vec4 src, vec4 dst) {
                 vec3 s = src.rgb,       d = dst.rgb;
                 vec3 sa = vec3(src.a),  da = vec3(dst.a);
@@ -1176,7 +1244,7 @@ public class ShaderCodeSource {
                             src.a + dst.a * (1 - src.a));
             }
             """;
-    public static final String BLEND_PIN_LIGHT = """
+    public static String BLEND_PIN_LIGHT = """
             vec4 blend_pin_light(vec4 src, vec4 dst) {
                 vec3 s = src.rgb,       d = dst.rgb;
                 vec3 sa = vec3(src.a),  da = vec3(dst.a);
@@ -1192,7 +1260,7 @@ public class ShaderCodeSource {
                             src.a + dst.a * (1 - src.a));
             }
             """;
-    public static final String BLEND_HARD_MIX = """
+    public static String BLEND_HARD_MIX = """
             vec4 blend_hard_mix(vec4 src, vec4 dst) {
                 vec3 s = src.rgb,       d = dst.rgb;
                 vec3 sa = vec3(src.a),  da = vec3(dst.a);
@@ -1248,26 +1316,26 @@ public class ShaderCodeSource {
     }
     // we know that Photoshop uses these values
     // instead of (0.3, 0.59, 0.11)
-    private static final String PRIV_BLEND_GET_LUM = """
+    private static String PRIV_BLEND_GET_LUM = """
             float _blend_get_lum(vec3 color) {
                 return dot(vec3(0.299, 0.587, 0.114), color);
             }
             """;
-    public static final String BLEND_DARKER_COLOR = """
+    public static String BLEND_DARKER_COLOR = """
             vec4 blend_darker_color(vec4 src, vec4 dst) {
                 return mix(src * (1 - dst.a) + dst,
                            src + dst * (1 - src.a),
                            bvec4(_blend_get_lum(src.rgb) <= _blend_get_lum(dst.rgb)));
             }
             """;
-    public static final String BLEND_LIGHTER_COLOR = """
+    public static String BLEND_LIGHTER_COLOR = """
             vec4 blend_lighter_color(vec4 src, vec4 dst) {
                 return mix(src * (1 - dst.a) + dst,
                            src + dst * (1 - src.a),
                            bvec4(_blend_get_lum(src.rgb) >= _blend_get_lum(dst.rgb)));
             }
             """;
-    private static final String PRIV_BLEND_SET_LUM = """
+    private static String PRIV_BLEND_SET_LUM = """
             vec3 _blend_set_lum(vec3 cbase,
                                 vec3 clum, float alum,
                                 float alpha) {
@@ -1285,7 +1353,7 @@ public class ShaderCodeSource {
                 return cbase;
             }
             """;
-    private static final String PRIV_BLEND_SET_LUM_SAT = """
+    private static String PRIV_BLEND_SET_LUM_SAT = """
             vec3 _blend_set_lum_sat(vec3 cbase,
                                     vec3 csat, float asat,
                                     vec3 clum, float alum,
@@ -1301,7 +1369,7 @@ public class ShaderCodeSource {
                 return _blend_set_lum(cbase, clum, alum, alpha);
             }
             """;
-    public static final String BLEND_HUE = """
+    public static String BLEND_HUE = """
             vec4 blend_hue(vec4 src, vec4 dst) {
                 float alpha = src.a * dst.a;
                 vec3 c = src.rgb * dst.a;
@@ -1310,7 +1378,7 @@ public class ShaderCodeSource {
                             src.a + dst.a - alpha);
             }
             """;
-    public static final String BLEND_SATURATION = """
+    public static String BLEND_SATURATION = """
             vec4 blend_saturation(vec4 src, vec4 dst) {
                 float alpha = src.a * dst.a;
                 vec3 c = dst.rgb * src.a;
@@ -1319,7 +1387,7 @@ public class ShaderCodeSource {
                             src.a + dst.a - alpha);
             }
             """;
-    public static final String BLEND_COLOR = """
+    public static String BLEND_COLOR = """
             vec4 blend_color(vec4 src, vec4 dst) {
                 float alpha = src.a * dst.a;
                 vec3 c = src.rgb * dst.a;
@@ -1328,7 +1396,7 @@ public class ShaderCodeSource {
                             src.a + dst.a - alpha);
             }
             """;
-    public static final String BLEND_LUMINOSITY = """
+    public static String BLEND_LUMINOSITY = """
             vec4 blend_luminosity(vec4 src, vec4 dst) {
                 float alpha = src.a * dst.a;
                 vec3 c = dst.rgb * src.a;
@@ -1340,7 +1408,7 @@ public class ShaderCodeSource {
     /**
      * Apply one of 42 blend modes.
      */
-    public static final String ARC_BLEND = """
+    public static String ARC_BLEND = """
             vec4 arc_blend(vec4 src, vec4 dst, int blendMode) {
                 const int kClear        = 0;
                 const int kSrc          = 1;
@@ -1384,7 +1452,7 @@ public class ShaderCodeSource {
                 const int kSaturation   = 39;
                 const int kColor        = 40;
                 const int kLuminosity   = 41;
-                
+            
                 switch (blendMode) {
                     case kClear        : return blend_clear          (src,dst);
                     case kSrc          : return blend_src            (src,dst);
@@ -1446,7 +1514,7 @@ public class ShaderCodeSource {
     // - SrcATop:     dstA*src + (1-srcA)*dst = (0 +  1*dstA)*src + (1 + -1*srcA)*dst = (0,  1,  1, -1)
     // - DstATop: (1-dstA)*src +     srcA*dst = (1 + -1*dstA)*src + (0 +  1*srcA)*dst = (1,  0, -1,  1)
     // - Xor:     (1-dstA)*src + (1-srcA)*dst = (1 + -1*dstA)*src + (1 + -1*srcA)*dst = (1,  1, -1, -1)
-    public static final String ARC_PORTER_DUFF_BLEND = """
+    public static String ARC_PORTER_DUFF_BLEND = """
             vec4 arc_porter_duff_blend(vec4 src, vec4 dst, vec4 blendOp) {
                 // The supported blend modes all have coefficients that are of the form (C + S*alpha), where
                 // alpha is the other color's alpha channel. C can be 0 or 1, S can be -1, 0, or 1.
@@ -1774,17 +1842,47 @@ public class ShaderCodeSource {
                 ShaderCodeSource::generateDefaultExpression,
                 0
         );
-        mBuiltinCodeSnippets[kColorSpaceXformColorFilter_BuiltinStageID] = new FragmentStage(
+        mBuiltinCodeSnippets[kCSXformColorFilter_BuiltinStageID] = new FragmentStage(
                 "ColorSpaceTransform",
                 kPriorStageOutput_ReqFlag,
                 "arc_color_space_transform",
                 List.of(
-                        PRIV_TRANSFER_FUNCTION, PRIV_INV_TRANSFER_FUNCTION,
+                        PRIV_TRANSFER_FUNCTION,
+                        PRIV_PQ_TRANSFER_FUNCTION,
+                        PRIV_HLG_TRANSFER_FUNCTION,
                         ARC_COLOR_SPACE_TRANSFORM
                 ),
                 List.of(
-                        XFORM_FLAGS, XFORM_SRC_TF, XFORM_GAMUT_TRANSFORM, XFORM_DST_TF
+                        XFORM_GAMUT_TRANSFORM,
+                        XFORM_SRC_GABC, XFORM_SRC_DEFW,
+                        XFORM_DST_GABC, XFORM_DST_DEFW
                 ),
+                NO_SAMPLERS,
+                ShaderCodeSource::generateDefaultExpression,
+                0
+        );
+        mBuiltinCodeSnippets[kCSXformPremul_BuiltinStageID] = new FragmentStage(
+                "Premul",
+                kPriorStageOutput_ReqFlag,
+                "arc_conditional_premul",
+                List.of(
+                        ARC_CONDITIONAL_PREMUL
+                ),
+                List.of(
+                        XFORM_MODE
+                ),
+                NO_SAMPLERS,
+                ShaderCodeSource::generateDefaultExpression,
+                0
+        );
+        mBuiltinCodeSnippets[kCSXformUnpremul_BuiltinStageID] = new FragmentStage(
+                "Unpremul",
+                kPriorStageOutput_ReqFlag,
+                "arc_unpremul",
+                List.of(
+                        ARC_UNPREMUL
+                ),
+                NO_UNIFORMS,
                 NO_SAMPLERS,
                 ShaderCodeSource::generateDefaultExpression,
                 0
@@ -1839,14 +1937,9 @@ public class ShaderCodeSource {
         mBuiltinCodeSnippets[kPrimitiveColor_BuiltinStageID] = new FragmentStage(
                 "PrimitiveColor",
                 kPrimitiveColor_ReqFlag,
-                "arc_color_space_transform",
-                List.of(
-                        PRIV_TRANSFER_FUNCTION, PRIV_INV_TRANSFER_FUNCTION,
-                        ARC_COLOR_SPACE_TRANSFORM
-                ),
-                List.of(
-                        XFORM_FLAGS, XFORM_SRC_TF, XFORM_GAMUT_TRANSFORM, XFORM_DST_TF
-                ),
+                "arc_passthrough",
+                List.of(ARC_PASSTHROUGH),
+                NO_UNIFORMS,
                 NO_SAMPLERS,
                 ShaderCodeSource::generateDefaultExpression,
                 0

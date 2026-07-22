@@ -43,22 +43,35 @@ import org.jspecify.annotations.Nullable;
 public class FragmentHelpers {
 
     private static void append_transfer_function_uniform(
+            RGBColorSpace rgb,
             TransferFunction tf,
+            float alphaOp,
+            boolean dst,
             UniformDataGatherer uniformDataGatherer
     ) {
-        // vec4 and vec4 array have the same alignment rule
-        uniformDataGatherer.write4f((float) tf.g, (float) tf.a, (float) tf.b, (float) tf.c);
-        uniformDataGatherer.write4f((float) tf.d, (float) tf.e, (float) tf.f, 0.0f);
+        if (tf == null || TransferFunction.LINEAR.equals(tf)) {
+            uniformDataGatherer.write4f(0, 0, 0, 0);
+            uniformDataGatherer.write4f(0, 0, 0, alphaOp);
+        } else {
+            uniformDataGatherer.write4f((float) tf.g, (float) tf.a, (float) tf.b, (float) tf.c);
+            float[] ootf;
+            if (TransferFunction.isSpecialG(tf.g) &&
+                    (ootf = ColorTransform.computeOOTF(rgb, dst)) != null) {
+                uniformDataGatherer.write4f(ootf[0], ootf[1], ootf[2], alphaOp);
+            } else {
+                uniformDataGatherer.write4f((float) tf.d, (float) tf.e, (float) tf.f, alphaOp);
+            }
+        }
     }
 
     /**
      * Compute color space transform parameters and add uniforms,
-     * see {@link PixelUtils}.
+     * keep sync with {@link PixelUtils} and {@link ColorTransform}.
      */
-    public static void appendColorSpaceUniforms(
+    public static void appendColorSpaceTransformBlock(
+            KeyContext keyContext,
             @Nullable ColorSpace srcCS, @ColorInfo.AlphaType int srcAT,
-            @Nullable ColorSpace dstCS, @ColorInfo.AlphaType int dstAT,
-            UniformDataGatherer uniformDataGatherer
+            @Nullable ColorSpace dstCS, @ColorInfo.AlphaType int dstAT
     ) {
         // Opaque outputs are treated as the same alpha type as the source input.
         if (dstAT == ColorInfo.AT_OPAQUE) {
@@ -78,20 +91,23 @@ public class FragmentHelpers {
                 ? (RGBColorSpace) srcCS : null;
         var dstRGB = dstCS.getModel() == ColorSpace.MODEL_RGB
                 ? (RGBColorSpace) dstCS : null;
+        var srcTF = srcRGB != null ? srcRGB.getTransferFunction() : null;
+        var dstTF = dstRGB != null ? dstRGB.getTransferFunction() : null;
 
         // we handle RGB space with known transfer parameters and XYZ space
-        boolean csXform = (srcXYZ || (srcRGB != null && srcRGB.getTransferFunction() != null)) &&
-                (dstXYZ || (dstRGB != null && dstRGB.getTransferFunction() != null)) &&
+        boolean csXform = (srcXYZ || srcTF != null) &&
+                (dstXYZ || dstTF != null) &&
                 !srcCS.equals(dstCS, true);
 
-        int flags = 0;
+        boolean doUnpremul = false;
+        boolean doPremul = false;
 
         if (csXform || srcAT != dstAT) {
             if (srcAT == ColorInfo.AT_PREMUL) {
-                flags |= PixelUtils.kColorSpaceXformFlagUnpremul;
+                doUnpremul = true;
             }
             if (srcAT != ColorInfo.AT_OPAQUE && dstAT == ColorInfo.AT_PREMUL) {
-                flags |= PixelUtils.kColorSpaceXformFlagPremul;
+                doPremul = true;
             }
         }
 
@@ -101,31 +117,25 @@ public class FragmentHelpers {
                     ChromaticAdaptation.BRADFORD
             );
             if (transform != null) {
-                flags |= PixelUtils.kColorSpaceXformFlagGamutTransform;
-            }
-
-            if (srcRGB != null && !TransferFunction.LINEAR.equals(srcRGB.getTransferFunction())) {
-                flags |= PixelUtils.kColorSpaceXformFlagLinearize;
-            }
-            if (dstRGB != null && !TransferFunction.LINEAR.equals(dstRGB.getTransferFunction())) {
-                flags |= PixelUtils.kColorSpaceXformFlagEncode;
-            }
-
-            uniformDataGatherer.write1i(flags);
-            append_transfer_function_uniform(srcRGB == null ? TransferFunction.LINEAR
-                    : srcRGB.getTransferFunction(), uniformDataGatherer);
-            if (transform != null) {
-                uniformDataGatherer.writeMatrix3f(0, transform);
+                keyContext.uniformDataGatherer.writeMatrix3f(0, transform);
             } else {
-                uniformDataGatherer.writeMatrix3f(Matrix.identity());
+                keyContext.uniformDataGatherer.writeMatrix3f(Matrix.identity());
             }
-            append_transfer_function_uniform(dstRGB == null ? TransferFunction.LINEAR
-                    : dstRGB.getTransferFunction(), uniformDataGatherer);
+
+            append_transfer_function_uniform(srcRGB, srcTF,
+                    doUnpremul ? -1 : 0, false,
+                    keyContext.uniformDataGatherer);
+            append_transfer_function_uniform(dstRGB, dstTF,
+                    doPremul ? 0 : 1, true,
+                    keyContext.uniformDataGatherer);
+            keyContext.addBlock(FragmentStage.kCSXformColorFilter_BuiltinStageID);
+        } else if (doUnpremul) {
+            // unconditional unpremul
+            keyContext.addBlock(FragmentStage.kCSXformUnpremul_BuiltinStageID);
         } else {
-            uniformDataGatherer.write1i(flags);
-            append_transfer_function_uniform(TransferFunction.LINEAR, uniformDataGatherer);
-            uniformDataGatherer.writeMatrix3f(Matrix.identity());
-            append_transfer_function_uniform(TransferFunction.LINEAR, uniformDataGatherer);
+            // conditional premul
+            keyContext.uniformDataGatherer.write1f(doPremul ? 0 : 1);
+            keyContext.addBlock(FragmentStage.kCSXformPremul_BuiltinStageID);
         }
     }
 
@@ -463,10 +473,10 @@ public class FragmentHelpers {
                 keyContext,
                 data);
 
-        appendColorSpaceUniforms(
+        appendColorSpaceTransformBlock(
+                keyContext,
                 colorTransformer.mIntermediateColorSpace, intermediateAlphaType,
-                dstColorSpace, dstAlphaType, keyContext.uniformDataGatherer);
-        keyContext.addBlock(FragmentStage.kColorSpaceXformColorFilter_BuiltinStageID);
+                dstColorSpace, dstAlphaType);
     }
 
     public static void appendBlendMode(
@@ -559,11 +569,13 @@ public class FragmentHelpers {
     public static void appendPrimitiveColorBlock(
             KeyContext keyContext
     ) {
-        appendColorSpaceUniforms(ColorSpaces.EXTENDED_SRGB, ColorInfo.AT_PREMUL,
-                keyContext.dstInfo.colorSpace(), ColorInfo.AT_PREMUL,
-                keyContext.uniformDataGatherer);
+        keyContext.addBlock(FragmentStage.kCompose_BuiltinStageID);
 
         keyContext.addBlock(FragmentStage.kPrimitiveColor_BuiltinStageID);
+
+        appendColorSpaceTransformBlock(keyContext,
+                ColorSpaces.EXTENDED_SRGB, ColorInfo.AT_PREMUL,
+                keyContext.dstInfo.colorSpace(), ColorInfo.AT_PREMUL);
     }
 
     /**
@@ -697,13 +709,11 @@ public class FragmentHelpers {
                     srcAlphaType,
                     view);
 
-            appendColorSpaceUniforms(
+            appendColorSpaceTransformBlock(keyContext,
                     imageToDraw.getColorSpace(),
                     srcAlphaType,
                     keyContext.dstInfo.colorSpace(),
-                    dstAlphaType,
-                    keyContext.uniformDataGatherer);
-            keyContext.addBlock(FragmentStage.kColorSpaceXformColorFilter_BuiltinStageID);
+                    dstAlphaType);
         }
     }
 

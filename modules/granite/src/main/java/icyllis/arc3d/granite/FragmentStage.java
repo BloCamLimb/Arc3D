@@ -63,12 +63,14 @@ public class FragmentStage {
             kHWImageShader_BuiltinStageID = 19,
             kAnalyticRRectShader_BuiltinStageID = 20,
             kDitherShader_BuiltinStageID = 21,
-            kColorSpaceXformColorFilter_BuiltinStageID = 22,
-            kBlend_BuiltinStageID = 23,
-            kBlendModeBlender_BuiltinStageID = 24,
-            kPorterDuffBlender_BuiltinStageID = 25,
-            kPrimitiveColor_BuiltinStageID = 26,
-            kCompose_BuiltinStageID = 27;
+            kCSXformColorFilter_BuiltinStageID = 22,
+            kCSXformPremul_BuiltinStageID = 23,
+            kCSXformUnpremul_BuiltinStageID = 24,
+            kBlend_BuiltinStageID = 25,
+            kBlendModeBlender_BuiltinStageID = 26,
+            kPorterDuffBlender_BuiltinStageID = 27,
+            kPrimitiveColor_BuiltinStageID = 28,
+            kCompose_BuiltinStageID = 29;
     // Fixed blend modes hard code a specific blend function into the shader tree. This can be
     // valuable when an internal effect is known to always do a certain blend and we want to
     // benefit from inlining constants. It is also important for being able to convert the final
@@ -84,7 +86,7 @@ public class FragmentStage {
     // defined last in the enum. They are ordered to match BlendMode such that:
     //     (id - kFirstFixedBlend) == BlendMode).
     public static final int
-            kFirstFixedBlend_BuiltinStageID = 28;
+            kFirstFixedBlend_BuiltinStageID = 30;
     // this is not compile-time constant
     public static final int
             kLastFixedBlend_BuiltinStageID = kFirstFixedBlend_BuiltinStageID + BlendMode.COUNT - 1;
