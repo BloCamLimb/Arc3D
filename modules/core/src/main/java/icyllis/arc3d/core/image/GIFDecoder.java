@@ -25,7 +25,6 @@ import icyllis.arc3d.core.ColorSpace;
 import icyllis.arc3d.core.ColorSpaces;
 import icyllis.arc3d.core.ImageInfo;
 import icyllis.arc3d.core.Pixmap;
-import icyllis.arc3d.core.Rect2ic;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
@@ -33,8 +32,6 @@ import org.lwjgl.system.MemoryUtil;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.Objects;
-import java.util.function.IntConsumer;
 
 import static icyllis.arc3d.core.image.GIF.*;
 
@@ -46,8 +43,6 @@ import static icyllis.arc3d.core.image.GIF.*;
  */
 public class GIFDecoder extends Decoder {
 
-    public static volatile int sDefaultDelayMillis = 40;
-
     private int mHeaderPos;
 
     private int mScreenWidth;
@@ -55,7 +50,7 @@ public class GIFDecoder extends Decoder {
 
     private int[] mGlobalPalette; // rgba0 rgba1 ...
     private int[] mTmpPalette; // rgba0 rgba1 ...
-    private byte[] mTmpImage; // index0 index1 ...
+    private byte[] mTmpRow; // index0 index1 ...
 
     private boolean mHasGlobalPalette;
 
@@ -131,8 +126,8 @@ public class GIFDecoder extends Decoder {
             }
             readPalette(2 << (packedField & 7), mGlobalPalette);
         }
-        if (mTmpImage == null || mTmpImage.length < mScreenWidth) {
-            mTmpImage = new byte[mScreenWidth];
+        if (mTmpRow == null || mTmpRow.length < mScreenWidth) {
+            mTmpRow = new byte[mScreenWidth];
         }
 
         //mHeaderPos = mBuf.position();
@@ -192,9 +187,28 @@ public class GIFDecoder extends Decoder {
         return mNextControlData;
     }
 
+    private int[] readPalette(int packedField) throws IOException {
+        boolean localPalette = (packedField & 0x80) != 0;
+        int[] palette;
+        if (localPalette) {
+            if (mTmpPalette == null) {
+                mTmpPalette = new int[256];
+            }
+            int paletteSize = 2 << (packedField & 7);
+            readPalette(paletteSize, mTmpPalette);
+            palette = mTmpPalette;
+        } else {
+            if (!mHasGlobalPalette) {
+                throw new DecoderException("No global palette");
+            }
+            palette = mGlobalPalette;
+        }
+
+        return palette;
+    }
+
     @Override
-    public void decodeImage(@NonNull Pixmap dstPixels,
-                            @Nullable Rect2ic srcRegion) throws IOException {
+    public void decodeImage(@NonNull Pixmap dstPixels) throws IOException {
         if (readByte() != 0x2C) {
             throw new DecoderException("Not image separator");
         }
@@ -207,69 +221,26 @@ public class GIFDecoder extends Decoder {
 
         int packedField = readByte();
 
-        boolean localPalette = (packedField & 0x80) != 0;
-        boolean isInterlaced = (packedField & 0x40) != 0;
-        int imageControlCode = mNextControlData;
-        boolean isTransparent = ((imageControlCode >>> 24) & 1) != 0;
-        int transparentIndex = isTransparent ? (imageControlCode >>> 16) & 0xFF : -1;
-
-        int paletteSize = 2 << (packedField & 7);
-        int[] palette;
-        if (localPalette) {
-            if (mTmpPalette == null) {
-                mTmpPalette = new int[256];
-            }
-            readPalette(paletteSize, mTmpPalette);
-            palette = mTmpPalette;
-        } else {
-            if (!mHasGlobalPalette) {
-                throw new DecoderException("No global palette");
-            }
-            palette = mGlobalPalette;
-        }
-
-        boolean hasAlpha = dstPixels.getColorType() == ColorInfo.CT_RGBA_8888;
-
-        int minRB = dstPixels.getInfo().minRowBytes();
-        Object dstBase = dstPixels.getBase();
-
-        byte[] image = mTmpImage;
-        IntConsumer acceptPixels = i -> {
-            long dstAddr = dstPixels.getAddress(left, i + top);
-            ByteBuffer dst = dstBase == null
-                    ? MemoryUtil.memByteBuffer(dstAddr, minRB)
-                    : ByteBuffer.wrap((byte[]) dstBase, (int) dstAddr, minRB);
-
-            if (hasAlpha && transparentIndex < 0) {
-                for (int j = 0; j < width; j++) {
-                    int index = image[j] & 0xFF;
-                    dst.putInt(palette[index]);
-                }
-            } else {
-                for (int j = 0; j < width; j++) {
-                    int index = image[j] & 0xFF;
-                    int color = palette[index];
-
-                    if (index != transparentIndex) {
-                        if (hasAlpha) {
-                            dst.putInt(color);
-                        } else {
-                            dst.put((byte) (color & 0xFF))
-                                    .put((byte) ((color >> 8) & 0xFF))
-                                    .put((byte) ((color >> 16) & 0xFF));
-                        }
-                    }
-                }
-            }
-        };
-        decodeImage(image, width, height,
-                isInterlaced, acceptPixels);
+        decodeImage(left, top, width, height, packedField, mNextControlData, dstPixels);
     }
 
-    /**
-     * @return the frame delay in milliseconds
-     */
-    public int decodeNextFrame(Pixmap restoreFrame, Pixmap canvasFrame) throws IOException {
+    @Override
+    public int getPlayCount() {
+        int loopCount = mLoopCount;
+        if (loopCount == -1) {
+            // loop count is unknown, play once
+            return 1;
+        }
+        if (loopCount == 0) {
+            // loop count is infinite
+            return 0;
+        }
+        return loopCount + 1;
+    }
+
+    @Override
+    public boolean decodeNextFrame(@Nullable Pixmap backupFrame, @NonNull Pixmap canvasFrame,
+                                   @NonNull FrameInfo outInfo) throws IOException {
         int imageControlCode = syncNextFrame();
 
         if (imageControlCode < 0) {
@@ -280,42 +251,46 @@ public class GIFDecoder extends Decoder {
 
         // check if the image is in the virtual screen boundaries
         if (left + width > mScreenWidth || top + height > mScreenHeight) {
-            throw new IOException();
+            throw new DecoderException("Image out of canvas bounds");
         }
 
         int packedField = readByte();
 
         boolean isTransparent = ((imageControlCode >>> 24) & 1) != 0;
-        int transparentIndex = isTransparent ? (imageControlCode >>> 16) & 0xFF : -1;
-        boolean localPalette = (packedField & 0x80) != 0;
-        boolean isInterlaced = (packedField & 0x40) != 0;
 
         int delayTime = imageControlCode & 0xFFFF; // frame duration in centi-seconds
 
-        int paletteSize = 2 << (packedField & 7);
-       /* if (mTmpPalette == null || mTmpPalette.length < paletteSize * 4) {
-            mTmpPalette = new byte[paletteSize * 4];
-        }
-        byte[] palette = localPalette
-                ? readPalette(paletteSize, mTmpPalette)
-                : Objects.requireNonNull(mGlobalPalette);
-
-
-
         int disposalCode = (imageControlCode >>> 26) & 7;
-        decodeImage(mTmpImage, width, height,
-                isInterlaced);
 
-        decodePalette(mTmpImage, palette, transparentIndex, left, top, width, height, disposalCode, pixels);*/
+        outInfo.delay = delayTime * 10;
+        outInfo.disposal = switch (disposalCode) {
+            case 2 -> FrameInfo.DISPOSAL_BACKGROUND;
+            case 3 -> FrameInfo.DISPOSAL_PREVIOUS;
+            default -> FrameInfo.DISPOSAL_NONE;
+        };
+        outInfo.blend = FrameInfo.BLEND_SRC_OVER;
+        outInfo.frameLeft = left;
+        outInfo.frameTop = top;
+        outInfo.frameWidth = width;
+        outInfo.frameHeight = height;
+        outInfo.hasAlphaWithinBounds = isTransparent;
 
-        return delayTime != 0 ? delayTime * 10 : sDefaultDelayMillis;
+        if (disposalCode == 3 && backupFrame != null) {
+            // restore to previous, make a backup
+            backupFrame.setPixels(canvasFrame, 0, 0, 0, 0, mScreenWidth, mScreenHeight);
+        }
+
+        decodeImage(left, top, width, height, packedField,
+                imageControlCode, canvasFrame);
+
+        return true;
     }
 
     public void skipImage() throws IOException {
         if (readByte() != 0x2C) {
             throw new DecoderException("Not image separator");
         }
-        readShort(); readShort(); readShort(); readShort();
+        int left = readShort(), top = readShort(), width = readShort(), height = readShort();
 
         int packedField = readByte();
 
@@ -378,11 +353,10 @@ public class GIFDecoder extends Decoder {
             id[i] = nextRawByte();
         }
 
-        if (Arrays.equals(id, 0, 8, APP_NETSCAPE, 0, 8) &&
-                Arrays.equals(id, 8, 11, APP_NETSCAPE_AUTH, 0, 3)) {
+        if (Arrays.equals(id, APP_NETSCAPE2_0) || Arrays.equals(id, APP_ANIMEXTS1_0)) {
             int size = readByte();
             if (size != 3) {
-                throw new DecoderException("Bad block size of NETSCAPE/2.0");
+                throw new DecoderException("Bad block size of NETSCAPE/2.0 or ANIMEXTS/1.0");
             }
             int first = readByte();
             if (first == 0x01) {
@@ -391,13 +365,12 @@ public class GIFDecoder extends Decoder {
                 readShort();
             }
             if (readByte() != 0) {
-                throw new DecoderException("NETSCAPE/2.0 block is not terminated");
+                throw new DecoderException("NETSCAPE/2.0 or ANIMEXTS/1.0 block is not terminated");
             }
             return;
         }
 
-        if (Arrays.equals(id, 0, 8, APP_ICC, 0, 8) &&
-                Arrays.equals(id, 8, 11, APP_ICC_AUTH, 0, 3)) {
+        if (Arrays.equals(id, APP_ICC)) {
 
             ByteBuffer concatData = readConcatBlocks();
             byte[] data = concatData.array();
@@ -423,9 +396,13 @@ public class GIFDecoder extends Decoder {
             return;
         }
 
-        skipExtension();
+        if (Arrays.equals(id, APP_XMP)) {
+
+        }
 
         //TODO XMP and others
+
+        skipExtension();
     }
 
     private ByteBuffer readConcatBlocks() throws IOException {
@@ -485,10 +462,26 @@ public class GIFDecoder extends Decoder {
     }
 
     // Decode the one frame of GIF form the input stream using internal LZWDecoder class
-    private void decodeImage(byte[] image, int width, int height, boolean interlace,
-                             IntConsumer callback) throws IOException {
+    private void decodeImage(int left, int top, int width, int height, int packedField,
+                             int imageControlCode, Pixmap dstPixels) throws IOException {
+
+        final boolean isInterlaced = (packedField & 0x40) != 0;
+        final boolean isTransparent = ((imageControlCode >>> 24) & 1) != 0;
+        final int transparentIndex = isTransparent ? (imageControlCode >>> 16) & 0xFF : -1;
+
+        final int[] palette = readPalette(packedField);
+
+        final boolean hasAlpha = dstPixels.getColorType() == ColorInfo.CT_RGBA_8888;
+
+        final int minRB = dstPixels.getInfo().minRowBytes();
+        final Object dstBase = dstPixels.getBase();
+
+        final byte[] row = mTmpRow;
+
+        final int initialCodeSize = readByte();
+
         final LZWDecoder dec = LZWDecoder.getInstance();
-        byte[] data = dec.init(this, readByte());
+        final byte[] string = dec.init(this, initialCodeSize);
         int y = 0, xr = width;
         int pass = 0, realY = 0;
         // @formatter:off
@@ -500,27 +493,56 @@ public class GIFDecoder extends Decoder {
             }
             for (int pos = 0; pos < len; ) {
                 int ax = Math.min(xr, (len - pos));
-                System.arraycopy(data, pos, image, width - xr, ax);
+                System.arraycopy(string, pos, row, width - xr, ax);
                 pos += ax;
-                if ((xr -= ax) == 0) {
-                    callback.accept(realY);
-                    if (++y == height) { // image is full
-                        if (readByte() != 0) { // Block Terminator
-                            throw new DecoderException("Image block is not terminated");
-                        }
-                        return;
-                    }
-                    if (!interlace) {
-                        realY++;
-                    } else {
-                        realY += interlaceStep[pass];
-                        while (realY >= height) {
-                            pass++;
-                            realY = interlaceOffset[pass];
-                        }
-                    }
-                    xr = width;
+                if ((xr -= ax) > 0) {
+                    continue;
                 }
+
+                long dstAddr = dstPixels.getAddress(left, realY + top);
+                ByteBuffer dst = dstBase == null
+                        ? MemoryUtil.memByteBuffer(dstAddr, minRB)
+                        : ByteBuffer.wrap((byte[]) dstBase, (int) dstAddr, minRB);
+
+                if (hasAlpha && transparentIndex < 0) {
+                    for (int j = 0; j < width; j++) {
+                        int index = row[j] & 0xFF;
+                        dst.putInt(palette[index]);
+                    }
+                } else {
+                    for (int j = 0; j < width; j++) {
+                        int index = row[j] & 0xFF;
+                        if (index != transparentIndex) {
+                            int color = palette[index];
+                            if (hasAlpha) {
+                                dst.putInt(j << 2, color);
+                            } else {
+                                dst.put(j * 3, (byte) (color & 0xFF))
+                                        .put(j * 3 + 1, (byte) ((color >> 8) & 0xFF))
+                                        .put(j * 3 + 2, (byte) ((color >> 16) & 0xFF));
+                            }
+                        }
+                    }
+                }
+
+                if (++y == height) { // image is full
+                    if (readByte() != 0) { // Block Terminator
+                        throw new DecoderException("Image block is not terminated");
+                    }
+                    return;
+                }
+
+                if (!isInterlaced) {
+                    realY++;
+                } else {
+                    realY += interlaceStep[pass];
+                    // skip empty passes
+                    while (realY >= height) {
+                        pass++;
+                        realY = interlaceOffset[pass];
+                    }
+                }
+                xr = width;
             }
         }
     }

@@ -21,26 +21,25 @@ package icyllis.arc3d.core.image;
 
 public final class GIF {
 
-    public static final byte[] APP_NETSCAPE = {
-            'N', 'E', 'T', 'S', 'C', 'A', 'P', 'E'
-    };
-    public static final byte[] APP_NETSCAPE_AUTH = {
+    public static final byte[] APP_NETSCAPE2_0 = {
+            'N', 'E', 'T', 'S', 'C', 'A', 'P', 'E',
             '2', '.', '0'
     };
 
-    public static final byte[] APP_XMP = {
-            'X', 'M', 'P', ' ', 'D', 'a', 't', 'a'
-    };
-    public static final byte[] APP_XMP_AUTH = {
-            'X', 'M', 'P'
+    public static final byte[] APP_ANIMEXTS1_0 = {
+            'A', 'N', 'I', 'M', 'E', 'X', 'T', 'S',
+            '1', '.', '0'
     };
 
     // this was part of ICC standard in 2004, but not listed in 2022
     public static final byte[] APP_ICC = {
-            'I', 'C', 'C', 'R', 'G', 'B', 'G', '1'
-    };
-    public static final byte[] APP_ICC_AUTH = {
+            'I', 'C', 'C', 'R', 'G', 'B', 'G', '1',
             '0', '1', '2'
+    };
+
+    public static final byte[] APP_XMP = {
+            'X', 'M', 'P', ' ', 'D', 'a', 't', 'a',
+            'X', 'M', 'P'
     };
 
     static final int[] interlaceOffset = { 0, 4, 2, 1 };
