@@ -83,17 +83,23 @@ public class TestPath {
         float dy = (float) Math.floor(bounds.getY() * scale);
         bounds.setRect(bounds.getX() * scale - dx, bounds.getY() * scale - dy, bounds.getWidth() * scale, bounds.getHeight() * scale);
 
+        var generator = new AnalyticSDFGenerator();
+
+        //generator.setDistanceFieldPad(32);
+        //generator.setDistanceFieldMagnitude(32);
+        int distanceFieldPad = generator.getDistanceFieldPad();
+
         AffineTransform drawMatrix = AffineTransform.getTranslateInstance(-dx, -dy);
         drawMatrix.scale(scale, scale);
         drawMatrix.preConcatenate(AffineTransform.getTranslateInstance(
-                AnalyticSDFGenerator.SK_DistanceFieldPad, AnalyticSDFGenerator.SK_DistanceFieldPad
+                distanceFieldPad, distanceFieldPad
         ));
         Rectangle devBounds = bounds.getBounds();
         Path2D.Float devPath = new Path2D.Float(path, drawMatrix);
         assert devBounds.x == 0 && devBounds.y == 0;
 
-        int width = devBounds.width + 2 * AnalyticSDFGenerator.SK_DistanceFieldPad;
-        int height = devBounds.height + 2 * AnalyticSDFGenerator.SK_DistanceFieldPad;
+        int width = devBounds.width + 2 * distanceFieldPad;
+        int height = devBounds.height + 2 * distanceFieldPad;
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
         byte[] sdf = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
 
@@ -103,9 +109,9 @@ public class TestPath {
         TestPathUtils.writePath(processed, true, "run/test_path_preprocessed.png");
 
 
-        AnalyticSDFGenerator.generateDistanceFieldFromPath(
-                sdf, 0, processed, false,
-                width, height, width, new AnalyticSDFGenerator.Scratch()
+        generator.generateDistanceFieldFromPath(
+                processed, false,
+                width, height, sdf, 0, width
         );
 
         try {

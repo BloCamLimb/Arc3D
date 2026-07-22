@@ -69,49 +69,19 @@ import java.util.ArrayList;
  */
 public final class AnalyticSDFGenerator {
 
-    // TODO configurable
-    public static final int   SK_DistanceFieldPad       = 4;
-    public static final int   SK_DistanceFieldMagnitude = SK_DistanceFieldPad;
+    // -- RowData intersection types --------------------------------------------
+    private static final int RD_NO_INTERSECTION       = 0;
+    private static final int RD_VERTICAL_LINE         = 1;
+    private static final int RD_TANGENT_LINE          = 2;
+    private static final int RD_TWO_POINTS_INTERSECT  = 3;
 
-    /**
-     * Scratch is an opaque object that provides buffers for SDF generation.
-     * Callers may reuse the same object for multiple generate* calls to reduce
-     * object allocation. Not thread safe for sure.
-     */
-    public static final class Scratch {
-        // RowData fields
-        int    rd_intersectionType;
-        int    rd_quadXDirection;
-        int    rd_scanlineXDirection;
-        double rd_yAtIntersection;
-        double rd_xAtIntersection1;
-        double rd_xAtIntersection2;
-
-        // SegSide
-        int outSide;
-
-        // Temp DPoint storage (reused across mapPoint calls)
-        final double[] pt = new double[2];  // general purpose
-
-        // Temp Point storage to obtain path segments
-        final float[] pts = new float[6];
-
-        // Storage for all working segments
-        final ArrayList<PathSegment> segments = new ArrayList<>();
-
-        // Storage for working distance field data
-        // int[] interleaved: [distSqBits, deltaWinding, ...]
-        // distSq: distance squared to nearest (so far) edge
-        // deltaWinding: +1 or -1 whenever a scanline cross over a segment
-        int[] dfData;
-    }
-
-
-    private static final double kClose            = 1.0 / 16.0;
-    private static final double kCloseSqd         = kClose * kClose;
-    private static final double kNearlyZero       = 1.0 / (1 << 18);
-    private static final double kTangentTolerance = 1.0 / (1 << 11);
-    private static final float  kConicTolerance   = 0.25f;
+    // RowData fields
+    int    rd_intersectionType;
+    int    rd_quadXDirection;
+    int    rd_scanlineXDirection;
+    double rd_yAtIntersection;
+    double rd_xAtIntersection1;
+    double rd_xAtIntersection2;
 
     // -- SegSide ---------------------------------------------------------------
     static final int kLeft_SegSide  = -1;
@@ -119,11 +89,35 @@ public final class AnalyticSDFGenerator {
     static final int kRight_SegSide =  1;
     static final int kNA_SegSide    =  2;
 
-    // -- RowData intersection types --------------------------------------------
-    private static final int RD_NO_INTERSECTION       = 0;
-    private static final int RD_VERTICAL_LINE         = 1;
-    private static final int RD_TANGENT_LINE          = 2;
-    private static final int RD_TWO_POINTS_INTERSECT  = 3;
+    // SegSide
+    int outSide;
+
+    // Temp DPoint storage (reused across mapPoint calls)
+    final double[] pt = new double[2];  // general purpose
+
+    // Temp Point storage to obtain path segments
+    final float[] pts = new float[6];
+
+    // Storage for all working segments
+    final ArrayList<PathSegment> segments = new ArrayList<>();
+
+    // Storage for working distance field data
+    // int[] interleaved: [distSqBits, deltaWinding, ...]
+    // distSq: distance squared to nearest (so far) edge
+    // deltaWinding: +1 or -1 whenever a scanline cross over a segment
+    int[] dfData;
+
+
+    // configs
+    int distanceFieldPad = 4;
+    int distanceFieldMagnitude = 4;
+
+
+    private static final double kClose            = 1.0 / 16.0;
+    private static final double kCloseSqd         = kClose * kClose;
+    private static final double kNearlyZero       = 1.0 / (1 << 18);
+    private static final double kTangentTolerance = 1.0 / (1 << 11);
+    private static final float  kConicTolerance   = 0.25f;
 
     static final class PathSegment {
         // These enum values are assumed in member functions below.
@@ -155,7 +149,7 @@ public final class AnalyticSDFGenerator {
         float endPtX() { return fPts[(fType + 1) * 2    ]; }
         float endPtY() { return fPts[(fType + 1) * 2 + 1]; }
 
-        void init(Scratch s) {
+        void init(AnalyticSDFGenerator s) {
             double p0x = fPts[0], p0y = fPts[1];
             double p2x = endPtX(), p2y = endPtY();
 
@@ -300,16 +294,16 @@ public final class AnalyticSDFGenerator {
     private static int    dfDeltaWinding(int[] d, int i)       { return d[i*2+1]; }
     private static void   dfAddDeltaWinding(int[] d, int i, int v){ d[i*2+1] += v; }
 
-    private static void initDistances(Scratch scratch, int width, int height) {
+    private void initDistances(int width, int height) {
         // create temp data
         int dataSize = width * height * 2;
-        if (scratch.dfData == null || scratch.dfData.length < dataSize) {
-            scratch.dfData = new int[dataSize];
+        if (dfData == null || dfData.length < dataSize) {
+            dfData = new int[dataSize];
         }
-        int[] dfData = scratch.dfData;
+        int[] dfData = this.dfData;
 
         // init distance to "far away"
-        float far = SK_DistanceFieldMagnitude * SK_DistanceFieldMagnitude;
+        float far = distanceFieldMagnitude * distanceFieldMagnitude;
         for (int ix = 0; ix < dataSize; ix += 2) {
             dfData[ix  ] = Float.floatToRawIntBits(far);
             dfData[ix+1] = 0;
@@ -370,8 +364,7 @@ public final class AnalyticSDFGenerator {
         return dx*dx+dy*dy;
     }
 
-    private static void addLine(float x0, float y0, float x1, float y1,
-                                Scratch scratch) {
+    private void addLine(float x0, float y0, float x1, float y1) {
         if (x0 == x1 && y0 == y1) {
             // don't add degenerate lines
             return;
@@ -380,27 +373,26 @@ public final class AnalyticSDFGenerator {
         seg.fType = PathSegment.kLine;
         seg.fPts[0]=x0; seg.fPts[1]=y0;
         seg.fPts[2]=x1; seg.fPts[3]=y1;
-        seg.init(scratch);
-        scratch.segments.add(seg);
+        seg.init(this);
+        segments.add(seg);
     }
 
-    private static void addQuad(float x0, float y0, float x1, float y1,
-                                float x2, float y2,
-                                Scratch scratch) {
+    private void addQuad(float x0, float y0, float x1, float y1,
+                         float x2, float y2) {
         double dx01 = x0-x1, dy01 = y0-y1;
         double dx12 = x1-x2, dy12 = y1-y2;
         if (dx01*dx01+dy01*dy01 < kCloseSqd ||
                 dx12*dx12+dy12*dy12 < kCloseSqd ||
                 isColinear(x0,y0,x1,y1,x2,y2)) {
-            addLine(x0, y0, x2, y2, scratch);
+            addLine(x0, y0, x2, y2);
         } else {
             PathSegment seg = new PathSegment();
             seg.fType = PathSegment.kQuad;
             seg.fPts[0]=x0; seg.fPts[1]=y0;
             seg.fPts[2]=x1; seg.fPts[3]=y1;
             seg.fPts[4]=x2; seg.fPts[5]=y2;
-            seg.init(scratch);
-            scratch.segments.add(seg);
+            seg.init(this);
+            segments.add(seg);
         }
     }
 
@@ -446,25 +438,25 @@ public final class AnalyticSDFGenerator {
         }
     }
 
-    private static void precomputationForRow(Scratch s, PathSegment seg,
-                                             float plX, float plY,
-                                             float prX, float prY) {
+    private void precomputationForRow(PathSegment seg,
+                                      float plX, float plY,
+                                      float prX, float prY) {
         if (seg.fType != PathSegment.kQuad) return;
 
         // map left and right points
-        double[] tmp = s.pt;
+        double[] tmp = pt;
         matrixMapPoint(seg.fXformMatrix, plX, plY, tmp);
         double x1 = tmp[0], y1 = tmp[1];
         matrixMapPoint(seg.fXformMatrix, prX, prY, tmp);
         double x2 = tmp[0], y2 = tmp[1];
 
-        s.rd_quadXDirection     = (int)signOf(seg.fP2T_x - seg.fP0T_x);
-        s.rd_scanlineXDirection = (int)signOf(x2 - x1);
+        rd_quadXDirection     = (int)signOf(seg.fP2T_x - seg.fP0T_x);
+        rd_scanlineXDirection = (int)signOf(x2 - x1);
 
         if (nearlyEqual(x1, x2, seg.fNearlyZeroScaled, true)) {
-            s.rd_intersectionType   = RD_VERTICAL_LINE;
-            s.rd_yAtIntersection    = x1*x1;
-            s.rd_scanlineXDirection = 0;
+            rd_intersectionType   = RD_VERTICAL_LINE;
+            rd_yAtIntersection    = x1*x1;
+            rd_scanlineXDirection = 0;
             return;
         }
 
@@ -474,49 +466,48 @@ public final class AnalyticSDFGenerator {
         double cv = m2 + 4.0*bv;
         double tol= 4.0 * seg.fTangentTolScaledSqd / (m2 + 1.0);
 
-        if (s.rd_scanlineXDirection == 1 &&
+        if (rd_scanlineXDirection == 1 &&
                 (seg.fPts[1] == plY || seg.fPts[(seg.fType+1)*2+1] == plY) &&
                 nearlyZero(cv, tol)) {
-            s.rd_intersectionType   = RD_TANGENT_LINE;
-            s.rd_xAtIntersection1   = m / 2.0;
-            s.rd_xAtIntersection2   = m / 2.0;
+            rd_intersectionType   = RD_TANGENT_LINE;
+            rd_xAtIntersection1   = m / 2.0;
+            rd_xAtIntersection2   = m / 2.0;
         } else if (cv <= 0.0) {
-            s.rd_intersectionType = RD_NO_INTERSECTION;
+            rd_intersectionType = RD_NO_INTERSECTION;
         } else {
-            s.rd_intersectionType   = RD_TWO_POINTS_INTERSECT;
+            rd_intersectionType   = RD_TWO_POINTS_INTERSECT;
             double d = Math.sqrt(cv);
-            s.rd_xAtIntersection1 = (m+d)/2.0;
-            s.rd_xAtIntersection2 = (m-d)/2.0;
+            rd_xAtIntersection1 = (m+d)/2.0;
+            rd_xAtIntersection2 = (m-d)/2.0;
         }
     }
 
-    private static int calculateSideOfQuad(PathSegment seg,
-                                           float pointX, float pointY,
-                                           double xfX, double xfY,
-                                           Scratch s) {
+    private int calculateSideOfQuad(PathSegment seg,
+                                    float pointX, float pointY,
+                                    double xfX, double xfY) {
         int side = kNA_SegSide;
 
-        if (s.rd_intersectionType == RD_VERTICAL_LINE) {
-            side = (int)(signOf(xfY - s.rd_yAtIntersection) * s.rd_quadXDirection);
-        } else if (s.rd_intersectionType == RD_TWO_POINTS_INTERSECT) {
-            double p1 = s.rd_xAtIntersection1;
-            double p2 = s.rd_xAtIntersection2;
+        if (rd_intersectionType == RD_VERTICAL_LINE) {
+            side = (int)(signOf(xfY - rd_yAtIntersection) * rd_quadXDirection);
+        } else if (rd_intersectionType == RD_TWO_POINTS_INTERSECT) {
+            double p1 = rd_xAtIntersection1;
+            double p2 = rd_xAtIntersection2;
             int signP1 = (int)signOf(p1 - xfX);
             boolean includeP1 = true, includeP2 = true;
 
             // endPt y values
             float endY = seg.fPts[(seg.fType+1)*2+1]; // y of endPt
 
-            if (s.rd_scanlineXDirection == 1) {
-                if ((s.rd_quadXDirection == -1 && seg.fPts[1] <= pointY &&
+            if (rd_scanlineXDirection == 1) {
+                if ((rd_quadXDirection == -1 && seg.fPts[1] <= pointY &&
                         nearlyEqual(seg.fP0T_x, p1, seg.fNearlyZeroScaled, true)) ||
-                        (s.rd_quadXDirection ==  1 && endY <= pointY &&
+                        (rd_quadXDirection ==  1 && endY <= pointY &&
                                 nearlyEqual(seg.fP2T_x, p1, seg.fNearlyZeroScaled, true))) {
                     includeP1 = false;
                 }
-                if ((s.rd_quadXDirection == -1 && endY <= pointY &&
+                if ((rd_quadXDirection == -1 && endY <= pointY &&
                         nearlyEqual(seg.fP2T_x, p2, seg.fNearlyZeroScaled, true)) ||
-                        (s.rd_quadXDirection ==  1 && seg.fPts[1] <= pointY &&
+                        (rd_quadXDirection ==  1 && seg.fPts[1] <= pointY &&
                                 nearlyEqual(seg.fP0T_x, p2, seg.fNearlyZeroScaled, true))) {
                     includeP2 = false;
                 }
@@ -524,20 +515,20 @@ public final class AnalyticSDFGenerator {
 
             if (includeP1 && betweenClosed(p1, seg.fP0T_x, seg.fP2T_x,
                     seg.fNearlyZeroScaled, true)) {
-                side = signP1 * s.rd_quadXDirection;
+                side = signP1 * rd_quadXDirection;
             }
             if (includeP2 && betweenClosed(p2, seg.fP0T_x, seg.fP2T_x,
                     seg.fNearlyZeroScaled, true)) {
                 int signP2 = (int)signOf(p2 - xfX);
                 if (side == kNA_SegSide || signP2 == 1) {
-                    side = -signP2 * s.rd_quadXDirection;
+                    side = -signP2 * rd_quadXDirection;
                 }
             }
-        } else if (s.rd_intersectionType == RD_TANGENT_LINE) {
-            double p  = s.rd_xAtIntersection1;
+        } else if (rd_intersectionType == RD_TANGENT_LINE) {
+            double p  = rd_xAtIntersection1;
             int signP = (int)signOf(p - xfX);
             float endY = seg.fPts[(seg.fType+1)*2+1];
-            if (s.rd_scanlineXDirection == 1) {
+            if (rd_scanlineXDirection == 1) {
                 if (seg.fPts[1] == pointY)  side =  signP;
                 else if (endY  == pointY)   side = -signP;
             }
@@ -548,10 +539,9 @@ public final class AnalyticSDFGenerator {
     /**
      * Returns distSq (float). Writes RowData and side into scratch.
      */
-    private static float distanceToSegment(float pointX, float pointY,
-                                           PathSegment seg,
-                                           Scratch scratch) {
-        double[] tmp = scratch.pt;
+    private float distanceToSegment(float pointX, float pointY,
+                                    PathSegment seg) {
+        double[] tmp = pt;
         matrixMapPoint(seg.fXformMatrix, pointX, pointY, tmp);
         double xfX = tmp[0], xfY = tmp[1];
 
@@ -566,9 +556,9 @@ public final class AnalyticSDFGenerator {
                 result = (float)(dx*dx + xfY*xfY);
             }
             if (betweenClosedOpen(pointY, seg.fBB_top, seg.fBB_bottom, 0, false)) {
-                scratch.outSide = (int)signOf(xfY);
+                outSide = (int)signOf(xfY);
             } else {
-                scratch.outSide = kNA_SegSide;
+                outSide = kNA_SegSide;
             }
             return result;
         } else {
@@ -585,27 +575,26 @@ public final class AnalyticSDFGenerator {
                 dist = Math.min(d0, d2);
             }
             if (betweenClosedOpen(pointY, seg.fBB_top, seg.fBB_bottom, 0, false)) {
-                scratch.outSide = calculateSideOfQuad(seg, pointX, pointY, xfX, xfY, scratch);
+                outSide = calculateSideOfQuad(seg, pointX, pointY, xfX, xfY);
             } else {
-                scratch.outSide = kNA_SegSide;
+                outSide = kNA_SegSide;
             }
             return (float)(dist * seg.fScalingFactorSqd);
         }
     }
 
-    private static void calculateDistanceFieldData(Scratch scratch,
-                                                   int width, int height) {
-        int[] dfData = scratch.dfData;
+    private void calculateDistanceFieldData(int width, int height) {
+        int[] dfData = this.dfData;
         // for each segment
-        for (PathSegment seg : scratch.segments) {
+        for (PathSegment seg : segments) {
             float bbL = seg.fBB_left, bbT = seg.fBB_top,
                     bbR = seg.fBB_right, bbB = seg.fBB_bottom;
             // get the bounding box, outset by distance field pad, and clip to total bounds
             // Clip inside the distance field to avoid overflow
-            int startCol = Math.max(0,     (int)(bbL - SK_DistanceFieldPad));
-            int endCol   = Math.min(width,  (int)Math.ceil(bbR + SK_DistanceFieldPad));
-            int startRow = Math.max(0,     (int)(bbT - SK_DistanceFieldPad));
-            int endRow   = Math.min(height, (int)Math.ceil(bbB + SK_DistanceFieldPad));
+            int startCol = Math.max(0,     (int)(bbL - distanceFieldPad));
+            int endCol   = Math.min(width,  (int)Math.ceil(bbR + distanceFieldPad));
+            int startRow = Math.max(0,     (int)(bbT - distanceFieldPad));
+            int endRow   = Math.min(height, (int)Math.ceil(bbB + distanceFieldPad));
 
             for (int row = startRow; row < endRow; row++) {
                 int prevSide = kNA_SegSide;
@@ -615,9 +604,9 @@ public final class AnalyticSDFGenerator {
                 float prX = endCol,   prY = pY;
 
                 if (betweenClosedOpen(pY, bbT, bbB, 0, false)) {
-                    precomputationForRow(scratch, seg, plX, plY, prX, prY);
+                    precomputationForRow(seg, plX, plY, prX, prY);
                 } else {
-                    scratch.rd_intersectionType = RD_NO_INTERSECTION;
+                    rd_intersectionType = RD_NO_INTERSECTION;
                 }
 
                 for (int col = startCol; col < endCol; col++) {
@@ -627,8 +616,8 @@ public final class AnalyticSDFGenerator {
                     // Optimization for not calculating some points.
                     int dilation = distSq < 1.5f*1.5f ? 1 :
                                    distSq < 2.5f*2.5f ? 2 :
-                                   distSq < 3.5f*3.5f ? 3 : SK_DistanceFieldPad;
-                    if (dilation < SK_DistanceFieldPad) {
+                                   distSq < 3.5f*3.5f ? 3 : 4;
+                    if (dilation < 4) {
                         // roundOut of BB, then outset by dilation
                         int bbRL = (int)Math.floor(bbL) - dilation;
                         int bbRT = (int)Math.floor(bbT) - dilation;
@@ -639,8 +628,8 @@ public final class AnalyticSDFGenerator {
                     }
 
                     float pX = col + 0.5f;
-                    float currDistSq = distanceToSegment(pX, pY, seg, scratch);
-                    int side = scratch.outSide;
+                    float currDistSq = distanceToSegment(pX, pY, seg);
+                    int side = outSide;
 
                     int deltaWinding = 0;
                     if (prevSide == kLeft_SegSide && side == kRight_SegSide) {
@@ -660,8 +649,9 @@ public final class AnalyticSDFGenerator {
         }
     }
 
-    private static void putDistanceFieldVal(float dist, int distanceMagnitude,
-                                            byte @Nullable [] base, long address) {
+    private void putDistanceFieldVal(float dist,
+                                     byte @Nullable [] base, long address) {
+        int distanceMagnitude = distanceFieldMagnitude;
         dist = MathUtil.pin(-dist, -distanceMagnitude, distanceMagnitude * 127.0f / 128.0f);
         dist += distanceMagnitude;
         byte packedVal = (byte)Math.round(dist / (2 * distanceMagnitude) * 256.0f);
@@ -670,6 +660,47 @@ public final class AnalyticSDFGenerator {
         } else {
             MemoryUtil.memPutByte(address, packedVal);
         }
+    }
+
+    @FunctionalInterface
+    public interface DistanceConsumer {
+        void acceptDistance(int x, int y, float dist);
+    }
+
+    public int getDistanceFieldPad() {
+        return distanceFieldPad;
+    }
+
+    public void setDistanceFieldPad(int distanceFieldPad) {
+        this.distanceFieldPad = distanceFieldPad;
+    }
+
+    public int getDistanceFieldMagnitude() {
+        return distanceFieldMagnitude;
+    }
+
+    public void setDistanceFieldMagnitude(int distanceFieldMagnitude) {
+        this.distanceFieldMagnitude = distanceFieldMagnitude;
+    }
+
+    /**
+     * @param distanceBase    dst heap array, if any
+     * @param distanceAddress array offset if dst is heap, or memory address if dst is native
+     * @param shape           device shape, at padded location
+     * @param inverse         invert the sdf
+     * @param width           padded width
+     * @param height          padded height
+     * @param rowBytes        row stride in bytes
+     */
+    public void generateDistanceFieldFromPath(java.awt.@NonNull Shape shape, boolean inverse,
+                                              int width, int height,
+                                              byte @Nullable [] distanceBase, long distanceAddress,
+                                              int rowBytes) {
+        assert distanceBase != null || distanceAddress != 0;
+        assert width > 0 && height > 0 && rowBytes >= width;
+        DistanceConsumer consumer = (x, y, dist) -> putDistanceFieldVal(dist,
+                distanceBase, distanceAddress + (long)y * rowBytes + x);
+        generateDistanceFieldFromPath(shape, inverse, width, height, consumer);
     }
 
     /**
@@ -682,35 +713,28 @@ public final class AnalyticSDFGenerator {
      * <p>
      * NON_ZERO requires caller to use {@link java.awt.geom.Area} to resolve first, then use EVEN_ODD.
      *
-     * @param distanceBase    dst heap array, if any
-     * @param distanceAddress array offset if dst is heap, or memory address if dst is native
-     * @param shape           device shape, at padded location
-     * @param inverse         invert the sdf
-     * @param width           padded width
-     * @param height          padded height
-     * @param rowBytes        row stride in bytes
-     * @param scratch         reusable buffer for temp results
+     * @param shape   device shape, at padded location
+     * @param inverse invert the sdf
+     * @param width   padded width
+     * @param height  padded height
      */
-    public static void generateDistanceFieldFromPath(byte @Nullable [] distanceBase, long distanceAddress,
-                                                     java.awt.@NonNull Shape shape, boolean inverse,
-                                                     int width, int height, int rowBytes,
-                                                     @NonNull Scratch scratch) {
-        assert distanceBase != null || distanceAddress != 0;
-        assert width > 0 && height > 0 && rowBytes >= width;
+    public void generateDistanceFieldFromPath(java.awt.@NonNull Shape shape, boolean inverse,
+                                              int width, int height, @NonNull DistanceConsumer consumer) {
+        assert width > 0 && height > 0;
 
         assert shape.getBounds().isEmpty() ||
                 new java.awt.Rectangle(width, height).contains(shape.getBounds());
 
         // create initial distance data (init to "far away")
-        initDistances(scratch, width, height);
+        initDistances(width, height);
 
         // polygonize path into line and quad segments
         PathIterator iter = shape.getPathIterator(null);
         int windingRule = iter.getWindingRule();
-        float[] coords = scratch.pts;
+        float[] coords = pts;
         float lastX = 0, lastY = 0;
         float lastMoveX = 0, lastMoveY = 0;
-        scratch.segments.clear();
+        segments.clear();
         while (!iter.isDone()) {
             switch (iter.currentSegment(coords)) {
                 case PathIterator.SEG_MOVETO -> {
@@ -718,12 +742,12 @@ public final class AnalyticSDFGenerator {
                     lastMoveY = lastY = coords[1];
                 }
                 case PathIterator.SEG_LINETO -> {
-                    addLine(lastX, lastY, coords[0], coords[1], scratch);
+                    addLine(lastX, lastY, coords[0], coords[1]);
                     lastX = coords[0];
                     lastY = coords[1];
                 }
                 case PathIterator.SEG_QUADTO -> {
-                    addQuad(lastX, lastY, coords[0], coords[1], coords[2], coords[3], scratch);
+                    addQuad(lastX, lastY, coords[0], coords[1], coords[2], coords[3]);
                     lastX = coords[2];
                     lastY = coords[3];
                 }
@@ -733,20 +757,20 @@ public final class AnalyticSDFGenerator {
                     lastY = coords[5];
                 }
                 case PathIterator.SEG_CLOSE -> {
-                    addLine(lastX, lastY, lastMoveX, lastMoveY, scratch);
+                    addLine(lastX, lastY, lastMoveX, lastMoveY);
                 }
             }
             iter.next();
         }
 
         // do all the work
-        calculateDistanceFieldData(scratch, width, height);
+        calculateDistanceFieldData(width, height);
 
         final int kInside  = -1;
         final int kOutside =  1;
 
         // adjust distance based on winding
-        int[] dfData = scratch.dfData;
+        int[] dfData = this.dfData;
         for (int row = 0; row < height; row++) {
             int windingNumber = 0; // Winding number start from zero for each scanline
             for (int col = 0; col < width; col++) {
@@ -767,8 +791,7 @@ public final class AnalyticSDFGenerator {
                 float minDist = (float)Math.sqrt(dfDistSq(dfData, idx));
                 float dist     = dfSign * minDist;
 
-                putDistanceFieldVal(dist, SK_DistanceFieldMagnitude,
-                        distanceBase, distanceAddress + (long)row * rowBytes + col);
+                consumer.acceptDistance(col, row, dist);
             }
 
             if (windingNumber != 0) {
@@ -779,8 +802,7 @@ public final class AnalyticSDFGenerator {
                     float minDist = (float)Math.sqrt(dfDistSq(dfData, idx));
                     float dist     = dfSign * minDist;
 
-                    putDistanceFieldVal(dist, SK_DistanceFieldMagnitude,
-                            distanceBase, distanceAddress + (long)row * rowBytes + col);
+                    consumer.acceptDistance(col, row, dist);
                 }
             }
         }
