@@ -1209,7 +1209,7 @@ public abstract class GLCaps extends Caps {
             // NVIDIA uses threaded driver then error checks can be very slow
             mSkipErrorChecks = (mDriver == GLUtil.GLDriver.NVIDIA);
         }
-        mUseStagingBuffers = options.mUseStagingBuffers;
+        mUseStagingBuffers = Objects.requireNonNullElse(options.mUseStagingBuffers, Boolean.TRUE);
     }
 
     /**

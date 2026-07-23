@@ -120,10 +120,9 @@ public final class ContextOptions {
      * OpenGL backend only. Setting to true to use actual staging buffers
      * for pixel upload and buffer upload. Otherwise use CPU staging buffer
      * and pass the client pointer to glTexSubImage* and glBufferSubData.
-     * In most cases, this will confuse the driver and make the performance
-     * worse than traditional methods, so it is recommended to keep it false.
      */
-    public boolean mUseStagingBuffers = false;
+    @Nullable
+    public Boolean mUseStagingBuffers = null;
 
     /**
      * Maximum number of GL programs or Vk pipelines to keep active in the runtime cache.
