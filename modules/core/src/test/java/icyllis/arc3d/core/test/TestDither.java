@@ -20,34 +20,16 @@
 package icyllis.arc3d.core.test;
 
 import icyllis.arc3d.core.ColorInfo;
+import icyllis.arc3d.core.Dithering;
 import icyllis.arc3d.core.PixelUtils;
 import org.lwjgl.system.MemoryUtil;
 
 public class TestDither {
 
-    public static float Bayer2(float x, float y) {
-        x = (float) Math.floor(x);
-        y = (float) Math.floor(y);
-        return (x * .5f + y * y * .75f) % 1.0f;
-    }
-
-    public static float Bayer4(float x, float y) {
-        return Bayer2(.5f * (x), 0.5f * y) * .25f + Bayer2(x, y);
-    }
-
-    public static float Bayer8(float x, float y) {
-        return Bayer4(.5f * (x), 0.5f * y) * .25f + Bayer2(x, y);
-    }
-
-    public static float R2(float x, float y) {
-        double r = (x*0.75487766+y*0.56984029+0.5);
-        return (float) (r -(int)r-0.5);
-    }
-
     public static void main(String[] args) {
-        for (int i = 0; i < 16; i++) {
-            for (int j = 0; j < 16; j++) {
-                System.out.printf("%.5f ", Bayer8(j, i)-0.5);
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                System.out.printf("%.5f ", Dithering.bayer8(j, i)-0.5);
             }
             System.out.println();
         }
@@ -56,7 +38,7 @@ public class TestDither {
 
         for (int i = 0; i < 16; i++) {
             for (int j = 0; j < 16; j++) {
-                System.out.printf("%.5f ", R2(j, i));
+                System.out.printf("%.5f ", Dithering.r2(j, i)-0.5);
             }
             System.out.println();
         }

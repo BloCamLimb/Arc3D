@@ -146,6 +146,9 @@ public class TestColorSpace {
 
         testOOTF(ColorSpaces.BT2020, new float[]{-0.36f, -0.56f, 0.13f});
 
+        testMult(new float[]{1, 0, 0}, new float[]{0, 0, 1}, displayP3,
+                ColorSpaces.ACESCG);
+
         assert ColorSpaces.SRGB.isSRGB();
         assert ColorSpaces.SRGB.isExtendedSRGB();
         assert !ColorSpaces.EXTENDED_SRGB.isSRGB();
@@ -159,6 +162,21 @@ public class TestColorSpace {
         /*for (var that : ColorSpaces.getNamedColorSpaces()) {
             LOGGER.info("{} isWideGamut {}", that, that.isWideGamut());
         }*/
+    }
+
+    private static void testMult(float[] a, float[] b, ColorSpace srcColorSpace,
+                                 ColorSpace blendColorSpace) {
+        ColorTransform aToB = new ColorTransform(srcColorSpace, blendColorSpace);
+
+        float[] aa = aToB.transformExtended(a.clone());
+        float[] bb = aToB.transformExtended(b.clone());
+
+        for (int i = 0; i < aa.length; i++) {
+            aa[i] *= bb[i];
+        }
+
+        new ColorTransform(blendColorSpace, srcColorSpace).transformExtended(aa);
+        LOGGER.info("Result after multiply {} {}", aa, srcColorSpace);
     }
 
     private static void testOOTF(RGBColorSpace space, float[] color) {
