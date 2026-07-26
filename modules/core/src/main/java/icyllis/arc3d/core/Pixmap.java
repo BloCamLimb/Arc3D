@@ -72,6 +72,14 @@ public class Pixmap {
     }
 
     /**
+     * Adopts the given pixels with info, without lifecycle management.
+     */
+    public Pixmap(@NonNull ImageInfo info,
+                  @RawPtr @NonNull PixelRef pixels) {
+        this(info, pixels.getBase(), pixels.getAddress(), pixels.getRowBytes());
+    }
+
+    /**
      * Reinterprets an existing {@link Pixmap} with <var>newInfo</var>.
      */
     public Pixmap(@NonNull ImageInfo newInfo,

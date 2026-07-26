@@ -36,16 +36,12 @@ public class TestLowpPixelLoad {
         int width = 64, height = 64;
         var info = ImageInfo.make(width, height, ColorInfo.CT_RGBA_F32, ColorInfo.AT_UNPREMUL, null);
         var pixels = PixelRef.makeAllocate(info, 0);
-        Objects.requireNonNull(pixels);
         var random = new Random();
         for (long i = 0, e = info.computeMinByteSize(); i < e; i += 4) {
             MemoryUtil.memPutFloat(pixels.getAddress() + i, random.nextFloat(1));
         }
         Pixmap originalPixmap = new Pixmap(
-                info,
-                pixels.getBase(),
-                pixels.getAddress(),
-                pixels.getRowBytes()
+                info, pixels
         );
         int[] colorTypes = {ColorInfo.CT_R_8, ColorInfo.CT_RG_88, ColorInfo.CT_RGB_888, ColorInfo.CT_RGBX_8888,
                 ColorInfo.CT_RGBA_8888, ColorInfo.CT_BGRA_8888, ColorInfo.CT_GRAY_16, ColorInfo.CT_GRAY_ALPHA_1616,
@@ -84,10 +80,9 @@ public class TestLowpPixelLoad {
     public static void testForColorType(int ct, Pixmap originalPixmap) {
         var newInfo = originalPixmap.getInfo().makeColorType(ct);
         var newPixels = PixelRef.makeAllocate(newInfo, 0);
-        Objects.requireNonNull(newPixels);
 
         Pixmap convertedPixmap = new Pixmap(
-                newInfo, newPixels.getBase(), newPixels.getAddress(), newPixels.getRowBytes()
+                newInfo, newPixels
         );
         boolean res = PixelUtils.convertPixels(originalPixmap, convertedPixmap);
         assert res;

@@ -79,9 +79,11 @@ public class PixelRef extends RefCnt {
      * @param info     target image info, must be valid (known color type, alpha type, non-zero dimensions)
      * @param rowBytes desired row bytes, must be {@link ImageInfo#minRowBytes()} or greater,
      *                 or 0 to use the min row bytes equivalently
-     * @return a smart container for allocated pixel memory; null if allocation failed
+     * @return a smart container for allocated pixel memory
+     * @throws IllegalArgumentException arguments are not valid
+     * @throws OutOfMemoryError         out of memory
      */
-    @Nullable
+    @NonNull
     @SharedPtr
     public static PixelRef makeAllocate(@NonNull ImageInfo info, int rowBytes) {
         int minRB = info.minRowBytes();
@@ -90,11 +92,11 @@ public class PixelRef extends RefCnt {
         }
         if (!info.isValid() || minRB == 0 || rowBytes < minRB ||
                 !ColorInfo.validMemoryAddress(info.colorType(), null, rowBytes)) {
-            return null;
+            throw new IllegalArgumentException();
         }
         long size = info.computeByteSize(rowBytes);
         if (size <= 0) {
-            return null;
+            throw new IllegalArgumentException("Allocation size is too big");
         }
         long addr = MemoryUtil.nmemCalloc(size, 1);
         if (addr == MemoryUtil.NULL) {
@@ -107,7 +109,7 @@ public class PixelRef extends RefCnt {
             }
             addr = MemoryUtil.nmemCalloc(size, 1);
             if (addr == MemoryUtil.NULL) {
-                return null;
+                throw new OutOfMemoryError("Failed to allocate " + size + " bytes");
             }
         }
         // the address is aligned to the size of any data type
@@ -175,7 +177,7 @@ public class PixelRef extends RefCnt {
 
     @Override
     public String toString() {
-        return "Pixels{" +
+        return "PixelRef{" +
                 "mWidth=" + mWidth +
                 ", mHeight=" + mHeight +
                 ", mBase=" + mBase +
