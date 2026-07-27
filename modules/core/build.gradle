@@ -12,56 +12,15 @@ dependencies {
     testImplementation "org.lwjgl:lwjgl:${lwjgl_version}"
     testImplementation "org.lwjgl:lwjgl-jemalloc:${lwjgl_version}"
     testImplementation "org.lwjgl:lwjgl-stb:${lwjgl_version}"
-    testImplementation "org.lwjgl:lwjgl-spng:${lwjgl_version}"
     testImplementation "org.lwjgl:lwjgl-zstd:${lwjgl_version}"
     testRuntimeOnly "org.lwjgl:lwjgl:${lwjgl_version}:${rootProject.ext.lwjglNatives}"
     testRuntimeOnly "org.lwjgl:lwjgl-jemalloc:${lwjgl_version}:${rootProject.ext.lwjglNatives}"
     testRuntimeOnly "org.lwjgl:lwjgl-stb:${lwjgl_version}:${rootProject.ext.lwjglNatives}"
-    testRuntimeOnly "org.lwjgl:lwjgl-spng:${lwjgl_version}:${rootProject.ext.lwjglNatives}"
     testRuntimeOnly "org.lwjgl:lwjgl-zstd:${lwjgl_version}:${rootProject.ext.lwjglNatives}"
-}
-
-sourceSets {
-    vector {
-        java.srcDirs = ['src/vector/java']
-    }
-    main {
-        compileClasspath += sourceSets.vector.output
-        runtimeClasspath += sourceSets.vector.output
-    }
-    test {
-        compileClasspath += sourceSets.vector.output
-        runtimeClasspath += sourceSets.vector.output
-    }
 }
 
 test {
     failOnNoDiscoveredTests = false
-}
-
-tasks.withType(JavaCompile).configureEach {
-    options.compilerArgs += [
-            '--add-modules', 'jdk.incubator.vector',
-            '--add-reads', 'icyllis.arc3d.core=ALL-UNNAMED',
-            '--add-reads', 'icyllis.arc3d.core.test=ALL-UNNAMED',
-    ]
-}
-
-tasks.named('compileVectorJava', JavaCompile) {
-    it.options.release.set(null)
-    sourceCompatibility = '17'
-    targetCompatibility = '17'
-}
-
-tasks.named('compileJava') {
-    dependsOn 'compileVectorJava'
-    options.compilerArgs += [
-            '--patch-module', "icyllis.arc3d.core=${sourceSets.vector.output.classesDirs.asPath}"
-    ]
-}
-
-tasks.named('jar') {
-    from sourceSets.vector.output
 }
 
 /*def nativesDir = layout.buildDirectory.dir("natives").get().asFile
