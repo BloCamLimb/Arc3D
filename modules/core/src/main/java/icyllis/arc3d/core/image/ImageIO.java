@@ -28,7 +28,7 @@ import java.util.function.Predicate;
 /**
  * Core class of Arc3D Core Image Codec.
  */
-public class ImageIO {
+public final class ImageIO {
 
     /**
      * @hide
@@ -111,9 +111,10 @@ public class ImageIO {
         byte b2 = input.get();
         byte b3 = input.get();
         return (b0 == (byte) 0x49 && b1 == (byte) 0x49 &&
-                b2 == (byte) 0x2a && b3 == (byte) 0x00) ||
-                (b0 == (byte) 0x4d && b1 == (byte) 0x4d &&
-                        b2 == (byte) 0x00 && b3 == (byte) 0x2a);
+                b2 == (byte) 0x2a && b3 == (byte) 0x00)
+                ||
+               (b0 == (byte) 0x4d && b1 == (byte) 0x4d &&
+                b2 == (byte) 0x00 && b3 == (byte) 0x2a);
     }
 
     /**

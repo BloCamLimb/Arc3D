@@ -35,7 +35,7 @@ import static icyllis.arc3d.core.image.PNG.*;
 
 public class PNGEncoder extends Encoder {
 
-    private static final PNGFilter FILTER = PNGFilter.createInstance();
+    private static final Predictor FILTER = Predictor.createInstance();
 
     public static final int
             FILTER_STRATEGY_MIN_SUM = 0,
@@ -121,6 +121,22 @@ public class PNGEncoder extends Encoder {
 
             endChunk();
         }
+
+        if (metadata.any(PNGMetadata.CHUNK_sRGB)) {
+            startChunk(1, sRGB_TYPE);
+
+            writeByte((byte) metadata.sRGB_renderingIntent);
+
+            endChunk();
+        }
+
+        if (metadata.any(PNGMetadata.CHUNK_PLTE)) {
+            startChunk(metadata.PLTE_entries.length, PLTE_TYPE);
+
+            buffer.put(metadata.PLTE_entries);
+
+            endChunk();
+        }
     }
 
     public void encodeImage(Pixmap srcPixels) throws IOException {
@@ -148,11 +164,11 @@ public class PNGEncoder extends Encoder {
 
         // reserve 64 bytes for the filter type (1 byte) of next row,
         // and tail padding for vector instructions
-        int rowBytes = computeRowBytes(width, PNGFilter.HEADROOM);
+        int rowBytes = computeRowBytes(width, Predictor.HEADROOM);
         // allocate heap buffer (BIG ENDIAN)
-        ByteBuffer currScanlineBuf = ByteBuffer.allocate(rowBytes + PNGFilter.HEADROOM);
-        ByteBuffer prevScanlineBuf = ByteBuffer.allocate(rowBytes + PNGFilter.HEADROOM);
-        ByteBuffer filtScanlineBuf = fixedFilter != 0 ? ByteBuffer.allocate(rowBytes + PNGFilter.HEADROOM) : null;
+        ByteBuffer currScanlineBuf = ByteBuffer.allocate(rowBytes + Predictor.HEADROOM);
+        ByteBuffer prevScanlineBuf = ByteBuffer.allocate(rowBytes + Predictor.HEADROOM);
+        ByteBuffer filtScanlineBuf = fixedFilter != 0 ? ByteBuffer.allocate(rowBytes + Predictor.HEADROOM) : null;
 
         int passRowBytes = computeRowBytes(width, 0);
 
@@ -191,7 +207,7 @@ public class PNGEncoder extends Encoder {
             } else if (fixedFilter >= 0) {
                 switch (fixedFilter) {
                     case FILTER_TYPE_SUB -> FILTER.encodeSub(currScanlineBuf.array(), filtScanlineBuf.array(), passRowBytes, bytesPerPixel);
-                    case FILTER_TYPE_UP -> PNGFilter.encodeUp(currScanlineBuf.array(), prevScanlineBuf.array(), filtScanlineBuf.array(), passRowBytes);
+                    case FILTER_TYPE_UP -> Predictor.encodeUp(currScanlineBuf.array(), prevScanlineBuf.array(), filtScanlineBuf.array(), passRowBytes);
                     case FILTER_TYPE_AVERAGE -> FILTER.encodeAverage(currScanlineBuf.array(), prevScanlineBuf.array(), filtScanlineBuf.array(), passRowBytes, bytesPerPixel);
                     case FILTER_TYPE_PAETH -> FILTER.encodePaeth(currScanlineBuf.array(), prevScanlineBuf.array(), filtScanlineBuf.array(), passRowBytes, bytesPerPixel);
                 }
@@ -208,7 +224,7 @@ public class PNGEncoder extends Encoder {
 
                     switch (filter) {
                         case FILTER_TYPE_SUB -> FILTER.encodeSub(currScanlineBuf.array(), filtScanlineBuf.array(), passRowBytes, bytesPerPixel);
-                        case FILTER_TYPE_UP -> PNGFilter.encodeUp(currScanlineBuf.array(), prevScanlineBuf.array(), filtScanlineBuf.array(), passRowBytes);
+                        case FILTER_TYPE_UP -> Predictor.encodeUp(currScanlineBuf.array(), prevScanlineBuf.array(), filtScanlineBuf.array(), passRowBytes);
                         case FILTER_TYPE_AVERAGE -> FILTER.encodeAverage(currScanlineBuf.array(), prevScanlineBuf.array(), filtScanlineBuf.array(), passRowBytes, bytesPerPixel);
                         case FILTER_TYPE_PAETH -> FILTER.encodePaeth(currScanlineBuf.array(), prevScanlineBuf.array(), filtScanlineBuf.array(), passRowBytes, bytesPerPixel);
                     }
@@ -257,7 +273,7 @@ public class PNGEncoder extends Encoder {
                 if (bestFilter != lastFilter) {
                     switch (bestFilter) {
                         case FILTER_TYPE_SUB -> FILTER.encodeSub(currScanlineBuf.array(), filtScanlineBuf.array(), passRowBytes, bytesPerPixel);
-                        case FILTER_TYPE_UP -> PNGFilter.encodeUp(currScanlineBuf.array(), prevScanlineBuf.array(), filtScanlineBuf.array(), passRowBytes);
+                        case FILTER_TYPE_UP -> Predictor.encodeUp(currScanlineBuf.array(), prevScanlineBuf.array(), filtScanlineBuf.array(), passRowBytes);
                         case FILTER_TYPE_AVERAGE -> FILTER.encodeAverage(currScanlineBuf.array(), prevScanlineBuf.array(), filtScanlineBuf.array(), passRowBytes, bytesPerPixel);
                         case FILTER_TYPE_PAETH -> FILTER.encodePaeth(currScanlineBuf.array(), prevScanlineBuf.array(), filtScanlineBuf.array(), passRowBytes, bytesPerPixel);
                     }

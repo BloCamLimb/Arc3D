@@ -152,7 +152,7 @@ public class PNGMetadata {
         return (presentChunks & chunkMask) != 0;
     }
 
-    void set(int chunkMask) {
+    public void set(int chunkMask) {
         presentChunks |= chunkMask;
     }
 
@@ -191,6 +191,17 @@ public class PNGMetadata {
         IHDR_compressionMethod = COMPRESSION_METHOD_DEFLATE;
         IHDR_filterMethod = FILTER_METHOD_ADAPTIVE;
         IHDR_interlaceMethod = interlaceMethod;
+    }
+
+    public void setPLTE(int[] colors) {
+        set(CHUNK_PLTE);
+        PLTE_entries = new byte[colors.length * 3];
+        for (int i = 0; i < colors.length; i++) {
+            int col = colors[i];
+            PLTE_entries[i * 3] = (byte) ((col >>> 16) & 0xFF);
+            PLTE_entries[i * 3 + 1] = (byte) ((col >>> 8) & 0xFF);
+            PLTE_entries[i * 3 + 2] = (byte) ((col) & 0xFF);
+        }
     }
 
     public void checkIHDR(Function<String, ? extends IOException> ex) throws IOException {
@@ -294,6 +305,11 @@ public class PNGMetadata {
         cICP_transferCharacteristics = transferCharacteristics;
         cICP_matrixCoefficients = matrixCoefficients;
         cICP_videoFullRangeFlag = videoFullRangeFlag;
+    }
+
+    public void set_sRGB(int renderingIntent) {
+        set(CHUNK_sRGB);
+        sRGB_renderingIntent = renderingIntent;
     }
 
     public void check_cICP(Function<String, ? extends IOException> ex) throws IOException {

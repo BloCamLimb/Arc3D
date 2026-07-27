@@ -23,7 +23,6 @@ import icyllis.arc3d.core.ColorProfile;
 import icyllis.arc3d.core.ColorSpace;
 import icyllis.arc3d.core.ImageInfo;
 import icyllis.arc3d.core.Pixmap;
-import icyllis.arc3d.core.Rect2ic;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -43,7 +42,7 @@ import java.nio.channels.SeekableByteChannel;
  * <p>
  * Decoder instance can be reused for decoding multiple inputs for performance.
  */
-//PNG/JPEG/GIF/TIFF/Radiance/OpenEXR/KTX2/PNM/PAM/PFM/BMP/TGA/PIC
+//PNG/JPEG/GIF/TIFF/Radiance/OpenEXR/KTX2/PNM/PAM/PFM
 public abstract class Decoder implements AutoCloseable {
 
     // either
@@ -105,6 +104,12 @@ public abstract class Decoder implements AutoCloseable {
         return useBT1886;
     }
 
+    /**
+     * Whether to use BT.1886 EOTF to handle certain CICP transfers.
+     * Otherwise, inverse of BT.709 OETF will be used.
+     * <p>
+     * This is recommended for display devices.
+     */
     public void setUseBT1886(boolean useBT1886) {
         this.useBT1886 = useBT1886;
     }
@@ -131,12 +136,47 @@ public abstract class Decoder implements AutoCloseable {
 
     /**
      * @param dstPixels destination
-     * @param srcRegion region of interest to decode, or entire image
-     * @throws IOException I/O errors
+     * @throws IOException      I/O errors
      * @throws DecoderException decoding errors
      */
-    public abstract void decodeImage(@NonNull Pixmap dstPixels,
-                                     @Nullable Rect2ic srcRegion) throws IOException;
+    public abstract void decodeImage(@NonNull Pixmap dstPixels) throws IOException;
+
+    public boolean isAnimated() {
+        return false;
+    }
+
+    /**
+     * Returns the total number of animation frames, excluding the still image.
+     * <p>
+     * If it's unknown (for GIF only), this returns -1. Anyway, the total number of frames will be
+     * known after the first playback.
+     * <p>
+     * If the image is not animated, 0 is returned.
+     */
+    public int getFrameCount() {
+        return 0;
+    }
+
+    /**
+     * Returns the total number of plays of the animation.
+     * This is not a repetition count (loop count), but rather it plus one.
+     * <p>
+     * A value of 0 means playing infinitely.
+     */
+    public int getPlayCount() {
+        return 0;
+    }
+
+    public void rewindAnimation() throws IOException {
+    }
+
+    /**
+     * @return whether it has next animation frame
+     */
+    public boolean decodeNextFrame(@Nullable Pixmap backupFrame, @NonNull Pixmap canvasFrame,
+                                   @NonNull FrameInfo outInfo) throws IOException {
+        return false;
+    }
 
     protected void ensureReadBuffer() {
         if (buffer == null) {

@@ -19,9 +19,9 @@
 
 package icyllis.arc3d.core.test.jmh;
 
-import icyllis.arc3d.core.image.PNGFilter;
-import icyllis.arc3d.core.image.PNGFilterIncubatorVector;
-import icyllis.arc3d.core.image.PNGFilterStandard;
+import icyllis.arc3d.core.image.Predictor;
+import icyllis.arc3d.core.image.PredictorIncubatorVector;
+import icyllis.arc3d.core.image.PredictorStandard;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;
@@ -67,8 +67,8 @@ public class BenchPNGAvgEncode {
         tmp = new byte[row.length];
     }
 
-    public static final PNGFilterStandard STANDARD = new PNGFilterStandard();
-    public static final PNGFilterIncubatorVector VECTOR = new PNGFilterIncubatorVector();
+    public static final PredictorStandard STANDARD = new PredictorStandard();
+    public static final PredictorIncubatorVector VECTOR = new PredictorIncubatorVector();
 
     @Benchmark
     public void encodeAvg_Java() {
@@ -84,7 +84,7 @@ public class BenchPNGAvgEncode {
         byte[] curr = row;
         byte[] prev = prevRow;
         byte[] dest = tmp;
-        int count = curr.length - PNGFilter.HEADROOM;
+        int count = curr.length - Predictor.HEADROOM;
         VECTOR.encodeAverage(curr, prev, dest, count, bpp);
     }
 
@@ -102,7 +102,7 @@ public class BenchPNGAvgEncode {
         byte[] curr = row;
         byte[] prev = prevRow;
         byte[] dest = tmp;
-        int count = curr.length - PNGFilter.HEADROOM;
+        int count = curr.length - Predictor.HEADROOM;
         VECTOR.encodePaeth(curr, prev, dest, count, bpp);
     }
 }

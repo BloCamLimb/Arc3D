@@ -32,6 +32,7 @@ import org.openjdk.jmh.infra.Blackhole;
 import sun.misc.Unsafe;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 import static org.lwjgl.system.MemoryUtil.memPutFloat;
 
@@ -99,6 +100,8 @@ public class TestUnsafePerf {
     public volatile DataProvider segdata;
     public volatile boolean branc;
 
+    public volatile long[] arr;
+
     @Setup
     public void setup() {
         addr = MemoryUtil.nmemAllocChecked(88);
@@ -108,6 +111,7 @@ public class TestUnsafePerf {
         unsafedata = new DataProviderUnsafe();
         //segdata = new DataProviderSegment();
         branc = Math.random() > 0.5;
+        arr = new long[1024];
     }
 
     public interface DataProvider {
@@ -223,6 +227,16 @@ public class TestUnsafePerf {
             seg.set(ValueLayout.JAVA_FLOAT, off + 32, m3);
         }
     }*/
+
+    @Benchmark
+    public void clear_loop() {
+        Arrays.fill(arr, 0L);
+    }
+
+    @Benchmark
+    public void clear_unsafe() {
+        UNSAFE.setMemory(arr, Unsafe.ARRAY_LONG_BASE_OFFSET, arr.length * 8L, (byte) 0);
+    }
 
     @Benchmark
     public void memoryutil(Blackhole bh) {

@@ -31,9 +31,9 @@ import java.lang.invoke.VarHandle;
 import java.nio.ByteOrder;
 
 /**
- * Vectorized PNG filtering engine.
+ * Vectorized filtering engine.
  */
-public class PNGFilterIncubatorVector extends PNGFilter {
+public class PredictorIncubatorVector extends Predictor {
 
     private static final VectorSpecies<Byte> B64 = ByteVector.SPECIES_64;
     private static final VectorSpecies<Short> S128 = ShortVector.SPECIES_128;

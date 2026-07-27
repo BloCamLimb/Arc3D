@@ -20,20 +20,13 @@
 package icyllis.arc3d.core.image;
 
 import icyllis.arc3d.core.*;
+import icyllis.arc3d.core.zip.ZlibNG;
+import icyllis.arc3d.core.zip.ZngStream;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
 
-import java.awt.Point;
-import java.awt.Transparency;
-import java.awt.color.ICC_ColorSpace;
-import java.awt.color.ICC_Profile;
-import java.awt.image.BufferedImage;
-import java.awt.image.ColorConvertOp;
-import java.awt.image.ComponentColorModel;
-import java.awt.image.DataBuffer;
-import java.awt.image.DataBufferByte;
-import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
@@ -41,8 +34,8 @@ import java.nio.ShortBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.Hashtable;
 import java.util.zip.DataFormatException;
+import java.util.zip.Deflater;
 import java.util.zip.Inflater;
 
 import static icyllis.arc3d.core.image.PNG.*;
@@ -54,10 +47,12 @@ import static icyllis.arc3d.core.image.PNG.*;
  *     <li>CRCs are not checked.</li>
  * </ul>
  *
+ * @author BloCamLimb
  */
 public class PNGDecoder extends Decoder {
 
-    private static final PNGFilter FILTER = PNGFilter.createInstance();
+    private static final Predictor FILTER = Predictor.createInstance();
+    private static final boolean ENABLE_ZNG = false;
 
     private PNGMetadata metadata;
 
@@ -76,6 +71,7 @@ public class PNGDecoder extends Decoder {
     private int chunkRemaining;
 
     private Inflater inflater;
+    private ZngStream mZngStream;
 
     private ColorProfile colorProfile;
     private ColorSpace colorSpace;
@@ -94,6 +90,9 @@ public class PNGDecoder extends Decoder {
         colorSpace = null;
         if (inflater != null) {
             inflater.reset();
+        }
+        if (mZngStream != null) {
+            ZlibNG.zng_inflateReset(mZngStream.address());
         }
     }
 
@@ -803,8 +802,7 @@ public class PNGDecoder extends Decoder {
     }
 
     @Override
-    public void decodeImage(@NonNull Pixmap dstPixels,
-                            @Nullable Rect2ic srcRegion) throws IOException {
+    public void decodeImage(@NonNull Pixmap dstPixels) throws IOException {
         if (chunkType != IDAT_TYPE || state != STATE_FIRST_IDAT) {
             throw new DecoderException("Not IDAT");
         }
@@ -865,10 +863,19 @@ public class PNGDecoder extends Decoder {
             }
         }
 
-        if (inflater == null) {
-            inflater = new Inflater();
+        if (ENABLE_ZNG && ZlibNG.getLibrary() != null) {
+            if (mZngStream == null) {
+                mZngStream = ZngStream.calloc();
+                ZlibNG.zng_inflateInit2(mZngStream.address(), 15);
+            } else {
+                ZlibNG.zng_inflateReset(mZngStream.address());
+            }
         } else {
-            inflater.reset();
+            if (inflater == null) {
+                inflater = new Inflater();
+            } else {
+                inflater.reset();
+            }
         }
 
         int width = metadata.IHDR_width;
@@ -878,10 +885,10 @@ public class PNGDecoder extends Decoder {
         int bytesPerPixel = metadata.numChannels() << (is16 ? 1 : 0);
         // reserve 64 bytes for the filter type (1 byte) of next row,
         // and tail padding for vector instructions
-        int rowBytes = computeRowBytes(width, PNGFilter.HEADROOM);
+        int rowBytes = computeRowBytes(width, Predictor.HEADROOM);
         // allocate heap buffer (BIG ENDIAN)
-        ByteBuffer currScanlineBuf = ByteBuffer.allocate(rowBytes + PNGFilter.HEADROOM);
-        ByteBuffer prevScanlineBuf = ByteBuffer.allocate(rowBytes + PNGFilter.HEADROOM);
+        ByteBuffer currScanlineBuf = ByteBuffer.allocate(rowBytes + Predictor.HEADROOM);
+        ByteBuffer prevScanlineBuf = ByteBuffer.allocate(rowBytes + Predictor.HEADROOM);
 
         // read the filter of first scanline
         readScanlineBytes(currScanlineBuf.limit(1));
@@ -944,7 +951,7 @@ public class PNGDecoder extends Decoder {
                         }
                         break;
                     case FILTER_TYPE_UP:
-                        PNGFilter.decodeUp(currScanlineBuf.array(), prevScanlineBuf.array(), passRowBytes);
+                        Predictor.decodeUp(currScanlineBuf.array(), prevScanlineBuf.array(), passRowBytes);
                         break;
                     case FILTER_TYPE_AVERAGE:
                         switch (bytesPerPixel) {
@@ -952,7 +959,7 @@ public class PNGDecoder extends Decoder {
                             case 4 -> FILTER.decodeAverage4(currScanlineBuf.array(), prevScanlineBuf.array(), passRowBytes);
                             case 6 -> FILTER.decodeAverage6(currScanlineBuf.array(), prevScanlineBuf.array(), passRowBytes);
                             case 8 -> FILTER.decodeAverage8(currScanlineBuf.array(), prevScanlineBuf.array(), passRowBytes);
-                            default -> PNGFilter.decodeAverage(currScanlineBuf.array(), prevScanlineBuf.array(), passRowBytes, bytesPerPixel);
+                            default -> Predictor.decodeAverage(currScanlineBuf.array(), prevScanlineBuf.array(), passRowBytes, bytesPerPixel);
                         }
                         break;
                     case FILTER_TYPE_PAETH:
@@ -961,7 +968,7 @@ public class PNGDecoder extends Decoder {
                             case 4 -> FILTER.decodePaeth4(currScanlineBuf.array(), prevScanlineBuf.array(), passRowBytes);
                             case 6 -> FILTER.decodePaeth6(currScanlineBuf.array(), prevScanlineBuf.array(), passRowBytes);
                             case 8 -> FILTER.decodePaeth8(currScanlineBuf.array(), prevScanlineBuf.array(), passRowBytes);
-                            default -> PNGFilter.decodePaeth(currScanlineBuf.array(), prevScanlineBuf.array(), passRowBytes, bytesPerPixel);
+                            default -> Predictor.decodePaeth(currScanlineBuf.array(), prevScanlineBuf.array(), passRowBytes, bytesPerPixel);
                         }
                         break;
                     default:
@@ -1000,10 +1007,12 @@ public class PNGDecoder extends Decoder {
             }
         }
 
-        if (!inflater.finished()) {
-            throw new DecoderException("ZLIB stream not finished after image data");
+        if (inflater != null) {
+            if (!inflater.finished()) {
+                throw new DecoderException("ZLIB stream not finished after image data");
+            }
+            inflater.reset();
         }
-        inflater.reset();
 
         // Spec: Some images have unused trailing bytes at the end of the final IDAT chunk.
         // This could happen when an entire buffer is stored rather than just the portion
@@ -1289,34 +1298,78 @@ public class PNGDecoder extends Decoder {
         return metadata.computeRowBytes(width, reserve, DecoderException::new);
     }
 
+    ByteBuffer input = null;
+
     private void readScanlineBytes(ByteBuffer dst) throws IOException {
-        Inflater inf = inflater;
-        do {
-            if (inf.finished() || inf.needsDictionary()) {
-                throw new DecoderException("Not enough ZLIB data, want " + dst.remaining() + " bytes more");
-            }
-            if (inf.needsInput()) {
-                while (chunkRemaining == 0) {
-                    readChunkHeader();
-                    if (chunkType != IDAT_TYPE) {
-                        throw new DecoderException("Not enough IDAT chunk");
+        if (inflater != null) {
+            Inflater inf = inflater;
+            do {
+                if (inf.finished() || inf.needsDictionary()) {
+                    throw new DecoderException("Not enough ZLIB data, want " + dst.remaining() + " bytes more");
+                }
+                if (inf.needsInput()) {
+                    while (chunkRemaining == 0) {
+                        readChunkHeader();
+                        if (chunkType != IDAT_TYPE) {
+                            throw new DecoderException("Not enough IDAT chunk");
+                        }
                     }
+                    if (!buffer.hasRemaining()) {
+                        refill();
+                    }
+                    int len = Math.min(buffer.remaining(), chunkRemaining);
+                    int bufPos = buffer.position();
+                    inf.setInput(buffer.slice(bufPos, len));
+                    buffer.position(bufPos + len);
+                    chunkRemaining -= len;
                 }
-                if (!buffer.hasRemaining()) {
-                    refill();
+                try {
+                    inf.inflate(dst);
+                } catch (DataFormatException e) {
+                    throw new DecoderException("Invalid ZLIB data: " + e.getMessage());
                 }
-                int len = Math.min(buffer.remaining(), chunkRemaining);
-                int bufPos = buffer.position();
-                inf.setInput(buffer.slice(bufPos, len));
-                buffer.position(bufPos + len);
-                chunkRemaining -= len;
+            } while (dst.hasRemaining());
+        } else {
+            ZngStream inf = mZngStream;
+            ByteBuffer realDst = dst;
+            try (var stack = MemoryStack.stackPush()) {
+                dst = stack.malloc(dst.remaining());
+                do {
+                    if (input == null || !input.hasRemaining()) {
+                        while (chunkRemaining == 0) {
+                            readChunkHeader();
+                            if (chunkType != IDAT_TYPE) {
+                                throw new DecoderException("Not enough IDAT chunk");
+                            }
+                        }
+                        if (!buffer.hasRemaining()) {
+                            refill();
+                        }
+                        int len = Math.min(buffer.remaining(), chunkRemaining);
+                        int bufPos = buffer.position();
+                        input = buffer.slice(bufPos, len);
+                        buffer.position(bufPos + len);
+                        chunkRemaining -= len;
+                    }
+
+                    inf.next_in(MemoryUtil.memAddress(input));
+                    inf.next_out(MemoryUtil.memAddress(dst));
+                    inf.avail_in(input.remaining());
+                    inf.avail_out(dst.remaining());
+
+                    int res = ZlibNG.zng_inflate(inf.address(), Deflater.SYNC_FLUSH);
+                    if (res != 0 && res != 1) {
+                        throw new AssertionError(res + " " + MemoryUtil.memUTF8Safe(inf.msg()));
+                    }
+
+                    input.position(input.position() + (input.remaining() - inf.avail_in()));
+                    dst.position(dst.position() + (dst.remaining() - inf.avail_out()));
+
+                } while (dst.hasRemaining());
+
+                realDst.put(dst.flip());
             }
-            try {
-                inf.inflate(dst);
-            } catch (DataFormatException e) {
-                throw new DecoderException("Invalid ZLIB data: " + e.getMessage());
-            }
-        } while (dst.hasRemaining());
+        }
     }
 
     // Keywords shall contain only printable Latin-1 [ISO_8859-1] characters and
@@ -1397,6 +1450,7 @@ public class PNGDecoder extends Decoder {
         while (!inf.finished() && !inf.needsDictionary()) {
             if (inf.needsInput()) {
                 if (chunkRemaining == 0) {
+                    //TODO handle edge case?
                     throw new DecoderException("Not enough compressed data in " + what);
                 }
                 if (!buffer.hasRemaining()) {
@@ -1445,6 +1499,11 @@ public class PNGDecoder extends Decoder {
         if (inflater != null) {
             inflater.end();
             inflater = null;
+        }
+        if (mZngStream != null) {
+            ZlibNG.zng_inflateEnd(mZngStream.address());
+            mZngStream.free();
+            mZngStream = null;
         }
     }
 

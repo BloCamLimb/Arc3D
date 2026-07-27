@@ -19,7 +19,7 @@
 
 package icyllis.arc3d.core.test.jmh;
 
-import icyllis.arc3d.core.image.PNGFilter;
+import icyllis.arc3d.core.image.Predictor;
 import jdk.incubator.vector.ByteVector;
 import jdk.incubator.vector.ShortVector;
 import jdk.incubator.vector.VectorMask;
@@ -123,7 +123,7 @@ public class BenchPNGPaethFilter {
             curr[i] = (byte) ((curr[i] & 0xFF) + (prev[i] & 0xFF));
         }
         for (int i = bpp; i < count; i++) {
-            curr[i] = (byte) ((curr[i] & 0xFF) + PNGFilter.paeth(curr[i - bpp] & 0xFF, prev[i] & 0xFF, prev[i - bpp] & 0xFF));
+            curr[i] = (byte) ((curr[i] & 0xFF) + Predictor.paeth(curr[i - bpp] & 0xFF, prev[i] & 0xFF, prev[i - bpp] & 0xFF));
         }
     }
 
@@ -137,7 +137,7 @@ public class BenchPNGPaethFilter {
             curr[i] = (byte) ((curr[i] & 0xFF) + (prev[i] & 0xFF));
         }
         for (int i = bpp; i < count; i++) {
-            curr[i] = (byte) ((curr[i] & 0xFF) + PNGFilter.paeth_std(curr[i - bpp] & 0xFF, prev[i] & 0xFF, prev[i - bpp] & 0xFF));
+            curr[i] = (byte) ((curr[i] & 0xFF) + Predictor.paeth_std(curr[i - bpp] & 0xFF, prev[i] & 0xFF, prev[i - bpp] & 0xFF));
         }
     }
 
@@ -249,7 +249,7 @@ public class BenchPNGPaethFilter {
                 curr[i] = (byte) ((curr[i] & 0xFF) + (prev[i] & 0xFF));
             }
             for (int i = bpp; i < count; i++) {
-                curr[i] = (byte) ((curr[i] & 0xFF) + PNGFilter.paeth(curr[i - bpp] & 0xFF, prev[i] & 0xFF, prev[i - bpp] & 0xFF));
+                curr[i] = (byte) ((curr[i] & 0xFF) + Predictor.paeth(curr[i - bpp] & 0xFF, prev[i] & 0xFF, prev[i - bpp] & 0xFF));
             }
         }
     }

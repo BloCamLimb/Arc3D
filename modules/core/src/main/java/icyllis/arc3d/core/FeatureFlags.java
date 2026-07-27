@@ -17,13 +17,21 @@
  * License along with Arc3D. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package icyllis.arc3d.core.image;
+package icyllis.arc3d.core;
 
-public final class KTX2 {
+public class FeatureFlags {
 
-    public static final byte[] FILE_SIGNATURE = {
-            (byte) 0xAB, (byte) 0x4B, (byte) 0x54, (byte) 0x58,
-            (byte) 0x20, (byte) 0x32, (byte) 0x30, (byte) 0xBB,
-            (byte) 0x0D, (byte) 0x0A, (byte) 0x1A, (byte) 0x0A
-    };
+    public static final boolean ZSTD;
+
+    static {
+        boolean zstd = false;
+        try {
+            Class.forName("org.lwjgl.util.zstd.ZSTDSequenceProducerI", false, FeatureFlags.class.getClassLoader());
+            zstd = true;
+        } catch (ClassNotFoundException ignored) {
+        } catch (Throwable e) {
+            e.printStackTrace(System.err);
+        }
+        ZSTD = zstd;
+    }
 }

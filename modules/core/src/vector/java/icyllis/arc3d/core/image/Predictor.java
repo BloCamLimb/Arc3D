@@ -19,23 +19,23 @@
 
 package icyllis.arc3d.core.image;
 
-public abstract class PNGFilter {
+public abstract class Predictor {
 
     // the widest vector is 512 bits; allocating more eliminates the need to handle remainder scalar values
     // (prevents index-out-of-bounds).
     public static final int HEADROOM = 512/8;
 
-    public static PNGFilter createInstance() {
+    public static Predictor createInstance() {
         boolean hasIncubatorVector = false;
         try {
-            Class.forName("jdk.incubator.vector.ByteVector", false, PNGFilter.class.getClassLoader());
+            Class.forName("jdk.incubator.vector.ByteVector", false, Predictor.class.getClassLoader());
             hasIncubatorVector = true;
         } catch (ClassNotFoundException ignored) {
         }
         if (hasIncubatorVector) {
-            return new PNGFilterIncubatorVector();
+            return new PredictorIncubatorVector();
         } else {
-            return new PNGFilterStandard();
+            return new PredictorStandard();
         }
     }
 

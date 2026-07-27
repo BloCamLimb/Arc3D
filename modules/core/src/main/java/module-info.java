@@ -13,6 +13,5 @@ module icyllis.arc3d.core {
     exports icyllis.arc3d.core;
     exports icyllis.arc3d.core.image;
     exports icyllis.arc3d.core.util;
-    exports icyllis.arc3d.core.palette;
     exports icyllis.arc3d.core.zip;
 }

@@ -25,7 +25,6 @@ import icyllis.arc3d.core.ColorProfile;
 import icyllis.arc3d.core.ColorSpace;
 import icyllis.arc3d.core.ImageInfo;
 import icyllis.arc3d.core.Pixmap;
-import icyllis.arc3d.core.Rect2ic;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
@@ -50,7 +49,7 @@ import java.nio.channels.ReadableByteChannel;
  * P6  Portable Pixmap     Binary (Raw)    8/16-bit RGB
  * </pre>
  */
-public class PNMImageReader extends Decoder {
+public class PNMReader extends Decoder {
 
     public static final int
             PORTABLE_BITMAP_ASCII = 1,
@@ -154,8 +153,7 @@ public class PNMImageReader extends Decoder {
     }
 
     @Override
-    public void decodeImage(@NonNull Pixmap dstPixels,
-                            @Nullable Rect2ic srcRegion) throws IOException {
+    public void decodeImage(@NonNull Pixmap dstPixels) throws IOException {
         readPixels(dstPixels);
     }
 

@@ -20,9 +20,9 @@
 package icyllis.arc3d.core.image;
 
 /**
- * Standard PNG filtering engine, relying on auto-vectorization and loop unrolling.
+ * Standard filtering engine, relying on auto-vectorization and loop unrolling.
  */
-public class PNGFilterStandard extends PNGFilter {
+public class PredictorStandard extends Predictor {
 
     @Override
     public void decodeSub1(byte[] curr, int count) {

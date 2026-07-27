@@ -19,7 +19,7 @@
 
 package icyllis.arc3d.core.image;
 
-public class OpenEXR {
+public final class OpenEXR {
 
     public static final byte[] FILE_SIGNATURE = {
             0x76, 0x2f, 0x31, 0x01
