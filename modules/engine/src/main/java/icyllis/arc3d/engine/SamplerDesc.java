@@ -19,12 +19,11 @@
 
 package icyllis.arc3d.engine;
 
+import icyllis.arc3d.core.Immutable;
 import icyllis.arc3d.core.MathUtil;
 import icyllis.arc3d.core.SamplingOptions;
 import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
-
-import javax.annotation.concurrent.Immutable;
 
 /**
  * Represents the filtering and tile modes used to access a texture. It's packed as an

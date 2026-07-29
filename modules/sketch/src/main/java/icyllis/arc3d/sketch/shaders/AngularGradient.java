@@ -23,11 +23,10 @@ import icyllis.arc3d.core.ColorSpace;
 import icyllis.arc3d.sketch.Matrix;
 import icyllis.arc3d.sketch.Matrixc;
 import icyllis.arc3d.core.SharedPtr;
+import org.jetbrains.annotations.CheckReturnValue;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.jetbrains.annotations.VisibleForTesting;
-
-import javax.annotation.CheckReturnValue;
 
 /**
  * The angular gradient, also known as sweep gradient, conic gradient.

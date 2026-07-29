@@ -20,7 +20,7 @@
 package icyllis.arc3d.granite.geom;
 
 import icyllis.arc3d.compiler.ShaderDataType;
-import icyllis.arc3d.core.*;
+import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.engine.Engine.PrimitiveType;
 import icyllis.arc3d.engine.Engine.VertexAttribType;

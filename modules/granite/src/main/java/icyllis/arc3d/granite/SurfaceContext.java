@@ -19,9 +19,13 @@
 
 package icyllis.arc3d.granite;
 
-import icyllis.arc3d.core.*;
+import icyllis.arc3d.core.ColorInfo;
+import icyllis.arc3d.core.ColorSpace;
 import icyllis.arc3d.core.ImageInfo;
-import icyllis.arc3d.engine.*;
+import icyllis.arc3d.core.RawPtr;
+import icyllis.arc3d.engine.Caps;
+import icyllis.arc3d.engine.ImageProxyView;
+import icyllis.arc3d.engine.Swizzle;
 
 import static icyllis.arc3d.engine.Engine.SurfaceOrigin;
 

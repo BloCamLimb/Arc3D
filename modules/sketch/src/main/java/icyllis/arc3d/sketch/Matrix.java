@@ -26,11 +26,11 @@ import icyllis.arc3d.core.Matrix4c;
 import icyllis.arc3d.core.Rect2f;
 import icyllis.arc3d.core.Rect2fc;
 import icyllis.arc3d.core.Rect2i;
+import org.jetbrains.annotations.CheckReturnValue;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
 
-import javax.annotation.CheckReturnValue;
 import java.awt.geom.AffineTransform;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;

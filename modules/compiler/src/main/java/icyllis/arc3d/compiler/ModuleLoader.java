@@ -19,9 +19,9 @@
 
 package icyllis.arc3d.compiler;
 
+import icyllis.arc3d.core.GuardedBy;
 import org.jspecify.annotations.NonNull;
 
-import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;

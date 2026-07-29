@@ -68,7 +68,6 @@ subprojects {
     }
 
     dependencies {
-        compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
         compileOnly 'org.jetbrains:annotations:26.0.2'
         compileOnly 'org.jspecify:jspecify:1.0.0'
 

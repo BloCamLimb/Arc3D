@@ -20,11 +20,11 @@
 package icyllis.arc3d.granite;
 
 import icyllis.arc3d.compiler.ShaderDataType;
+import icyllis.arc3d.core.Immutable;
 import icyllis.arc3d.core.Rect2f;
 import icyllis.arc3d.core.Rect2i;
 import icyllis.arc3d.core.Rect2ic;
 import icyllis.arc3d.engine.DepthStencilSettings;
-import icyllis.arc3d.engine.KeyBuilder;
 import icyllis.arc3d.engine.SamplerDesc;
 import icyllis.arc3d.engine.Swizzle;
 import icyllis.arc3d.engine.VertexInputLayout;
@@ -34,7 +34,6 @@ import icyllis.arc3d.sketch.Shape;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-import javax.annotation.concurrent.Immutable;
 import java.util.Formatter;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicInteger;

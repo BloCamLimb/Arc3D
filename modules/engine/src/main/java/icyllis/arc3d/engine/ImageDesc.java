@@ -21,9 +21,8 @@ package icyllis.arc3d.engine;
 
 import icyllis.arc3d.core.Color;
 import icyllis.arc3d.core.ColorInfo;
+import icyllis.arc3d.core.Immutable;
 import org.lwjgl.system.NativeType;
-
-import javax.annotation.concurrent.Immutable;
 
 /**
  * Contains backend-specific parameters used to create GPU images, which are:

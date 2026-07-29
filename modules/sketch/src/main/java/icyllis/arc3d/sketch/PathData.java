@@ -21,10 +21,10 @@ package icyllis.arc3d.sketch;
 
 import icyllis.arc3d.core.MathUtil;
 import icyllis.arc3d.core.Rect2f;
+import icyllis.arc3d.core.ThreadSafe;
 import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.NonNull;
 
-import javax.annotation.concurrent.ThreadSafe;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.util.Arrays;

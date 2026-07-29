@@ -19,7 +19,7 @@
 
 package icyllis.arc3d.granite.trash;
 
-import javax.annotation.concurrent.Immutable;
+import icyllis.arc3d.core.Immutable;
 
 /**
  * Provides custom shader code to the Arc3D shading pipeline. Processor objects <em>must</em> be

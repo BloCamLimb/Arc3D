@@ -19,11 +19,10 @@
 
 package icyllis.arc3d.opengl;
 
+import icyllis.arc3d.core.Immutable;
 import icyllis.arc3d.engine.Engine;
 import icyllis.arc3d.engine.ImageDesc;
 import org.lwjgl.opengl.GL30C;
-
-import javax.annotation.concurrent.Immutable;
 
 /**
  * Descriptor to create OpenGL images (textures and renderbuffers). The {@link #mGLFormat} here

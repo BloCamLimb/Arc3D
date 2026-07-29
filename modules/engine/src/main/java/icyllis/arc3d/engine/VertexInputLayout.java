@@ -20,11 +20,11 @@
 package icyllis.arc3d.engine;
 
 import icyllis.arc3d.compiler.ShaderDataType;
+import icyllis.arc3d.core.Immutable;
 import icyllis.arc3d.core.MathUtil;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-import javax.annotation.concurrent.Immutable;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.NoSuchElementException;

@@ -19,11 +19,11 @@
 
 package icyllis.arc3d.sketch;
 
+import icyllis.arc3d.core.GuardedBy;
 import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-import javax.annotation.concurrent.GuardedBy;
 import java.util.HashMap;
 import java.util.concurrent.locks.ReentrantLock;
 

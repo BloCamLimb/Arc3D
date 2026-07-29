@@ -24,11 +24,10 @@ import icyllis.arc3d.sketch.Matrix;
 import icyllis.arc3d.sketch.Matrixc;
 import icyllis.arc3d.sketch.Point;
 import icyllis.arc3d.core.SharedPtr;
+import org.jetbrains.annotations.CheckReturnValue;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.jetbrains.annotations.VisibleForTesting;
-
-import javax.annotation.CheckReturnValue;
 
 /**
  * LinearGradient generates gradient colors linearly interpolated between two points.

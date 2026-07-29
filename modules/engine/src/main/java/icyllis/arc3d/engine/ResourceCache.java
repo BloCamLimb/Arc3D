@@ -19,12 +19,12 @@
 
 package icyllis.arc3d.engine;
 
+import icyllis.arc3d.core.GuardedBy;
+import icyllis.arc3d.core.NotThreadSafe;
 import org.jetbrains.annotations.VisibleForTesting;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-import javax.annotation.concurrent.GuardedBy;
-import javax.annotation.concurrent.NotThreadSafe;
 import java.util.*;
 
 /**

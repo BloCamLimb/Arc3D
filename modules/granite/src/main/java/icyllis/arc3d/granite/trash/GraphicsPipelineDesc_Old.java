@@ -19,11 +19,10 @@
 
 package icyllis.arc3d.granite.trash;
 
+import icyllis.arc3d.core.Immutable;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.FragmentStage;
 import icyllis.arc3d.granite.GeometryStep;
-
-import javax.annotation.concurrent.Immutable;
 
 import static icyllis.arc3d.engine.Engine.SurfaceOrigin;
 

@@ -23,8 +23,6 @@ import icyllis.arc3d.core.*;
 import icyllis.arc3d.core.ImageInfo;
 import org.lwjgl.system.NativeType;
 
-import javax.annotation.concurrent.Immutable;
-
 import static icyllis.arc3d.engine.Engine.BackendApi;
 
 /**

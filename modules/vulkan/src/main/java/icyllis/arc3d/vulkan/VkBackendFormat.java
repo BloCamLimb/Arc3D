@@ -19,6 +19,7 @@
 
 package icyllis.arc3d.vulkan;
 
+import icyllis.arc3d.core.Immutable;
 import icyllis.arc3d.core.util.IntObjectMap;
 import icyllis.arc3d.core.util.IntObjectOpenHashMap;
 import icyllis.arc3d.engine.BackendFormat;
@@ -26,8 +27,6 @@ import icyllis.arc3d.engine.Engine;
 import org.jspecify.annotations.NonNull;
 import org.lwjgl.system.NativeType;
 import org.lwjgl.vulkan.VK10;
-
-import javax.annotation.concurrent.Immutable;
 
 @Immutable
 public final class VkBackendFormat extends BackendFormat {

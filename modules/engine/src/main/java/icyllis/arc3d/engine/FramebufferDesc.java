@@ -19,6 +19,7 @@
 
 package icyllis.arc3d.engine;
 
+import icyllis.arc3d.core.Immutable;
 import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.Size;
 import icyllis.arc3d.core.WeakIdentityKey;
@@ -26,7 +27,6 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.jetbrains.annotations.ApiStatus;
 
-import javax.annotation.concurrent.Immutable;
 import java.util.Objects;
 
 /**

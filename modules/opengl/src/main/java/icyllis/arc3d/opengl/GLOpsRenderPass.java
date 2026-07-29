@@ -22,7 +22,6 @@ package icyllis.arc3d.opengl;
 import icyllis.arc3d.core.*;
 import icyllis.arc3d.engine.*;
 
-import static icyllis.arc3d.engine.Engine.PrimitiveType;
 import static org.lwjgl.opengl.GL11C.*;
 
 @Deprecated

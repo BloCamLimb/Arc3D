@@ -19,15 +19,15 @@
 
 package icyllis.arc3d.engine;
 
+import icyllis.arc3d.core.GuardedBy;
 import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.RefCnt;
 import icyllis.arc3d.core.SharedPtr;
+import icyllis.arc3d.core.ThreadSafe;
 import icyllis.arc3d.core.util.ObjectArrayList;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-import javax.annotation.concurrent.GuardedBy;
-import javax.annotation.concurrent.ThreadSafe;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;

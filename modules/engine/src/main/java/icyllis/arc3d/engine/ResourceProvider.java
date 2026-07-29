@@ -19,7 +19,8 @@
 
 package icyllis.arc3d.engine;
 
-import icyllis.arc3d.core.*;
+import icyllis.arc3d.core.RawPtr;
+import icyllis.arc3d.core.SharedPtr;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.VisibleForTesting;
 import org.jspecify.annotations.NonNull;

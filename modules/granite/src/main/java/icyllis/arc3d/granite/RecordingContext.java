@@ -23,15 +23,11 @@ import icyllis.arc3d.core.*;
 import icyllis.arc3d.core.util.ObjectArrayList;
 import icyllis.arc3d.engine.Context;
 import icyllis.arc3d.engine.Device;
-import icyllis.arc3d.engine.Engine;
 import icyllis.arc3d.engine.ImmediateContext;
 import icyllis.arc3d.engine.Resource;
 import icyllis.arc3d.engine.UploadBufferManager;
 import icyllis.arc3d.granite.task.Task;
 import icyllis.arc3d.granite.task.TaskList;
-import icyllis.arc3d.core.ColorInfo;
-import icyllis.arc3d.sketch.Image;
-import icyllis.arc3d.sketch.Surface;
 import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.Nullable;
 

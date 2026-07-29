@@ -19,12 +19,11 @@
 
 package icyllis.arc3d.opengl;
 
+import icyllis.arc3d.core.Immutable;
 import icyllis.arc3d.core.util.IntObjectOpenHashMap;
 import icyllis.arc3d.engine.BackendFormat;
 import org.jspecify.annotations.NonNull;
 import org.lwjgl.system.NativeType;
-
-import javax.annotation.concurrent.Immutable;
 
 import static icyllis.arc3d.engine.Engine.BackendApi;
 

@@ -23,9 +23,9 @@ import icyllis.arc3d.core.MathUtil;
 import icyllis.arc3d.core.util.FloatArrayList;
 import icyllis.arc3d.core.util.IntArrayList;
 import org.intellij.lang.annotations.MagicConstant;
+import org.jetbrains.annotations.CheckReturnValue;
 import org.jspecify.annotations.Nullable;
 
-import javax.annotation.CheckReturnValue;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 

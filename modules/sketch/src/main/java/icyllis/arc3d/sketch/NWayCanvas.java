@@ -23,7 +23,6 @@ import icyllis.arc3d.core.Matrix4c;
 import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.Rect2fc;
 import icyllis.arc3d.core.SamplingOptions;
-import icyllis.arc3d.core.Size;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 

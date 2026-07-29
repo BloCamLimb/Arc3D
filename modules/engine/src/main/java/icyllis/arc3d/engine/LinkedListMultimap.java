@@ -19,11 +19,11 @@
 
 package icyllis.arc3d.engine;
 
+import icyllis.arc3d.core.NotThreadSafe;
 import icyllis.arc3d.core.util.ObjectObjectOpenHashMap;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-import javax.annotation.concurrent.NotThreadSafe;
 import java.util.Iterator;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;

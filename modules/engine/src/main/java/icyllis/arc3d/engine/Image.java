@@ -19,8 +19,6 @@
 
 package icyllis.arc3d.engine;
 
-import icyllis.arc3d.core.RefCnt;
-import icyllis.arc3d.core.SharedPtr;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 

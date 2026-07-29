@@ -19,7 +19,8 @@
 
 package icyllis.arc3d.engine;
 
-import javax.annotation.concurrent.Immutable;
+import icyllis.arc3d.core.Immutable;
+
 import java.util.Objects;
 
 /**
