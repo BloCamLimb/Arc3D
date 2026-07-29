@@ -26,7 +26,6 @@ import org.intellij.lang.annotations.MagicConstant;
 import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
-import sun.misc.Unsafe;
 
 import java.awt.image.*;
 import java.lang.annotation.Retention;
@@ -92,10 +91,10 @@ public class Raster implements AutoCloseable {
     protected PixelRef mPixelRef;
 
     public Raster(@Nullable BufferedImage bufImg, @NonNull ImageInfo info,
-                  @Nullable Object data, int baseOffset, int rowBytes) {
+                  @Nullable Object data, int rowBytes) {
         mBufImg = bufImg;
-        mPixmap = new Pixmap(info, data, baseOffset, rowBytes);
-        mPixelRef = new PixelRef(info.width(), info.height(), data, baseOffset, rowBytes, /*freeFn*/ null);
+        mPixmap = new Pixmap(info, data, 0, rowBytes);
+        mPixelRef = new PixelRef(info.width(), info.height(), data, 0, rowBytes, /*freeFn*/ null);
     }
 
     @NonNull
@@ -152,7 +151,6 @@ public class Raster implements AutoCloseable {
         var info = new ImageInfo(width, height, ct, at);
         final BufferedImage bufImg;
         final Object data;
-        final int baseOffset;
         if (imageType != BufferedImage.TYPE_CUSTOM) {
             bufImg = new BufferedImage(width, height, imageType);
             // steal backing array
@@ -161,28 +159,24 @@ public class Raster implements AutoCloseable {
                     DataBufferByte dataBuffer =
                             (DataBufferByte) bufImg.getRaster().getDataBuffer();
                     assert dataBuffer.getNumBanks() == 1;
-                    baseOffset = Unsafe.ARRAY_BYTE_BASE_OFFSET;
                     yield dataBuffer.getData(); // byte[]
                 }
                 case BufferedImage.TYPE_USHORT_GRAY, BufferedImage.TYPE_USHORT_565_RGB -> {
                     DataBufferUShort dataBuffer =
                             (DataBufferUShort) bufImg.getRaster().getDataBuffer();
                     assert dataBuffer.getNumBanks() == 1;
-                    baseOffset = Unsafe.ARRAY_SHORT_BASE_OFFSET;
                     yield dataBuffer.getData(); // short[]
                 }
                 default -> {
                     assert false;
-                    baseOffset = 0;
                     yield null;
                 }
             };
         } else {
             bufImg = null;
             data = null;
-            baseOffset = 0;
         }
-        return new Raster(bufImg, info, data, baseOffset, rowBytes);
+        return new Raster(bufImg, info, data, rowBytes);
     }
 
     @Format
