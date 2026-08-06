@@ -17,7 +17,7 @@
  * License along with Arc3D. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package icyllis.arc3d.core.zip;
+package icyllis.arc3d.core.compress;
 
 import icyllis.arc3d.core.NotThreadSafe;
 import org.lwjgl.system.MemoryStack;

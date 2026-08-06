@@ -17,28 +17,31 @@
  * License along with Arc3D. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package icyllis.arc3d.core.zip;
+package icyllis.arc3d.core.compress;
 
 import java.nio.ByteBuffer;
 import java.util.zip.DataFormatException;
-import java.util.zip.Inflater;
 
-public class ZlibDecompressor extends Inflater implements Decompressor {
+public interface Decompressor extends AutoCloseable {
 
-    public ZlibDecompressor(boolean nowrap) {
-        super(nowrap);
-    }
+    void setInput(ByteBuffer input);
 
-    public ZlibDecompressor() {
-    }
+    void setDictionary(ByteBuffer dictionary);
+
+    boolean needsInput();
+
+    boolean needsDictionary();
+
+    boolean finished();
+
+    int decompress(ByteBuffer output) throws DataFormatException;
+
+    long getBytesRead();
+
+    long getBytesWritten();
+
+    void reset();
 
     @Override
-    public int decompress(ByteBuffer output) throws DataFormatException {
-        return inflate(output);
-    }
-
-    @Override
-    public void close() {
-        end();
-    }
+    void close();
 }

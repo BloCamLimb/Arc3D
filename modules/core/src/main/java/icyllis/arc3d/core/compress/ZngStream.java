@@ -17,7 +17,7 @@
  * License along with Arc3D. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package icyllis.arc3d.core.zip;
+package icyllis.arc3d.core.compress;
 
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;

@@ -20,8 +20,8 @@
 package icyllis.arc3d.image;
 
 import icyllis.arc3d.core.*;
-import icyllis.arc3d.core.zip.ZlibNG;
-import icyllis.arc3d.core.zip.ZngStream;
+import icyllis.arc3d.core.compress.ZlibNG;
+import icyllis.arc3d.core.compress.ZngStream;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryStack;
