@@ -27,6 +27,8 @@ import icyllis.arc3d.core.RefCnt;
 import icyllis.arc3d.core.SharedPtr;
 import icyllis.arc3d.engine.BackendImage;
 import icyllis.arc3d.engine.Engine;
+import icyllis.arc3d.engine.ISurface;
+import icyllis.arc3d.engine.ImageDesc;
 import icyllis.arc3d.engine.ImageProxy;
 import icyllis.arc3d.engine.ImageProxyView;
 import icyllis.arc3d.sketch.Canvas;
@@ -48,11 +50,14 @@ public final class GraniteSurface extends Surface {
 
     @SharedPtr
     private GraniteDevice mDevice;
+    @SharedPtr
+    private GraniteImage mImageView;
 
     @VisibleForTesting
     public GraniteSurface(@SharedPtr GraniteDevice device) {
         super(device.getWidth(), device.getHeight());
         mDevice = device;
+        mImageView = GraniteImage.wrapDevice(device);
     }
 
     @Nullable
@@ -134,6 +139,57 @@ public final class GraniteSurface extends Surface {
                 surfaceOrigin, label);
     }
 
+    /**
+     * Wraps OpenGL default framebuffer.
+     * <p>
+     * Surface origin should be LowerLeft, but Granite has limitations
+     * when using LowerLeft origin. Additionally, the default framebuffer should
+     * have D24_S8 attachment already, we assume it; caller just needs to tell the
+     * color info.
+     */
+    @Nullable
+    @SharedPtr
+    public static GraniteSurface wrapGLDefaultFramebuffer(RecordingContext context,
+                                                          @NonNull ImageInfo info,
+                                                          int surfaceOrigin) {
+        if (context == null) {
+            return null;
+        }
+
+        if (!info.isValid()) {
+            return null;
+        }
+        ImageDesc desc = context.getCaps().getDefaultColorImageDesc(
+                Engine.ImageType.k2D,
+                info.colorType(),
+                info.width(),
+                info.height(),
+                1,
+                ISurface.FLAG_RENDERABLE);
+        if (desc == null) {
+            return null;
+        }
+
+        @SharedPtr
+        ImageProxy proxy = ImageProxy.wrapGLDefaultFramebuffer(desc); // move
+
+        short readSwizzle = context.getCaps().getReadSwizzle(
+                info.colorType(), desc);
+
+        @SharedPtr
+        ImageProxyView view = new ImageProxyView(proxy, surfaceOrigin, readSwizzle); // move
+
+        GraniteDevice device = GraniteDevice.make(
+                context, view, // move
+                info, Engine.LoadOp.kLoad,
+                true
+        );
+        if (device == null) {
+            return null;
+        }
+        return new GraniteSurface(device);
+    }
+
     @Nullable
     @SharedPtr
     public static GraniteSurface wrapBackendImage(RecordingContext context,
@@ -206,6 +262,18 @@ public final class GraniteSurface extends Surface {
         // when they are next drawn.
         mDevice.setImmutable();
         mDevice = RefCnt.move(mDevice);
+        mImageView = RefCnt.move(mImageView);
+    }
+
+    @Nullable
+    @SharedPtr
+    public Image asImage() {
+        if (hasCachedImage()) {
+            getCommandContext().getLogger().warn(
+                    "GraniteSurface makeImageSnapshot and asImage may not be used together"
+            );
+        }
+        return RefCnt.create(mImageView);
     }
 
     public void flush() {

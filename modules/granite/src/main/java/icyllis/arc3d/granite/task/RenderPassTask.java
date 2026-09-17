@@ -144,11 +144,13 @@ public final class RenderPassTask extends Task {
         assert mColorTarget.isInstantiated();
         assert mResolveTarget == null || mResolveTarget.isInstantiated();
 
+        boolean wrapGLDefaultFB = mColorTarget.getWrapGLDefaultFramebuffer();
+
         Image colorAttachment = mColorTarget.getImage();
 
         @SharedPtr
         Image depthStencilAttachment = null;
-        if (mDepthStencilImageDesc != null) {
+        if (mDepthStencilImageDesc != null && !wrapGLDefaultFB) {
             depthStencilAttachment = context.getResourceProvider().findOrCreateImage(
                     mDepthStencilImageDesc,
                     true,
@@ -160,22 +162,35 @@ public final class RenderPassTask extends Task {
         }
 
         // here all attachments are ref-ed
-        colorAttachment.ref();
+        if (!wrapGLDefaultFB) { // likely
+            colorAttachment.ref();
+        }
         @SharedPtr
         Image resolveAttachment = mResolveTarget != null ? mResolveTarget.refImage() : null;
 
-        var framebufferDesc = new FramebufferDesc(
-                colorAttachment.getWidth(), colorAttachment.getHeight(), 1,
-                new FramebufferDesc.AttachmentDesc(
-                        colorAttachment
-                ),
-                new FramebufferDesc.AttachmentDesc(
-                        resolveAttachment
-                ),
-                new FramebufferDesc.AttachmentDesc(
-                        depthStencilAttachment
-                )
-        );
+        FramebufferDesc framebufferDesc;
+        if (!wrapGLDefaultFB) { // likely
+            framebufferDesc = new FramebufferDesc(
+                    colorAttachment.getWidth(), colorAttachment.getHeight(), 1,
+                    new FramebufferDesc.AttachmentDesc(
+                            colorAttachment
+                    ),
+                    new FramebufferDesc.AttachmentDesc(
+                            resolveAttachment
+                    ),
+                    new FramebufferDesc.AttachmentDesc(
+                            depthStencilAttachment
+                    )
+            );
+        } else {
+            framebufferDesc = new FramebufferDesc(
+                    mColorTarget.getWidth(), mColorTarget.getHeight(), 1,
+                    FramebufferDesc.UNUSED_ATTACHMENT,
+                    FramebufferDesc.UNUSED_ATTACHMENT,
+                    FramebufferDesc.UNUSED_ATTACHMENT
+            );
+            framebufferDesc.mFramebufferFlags = FramebufferDesc.FLAG_GL_WRAP_DEFAULT_FB;
+        }
 
         Rect2ic renderPassBounds;
         if (mRenderPassDesc.mColorAttachments[0].mLoadOp == Engine.LoadOp.kClear) {

@@ -113,6 +113,7 @@ public final class ImageProxy extends RefCnt {
     boolean mBudgeted;
     boolean mVolatile;
     boolean mLazyDimensions;
+    boolean mWrapGLDefaultFramebuffer;
 
     LazyInstantiateCallback mLazyInstantiateCallback;
 
@@ -127,6 +128,7 @@ public final class ImageProxy extends RefCnt {
         mBudgeted = budgeted;
         mVolatile = false;
         mLazyDimensions = false;
+        mWrapGLDefaultFramebuffer = false;
     }
 
     /**
@@ -142,6 +144,7 @@ public final class ImageProxy extends RefCnt {
         mBudgeted = budgeted;
         mVolatile = isVolatile;
         mLazyDimensions = lazyDimensions;
+        mWrapGLDefaultFramebuffer = false;
         mLazyInstantiateCallback = Objects.requireNonNull(callback);
         // A "fully" lazy proxy's width and height are not known until instantiation time.
         // So fully lazy proxies are created with width and height < 0. Regular lazy proxies must be
@@ -161,7 +164,21 @@ public final class ImageProxy extends RefCnt {
         mBudgeted = image.isBudgeted();
         mVolatile = false;
         mLazyDimensions = false;
+        mWrapGLDefaultFramebuffer = false;
         mImage = image; // std::move
+    }
+
+    /**
+     * Wraps GL default framebuffer.
+     */
+    ImageProxy(Void ignored,
+               ImageDesc desc) {
+        mDesc = desc;
+        mLabel = "";
+        mBudgeted = false;
+        mVolatile = false;
+        mLazyDimensions = false;
+        mWrapGLDefaultFramebuffer = true;
     }
 
     public static class LazyCallbackResult {
@@ -254,9 +271,16 @@ public final class ImageProxy extends RefCnt {
         return new ImageProxy(desc, budgeted, isVolatile, lazyDimensions, callback);
     }
 
+    @NonNull
     @SharedPtr
-    public static ImageProxy wrap(@SharedPtr Image image) {
+    public static ImageProxy wrap(@SharedPtr @NonNull Image image) {
         return new ImageProxy(image);
+    }
+
+    @NonNull
+    @SharedPtr
+    public static ImageProxy wrapGLDefaultFramebuffer(@NonNull ImageDesc desc) {
+        return new ImageProxy(null, desc);
     }
 
     @Override
@@ -287,6 +311,10 @@ public final class ImageProxy extends RefCnt {
         return result;
     }
 
+    public boolean getWrapGLDefaultFramebuffer() {
+        return mWrapGLDefaultFramebuffer;
+    }
+
     /**
      * Returns the logical width of this surface.
      * The result is undefined if {@link #isLazyMost()} returns true.
@@ -295,7 +323,7 @@ public final class ImageProxy extends RefCnt {
      */
     public int getWidth() {
         assert (!isLazyMost() || isInstantiated());
-        return isInstantiated() ? mImage.getWidth() : mDesc.getWidth();
+        return mImage != null ? mImage.getWidth() : mDesc.getWidth();
     }
 
     /**
@@ -306,7 +334,7 @@ public final class ImageProxy extends RefCnt {
      */
     public int getHeight() {
         assert (!isLazyMost() || isInstantiated());
-        return isInstantiated() ? mImage.getHeight() : mDesc.getHeight();
+        return mImage != null ? mImage.getHeight() : mDesc.getHeight();
     }
 
     /**
@@ -337,7 +365,7 @@ public final class ImageProxy extends RefCnt {
      * Returns true if the backing store is instantiated.
      */
     public boolean isInstantiated() {
-        return mImage != null;
+        return mImage != null || mWrapGLDefaultFramebuffer;
     }
 
     /**
@@ -350,7 +378,7 @@ public final class ImageProxy extends RefCnt {
         if (isLazy()) {
             return false;
         }
-        if (mImage != null) {
+        if (isInstantiated()) {
             return true;
         }
 
@@ -375,7 +403,7 @@ public final class ImageProxy extends RefCnt {
 
     public boolean doLazyInstantiation(ResourceProvider resourceProvider) {
         assert isLazy();
-        if (mImage != null) {
+        if (isInstantiated()) {
             return true;
         }
 
@@ -485,6 +513,7 @@ public final class ImageProxy extends RefCnt {
                 ", mBudgeted=" + mBudgeted +
                 ", mVolatile=" + mVolatile +
                 ", mLazyDimensions=" + mLazyDimensions +
+                ", mWrapGLDefaultFramebuffer=" + mWrapGLDefaultFramebuffer +
                 ", mLazyInstantiateCallback=" + mLazyInstantiateCallback +
                 '}';
     }

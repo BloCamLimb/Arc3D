@@ -26,6 +26,7 @@ import icyllis.arc3d.core.Rect2i;
 import icyllis.arc3d.core.Rect2ic;
 import icyllis.arc3d.core.RefCnt;
 import icyllis.arc3d.core.SharedPtr;
+import icyllis.arc3d.core.util.ObjectArrayList;
 import icyllis.arc3d.engine.ISurface;
 import icyllis.arc3d.engine.ImageProxy;
 import icyllis.arc3d.engine.ImageProxyView;
@@ -44,6 +45,8 @@ public final class GraniteImage extends Image {
     @SharedPtr
     ImageProxyView mImageProxyView;
 
+    ObjectArrayList<@SharedPtr GraniteDevice> mLinkedDevices;
+
     public GraniteImage(@NonNull @RawPtr RecordingContext context,
                         @NonNull @SharedPtr ImageProxyView view,
                         int colorType, int alphaType,
@@ -52,6 +55,27 @@ public final class GraniteImage extends Image {
                 colorType, alphaType, colorSpace));
         mContext = context;
         mImageProxyView = view;
+    }
+
+    @Nullable
+    @SharedPtr
+    public static GraniteImage wrapDevice(@RawPtr @NonNull GraniteDevice device) {
+        @RawPtr
+        ImageProxyView view = device.getReadView();
+        if (view == null ||
+                !view.getProxy().getDesc().isSampledImage()) {
+            return null;
+        }
+
+        ImageInfo deviceInfo = device.getImageInfo();
+
+        view.ref();
+        GraniteImage image = new GraniteImage(device.getCommandContext(),
+                view, // move
+                deviceInfo.colorType(), deviceInfo.alphaType(), deviceInfo.colorSpace());
+        device.ref();
+        image.linkDevice(device); // move
+        return image; // move
     }
 
     @Nullable
@@ -113,6 +137,21 @@ public final class GraniteImage extends Image {
     protected void deallocate() {
         mImageProxyView.unref();
         mImageProxyView = null;
+        if (mLinkedDevices != null) {
+            for (var e : mLinkedDevices) {
+                if (e != null) {
+                    e.unref();
+                }
+            }
+        }
+        mLinkedDevices = null;
+    }
+
+    public void linkDevice(@SharedPtr @NonNull GraniteDevice device) {
+        if (mLinkedDevices == null) {
+            mLinkedDevices = new ObjectArrayList<>();
+        }
+        mLinkedDevices.add(device); // move
     }
 
     @Override
