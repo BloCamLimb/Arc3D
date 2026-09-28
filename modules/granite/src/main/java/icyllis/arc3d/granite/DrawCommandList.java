@@ -21,8 +21,8 @@ package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.Rect2ic;
-import icyllis.arc3d.core.util.IntArrayList;
-import icyllis.arc3d.core.util.ObjectArrayList;
+import icyllis.arc3d.fastutil.IntArrayList;
+import icyllis.arc3d.fastutil.ObjectArrayList;
 import icyllis.arc3d.engine.*;
 
 import java.io.PrintWriter;

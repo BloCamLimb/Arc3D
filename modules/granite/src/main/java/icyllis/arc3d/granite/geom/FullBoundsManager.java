@@ -22,8 +22,8 @@ package icyllis.arc3d.granite.geom;
 import icyllis.arc3d.core.Rect2f;
 import icyllis.arc3d.core.Rect2fc;
 import icyllis.arc3d.core.Rect2ic;
-import icyllis.arc3d.core.util.FloatArrayList;
-import icyllis.arc3d.core.util.IntArrayList;
+import icyllis.arc3d.fastutil.FloatArrayList;
+import icyllis.arc3d.fastutil.IntArrayList;
 import icyllis.arc3d.granite.Draw;
 
 /**

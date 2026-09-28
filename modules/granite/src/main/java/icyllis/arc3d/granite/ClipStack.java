@@ -20,7 +20,7 @@
 package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.*;
-import icyllis.arc3d.core.util.ObjectArrayList;
+import icyllis.arc3d.fastutil.ObjectArrayList;
 import icyllis.arc3d.granite.geom.BoundsManager;
 import icyllis.arc3d.granite.geom.EdgeAAQuad;
 import icyllis.arc3d.granite.geom.Rect;

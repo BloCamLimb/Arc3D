@@ -21,7 +21,7 @@ package icyllis.arc3d.granite.trash.ops;
 
 import icyllis.arc3d.core.Rect2f;
 import icyllis.arc3d.core.Rect2i;
-import icyllis.arc3d.core.util.ObjectOpenHashSet;
+import icyllis.arc3d.fastutil.ObjectOpenHashSet;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.trash.GraphicsPipelineDesc_Old;
 import icyllis.arc3d.granite.ClipResult_old;

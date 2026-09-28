@@ -20,9 +20,9 @@
 package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.*;
-import icyllis.arc3d.core.util.IntArrays;
-import icyllis.arc3d.core.util.ObjectIntOpenHashMap;
-import icyllis.arc3d.core.util.ObjectArrayList;
+import icyllis.arc3d.fastutil.IntArrays;
+import icyllis.arc3d.fastutil.Object2IntOpenHashMap;
+import icyllis.arc3d.fastutil.ObjectArrayList;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.shading.UniformHandler;
 import icyllis.arc3d.granite.task.DrawTask;
@@ -60,7 +60,7 @@ public final class SurfaceDrawContext implements AutoCloseable {
     private byte mPendingLoadOp = LoadOp.kLoad;
     private final float[] mPendingClearColor = new float[4];
 
-    private final ObjectIntOpenHashMap<GraphicsPipelineDesc> mPipelineToIndex = new ObjectIntOpenHashMap<>();
+    private final Object2IntOpenHashMap<GraphicsPipelineDesc> mPipelineToIndex = new Object2IntOpenHashMap<>();
     private ObjectArrayList<GraphicsPipelineDesc> mIndexToPipeline = new ObjectArrayList<>();
 
     private final GraphicsPipelineDesc mLookupDesc = new GraphicsPipelineDesc();

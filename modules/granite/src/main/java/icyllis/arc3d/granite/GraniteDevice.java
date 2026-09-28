@@ -20,7 +20,7 @@
 package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.*;
-import icyllis.arc3d.core.util.ObjectArrayList;
+import icyllis.arc3d.fastutil.ObjectArrayList;
 import icyllis.arc3d.engine.Engine;
 import icyllis.arc3d.engine.ISurface;
 import icyllis.arc3d.engine.ImageDesc;

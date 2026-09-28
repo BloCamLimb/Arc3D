@@ -20,7 +20,7 @@
 package icyllis.arc3d.vulkan.test;
 
 import icyllis.arc3d.core.SharedPtr;
-import icyllis.arc3d.core.util.ObjectIntOpenHashMap;
+import icyllis.arc3d.fastutil.Object2IntOpenHashMap;
 import icyllis.arc3d.engine.ContextOptions;
 import icyllis.arc3d.engine.ImmediateContext;
 import icyllis.arc3d.vulkan.*;
@@ -49,8 +49,8 @@ public class TestVulkanInit implements AutoCloseable {
     private int mGraphicsQueueIndex = -1;
     private int mComputeQueueIndex = -1;
 
-    private final ObjectIntOpenHashMap<String> mInstanceExtensions = new ObjectIntOpenHashMap<>();
-    private final ObjectIntOpenHashMap<String> mDeviceExtensions = new ObjectIntOpenHashMap<>();
+    private final Object2IntOpenHashMap<String> mInstanceExtensions = new Object2IntOpenHashMap<>();
+    private final Object2IntOpenHashMap<String> mDeviceExtensions = new Object2IntOpenHashMap<>();
     private VkPhysicalDeviceFeatures2 mPhysicalDeviceFeatures2;
 
     private int mPhysicalDeviceVersion;

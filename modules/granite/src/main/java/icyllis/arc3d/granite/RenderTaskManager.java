@@ -20,7 +20,7 @@
 package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.*;
-import icyllis.arc3d.core.util.ObjectObjectOpenHashMap;
+import icyllis.arc3d.fastutil.Object2ObjectOpenHashMap;
 import icyllis.arc3d.engine.Device;
 import icyllis.arc3d.engine.FlushInfo;
 import icyllis.arc3d.engine.ImageProxyView;
@@ -45,8 +45,8 @@ public class RenderTaskManager {
     @SharedPtr
     private final ArrayList<RenderTask> mDAG = new ArrayList<>();
 
-    private final ObjectObjectOpenHashMap<UniqueID, RenderTask> mLastRenderTasks =
-            new ObjectObjectOpenHashMap<>();
+    private final Object2ObjectOpenHashMap<UniqueID, RenderTask> mLastRenderTasks =
+            new Object2ObjectOpenHashMap<>();
     private OpsTask mActiveOpsTask = null;
 
     private final OpFlushState mFlushState;

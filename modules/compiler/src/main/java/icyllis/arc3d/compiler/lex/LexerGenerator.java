@@ -19,11 +19,11 @@
 
 package icyllis.arc3d.compiler.lex;
 
-import icyllis.arc3d.core.util.IntIntOpenHashMap;
-import icyllis.arc3d.core.util.IntArrayList;
-import icyllis.arc3d.core.util.IntComparators;
-import icyllis.arc3d.core.util.IntList;
-import icyllis.arc3d.core.util.IntOpenHashSet;
+import icyllis.arc3d.fastutil.Int2IntOpenHashMap;
+import icyllis.arc3d.fastutil.IntArrayList;
+import icyllis.arc3d.fastutil.IntComparators;
+import icyllis.arc3d.fastutil.IntList;
+import icyllis.arc3d.fastutil.IntOpenHashSet;
 import org.jspecify.annotations.NonNull;
 
 import java.io.PrintWriter;
@@ -223,7 +223,7 @@ public class LexerGenerator {
                 result.v.sort(IntComparators.OPPOSITE_COMPARATOR);
 
                 // Create a mapping from real values to small values.
-                var translationTable = new IntIntOpenHashMap();
+                var translationTable = new Int2IntOpenHashMap();
                 for (int index = 0; index < result.v.size(); ++index) {
                     translationTable.put(result.v.getInt(index), index);
                 }

@@ -19,7 +19,7 @@
 
 package icyllis.arc3d.compiler;
 
-import icyllis.arc3d.core.util.ObjectIntOpenHashMap;
+import icyllis.arc3d.fastutil.Object2IntOpenHashMap;
 
 /**
  * A list of every supported intrinsic.
@@ -249,10 +249,10 @@ public final class IntrinsicList {
     public static final int
             kCount = 154;
 
-    private static final ObjectIntOpenHashMap<String> sIntrinsicMap;
+    private static final Object2IntOpenHashMap<String> sIntrinsicMap;
 
     static {
-        var map = new ObjectIntOpenHashMap<String>(191);
+        var map = new Object2IntOpenHashMap<String>(191);
         map.defaultReturnValue(kNotIntrinsic);
 
         map.put("round"                 , kRound                    );

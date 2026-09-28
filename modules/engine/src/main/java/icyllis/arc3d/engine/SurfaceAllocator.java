@@ -20,7 +20,7 @@
 package icyllis.arc3d.engine;
 
 import icyllis.arc3d.core.*;
-import icyllis.arc3d.core.util.ObjectObjectOpenHashMap;
+import icyllis.arc3d.fastutil.Object2ObjectOpenHashMap;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -75,8 +75,8 @@ public final class SurfaceAllocator {
     private final ImmediateContext mContext;
 
     // All the intervals, hashed by surface ID
-    private final ObjectObjectOpenHashMap<UniqueID, Interval> mIntervalHash =
-            new ObjectObjectOpenHashMap<>();
+    private final Object2ObjectOpenHashMap<UniqueID, Interval> mIntervalHash =
+            new Object2ObjectOpenHashMap<>();
 
     // All the intervals sorted by increasing start
     private final IntervalList mIntervalList = new IntervalList();
@@ -90,8 +90,8 @@ public final class SurfaceAllocator {
     // Recently created/used textures
     private final LinkedListMultimap<IResourceKey, Register> mFreePool = new LinkedListMultimap<>();
 
-    private final ObjectObjectOpenHashMap<Object, Register> mUniqueKeyRegisters =
-            new ObjectObjectOpenHashMap<>();
+    private final Object2ObjectOpenHashMap<Object, Register> mUniqueKeyRegisters =
+            new Object2ObjectOpenHashMap<>();
     private int mNumOps;
 
     private boolean mSimulated;

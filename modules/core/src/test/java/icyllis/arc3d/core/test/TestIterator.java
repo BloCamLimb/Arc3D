@@ -19,7 +19,7 @@
 
 package icyllis.arc3d.core.test;
 
-import icyllis.arc3d.core.util.ObjectArrayList;
+import icyllis.arc3d.fastutil.ObjectArrayList;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;

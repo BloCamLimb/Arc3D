@@ -19,7 +19,7 @@
 
 package icyllis.arc3d.compiler.spirv;
 
-import icyllis.arc3d.core.util.IntArrays;
+import icyllis.arc3d.fastutil.IntArrays;
 
 import java.util.Arrays;
 

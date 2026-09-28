@@ -19,7 +19,7 @@
 
 package icyllis.arc3d.granite;
 
-import icyllis.arc3d.core.util.IntObjectOpenHashMap;
+import icyllis.arc3d.fastutil.Int2ObjectOpenHashMap;
 import icyllis.arc3d.sketch.StrikeDesc;
 import icyllis.arc3d.sketch.Strike;
 import org.jspecify.annotations.NonNull;
@@ -30,7 +30,7 @@ import org.jspecify.annotations.NonNull;
 public final class GlyphStrike {
 
     private final StrikeDesc mStrikeDesc;
-    private final IntObjectOpenHashMap<BakedGlyph> mGlyphs = new IntObjectOpenHashMap<>();
+    private final Int2ObjectOpenHashMap<BakedGlyph> mGlyphs = new Int2ObjectOpenHashMap<>();
 
     /**
      * <var>desc</var> must be immutable, no copy will be made.

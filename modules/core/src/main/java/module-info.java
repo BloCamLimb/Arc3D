@@ -12,5 +12,5 @@ module icyllis.arc3d.core {
 
     exports icyllis.arc3d.core;
     exports icyllis.arc3d.core.compress;
-    exports icyllis.arc3d.core.util;
+    exports icyllis.arc3d.fastutil;
 }

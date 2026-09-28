@@ -20,7 +20,7 @@
 package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.WeakIdentityKey;
-import icyllis.arc3d.core.util.ObjectArrayList;
+import icyllis.arc3d.fastutil.ObjectArrayList;
 import icyllis.arc3d.sketch.GlyphRunList;
 import icyllis.arc3d.sketch.Matrixc;
 import icyllis.arc3d.sketch.Paint;

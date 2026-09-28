@@ -23,14 +23,13 @@ import icyllis.arc3d.compiler.*;
 import icyllis.arc3d.compiler.analysis.Analysis;
 import icyllis.arc3d.compiler.tree.*;
 import icyllis.arc3d.core.MathUtil;
-import icyllis.arc3d.core.util.IntIntOpenHashMap;
-import icyllis.arc3d.core.util.IntObjectOpenHashMap;
-import icyllis.arc3d.core.util.IntArrayList;
-import icyllis.arc3d.core.util.IntList;
-import icyllis.arc3d.core.util.IntOpenHashSet;
-import icyllis.arc3d.core.util.IntStack;
-import icyllis.arc3d.core.util.ObjectIntOpenHashMap;
-import icyllis.arc3d.core.util.ReferenceIntOpenHashMap;
+import icyllis.arc3d.fastutil.Int2IntOpenHashMap;
+import icyllis.arc3d.fastutil.Int2ObjectOpenHashMap;
+import icyllis.arc3d.fastutil.IntArrayList;
+import icyllis.arc3d.fastutil.IntList;
+import icyllis.arc3d.fastutil.IntOpenHashSet;
+import icyllis.arc3d.fastutil.IntStack;
+import icyllis.arc3d.fastutil.Object2IntOpenHashMap;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -75,8 +74,8 @@ public final class SPIRVCodeGenerator extends CodeGenerator {
     // key is a pointer to symbol table, hash is based on address (reference equality)
     // struct type to SpvId[MemoryLayout.ordinal + 1], no memory layout is at [0]
     private final HashMap<Type, int[]> mStructTable = new HashMap<>();
-    private final ReferenceIntOpenHashMap<FunctionDeclaration> mFunctionTable = new ReferenceIntOpenHashMap<>();
-    private final ReferenceIntOpenHashMap<Variable> mVariableTable = new ReferenceIntOpenHashMap<>();
+    private final Object2IntOpenHashMap<FunctionDeclaration> mFunctionTable = new Object2IntOpenHashMap<>();
+    private final Object2IntOpenHashMap<Variable> mVariableTable = new Object2IntOpenHashMap<>();
 
     // reused arrays storing SpvId; there are nested calls, but won't be too deep
     private final IntArrayList[] mIdListPool = new IntArrayList[6];
@@ -88,11 +87,11 @@ public final class SPIRVCodeGenerator extends CodeGenerator {
     private int mInstBuilderPoolSize = 0;
 
     // A map of instruction -> SpvId:
-    private final ObjectIntOpenHashMap<Instruction> mOpCache = new ObjectIntOpenHashMap<>();
+    private final Object2IntOpenHashMap<Instruction> mOpCache = new Object2IntOpenHashMap<>();
     // A map of SpvId -> instruction:
-    private final IntObjectOpenHashMap<Instruction> mSpvIdCache = new IntObjectOpenHashMap<>();
+    private final Int2ObjectOpenHashMap<Instruction> mSpvIdCache = new Int2ObjectOpenHashMap<>();
     // A map of SpvId -> value SpvId:
-    final IntIntOpenHashMap mStoreCache = new IntIntOpenHashMap();
+    final Int2IntOpenHashMap mStoreCache = new Int2IntOpenHashMap();
 
     // "Reachable" ops are instructions which can safely be accessed from the current block.
     // For instance, if our SPIR-V contains `%3 = OpFAdd %1 %2`, we would be able to access and
