@@ -71,6 +71,8 @@ public class ZstdDecompressor implements Decompressor {
         ensureOpen();
         if (dictionary.isDirect()) {
             checkError(ZSTD_DCtx_loadDictionary(dstream, dictionary));
+            // Note: this method call also serves to keep the byteBuffer ref alive,
+            // no reachabilityFence is required
             dictionary.position(dictionary.position() + dictionary.remaining());
         } else {
             ByteBuffer buf = MemoryUtil.memAlloc(dictionary.remaining());
@@ -170,6 +172,8 @@ public class ZstdDecompressor implements Decompressor {
             int consumed = (int) in.pos();
             produced = (int) out.pos();
 
+            // Note: this method call also serves to keep the byteBuffer ref alive,
+            // no reachabilityFence is required
             input.position(input.position() + consumed);
             output.position(output.position() + produced);
 
