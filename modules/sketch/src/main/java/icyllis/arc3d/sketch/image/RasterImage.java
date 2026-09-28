@@ -33,45 +33,45 @@ public class RasterImage extends Image {
 
     final Pixmap mPixmap;
     @SharedPtr
-    PixelRef mPixelRef;
+    Pixels mPixels;
 
     /**
      * @param pixmap pixel map
-     * @param pixelRef raw ptr to pixel ref
+     * @param pixels raw ptr to pixel ref
      */
     public RasterImage(@NonNull Pixmap pixmap,
-                       @NonNull @RawPtr PixelRef pixelRef,
+                       @NonNull @RawPtr Pixels pixels,
                        boolean mayBeMutable) {
         super(pixmap.getInfo());
-        if (!(mayBeMutable || pixelRef.isImmutable())) {
+        if (!(mayBeMutable || pixels.isImmutable())) {
             throw new IllegalArgumentException();
         }
         mPixmap = pixmap;
-        mPixelRef = RefCnt.create(pixelRef);
+        mPixels = RefCnt.create(pixels);
     }
 
     @Nullable
     @SharedPtr
     public static Image makeFromBitmap(@NonNull Pixmap pixmap,
-                                       @RawPtr PixelRef pixelRef) {
-        return makeFromRasterBitmap(pixmap, pixelRef, COPY_MODE_IF_MUTABLE);
+                                       @RawPtr Pixels pixels) {
+        return makeFromRasterBitmap(pixmap, pixels, COPY_MODE_IF_MUTABLE);
     }
 
     @Nullable
     @SharedPtr
     public static Image makeFromRasterBitmap(@NonNull Pixmap pixmap,
-                                             @RawPtr PixelRef pixelRef,
+                                             @RawPtr Pixels pixels,
                                              int copyMode) {
-        if (pixelRef == null) {
+        if (pixels == null) {
             return null;
         }
         if (!pixmap.getInfo().isValid() || pixmap.getRowBytes() < pixmap.getInfo().minRowBytes()) {
             return null;
         }
-        if (pixelRef.getAddress() == MemoryUtil.NULL && pixelRef.getBase() == null) {
+        if (pixels.getAddress() == MemoryUtil.NULL && pixels.getBase() == null) {
             return null;
         }
-        if (copyMode == COPY_MODE_ALWAYS || (!pixelRef.isImmutable() && copyMode != COPY_MODE_NEVER)) {
+        if (copyMode == COPY_MODE_ALWAYS || (!pixels.isImmutable() && copyMode != COPY_MODE_NEVER)) {
             long size = pixmap.getInfo().computeByteSize(pixmap.getRowBytes());
             if (size < 0) {
                 return null;
@@ -81,8 +81,8 @@ public class RasterImage extends Image {
                 return null;
             }
             PixelUtils.copyImage(
-                    pixelRef.getBase(),
-                    pixelRef.getAddress(),
+                    pixels.getBase(),
+                    pixels.getAddress(),
                     pixmap.getRowBytes(),
                     null,
                     addr,
@@ -92,19 +92,19 @@ public class RasterImage extends Image {
             );
             Pixmap newPixmap = new Pixmap(pixmap.getInfo(),
                     null, addr, pixmap.getRowBytes());
-            PixelRef newPixelRef = new PixelRef(pixmap.getWidth(), pixmap.getHeight(),
+            Pixels newPixels = new Pixels(pixmap.getWidth(), pixmap.getHeight(),
                     null, addr, pixmap.getRowBytes(), MemoryUtil::nmemFree);
-            newPixelRef.setImmutable();
-            Image result = new RasterImage(newPixmap, newPixelRef, false);
-            newPixelRef.unref();
+            newPixels.setImmutable();
+            Image result = new RasterImage(newPixmap, newPixels, false);
+            newPixels.unref();
             return result;
         }
-        return new RasterImage(pixmap, pixelRef, copyMode == COPY_MODE_NEVER);
+        return new RasterImage(pixmap, pixels, copyMode == COPY_MODE_NEVER);
     }
 
     @Override
     protected void deallocate() {
-        mPixelRef = RefCnt.move(mPixelRef);
+        mPixels = RefCnt.move(mPixels);
     }
 
     @Override

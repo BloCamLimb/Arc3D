@@ -32,7 +32,7 @@ import java.util.Objects;
  * Immutable structure that pairs ImageInfo with pixels and row bytes.
  * <p>
  * This class does not try to manage the lifetime of pixels, unless it's backed
- * by a heap array, use {@link PixelRef} to manage the native pixel memory.
+ * by a heap array, use {@link Pixels} to manage the native pixel memory.
  */
 public class Pixmap {
 
@@ -75,7 +75,7 @@ public class Pixmap {
      * Adopts the given pixels with info, without lifecycle management.
      */
     public Pixmap(@NonNull ImageInfo info,
-                  @RawPtr @NonNull PixelRef pixels) {
+                  @RawPtr @NonNull Pixels pixels) {
         this(info, pixels.getBase(), pixels.getAddress(), pixels.getRowBytes());
     }
 

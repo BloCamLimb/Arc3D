@@ -30,7 +30,7 @@ import java.util.function.LongConsumer;
  * This class is the smart container for pixel memory.<br>
  * This class may be shared/accessed between multiple threads.
  */
-public class PixelRef extends RefCnt {
+public class Pixels extends RefCnt {
 
     protected final int mWidth;
     protected final int mHeight;
@@ -42,7 +42,7 @@ public class PixelRef extends RefCnt {
     protected boolean mImmutable;
 
     /**
-     * Creates {@link PixelRef} from width, height.
+     * Creates {@link Pixels} from width, height.
      * <var>rowBytes</var> should be width times bpp, or larger.
      * <var>freeFn</var> is used to free the <var>address</var>.
      *
@@ -51,12 +51,12 @@ public class PixelRef extends RefCnt {
      * @param rowBytes size of one row of buffer; width times bpp, or larger
      * @param freeFn   free function for native buffer; may be null
      */
-    public PixelRef(int width,
-                    int height,
-                    @Nullable Object base,
-                    @NativeType("void *") long address,
-                    int rowBytes,
-                    @Nullable LongConsumer freeFn) {
+    public Pixels(int width,
+                  int height,
+                  @Nullable Object base,
+                  @NativeType("void *") long address,
+                  int rowBytes,
+                  @Nullable LongConsumer freeFn) {
         mWidth = width;
         mHeight = height;
         mBase = base;
@@ -85,7 +85,7 @@ public class PixelRef extends RefCnt {
      */
     @NonNull
     @SharedPtr
-    public static PixelRef makeAllocate(@NonNull ImageInfo info, int rowBytes) {
+    public static Pixels makeAllocate(@NonNull ImageInfo info, int rowBytes) {
         int minRB = info.minRowBytes();
         if (rowBytes == 0) {
             rowBytes = minRB;
@@ -115,7 +115,7 @@ public class PixelRef extends RefCnt {
         // the address is aligned to the size of any data type
         assert ColorInfo.validMemoryAddress(info.colorType(), null, addr);
 
-        return new PixelRef(info.width(), info.height(),
+        return new Pixels(info.width(), info.height(),
                 null, addr, rowBytes, MemoryUtil::nmemFree);
     }
 
@@ -177,7 +177,7 @@ public class PixelRef extends RefCnt {
 
     @Override
     public String toString() {
-        return "PixelRef{" +
+        return "Pixels{" +
                 "mWidth=" + mWidth +
                 ", mHeight=" + mHeight +
                 ", mBase=" + mBase +

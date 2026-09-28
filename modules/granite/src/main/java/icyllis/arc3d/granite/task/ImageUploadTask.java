@@ -84,10 +84,10 @@ public class ImageUploadTask extends Task {
             mRowBytes = pixmap.getRowBytes();
         }
 
-        public MipLevel(PixelRef pixelRef) {
-            mBase = pixelRef.getBase();
-            mAddress = pixelRef.getAddress();
-            mRowBytes = pixelRef.getRowBytes();
+        public MipLevel(Pixels pixels) {
+            mBase = pixels.getBase();
+            mAddress = pixels.getAddress();
+            mRowBytes = pixels.getRowBytes();
         }
     }
 

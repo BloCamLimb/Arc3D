@@ -19,7 +19,7 @@
 
 package icyllis.arc3d.engine;
 
-import icyllis.arc3d.core.PixelRef;
+import icyllis.arc3d.core.Pixels;
 import icyllis.arc3d.core.RefCnt;
 import icyllis.arc3d.core.SharedPtr;
 import icyllis.arc3d.fastutil.Object2ObjectOpenHashMap;
@@ -189,12 +189,12 @@ public final class ImageProxyCache {
     @Deprecated
     private static final class PixelsCallback implements SurfaceProxy.LazyInstantiateCallback {
 
-        private PixelRef mPixelRef;
+        private Pixels mPixels;
         private final int mSrcColorType;
         private final int mDstColorType;
 
-        public PixelsCallback(PixelRef pixelRef, int srcColorType, int dstColorType) {
-            mPixelRef = RefCnt.create(pixelRef);
+        public PixelsCallback(Pixels pixels, int srcColorType, int dstColorType) {
+            mPixels = RefCnt.create(pixels);
             mSrcColorType = srcColorType;
             mDstColorType = dstColorType;
         }
@@ -208,7 +208,7 @@ public final class ImageProxyCache {
                 int surfaceFlags,
                 String label) {
             //TODO implement fast pixel transfer from heap array
-            assert mPixelRef.getBase() == null;
+            assert mPixels.getBase() == null;
             /*@SharedPtr
             Image texture = provider.createTexture(
                     width, height,
@@ -227,7 +227,7 @@ public final class ImageProxyCache {
 
         @Override
         public void close() {
-            mPixelRef = RefCnt.move(mPixelRef);
+            mPixels = RefCnt.move(mPixels);
         }
     }
 

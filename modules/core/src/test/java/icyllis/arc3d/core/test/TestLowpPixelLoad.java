@@ -23,7 +23,6 @@ import icyllis.arc3d.core.*;
 import org.lwjgl.system.MemoryUtil;
 
 import java.util.Arrays;
-import java.util.Objects;
 import java.util.Random;
 
 public class TestLowpPixelLoad {
@@ -35,7 +34,7 @@ public class TestLowpPixelLoad {
     public static void main(String[] args) {
         int width = 64, height = 64;
         var info = ImageInfo.make(width, height, ColorInfo.CT_RGBA_F32, ColorInfo.AT_UNPREMUL, null);
-        var pixels = PixelRef.makeAllocate(info, 0);
+        var pixels = Pixels.makeAllocate(info, 0);
         var random = new Random();
         for (long i = 0, e = info.computeMinByteSize(); i < e; i += 4) {
             MemoryUtil.memPutFloat(pixels.getAddress() + i, random.nextFloat(1));
@@ -79,7 +78,7 @@ public class TestLowpPixelLoad {
 
     public static void testForColorType(int ct, Pixmap originalPixmap) {
         var newInfo = originalPixmap.getInfo().makeColorType(ct);
-        var newPixels = PixelRef.makeAllocate(newInfo, 0);
+        var newPixels = Pixels.makeAllocate(newInfo, 0);
 
         Pixmap convertedPixmap = new Pixmap(
                 newInfo, newPixels

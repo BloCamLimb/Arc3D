@@ -88,13 +88,13 @@ public class Raster implements AutoCloseable {
     @Nullable
     protected final BufferedImage mBufImg;
     protected Pixmap mPixmap;
-    protected PixelRef mPixelRef;
+    protected Pixels mPixels;
 
     public Raster(@Nullable BufferedImage bufImg, @NonNull ImageInfo info,
                   @Nullable Object data, int rowBytes) {
         mBufImg = bufImg;
         mPixmap = new Pixmap(info, data, 0, rowBytes);
-        mPixelRef = new PixelRef(info.width(), info.height(), data, 0, rowBytes, /*freeFn*/ null);
+        mPixels = new Pixels(info.width(), info.height(), data, 0, rowBytes, /*freeFn*/ null);
     }
 
     @NonNull
@@ -233,12 +233,12 @@ public class Raster implements AutoCloseable {
 
     // won't affect ref cnt
     @RawPtr
-    public PixelRef getPixelRef() {
-        return mPixelRef;
+    public Pixels getPixels() {
+        return mPixels;
     }
 
     @Override
     public void close() {
-        mPixelRef = RefCnt.move(mPixelRef);
+        mPixels = RefCnt.move(mPixels);
     }
 }
