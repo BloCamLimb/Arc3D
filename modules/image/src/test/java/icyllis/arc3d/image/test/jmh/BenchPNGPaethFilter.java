@@ -19,7 +19,7 @@
 
 package icyllis.arc3d.image.test.jmh;
 
-import icyllis.arc3d.core.image.Predictor;
+import icyllis.arc3d.image.Predictor;
 import jdk.incubator.vector.ByteVector;
 import jdk.incubator.vector.ShortVector;
 import jdk.incubator.vector.VectorMask;

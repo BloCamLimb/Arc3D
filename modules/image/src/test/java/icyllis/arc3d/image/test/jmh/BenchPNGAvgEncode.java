@@ -19,9 +19,9 @@
 
 package icyllis.arc3d.image.test.jmh;
 
-import icyllis.arc3d.core.image.Predictor;
-import icyllis.arc3d.core.image.PredictorIncubatorVector;
-import icyllis.arc3d.core.image.PredictorStandard;
+import icyllis.arc3d.image.Predictor;
+import icyllis.arc3d.image.PredictorIncubatorVector;
+import icyllis.arc3d.image.PredictorStandard;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;

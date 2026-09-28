@@ -37,7 +37,7 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.zip.Deflater;
 
-import static icyllis.arc3d.core.image.PNG.FILTER_TYPE_NONE;
+import static icyllis.arc3d.image.PNG.FILTER_TYPE_NONE;
 
 @Fork(1)
 @Threads(2)
