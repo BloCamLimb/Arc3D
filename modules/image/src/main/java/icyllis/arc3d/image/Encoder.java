@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.channels.FileChannel;
 import java.nio.channels.WritableByteChannel;
 
 //PNG/JPEG/GIF/TIFF/Radiance/OpenEXR/KTX2/PNM/PAM/PFM
@@ -63,7 +62,7 @@ public abstract class Encoder implements AutoCloseable {
 
     protected void ensureWriteBuffer() {
         if (buffer == null) {
-            if (channel instanceof FileChannel) {
+            if (channel != null) {
                 buffer = ByteBuffer.allocateDirect(BUFFER_SIZE);
             } else {
                 buffer = ByteBuffer.allocate(BUFFER_SIZE);

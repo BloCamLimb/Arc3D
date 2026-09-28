@@ -1496,6 +1496,7 @@ public class PNGDecoder extends Decoder {
      */
     @Override
     public void close() {
+        super.close();
         if (inflater != null) {
             inflater.end();
             inflater = null;

@@ -25,13 +25,13 @@ import icyllis.arc3d.core.ImageInfo;
 import icyllis.arc3d.core.Pixmap;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import org.lwjgl.system.MemoryUtil;
 
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 
@@ -52,6 +52,7 @@ public abstract class Decoder implements AutoCloseable {
     public static final int BUFFER_SIZE = 8192;
 
     protected ByteBuffer buffer;
+    protected boolean ownsNativeBuffer;
 
     protected boolean readText = false;
     protected boolean readExif = false;
@@ -74,6 +75,10 @@ public abstract class Decoder implements AutoCloseable {
     }
 
     public void setBuffer(ByteBuffer buf) {
+        if (ownsNativeBuffer) {
+            MemoryUtil.memFree((java.nio.Buffer) buffer);
+            ownsNativeBuffer = false;
+        }
         buffer = buf;
     }
 
@@ -180,10 +185,12 @@ public abstract class Decoder implements AutoCloseable {
 
     protected void ensureReadBuffer() {
         if (buffer == null) {
-            if (channel instanceof FileChannel) {
-                buffer = ByteBuffer.allocateDirect(BUFFER_SIZE);
+            if (channel != null) {
+                buffer = MemoryUtil.memAlloc(BUFFER_SIZE);
+                ownsNativeBuffer = true;
             } else {
                 buffer = ByteBuffer.allocate(BUFFER_SIZE);
+                assert !ownsNativeBuffer;
             }
             buffer.limit(0);
             buffer.order(ByteOrder.nativeOrder());
@@ -305,6 +312,13 @@ public abstract class Decoder implements AutoCloseable {
      */
     @Override
     public void close() {
+        if (ownsNativeBuffer) {
+            MemoryUtil.memFree((java.nio.Buffer) buffer);
+            ownsNativeBuffer = false;
+        }
+        buffer = null;
+        stream = null;
+        channel = null;
     }
 
     protected static boolean isWS(byte b) {
