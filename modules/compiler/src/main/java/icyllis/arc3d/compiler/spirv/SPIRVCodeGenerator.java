@@ -30,6 +30,7 @@ import icyllis.arc3d.fastutil.IntList;
 import icyllis.arc3d.fastutil.IntOpenHashSet;
 import icyllis.arc3d.fastutil.IntStack;
 import icyllis.arc3d.fastutil.Object2IntOpenHashMap;
+import icyllis.arc3d.fastutil.Reference2IntOpenHashMap;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -74,8 +75,8 @@ public final class SPIRVCodeGenerator extends CodeGenerator {
     // key is a pointer to symbol table, hash is based on address (reference equality)
     // struct type to SpvId[MemoryLayout.ordinal + 1], no memory layout is at [0]
     private final HashMap<Type, int[]> mStructTable = new HashMap<>();
-    private final Object2IntOpenHashMap<FunctionDeclaration> mFunctionTable = new Object2IntOpenHashMap<>();
-    private final Object2IntOpenHashMap<Variable> mVariableTable = new Object2IntOpenHashMap<>();
+    private final Reference2IntOpenHashMap<FunctionDeclaration> mFunctionTable = new Reference2IntOpenHashMap<>();
+    private final Reference2IntOpenHashMap<Variable> mVariableTable = new Reference2IntOpenHashMap<>();
 
     // reused arrays storing SpvId; there are nested calls, but won't be too deep
     private final IntArrayList[] mIdListPool = new IntArrayList[6];

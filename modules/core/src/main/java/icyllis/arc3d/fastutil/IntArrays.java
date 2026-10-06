@@ -30,12 +30,6 @@ import java.util.concurrent.ForkJoinPool;
  * {@code trim()} and {@code setLength()} methods allow to handle arrays much like array lists. This
  * can be very useful when efficiency (or syntactic simplicity) reasons make array lists unsuitable.
  *
- * <p>
- * Note that {@link icyllis.arc3d.core.util.io.BinIO} and {@link icyllis.arc3d.core.util.io.TextIO}
- * contain several methods make it possible to load and save arrays of primitive types as sequences
- * of elements in {@link java.io.DataInput} format (i.e., not as objects) or as sequences of lines
- * of text.
- *
  * <h2>Sorting</h2>
  *
  * <p>

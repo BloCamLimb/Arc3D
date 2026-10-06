@@ -30,7 +30,7 @@ import java.util.Map;
  * (un)boxing, and handling of a default return value.
  *
  * <p>
- * Besides extending the corresponding type-specific {@linkplain icyllis.arc3d.core.util.Function
+ * Besides extending the corresponding type-specific {@linkplain Map
  * function}, this interface strengthens {@link Map#entrySet()}, {@link #keySet()} and
  * {@link #values()}. Moreover, a number of methods, such as {@link #size()},
  * {@link #defaultReturnValue()}, etc., are un-defaulted as their function default do not make sense
@@ -86,7 +86,6 @@ public interface Object2ObjectMap<K, V> extends Map<K, V> {
 	 * {@link Integer#MAX_VALUE} elements, returns {@link Integer#MAX_VALUE}.
 	 *
 	 * @return the number of key-value mappings in this map.
-	 * @see icyllis.arc3d.core.util.Size64
 	 */
 	@Override
 	int size();
@@ -262,8 +261,8 @@ public interface Object2ObjectMap<K, V> extends Map<K, V> {
 	 * <p>
 	 * This version of {@linkplain java.util.Map#computeIfAbsent(Object, java.util.function.Function)
 	 * computeIfAbsent()} uses a type-specific version of {@code fastutil}'s
-	 * {@link icyllis.arc3d.core.util.Function Function}. Since {@link icyllis.arc3d.core.util.Function
-	 * Function} has a {@link icyllis.arc3d.core.util.Function#containsKey(Object) containsKey()} method,
+	 * {@link Object2ObjectMap}. Since {@link Object2ObjectMap} has a
+     * {@link Object2ObjectMap#containsKey(Object) containsKey()} method,
 	 * it is possible to avoid adding a key by having {@code containsKey()} return {@code false} for
 	 * that key.
 	 *

@@ -50,10 +50,6 @@ import java.util.function.Consumer;
  * {@linkplain #trim() trimming methods} lets you control the size of the table; this is
  * particularly useful if you reuse instances of this class.
  *
- * <p>
- * Entries returned by the type-specific {@link #entrySet()} method implement the suitable
- * type-specific {@link icyllis.arc3d.core.util.Pair Pair} interface; only values are mutable.
- *
  * @see Hash
  * @see HashCommon
  */

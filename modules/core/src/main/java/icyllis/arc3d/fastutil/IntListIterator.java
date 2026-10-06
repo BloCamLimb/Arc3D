@@ -26,11 +26,10 @@ import java.util.ListIterator;
  *
  * <p>
  * This interface merges the methods provided by a {@link ListIterator} and a type-specific
- * {@link icyllis.arc3d.core.util.BidirectionalIterator}. Moreover, it provides type-specific versions
+ * {@code BidirectionalIterator}. Moreover, it provides type-specific versions
  * of {@link ListIterator#add(Object) add()} and {@link ListIterator#set(Object) set()}.
  *
  * @see java.util.ListIterator
- * @see icyllis.arc3d.core.util.BidirectionalIterator
  */
 public interface IntListIterator extends IntIterator {
 
