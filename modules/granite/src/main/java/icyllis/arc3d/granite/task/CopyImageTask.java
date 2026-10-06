@@ -24,6 +24,8 @@ import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.RecordingContext;
 import org.jspecify.annotations.NonNull;
 
+import java.util.function.Predicate;
+
 public class CopyImageTask extends Task {
 
     @SharedPtr
@@ -94,5 +96,10 @@ public class CopyImageTask extends Task {
             return RESULT_SUCCESS;
         }
         return RESULT_FAILURE;
+    }
+
+    @Override
+    public boolean visitImages(@NonNull Predicate<ImageProxy> visitor, boolean readsOnly) {
+        return visitor.test(mSrcProxy) && (readsOnly || visitor.test(mDstProxy));
     }
 }

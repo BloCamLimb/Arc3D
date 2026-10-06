@@ -22,6 +22,9 @@ package icyllis.arc3d.granite.task;
 import icyllis.arc3d.core.RefCnt;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.RecordingContext;
+import org.jspecify.annotations.NonNull;
+
+import java.util.function.Predicate;
 
 public abstract class Task extends RefCnt implements icyllis.arc3d.engine.Task {
 
@@ -35,6 +38,10 @@ public abstract class Task extends RefCnt implements icyllis.arc3d.engine.Task {
      * The {@link ResourceProvider} of {@link ImmediateContext} can also be used to create resources.
      */
     public abstract int execute(ImmediateContext context, CommandBuffer commandBuffer);
+
+    public boolean visitImages(@NonNull Predicate<ImageProxy> visitor, boolean readsOnly) {
+        return true;
+    }
 
     /**
      * Cleanup resources.

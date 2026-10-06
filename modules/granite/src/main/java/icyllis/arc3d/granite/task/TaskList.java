@@ -20,6 +20,7 @@
 package icyllis.arc3d.granite.task;
 
 import icyllis.arc3d.core.SharedPtr;
+import icyllis.arc3d.engine.ImageProxy;
 import icyllis.arc3d.fastutil.ObjectArrayList;
 import icyllis.arc3d.fastutil.ObjectList;
 import icyllis.arc3d.engine.CommandBuffer;
@@ -28,6 +29,7 @@ import icyllis.arc3d.granite.RecordingContext;
 import org.jspecify.annotations.NonNull;
 
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * List of ref-counted tasks, only methods defined in this class can be called.
@@ -120,6 +122,22 @@ public class TaskList extends ObjectArrayList<@SharedPtr Task>
         }
 
         return discardCount == size ? Task.RESULT_DISCARD : Task.RESULT_SUCCESS;
+    }
+
+    public boolean visitImages(@NonNull Predicate<ImageProxy> visitor, boolean readsOnly) {
+        final Object[] a = this.a;
+        for (int i = 0; i < size; i++) {
+            var task = (Task) a[i];
+            if (task == null) {
+                continue;
+            }
+
+            if (!task.visitImages(visitor, readsOnly)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     @Override

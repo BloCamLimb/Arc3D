@@ -24,10 +24,12 @@ import icyllis.arc3d.fastutil.ObjectArrayList;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.GraniteUtil;
 import icyllis.arc3d.granite.RecordingContext;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
 
 import java.util.List;
+import java.util.function.Predicate;
 
 public class ImageUploadTask extends Task {
 
@@ -267,5 +269,10 @@ public class ImageUploadTask extends Task {
         } else {
             return RESULT_SUCCESS;
         }
+    }
+
+    @Override
+    public boolean visitImages(@NonNull Predicate<ImageProxy> visitor, boolean readsOnly) {
+        return visitor.test(mImageProxy);
     }
 }

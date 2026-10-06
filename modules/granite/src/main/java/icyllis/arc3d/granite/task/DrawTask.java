@@ -52,7 +52,8 @@ public final class DrawTask extends Task {
 
     @Override
     public int execute(ImmediateContext context, CommandBuffer commandBuffer) {
-        assert mTarget.isInstantiated();
+        //TODO can't assert now, because there's draw task that contains only one atlas upload, figure it out
+        //assert mTarget.isInstantiated();
         return mChildTasks.execute(context, commandBuffer);
     }
 }

@@ -671,6 +671,9 @@ public class FragmentHelpers {
             return;
         }
 
+        // important
+        imageToDraw.notifyInUse(keyContext.context, keyContext.drawContext);
+
         final int srcAlphaType = imageToDraw.getAlphaType();
         final int dstAlphaType = ColorInfo.AT_PREMUL;
         if (imageToDraw.isAlphaOnly()) {

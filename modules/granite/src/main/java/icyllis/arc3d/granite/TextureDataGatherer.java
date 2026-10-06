@@ -21,6 +21,7 @@ package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.SharedPtr;
+import icyllis.arc3d.engine.ImageProxy;
 import icyllis.arc3d.fastutil.IntArrayList;
 import icyllis.arc3d.fastutil.IntArrays;
 import icyllis.arc3d.fastutil.Object2IntOpenHashMap;
@@ -127,6 +128,15 @@ public final class TextureDataGatherer implements AutoCloseable {
         var res = mIndexToSampler;
         mIndexToSampler = null;
         return res;
+    }
+
+    public boolean hasTexture(@NonNull @RawPtr ImageProxy texture) {
+        for (var e : mIndexToTexture) {
+            if (e.getProxy() == texture) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override

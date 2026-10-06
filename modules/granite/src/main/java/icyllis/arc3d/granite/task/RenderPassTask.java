@@ -25,10 +25,12 @@ import icyllis.arc3d.core.SharedPtr;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.DrawPass;
 import icyllis.arc3d.granite.RecordingContext;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.function.Predicate;
 
 public final class RenderPassTask extends Task {
 
@@ -224,5 +226,15 @@ public final class RenderPassTask extends Task {
         RefCnt.move(resolveAttachment);
         RefCnt.move(depthStencilAttachment);
         return RESULT_FAILURE;
+    }
+
+    @Override
+    public boolean visitImages(@NonNull Predicate<ImageProxy> visitor, boolean readsOnly) {
+        for (var e : mDrawPass.getTextureViews()) {
+            if (!visitor.test(e.getProxy())) {
+                return false;
+            }
+        }
+        return readsOnly || mColorTarget == null || visitor.test(mColorTarget);
     }
 }

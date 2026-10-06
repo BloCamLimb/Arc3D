@@ -464,6 +464,20 @@ public final class SurfaceDrawContext implements AutoCloseable {
         }
     }
 
+    public boolean readsTexture(@NonNull @RawPtr ImageProxy texture) {
+        if (mTextureDataGatherer.hasTexture(texture)) {
+            return true;
+        }
+
+        // stopped = found
+        return !mDrawTaskList.visitImages(that -> that != texture,
+                /*readsOnly=*/true);
+    }
+
+    public boolean modifiesTarget() {
+        return mNumSteps > 0 || mPendingLoadOp == LoadOp.kClear;
+    }
+
     public void flush(RecordingContext context) {
         if (!mPendingUploads.isEmpty()) {
             mDrawTaskList.appendTasks(mPendingUploads);
@@ -472,7 +486,7 @@ public final class SurfaceDrawContext implements AutoCloseable {
         }
 
         assert mSortKeys.size() == mNumSteps;
-        if (mNumSteps == 0 && mPendingLoadOp != LoadOp.kClear) {
+        if (!modifiesTarget()) {
             // Nothing will be rasterized to the target that warrants a RenderPassTask, but we preserve
             // any added uploads or compute tasks since those could also affect the target w/o
             // rasterizing anything directly.

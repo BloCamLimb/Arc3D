@@ -81,6 +81,8 @@ public final class GraniteDevice extends Device {
     @RawPtr
     private KeyContext mKeyContext;
 
+    private boolean mMustFlushDependencies;
+
     private GraniteDevice(RecordingContext context, SurfaceDrawContext drawContext) {
         super(drawContext.getImageInfo());
         mContext = context;
@@ -212,6 +214,22 @@ public final class GraniteDevice extends Device {
             // and is relied on by Image::notifyInUse() to detect when it can unlink from a Device.
             discardContext();
         }
+    }
+
+    public boolean notifyInUse(@RawPtr @Nullable RecordingContext context,
+                               @RawPtr @Nullable SurfaceDrawContext drawContext) {
+        if (mContext == context) {
+            flushPendingWork();
+
+            if (drawContext != null) {
+                mMustFlushDependencies = true;
+            }
+        }
+        return mContext == null || unique();
+    }
+
+    public boolean hasPendingReads(@RawPtr @NonNull ImageProxy texture) {
+        return mContext != null && mDrawContext.readsTexture(texture);
     }
 
     private void freeDrawContext() {
@@ -864,6 +882,12 @@ public final class GraniteDevice extends Device {
     public void flushPendingWork() {
         assert mContext.isOwnerThread();
         mPaintParams.reset();
+
+        if (mMustFlushDependencies && mDrawContext.modifiesTarget()) {
+            mMustFlushDependencies = false;
+            mContext.flushTrackedDevices(mDrawContext.getReadView().getProxy());
+        }
+
         // Push any pending uploads from the atlas provider that pending draws reference.
         mContext.getAtlasProvider().recordUploads(mDrawContext);
 

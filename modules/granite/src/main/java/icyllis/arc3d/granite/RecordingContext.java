@@ -20,6 +20,7 @@
 package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.*;
+import icyllis.arc3d.engine.ImageProxy;
 import icyllis.arc3d.fastutil.ObjectArrayList;
 import icyllis.arc3d.engine.Context;
 import icyllis.arc3d.engine.Device;
@@ -29,6 +30,7 @@ import icyllis.arc3d.engine.UploadBufferManager;
 import icyllis.arc3d.granite.task.Task;
 import icyllis.arc3d.granite.task.TaskList;
 import org.jetbrains.annotations.ApiStatus;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -256,6 +258,20 @@ public final class RecordingContext extends Context {
                     device.unref();
                 }
                 it.remove();
+            }
+        }
+    }
+
+    public void flushTrackedDevices(@RawPtr @NonNull ImageProxy dependency) {
+        int index = -1;
+        while (index < mTrackedDevices.size() - 1) {
+            index++;
+            // Entries may be set to null from a call to untrackDevice(), which will be cleaned up
+            // along with any immutable or uniquely held Devices once everything is flushed.
+            @RawPtr
+            GraniteDevice device = mTrackedDevices.get(index);
+            if (device != null && device.hasPendingReads(dependency)) {
+                device.flushPendingWork();
             }
         }
     }

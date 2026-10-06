@@ -45,7 +45,7 @@ public final class GraniteImage extends Image {
     @SharedPtr
     ImageProxyView mImageProxyView;
 
-    ObjectArrayList<@SharedPtr GraniteDevice> mLinkedDevices;
+    private final ObjectArrayList<@SharedPtr GraniteDevice> mLinkedDevices = new ObjectArrayList<>();
 
     public GraniteImage(@NonNull @RawPtr RecordingContext context,
                         @NonNull @SharedPtr ImageProxyView view,
@@ -137,21 +137,50 @@ public final class GraniteImage extends Image {
     protected void deallocate() {
         mImageProxyView.unref();
         mImageProxyView = null;
-        if (mLinkedDevices != null) {
-            for (var e : mLinkedDevices) {
-                if (e != null) {
-                    e.unref();
-                }
+        for (var device : mLinkedDevices) {
+            if (device != null) {
+                device.unref();
             }
         }
-        mLinkedDevices = null;
+        mLinkedDevices.clear();
     }
 
     public void linkDevice(@SharedPtr @NonNull GraniteDevice device) {
-        if (mLinkedDevices == null) {
-            mLinkedDevices = new ObjectArrayList<>();
-        }
         mLinkedDevices.add(device); // move
+    }
+
+    public void notifyInUse(@RawPtr @NonNull RecordingContext context,
+                            @RawPtr @NonNull SurfaceDrawContext drawContext) {
+        notifyInUse(context, drawContext, false);
+    }
+
+    public void notifyInUse(@RawPtr @NonNull RecordingContext context,
+                            @RawPtr @Nullable SurfaceDrawContext drawContext,
+                            boolean unlinkDevices) {
+        assert drawContext == null || !unlinkDevices; // unlinkDevices can't be used with a DrawContext
+
+        synchronized (mLinkedDevices) {
+            if (mLinkedDevices.isEmpty()) {
+                return;
+            }
+
+            int emptyCount = 0;
+            for (int i = 0; i < mLinkedDevices.size(); i++) {
+                var device = mLinkedDevices.get(i);
+                if (device == null || device.notifyInUse(context, drawContext) || unlinkDevices) {
+                    assert device == null || !unlinkDevices || device.getContext() == null;
+                    if (device != null) {
+                        device.unref();
+                        mLinkedDevices.set(i, null);
+                    }
+                    emptyCount++;
+                }
+            }
+
+            if (emptyCount == mLinkedDevices.size()) {
+                mLinkedDevices.clear();
+            }
+        }
     }
 
     @Override
