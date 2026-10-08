@@ -20,7 +20,7 @@
 package icyllis.arc3d.sketch;
 
 import icyllis.arc3d.core.GuardedBy;
-import icyllis.arc3d.fastutil.Int2ObjectOpenHashMap;
+import icyllis.arc3d.fastutil.ints.Int2ObjectOpenHashMap;
 import org.jspecify.annotations.NonNull;
 import org.jetbrains.annotations.ApiStatus;
 

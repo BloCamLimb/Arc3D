@@ -19,7 +19,7 @@
 
 package icyllis.arc3d.compiler;
 
-import icyllis.arc3d.fastutil.Object2IntOpenHashMap;
+import icyllis.arc3d.fastutil.objects.Object2IntOpenHashMap;
 
 /**
  * A list of every supported intrinsic.

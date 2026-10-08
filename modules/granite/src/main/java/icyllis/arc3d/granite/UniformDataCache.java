@@ -20,8 +20,8 @@
 package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.MathUtil;
-import icyllis.arc3d.fastutil.Object2IntOpenHashMap;
-import icyllis.arc3d.fastutil.ObjectArrayList;
+import icyllis.arc3d.fastutil.objects.Object2IntOpenHashMap;
+import icyllis.arc3d.fastutil.objects.ObjectArrayList;
 import icyllis.arc3d.engine.BufferBindInfo;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;

@@ -20,7 +20,7 @@
 package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.*;
-import icyllis.arc3d.fastutil.Object2ObjectOpenHashMap;
+import icyllis.arc3d.fastutil.objects.Object2ObjectOpenHashMap;
 import icyllis.arc3d.engine.Device;
 import icyllis.arc3d.engine.FlushInfo;
 import icyllis.arc3d.engine.ImageProxyView;

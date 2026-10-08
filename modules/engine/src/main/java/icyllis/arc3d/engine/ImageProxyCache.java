@@ -22,7 +22,7 @@ package icyllis.arc3d.engine;
 import icyllis.arc3d.core.Pixels;
 import icyllis.arc3d.core.RefCnt;
 import icyllis.arc3d.core.SharedPtr;
-import icyllis.arc3d.fastutil.Object2ObjectOpenHashMap;
+import icyllis.arc3d.fastutil.objects.Object2ObjectOpenHashMap;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;

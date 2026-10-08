@@ -20,7 +20,7 @@
 package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.*;
-import icyllis.arc3d.fastutil.ObjectArrayList;
+import icyllis.arc3d.fastutil.objects.ObjectArrayList;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.task.CopyBufferTask;
 

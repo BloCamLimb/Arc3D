@@ -19,8 +19,8 @@
 
 package icyllis.arc3d.compiler.lex;
 
-import icyllis.arc3d.fastutil.IntArrayList;
-import icyllis.arc3d.fastutil.IntList;
+import icyllis.arc3d.fastutil.ints.IntArrayList;
+import icyllis.arc3d.fastutil.ints.IntList;
 import org.jspecify.annotations.NonNull;
 
 import java.util.ArrayList;

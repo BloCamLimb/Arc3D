@@ -19,7 +19,7 @@
 
 package icyllis.arc3d.granite;
 
-import icyllis.arc3d.fastutil.Int2ObjectOpenHashMap;
+import icyllis.arc3d.fastutil.ints.Int2ObjectOpenHashMap;
 import icyllis.arc3d.sketch.StrikeDesc;
 import icyllis.arc3d.sketch.Strike;
 import org.jspecify.annotations.NonNull;

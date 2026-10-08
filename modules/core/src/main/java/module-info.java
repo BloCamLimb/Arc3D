@@ -13,4 +13,7 @@ module icyllis.arc3d.core {
     exports icyllis.arc3d.core;
     exports icyllis.arc3d.core.compress;
     exports icyllis.arc3d.fastutil;
+    exports icyllis.arc3d.fastutil.ints;
+    exports icyllis.arc3d.fastutil.longs;
+    exports icyllis.arc3d.fastutil.objects;
 }

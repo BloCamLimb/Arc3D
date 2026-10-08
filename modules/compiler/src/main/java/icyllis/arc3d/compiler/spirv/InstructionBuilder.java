@@ -20,7 +20,7 @@
 package icyllis.arc3d.compiler.spirv;
 
 import icyllis.arc3d.compiler.tree.Type;
-import icyllis.arc3d.fastutil.IntArrayList;
+import icyllis.arc3d.fastutil.ints.IntArrayList;
 import org.jspecify.annotations.NonNull;
 
 import java.util.Arrays;

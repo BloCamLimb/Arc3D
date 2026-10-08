@@ -22,7 +22,7 @@ package icyllis.arc3d.vulkan;
 import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.RefCnt;
 import icyllis.arc3d.core.SharedPtr;
-import icyllis.arc3d.fastutil.ObjectArrayList;
+import icyllis.arc3d.fastutil.objects.ObjectArrayList;
 import icyllis.arc3d.engine.DataUtils;
 import icyllis.arc3d.engine.IResourceKey;
 import icyllis.arc3d.engine.Image;

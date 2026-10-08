@@ -19,7 +19,7 @@
 
 package icyllis.arc3d.engine;
 
-import icyllis.arc3d.fastutil.IntArrays;
+import icyllis.arc3d.fastutil.ints.IntArrays;
 import org.jspecify.annotations.NonNull;
 
 import java.util.Arrays;

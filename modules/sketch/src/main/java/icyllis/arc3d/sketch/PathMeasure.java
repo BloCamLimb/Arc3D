@@ -21,7 +21,7 @@ package icyllis.arc3d.sketch;
 
 import icyllis.arc3d.core.MathUtil;
 import icyllis.arc3d.fastutil.FloatArrayList;
-import icyllis.arc3d.fastutil.IntArrayList;
+import icyllis.arc3d.fastutil.ints.IntArrayList;
 import org.intellij.lang.annotations.MagicConstant;
 import org.jetbrains.annotations.CheckReturnValue;
 import org.jspecify.annotations.Nullable;

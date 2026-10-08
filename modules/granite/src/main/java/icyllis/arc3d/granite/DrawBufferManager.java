@@ -21,7 +21,7 @@ package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.MathUtil;
 import icyllis.arc3d.core.SharedPtr;
-import icyllis.arc3d.fastutil.ObjectArrayList;
+import icyllis.arc3d.fastutil.objects.ObjectArrayList;
 import icyllis.arc3d.engine.Buffer;
 import icyllis.arc3d.engine.BufferBindInfo;
 import icyllis.arc3d.engine.BufferSliceInfo;

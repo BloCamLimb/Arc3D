@@ -21,8 +21,8 @@ package icyllis.arc3d.vulkan;
 
 import icyllis.arc3d.compiler.*;
 import icyllis.arc3d.core.ColorInfo;
-import icyllis.arc3d.fastutil.IntArrayList;
-import icyllis.arc3d.fastutil.IntArrays;
+import icyllis.arc3d.fastutil.ints.IntArrayList;
+import icyllis.arc3d.fastutil.ints.IntArrays;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.engine.Engine.ImageFormat;
 import icyllis.arc3d.engine.ShaderCaps;

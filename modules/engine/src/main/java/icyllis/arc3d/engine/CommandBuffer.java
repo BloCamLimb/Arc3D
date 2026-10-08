@@ -23,7 +23,7 @@ import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.Rect2ic;
 import icyllis.arc3d.core.RefCounted;
 import icyllis.arc3d.core.SharedPtr;
-import icyllis.arc3d.fastutil.ObjectArrayList;
+import icyllis.arc3d.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 

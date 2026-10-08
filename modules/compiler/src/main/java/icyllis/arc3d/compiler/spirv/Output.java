@@ -21,7 +21,7 @@ package icyllis.arc3d.compiler.spirv;
 
 import icyllis.arc3d.compiler.Context;
 import icyllis.arc3d.compiler.Position;
-import icyllis.arc3d.fastutil.IntArrays;
+import icyllis.arc3d.fastutil.ints.IntArrays;
 import org.jspecify.annotations.NonNull;
 
 import java.nio.ByteBuffer;

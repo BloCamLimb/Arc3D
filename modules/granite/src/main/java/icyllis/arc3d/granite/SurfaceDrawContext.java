@@ -20,9 +20,9 @@
 package icyllis.arc3d.granite;
 
 import icyllis.arc3d.core.*;
-import icyllis.arc3d.fastutil.IntArrays;
-import icyllis.arc3d.fastutil.Object2IntOpenHashMap;
-import icyllis.arc3d.fastutil.ObjectArrayList;
+import icyllis.arc3d.fastutil.ints.IntArrays;
+import icyllis.arc3d.fastutil.objects.Object2IntOpenHashMap;
+import icyllis.arc3d.fastutil.objects.ObjectArrayList;
 import icyllis.arc3d.engine.*;
 import icyllis.arc3d.granite.shading.UniformHandler;
 import icyllis.arc3d.granite.task.DrawTask;

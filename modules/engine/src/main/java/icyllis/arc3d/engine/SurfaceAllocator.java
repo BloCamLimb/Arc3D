@@ -20,7 +20,7 @@
 package icyllis.arc3d.engine;
 
 import icyllis.arc3d.core.*;
-import icyllis.arc3d.fastutil.Object2ObjectOpenHashMap;
+import icyllis.arc3d.fastutil.objects.Object2ObjectOpenHashMap;
 import org.jspecify.annotations.NonNull;
 
 /**

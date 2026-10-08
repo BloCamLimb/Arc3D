@@ -20,7 +20,7 @@
 package icyllis.arc3d.vulkan.test;
 
 import icyllis.arc3d.core.SharedPtr;
-import icyllis.arc3d.fastutil.Object2IntOpenHashMap;
+import icyllis.arc3d.fastutil.objects.Object2IntOpenHashMap;
 import icyllis.arc3d.engine.ContextOptions;
 import icyllis.arc3d.engine.ImmediateContext;
 import icyllis.arc3d.vulkan.*;

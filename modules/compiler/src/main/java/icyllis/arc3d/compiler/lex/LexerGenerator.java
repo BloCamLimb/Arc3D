@@ -19,11 +19,11 @@
 
 package icyllis.arc3d.compiler.lex;
 
-import icyllis.arc3d.fastutil.Int2IntOpenHashMap;
-import icyllis.arc3d.fastutil.IntArrayList;
-import icyllis.arc3d.fastutil.IntComparators;
-import icyllis.arc3d.fastutil.IntList;
-import icyllis.arc3d.fastutil.IntOpenHashSet;
+import icyllis.arc3d.fastutil.ints.Int2IntOpenHashMap;
+import icyllis.arc3d.fastutil.ints.IntArrayList;
+import icyllis.arc3d.fastutil.ints.IntComparators;
+import icyllis.arc3d.fastutil.ints.IntList;
+import icyllis.arc3d.fastutil.ints.IntOpenHashSet;
 import org.jspecify.annotations.NonNull;
 
 import java.io.PrintWriter;

@@ -20,7 +20,7 @@
 package icyllis.arc3d.opengl;
 
 import icyllis.arc3d.core.Immutable;
-import icyllis.arc3d.fastutil.Int2ObjectOpenHashMap;
+import icyllis.arc3d.fastutil.ints.Int2ObjectOpenHashMap;
 import icyllis.arc3d.engine.BackendFormat;
 import org.jspecify.annotations.NonNull;
 import org.lwjgl.system.NativeType;
