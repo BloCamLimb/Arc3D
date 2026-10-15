@@ -38,6 +38,7 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.Map;
+import java.util.function.IntUnaryOperator;
 
 /**
  * A type-specific {@link Map}; provides some additional methods that use polymorphism to avoid
@@ -56,7 +57,7 @@ import java.util.Map;
  *
  * @see Map
  */
-public interface Int2IntMap {
+public interface Int2IntMap extends IntUnaryOperator {
 	/**
 	 * An entry set providing fast iteration.
 	 *
@@ -95,6 +96,10 @@ public interface Int2IntMap {
 		}
 	}
 
+    @Override
+    default int applyAsInt(int operand) {
+        return get(operand);
+    }
 
     /**
      * Adds a pair to the map (optional operation).
