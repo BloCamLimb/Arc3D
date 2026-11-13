@@ -35,7 +35,7 @@ public class GlyphAtlasManager extends DrawAtlas.AtlasGenerationCounter
     // font atlas is 4096x4096 at most, governed by plot size and max plots
     private static final int kMaxAtlasSize = 4096;
 
-    private static final int kSmallPlotSize = Glyph.kMaxAtlasDimension;
+    private static final int kSmallPlotSize = Glyph.kMaxDimensionForAtlas;
     private static final int kLargePlotSize = kSmallPlotSize * 2;
 
     static {

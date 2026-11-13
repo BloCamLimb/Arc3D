@@ -86,7 +86,7 @@ public final class Glyph {
             kUnset_Action = 0,  // must be 0
             kAccept_Action = 1,
             kReject_Action = 2,
-            kDrop_Action = 3;
+            kDrop_Action = 3;   // must be 0b11
     static final int
             kActionMask = 0x3;
 
@@ -97,19 +97,17 @@ public final class Glyph {
      */
     // action mask is two bits
     public static final int
-            kDirectMask = 0,        // nearest sampling
-            kTransformedMask = 2,   // bilinear sampling
-            kPath = 4,              // draw path
-            kDrawable = 6,          // custom draw TODO not implement yet
-            kSDF = 8,               // single-channel SDF TODO not implement yet
-            kMSDF = 10;             // multi-channel SDF TODO not implement yet
+            kDirectMask = 0,
+            kTransformedMask = 4,
+            kSDF = 6,               // single-channel SDF TODO not implement yet
+            kPath = 8;              // draw path
 
     private static final int kMaxGlyphWidth = 1 << 13;
 
     static {
         //noinspection ConstantValue
-        assert (kMaxGlyphWidth - 1) * ((1 << 16) - 1) * 4 <= Integer.MAX_VALUE;
-        // the max glyph image width is 8191
+        assert kMaxGlyphWidth * 0xFFFF * 4 <= Integer.MAX_VALUE;
+        // the max glyph image width is 8192
         // the max glyph image height is 65535
         // the max bpp is 4
         // assert (max width * max height * max bpp) <= int max
@@ -117,17 +115,18 @@ public final class Glyph {
 
     static final int kSizeOf = 48;
 
-    // The padding needed for bilinear interpolating the glyph when drawing.
-    public static final int kBilerpGlyphBorder = 1;
     // An atlas consists of plots, and plots hold glyphs. The minimum a plot can be is 256x256.
     // This means that the maximum size a glyph can be is 256x256.
-    public static final int kMaxAtlasDimension = 256;
-    public static final int kMaxBilerpAtlasDimension = kMaxAtlasDimension - (2 * kBilerpGlyphBorder);
+    public static final int kMaxDimensionForAtlas = 256;
     // Max allowed font size in device space that can be used with (direct) mask rendering,
     // although pixel height and text size are not the same...
     public static final int kMaxTextSizeForMask = 162;
 
-    // The glyph ID
+    // The padding needed for bilinear interpolating the glyph when drawing.
+    public static final int kBilerpGlyphBorder = 1;
+    public static final int kMaxBilerpAtlasDimension = kMaxDimensionForAtlas - (2 * kBilerpGlyphBorder);
+
+    // The packed glyph ID
     private final int mID;
 
     // The offset from the glyphs origin on the baseline to the top left of the glyph mask.
@@ -233,7 +232,7 @@ public final class Glyph {
     }
 
     public boolean imageIsTooLarge() {
-        return getWidth() >= kMaxGlyphWidth;
+        return getWidth() > kMaxGlyphWidth;
     }
 
     // Image
@@ -355,6 +354,7 @@ public final class Glyph {
      * Returns the action result for the given text rendering method.
      *
      * @param actionType e.g. {@link #kDirectMask}
+     * @return one of {@link #kAccept_Action}, {@link #kReject_Action}, {@link #kDrop_Action}
      */
     public int actionFor(int actionType) {
         return (mActions >>> actionType) & kActionMask;
@@ -369,13 +369,20 @@ public final class Glyph {
             switch (actionType) {
                 case kDirectMask -> {
                     // fits in atlas
-                    if (getMaxDimension() <= kMaxAtlasDimension) {
+                    if (getMaxDimension() <= kMaxDimensionForAtlas) {
                         action = kAccept_Action;
                     }
                 }
                 case kTransformedMask -> {
                     // fits in atlas
                     if (getMaxDimension() <= kMaxBilerpAtlasDimension) {
+                        action = kAccept_Action;
+                    }
+                }
+                case kSDF -> {
+                    // SDF has 2-pixel border padding, but it's already included in image
+                    if (getMaxDimension() <= kMaxDimensionForAtlas &&
+                            mMaskFormat == Mask.kSDF_Format) {
                         action = kAccept_Action;
                     }
                 }
@@ -393,13 +400,8 @@ public final class Glyph {
     // called after getGlyphMetrics
     void initActions() {
         // drop all if empty, or unset all
-        mActions = (short) (isEmpty()
-                ? (kDrop_Action << kDirectMask) |
-                (kDrop_Action << kTransformedMask) |
-                (kDrop_Action << kPath) |
-                (kDrop_Action << kDrawable) |
-                (kDrop_Action << kSDF) |
-                (kDrop_Action << kMSDF)
-                : 0);
+        // kDrop is 0b11, all ones are all drop
+        // kUnset is 0, all zeros are all unset
+        mActions = (short) (isEmpty() ? ~0 : 0);
     }
 }
