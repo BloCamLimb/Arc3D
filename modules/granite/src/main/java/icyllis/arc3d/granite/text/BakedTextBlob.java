@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2024-2025 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2024-2026 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -17,14 +17,13 @@
  * License along with Arc3D. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package icyllis.arc3d.granite;
+package icyllis.arc3d.granite.text;
 
 import icyllis.arc3d.core.WeakIdentityKey;
-import icyllis.arc3d.sketch.Canvas;
+import icyllis.arc3d.granite.GraniteDevice;
 import icyllis.arc3d.sketch.GlyphRunList;
 import icyllis.arc3d.sketch.Matrixc;
 import icyllis.arc3d.sketch.Paint;
-import icyllis.arc3d.sketch.StrikeCache;
 import icyllis.arc3d.sketch.TextBlob;
 import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
@@ -68,7 +67,7 @@ public final class BakedTextBlob {
     public static BakedTextBlob make(@NonNull GlyphRunList glyphRunList,
                                      @NonNull Paint paint,
                                      @NonNull Matrixc positionMatrix,
-                                     @NonNull StrikeCache strikeCache) {
+                                     @NonNull GlyphStrikeCache strikeCache) {
         var container = SubRunContainer.make(
                 glyphRunList, positionMatrix, paint,
                 strikeCache
@@ -76,9 +75,9 @@ public final class BakedTextBlob {
         return new BakedTextBlob(container);
     }
 
-    public void draw(Canvas canvas, float originX, float originY,
+    public void draw(float originX, float originY,
                      Paint paint, GraniteDevice device) {
-        mSubRuns.draw(canvas, originX, originY, paint, device);
+        mSubRuns.draw(originX, originY, paint, device);
     }
 
     @Contract(pure = true)

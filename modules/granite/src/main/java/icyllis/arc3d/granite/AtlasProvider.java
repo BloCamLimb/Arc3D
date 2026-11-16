@@ -19,6 +19,8 @@
 
 package icyllis.arc3d.granite;
 
+import icyllis.arc3d.granite.text.GlyphAtlasManager;
+
 /**
  * AtlasProvider groups various texture atlas management algorithms together.
  */

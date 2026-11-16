@@ -210,7 +210,7 @@ public class NoPixelsDevice extends Device {
     }
 
     @Override
-    protected void onDrawGlyphRunList(Canvas canvas, GlyphRunList glyphRunList, Paint paint) {
+    protected void onDrawGlyphRunList(GlyphRunList glyphRunList, Paint paint) {
     }
 
     @Override

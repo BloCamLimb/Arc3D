@@ -2172,7 +2172,7 @@ public class Canvas implements AutoCloseable {
         }
 
         if (aboutToDraw(paint)) {
-            topDevice().drawGlyphRunList(this, glyphRunList, paint);
+            topDevice().drawGlyphRunList(glyphRunList, paint);
         }
     }
 

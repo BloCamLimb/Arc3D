@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2024 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2024-2026 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -17,20 +17,46 @@
  * License along with Arc3D. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package icyllis.arc3d.granite;
+package icyllis.arc3d.granite.text;
 
+import icyllis.arc3d.granite.DrawAtlas;
 import icyllis.arc3d.sketch.Glyph;
 import icyllis.arc3d.sketch.Mask;
 import icyllis.arc3d.engine.Engine;
 import org.jspecify.annotations.NonNull;
 
 /**
- * This class holds information for a glyph about its pre-rendered image in a
- * GPU texture.
+ * This class holds information for a glyph about its location in atlas.
  */
 public class BakedGlyph extends DrawAtlas.AtlasLocator {
 
-    public BakedGlyph() {
+    /**
+     * Bilerp is unnecessary for most cases, but if required, the same packed glyph ID cannot distinguish
+     * between the two, even though the bilerp case doesn't use sub-pixel positioning.
+     * <p>
+     * CPU packed glyph ID uses [0,16) bits, kSubPixelX [22, 24) bits,
+     * [24,32) bits. We use one extra bit (21) to store whether the glyph has
+     * additional one-pixel border for bilinear interpolation, see {@link Glyph#kBilerpGlyphBorder}.
+     */
+    public static final int kBilerpBorderShift = Glyph.kSubPixelXShift - 1;
+    public static final int kBilerpBorderMask = 1 << kBilerpBorderShift;
+
+    public final int key;
+
+    public BakedGlyph(int key) {
+        this.key = key;
+    }
+
+    public int getPackedID() {
+        return key & ~kBilerpBorderMask;
+    }
+
+    public boolean hasBilerpBorder() {
+        return (key & kBilerpBorderMask) != 0;
+    }
+
+    public static int packKey(int packedGlyphID, boolean bilerpBorder) {
+        return packedGlyphID | (bilerpBorder ? kBilerpBorderMask : 0);
     }
 
     public static int chooseMaskFormat(byte mask) {

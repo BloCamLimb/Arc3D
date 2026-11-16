@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2024-2025 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2024-2026 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -17,10 +17,16 @@
  * License along with Arc3D. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package icyllis.arc3d.granite;
+package icyllis.arc3d.granite.text;
 
-import icyllis.arc3d.core.*;
-import icyllis.arc3d.engine.*;
+import icyllis.arc3d.core.MathUtil;
+import icyllis.arc3d.core.PixelUtils;
+import icyllis.arc3d.core.RawPtr;
+import icyllis.arc3d.engine.Engine;
+import icyllis.arc3d.engine.ImageProxyView;
+import icyllis.arc3d.granite.DrawAtlas;
+import icyllis.arc3d.granite.RecordingContext;
+import icyllis.arc3d.granite.SurfaceDrawContext;
 import icyllis.arc3d.sketch.Glyph;
 import icyllis.arc3d.sketch.Mask;
 import org.jspecify.annotations.NonNull;
@@ -155,17 +161,23 @@ public class GlyphAtlasManager extends DrawAtlas.AtlasGenerationCounter
     }
 
     public int addGlyphToAtlas(@NonNull Glyph glyph,
+                               int maskFormat,
                                @NonNull BakedGlyph bakedGlyph) {
         if (glyph.getImageBase() == null) {
             return DrawAtlas.kFailure_Result;
         }
 
-        int maskFormat = BakedGlyph.chooseMaskFormat(glyph);
+        assert maskFormat == BakedGlyph.chooseMaskFormat(glyph);
         int bytesPerPixel = Engine.maskFormatBytesPerPixel(maskFormat);
+        boolean bilerpBorder = bakedGlyph.hasBilerpBorder();
 
         // always add 1px padding
-        int width = glyph.getWidth() + 2 * Glyph.kBilerpGlyphBorder;
-        int height = glyph.getHeight() + 2 * Glyph.kBilerpGlyphBorder;
+        int width = glyph.getWidth();
+        int height = glyph.getHeight();
+        if (bilerpBorder) {
+            width += 2 * Glyph.kBilerpGlyphBorder;
+            height += 2 * Glyph.kBilerpGlyphBorder;
+        }
         long srcRB = (long) bytesPerPixel * width;
 
         DrawAtlas atlas = getAtlas(maskFormat);
@@ -177,14 +189,18 @@ public class GlyphAtlasManager extends DrawAtlas.AtlasGenerationCounter
         if (res == DrawAtlas.kSuccess_Result) {
             long dst = atlas.getDataAt(bakedGlyph);
             int dstRB = bytesPerPixel * atlas.getPlotWidth();
-            // since there's padding, first zero out the dst
-            for (int y = 0; y < height; y++) {
-                MemoryUtil.memSet(dst + ((long) y * dstRB), 0, srcRB);
+            if (bilerpBorder) {
+                // since there's padding, first zero out the dst
+                for (int y = 0; y < height; y++) {
+                    MemoryUtil.memSet(dst + ((long) y * dstRB), 0, srcRB);
+                }
+                // Advance in one row and one column.
+                dst = dst + (dstRB + bytesPerPixel) * Glyph.kBilerpGlyphBorder;
             }
-            // Advance in one row and one column.
-            dst = dst + (dstRB + bytesPerPixel) * Glyph.kBilerpGlyphBorder;
             get_packed_glyph_image(glyph, maskFormat, dst, dstRB);
-            bakedGlyph.insetRect(Glyph.kBilerpGlyphBorder);
+            if (bilerpBorder) {
+                bakedGlyph.insetRect(Glyph.kBilerpGlyphBorder);
+            }
         }
 
         return res;

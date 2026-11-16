@@ -23,7 +23,7 @@ import icyllis.arc3d.core.RawPtr;
 import icyllis.arc3d.core.Rect2f;
 import icyllis.arc3d.core.Rect2fc;
 import icyllis.arc3d.granite.AtlasProvider;
-import icyllis.arc3d.granite.SubRunContainer;
+import icyllis.arc3d.granite.text.AtlasSubRun;
 import icyllis.arc3d.sketch.Bounded;
 import icyllis.arc3d.sketch.Matrix;
 import icyllis.arc3d.sketch.Matrixc;
@@ -31,7 +31,7 @@ import org.jspecify.annotations.NonNull;
 
 public class SubRunData implements Bounded {
 
-    private final SubRunContainer.AtlasSubRun mSubRun;
+    private final AtlasSubRun mSubRun;
     private final Matrix mSubRunToLocal;
     private final int mFilter;
     private final int mStartGlyphIndex;
@@ -40,7 +40,7 @@ public class SubRunData implements Bounded {
     private final AtlasProvider mAtlasProvider;
 
     // subRunToLocal is affine, no copy
-    public SubRunData(SubRunContainer.AtlasSubRun subRun,
+    public SubRunData(AtlasSubRun subRun,
                       Matrix subRunToLocal, int filter,
                       int startGlyphIndex, int glyphCount,
                       @RawPtr AtlasProvider atlasProvider) {
@@ -52,7 +52,7 @@ public class SubRunData implements Bounded {
         mAtlasProvider = atlasProvider;
     }
 
-    public SubRunContainer.AtlasSubRun getSubRun() {
+    public AtlasSubRun getSubRun() {
         return mSubRun;
     }
 

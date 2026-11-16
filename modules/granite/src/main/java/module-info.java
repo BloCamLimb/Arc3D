@@ -10,5 +10,6 @@ module icyllis.arc3d.granite {
     exports icyllis.arc3d.granite.geom;
     exports icyllis.arc3d.granite.shading;
     exports icyllis.arc3d.granite.task;
+    exports icyllis.arc3d.granite.text;
     exports icyllis.arc3d.granite.tessellate;
 }

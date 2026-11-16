@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2024-2025 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2024-2026 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -17,16 +17,13 @@
  * License along with Arc3D. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package icyllis.arc3d.granite;
+package icyllis.arc3d.granite.text;
 
 import icyllis.arc3d.core.*;
-import icyllis.arc3d.engine.SamplerDesc;
+import icyllis.arc3d.granite.GraniteDevice;
 import icyllis.arc3d.sketch.*;
 import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
-import org.lwjgl.system.MemoryUtil;
-
-import java.util.Arrays;
 
 /**
  * A SubRun represents a method to draw a subregion of a GlyphRun, where
@@ -49,291 +46,6 @@ public class SubRunContainer {
     public static boolean isDirect(float approximateDeviceTextSize) {
         return 0 < approximateDeviceTextSize &&
                 approximateDeviceTextSize <= Glyph.kMaxTextSizeForMask;
-    }
-
-    /**
-     * SubRun defines the most basic functionality of a SubRun; the ability to draw, and the
-     * ability to be in a list.
-     */
-    public static abstract class SubRun {
-        SubRun mNext;
-
-        public abstract void draw(Canvas canvas, float originX, float originY,
-                                  Paint paint, GraniteDevice device);
-
-        @Contract(pure = true)
-        public abstract boolean canReuse(@NonNull Paint paint, @NonNull Matrixc positionMatrix,
-                                         float glyphRunListX, float glyphRunListY);
-
-        public abstract long getMemorySize();
-    }
-
-    public static abstract class AtlasSubRun extends SubRun {
-
-        final GlyphVector mGlyphs;
-        final int mMaskFormat;
-        final boolean mCanDrawDirect;
-        final Matrix mCreationMatrix;
-        final Rect2f mCreationBounds;
-        final float[] mPositions;
-        // bounds and positions are in sub run's space
-
-        /**
-         * All params are read-only, copy will be made.
-         */
-        @Contract(pure = true)
-        AtlasSubRun(StrikeDesc strikeDesc,
-                    Matrixc creationMatrix,
-                    Rect2fc creationBounds,
-                    int maskFormat,
-                    int[] acceptedGlyphs,
-                    int acceptedGlyphOffset,
-                    float[] acceptedPositions,
-                    int acceptedPositionOffset,
-                    int acceptedGlyphCount,
-                    boolean canDrawDirect) {
-            assert !creationMatrix.hasPerspective();
-            mGlyphs = new GlyphVector(strikeDesc, acceptedGlyphs, acceptedGlyphOffset,
-                    acceptedGlyphOffset + acceptedGlyphCount);
-            mMaskFormat = maskFormat;
-            mCanDrawDirect = canDrawDirect;
-            mCreationMatrix = new Matrix(creationMatrix);
-            mCreationBounds = new Rect2f(creationBounds);
-            mPositions = Arrays.copyOfRange(acceptedPositions, acceptedPositionOffset,
-                    acceptedPositionOffset + acceptedGlyphCount * 2);
-        }
-
-        @Override
-        public void draw(Canvas canvas, float originX, float originY,
-                         Paint paint, GraniteDevice device) {
-            device.drawAtlasSubRun(this, originX, originY, paint);
-        }
-
-        /**
-         * Returns the number of visible glyphs.
-         */
-        public int getGlyphCount() {
-            return mGlyphs.getGlyphCount();
-        }
-
-        /**
-         * Returns the GPU mask format.
-         */
-        public int getMaskFormat() {
-            return mMaskFormat;
-        }
-
-        /**
-         * Update atlas for glyphs in the given range if needed, returns the number
-         * of glyphs that are updated (may less than end-start if atlas is full).
-         * If an error occurred, returns the bitwise NOT (a negative value).
-         */
-        // This call is not thread safe. It should only be called from a known single-threaded env.
-        public int prepareGlyphs(int start, int end,
-                                 RecordingContext context) {
-            return mGlyphs.prepareGlyphs(start, end,
-                    mMaskFormat, context);
-        }
-
-        /**
-         * @see icyllis.arc3d.granite.geom.RasterTextStep
-         */
-        public void fillInstanceData(MeshDrawWriter writer,
-                                     int offset, int count,
-                                     float depth) {
-            writer.beginInstances(null, null, 4);
-            long instanceData = writer.appendInstances(count);
-
-            var glyphs = mGlyphs.getGlyphs();
-            var positions = mPositions;
-            for (int i = offset, j = offset << 1, e = offset + count; i < e; i += 1, j += 2) {
-                var glyph = glyphs[i];
-                // xy pos
-                MemoryUtil.memPutFloat(instanceData, positions[j]);
-                MemoryUtil.memPutFloat(instanceData + 4, positions[j | 1]);
-                // uv pos
-                MemoryUtil.memPutShort(instanceData + 8, glyph.u1);
-                MemoryUtil.memPutShort(instanceData + 10, glyph.v1);
-                // size
-                MemoryUtil.memPutShort(instanceData + 12, glyph.width());
-                MemoryUtil.memPutShort(instanceData + 14, glyph.height());
-                // painter's depth
-                MemoryUtil.memPutFloat(instanceData + 16, depth);
-                instanceData += 20;
-            }
-
-        }
-
-        /**
-         * @see icyllis.arc3d.granite.geom.RasterTextStep
-         */
-        public void fillInstanceData(MeshDrawWriter writer,
-                                     int offset, int count,
-                                     float offsetX, float offsetY,
-                                     float depth) {
-            writer.beginInstances(null, null, 4);
-            long instanceData = writer.appendInstances(count);
-
-            var glyphs = mGlyphs.getGlyphs();
-            var positions = mPositions;
-            for (int i = offset, j = offset << 1, e = offset + count; i < e; i += 1, j += 2) {
-                var glyph = glyphs[i];
-                // xy pos
-                MemoryUtil.memPutFloat(instanceData, positions[j] + offsetX);
-                MemoryUtil.memPutFloat(instanceData + 4, positions[j | 1] + offsetY);
-                // uv pos
-                MemoryUtil.memPutShort(instanceData + 8, glyph.u1);
-                MemoryUtil.memPutShort(instanceData + 10, glyph.v1);
-                // size
-                MemoryUtil.memPutShort(instanceData + 12, glyph.width());
-                MemoryUtil.memPutShort(instanceData + 14, glyph.height());
-                // painter's depth
-                MemoryUtil.memPutFloat(instanceData + 16, depth);
-                instanceData += 20;
-            }
-
-        }
-
-        public Rect2fc getBounds() {
-            return mCreationBounds;
-        }
-
-        /**
-         * Compute sub-run-to-local matrix and sub-run-to-device with the
-         * given origin. Compute filter based on local-to-device matrix and
-         * origin, and return it.
-         */
-        @SuppressWarnings("AssertWithSideEffects")
-        @Contract(mutates = "param4,param5")
-        public int getMatrixAndFilter(Matrixc localToDevice,
-                                      float originX, float originY,
-                                      Matrix outSubRunToLocal,
-                                      Matrix outSubRunToDevice) {
-            // the creation matrix has no perspective
-            if (mCreationMatrix.invert(outSubRunToLocal)) {
-                outSubRunToLocal.postTranslate(originX, originY);
-                assert !outSubRunToLocal.hasPerspective();
-            } else {
-                outSubRunToLocal.setIdentity();
-            }
-            boolean compatible = !localToDevice.hasPerspective() &&
-                    localToDevice.m11() == mCreationMatrix.m11() &&
-                    localToDevice.m12() == mCreationMatrix.m12() &&
-                    localToDevice.m21() == mCreationMatrix.m21() &&
-                    localToDevice.m22() == mCreationMatrix.m22();
-            if (compatible) {
-                // compatible means only the difference is translation
-                float mappedOriginX = localToDevice.m11() * originX +
-                        localToDevice.m21() * originY + localToDevice.m41();
-                float mappedOriginY = localToDevice.m12() * originX +
-                        localToDevice.m22() * originY + localToDevice.m42();
-                // creation matrix has no perspective, so translate vector is its origin
-                float offsetX = mappedOriginX - mCreationMatrix.getTranslateX();
-                float offsetY = mappedOriginY - mCreationMatrix.getTranslateY();
-                outSubRunToDevice.setTranslate(offsetX, offsetY);
-                if (mCanDrawDirect &&
-                        offsetX == (float) Math.floor(offsetX) &&
-                        offsetY == (float) Math.floor(offsetY)) {
-                    // integer translate in device space
-                    return SamplerDesc.FILTER_NEAREST;
-                }
-            } else {
-                outSubRunToDevice.set(localToDevice);
-                outSubRunToDevice.preConcat(outSubRunToLocal);
-            }
-            return SamplerDesc.FILTER_LINEAR;
-        }
-
-        @Override
-        public long getMemorySize() {
-            long size = 32;
-            size += 8 + mGlyphs.getMemorySize();
-            size += 8 + 56;
-            size += 8 + 32;
-            size += 16 + (long) mPositions.length * 4 + 8;
-            return size;
-        }
-    }
-
-    public static final class DirectMaskSubRun extends AtlasSubRun {
-
-        /**
-         * All params are read-only, copy will be made.
-         */
-        @Contract(pure = true)
-        public DirectMaskSubRun(StrikeDesc strikeDesc,
-                                Matrixc creationMatrix,
-                                Rect2fc creationBounds,
-                                int maskFormat,
-                                int[] acceptedGlyphs,
-                                int acceptedGlyphOffset,
-                                float[] acceptedPositions,
-                                int acceptedPositionOffset,
-                                int acceptedGlyphCount,
-                                float minScaleFactor,
-                                float maxScaleFactor) {
-            super(strikeDesc, creationMatrix, creationBounds,
-                    maskFormat, acceptedGlyphs, acceptedGlyphOffset,
-                    acceptedPositions, acceptedPositionOffset, acceptedGlyphCount,
-                    true);
-            assert minScaleFactor == 1 && maxScaleFactor == 1;
-        }
-
-        @Override
-        public boolean canReuse(@NonNull Paint paint, @NonNull Matrixc positionMatrix,
-                                float glyphRunListX, float glyphRunListY) {
-            // direct mask is always created from/reused by an exact position matrix,
-            // no need for a second check
-            return true;
-        }
-    }
-
-    public static final class TransformedMaskSubRun extends AtlasSubRun {
-
-        private final float mMinScaleFactor;
-        private final float mMaxScaleFactor;
-
-        /**
-         * All params are read-only, copy will be made.
-         */
-        @Contract(pure = true)
-        public TransformedMaskSubRun(StrikeDesc strikeDesc,
-                                     Matrixc creationMatrix,
-                                     Rect2fc creationBounds,
-                                     int maskFormat,
-                                     int[] acceptedGlyphs,
-                                     int acceptedGlyphOffset,
-                                     float[] acceptedPositions,
-                                     int acceptedPositionOffset,
-                                     int acceptedGlyphCount,
-                                     float minScaleFactor,
-                                     float maxScaleFactor) {
-            super(strikeDesc, creationMatrix, creationBounds,
-                    maskFormat, acceptedGlyphs, acceptedGlyphOffset,
-                    acceptedPositions, acceptedPositionOffset, acceptedGlyphCount,
-                    false);
-            mMinScaleFactor = minScaleFactor;
-            mMaxScaleFactor = maxScaleFactor;
-        }
-
-        @Override
-        public boolean canReuse(@NonNull Paint paint, @NonNull Matrixc positionMatrix,
-                                float glyphRunListX, float glyphRunListY) {
-            // We want to reuse the subrun that scales to the range 0.5 to 1.5 relative to the
-            // creation matrix.
-            float scaleFactor = 1;
-            if (positionMatrix.hasPerspective()) {
-                float maxAreaScale = positionMatrix.differentialAreaScale(
-                        glyphRunListX, glyphRunListY
-                );
-                if (Float.isFinite(maxAreaScale) && maxAreaScale > MathUtil.PATH_TOLERANCE) {
-                    scaleFactor = (float) Math.sqrt(maxAreaScale);
-                }
-            } else {
-                scaleFactor = positionMatrix.getMaxScale();
-            }
-            return mMinScaleFactor < scaleFactor && scaleFactor <= mMaxScaleFactor;
-        }
     }
 
     /**
@@ -514,73 +226,6 @@ public class SubRunContainer {
         return runBounds;
     }
 
-    interface AtlasSubRunFactory {
-
-        AtlasSubRun create(StrikeDesc strikeDesc,
-                           Matrixc creationMatrix,
-                           Rect2fc creationBounds,
-                           int maskFormat,
-                           int[] acceptedGlyphs,
-                           int acceptedGlyphOffset,
-                           float[] acceptedPositions,
-                           int acceptedPositionOffset,
-                           int acceptedGlyphCount,
-                           float minScaleFactor,
-                           float maxScaleFactor);
-    }
-
-    static void add_multi_mask_format(SubRunContainer container,
-                                      StrikeDesc strikeDesc,
-                                      Matrixc creationMatrix,
-                                      Rect2fc creationBounds,
-                                      float minScaleFactor,
-                                      float maxScaleFactor,
-                                      AtlasSubRunFactory factory,
-                                      Buffers buffers) {
-        assert buffers.mAcceptedGlyphCount > 0;
-
-        byte[] masks = buffers.mAcceptedFormats;
-        int prevFormat = BakedGlyph.chooseMaskFormat(masks[0]);
-        int prevIndex = 0;
-        for (int index = 1; index < buffers.mAcceptedGlyphCount; index++) {
-            int format = BakedGlyph.chooseMaskFormat(masks[index]);
-            if (prevFormat != format) {
-                container.append(
-                        factory.create(
-                                strikeDesc,
-                                creationMatrix,
-                                creationBounds,
-                                prevFormat,
-                                buffers.mAcceptedGlyphs,
-                                prevIndex,
-                                buffers.mAcceptedPositions,
-                                prevIndex * 2,
-                                index - prevIndex,
-                                minScaleFactor,
-                                maxScaleFactor
-                        )
-                );
-                prevFormat = format;
-                prevIndex = index;
-            }
-        }
-        container.append(
-                factory.create(
-                        strikeDesc,
-                        creationMatrix,
-                        creationBounds,
-                        prevFormat,
-                        buffers.mAcceptedGlyphs,
-                        prevIndex,
-                        buffers.mAcceptedPositions,
-                        prevIndex * 2,
-                        buffers.mAcceptedGlyphCount - prevIndex,
-                        minScaleFactor,
-                        maxScaleFactor
-                )
-        );
-    }
-
     static float find_max_glyph_dimension(Strike strike, int[] glyphs,
                                           int glyphOffset, int glyphCount) {
         strike.lock();
@@ -601,7 +246,7 @@ public class SubRunContainer {
             @NonNull GlyphRunList glyphRunList,
             @NonNull Matrixc positionMatrix,
             @NonNull Paint runPaint,
-            @NonNull StrikeCache strikeCache
+            @NonNull GlyphStrikeCache strikeCache
     ) {
         SubRunContainer container = new SubRunContainer(positionMatrix);
 
@@ -649,7 +294,7 @@ public class SubRunContainer {
                             runFont, runPaint, positionMatrix
                     );
 
-                    Strike strike = strikeDesc.findOrCreateStrike(strikeCache);
+                    Strike strike = strikeDesc.findOrCreateStrike();
 
                     var creationBounds = prepare_for_direct_mask_drawing(
                             strike, positionMatrix, buffers
@@ -657,17 +302,34 @@ public class SubRunContainer {
                     buffers.setSourceToRejected();
 
                     if (buffers.mAcceptedGlyphCount > 0) {
-                        add_multi_mask_format(container,
-                                strikeDesc,
-                                positionMatrix, creationBounds,
-                                1, 1,
-                                DirectMaskSubRun::new,
-                                buffers);
+                        byte[] masks = buffers.mAcceptedFormats;
+                        int prevFormat = BakedGlyph.chooseMaskFormat(masks[0]);
+                        int prevIndex = 0;
+                        for (int index = 1; index <= buffers.mAcceptedGlyphCount; index++) {
+                            int format = index < buffers.mAcceptedGlyphCount
+                                    ? BakedGlyph.chooseMaskFormat(masks[index])
+                                    : -1; // invalid value as sentinel
+                            if (prevFormat != format) {
+                                container.append(
+                                        new DirectMaskSubRun(
+                                                strikeDesc,
+                                                positionMatrix, creationBounds,
+                                                prevFormat,
+                                                buffers.mAcceptedGlyphs,
+                                                prevIndex,
+                                                buffers.mAcceptedPositions,
+                                                prevIndex * 2,
+                                                index - prevIndex,
+                                                strikeCache
+                                        )
+                                );
+                                prevFormat = format;
+                                prevIndex = index;
+                            }
+                        }
                     }
                 }
             }
-
-            //TODO drawable case
 
             //TODO path case
 
@@ -716,7 +378,7 @@ public class SubRunContainer {
                     strikeDesc.updateForMask(
                             runFont, runPaint, creationMatrix
                     );
-                    Strike gaugingStrike = strikeDesc.findOrCreateStrike(strikeCache);
+                    Strike gaugingStrike = strikeDesc.findOrCreateStrike();
                     float maxDimension = find_max_glyph_dimension(gaugingStrike,
                             buffers.mSourceGlyphs, buffers.mSourceGlyphOffset, buffers.mSourceGlyphCount);
                     if (maxDimension <= Glyph.kMaxBilerpAtlasDimension) {
@@ -734,7 +396,7 @@ public class SubRunContainer {
                         runFont, runPaint, creationMatrix
                 );
 
-                Strike strike = strikeDesc.findOrCreateStrike(strikeCache);
+                Strike strike = strikeDesc.findOrCreateStrike();
 
                 var creationBounds = prepare_for_transformed_mask_drawing(
                         strike, creationMatrix, buffers
@@ -742,12 +404,34 @@ public class SubRunContainer {
                 buffers.setSourceToRejected();
 
                 if (buffers.mAcceptedGlyphCount > 0) {
-                    add_multi_mask_format(container,
-                            strikeDesc,
-                            creationMatrix, creationBounds,
-                            minScaleFactor, maxScaleFactor,
-                            TransformedMaskSubRun::new,
-                            buffers);
+                    byte[] masks = buffers.mAcceptedFormats;
+                    int prevFormat = BakedGlyph.chooseMaskFormat(masks[0]);
+                    int prevIndex = 0;
+                    for (int index = 1; index <= buffers.mAcceptedGlyphCount; index++) {
+                        int format = index < buffers.mAcceptedGlyphCount
+                                ? BakedGlyph.chooseMaskFormat(masks[index])
+                                : -1; // invalid value as sentinel
+                        if (prevFormat != format) {
+                            container.append(
+                                    new TransformedMaskSubRun(
+                                            strikeDesc,
+                                            creationMatrix,
+                                            creationBounds,
+                                            prevFormat,
+                                            buffers.mAcceptedGlyphs,
+                                            prevIndex,
+                                            buffers.mAcceptedPositions,
+                                            prevIndex * 2,
+                                            index - prevIndex,
+                                            minScaleFactor,
+                                            maxScaleFactor,
+                                            strikeCache
+                                    )
+                            );
+                            prevFormat = format;
+                            prevIndex = index;
+                        }
+                    }
                 }
             }
         }
@@ -764,10 +448,10 @@ public class SubRunContainer {
         mInitialPositionMatrix = new Matrix(initialPositionMatrix);
     }
 
-    public void draw(Canvas canvas, float originX, float originY,
+    public void draw(float originX, float originY,
                      Paint paint, GraniteDevice device) {
         for (var subRun = mHead; subRun != null; subRun = subRun.mNext) {
-            subRun.draw(canvas, originX, originY, paint, device);
+            subRun.draw(originX, originY, paint, device);
         }
     }
 

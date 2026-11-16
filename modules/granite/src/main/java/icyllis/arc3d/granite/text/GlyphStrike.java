@@ -1,7 +1,7 @@
 /*
  * This file is part of Arc3D.
  *
- * Copyright (C) 2024 BloCamLimb <pocamelards@gmail.com>
+ * Copyright (C) 2024-2026 BloCamLimb <pocamelards@gmail.com>
  *
  * Arc3D is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -17,7 +17,7 @@
  * License along with Arc3D. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package icyllis.arc3d.granite;
+package icyllis.arc3d.granite.text;
 
 import icyllis.arc3d.fastutil.ints.Int2ObjectOpenHashMap;
 import icyllis.arc3d.sketch.StrikeDesc;
@@ -34,8 +34,9 @@ public final class GlyphStrike {
 
     /**
      * <var>desc</var> must be immutable, no copy will be made.
+     * <p>
+     * Use {@link GlyphStrikeCache} to obtain an instance.
      */
-    // Use GlyphStrikeCache to obtain an instance
     public GlyphStrike(@NonNull StrikeDesc desc) {
         assert desc.isImmutable();
         mStrikeDesc = desc;
@@ -44,8 +45,9 @@ public final class GlyphStrike {
     /**
      * Find or create Glyph and returns a pointer to it.
      */
-    public @NonNull BakedGlyph getGlyph(int glyphID) {
-        return mGlyphs.computeIfAbsent(glyphID, __ -> new BakedGlyph());
+    public @NonNull BakedGlyph getGlyph(int packedGlyphID, boolean bilerpBorder) {
+        int key = BakedGlyph.packKey(packedGlyphID, bilerpBorder);
+        return mGlyphs.computeIfAbsent(key, BakedGlyph::new);
     }
 
     // immutable

@@ -38,6 +38,10 @@ import icyllis.arc3d.granite.geom.SubRunData;
 import icyllis.arc3d.granite.shading.UniformHandler;
 import icyllis.arc3d.granite.task.DrawTask;
 import icyllis.arc3d.granite.task.RenderPassTask;
+import icyllis.arc3d.granite.text.AtlasSubRun;
+import icyllis.arc3d.granite.text.BakedTextBlob;
+import icyllis.arc3d.granite.text.SubRunContainer;
+import icyllis.arc3d.granite.text.TextBlobCache;
 import icyllis.arc3d.sketch.*;
 import icyllis.arc3d.sketch.shaders.ImageShader;
 import org.jspecify.annotations.NonNull;
@@ -517,8 +521,7 @@ public final class GraniteDevice extends Device {
     }
 
     @Override
-    protected void onDrawGlyphRunList(Canvas canvas,
-                                      GlyphRunList glyphRunList,
+    protected void onDrawGlyphRunList(GlyphRunList glyphRunList,
                                       Paint paint) {
         Matrix positionMatrix = new Matrix(getLocalToDevice33());
         positionMatrix.preTranslate(glyphRunList.mOriginX, glyphRunList.mOriginY);
@@ -539,20 +542,20 @@ public final class GraniteDevice extends Device {
                         glyphRunList,
                         paint,
                         positionMatrix,
-                        StrikeCache.getGlobalStrikeCache()
+                        mContext.getGlyphStrikeCache()
                 );
                 entry = blobCache.insert(glyphRunList.mOriginalTextBlob, mBlobKey,
                         entry);
             }
-            entry.draw(canvas, glyphRunList.mOriginX, glyphRunList.mOriginY, paint, this);
+            entry.draw(glyphRunList.mOriginX, glyphRunList.mOriginY, paint, this);
         } else {
             SubRunContainer container = SubRunContainer.make(
                     glyphRunList,
                     positionMatrix,
                     paint,
-                    StrikeCache.getGlobalStrikeCache()
+                    mContext.getGlyphStrikeCache()
             );
-            container.draw(canvas, glyphRunList.mOriginX, glyphRunList.mOriginY, paint, this);
+            container.draw(glyphRunList.mOriginX, glyphRunList.mOriginY, paint, this);
         }
     }
 
@@ -607,7 +610,7 @@ public final class GraniteDevice extends Device {
         return true;
     }
 
-    public void drawAtlasSubRun(SubRunContainer.AtlasSubRun subRun,
+    public void drawAtlasSubRun(AtlasSubRun subRun,
                                 float originX, float originY,
                                 Paint paint) {
         int maskFormat = subRun.getMaskFormat();

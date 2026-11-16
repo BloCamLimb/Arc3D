@@ -29,6 +29,8 @@ import icyllis.arc3d.engine.Resource;
 import icyllis.arc3d.engine.UploadBufferManager;
 import icyllis.arc3d.granite.task.Task;
 import icyllis.arc3d.granite.task.TaskList;
+import icyllis.arc3d.granite.text.GlyphStrikeCache;
+import icyllis.arc3d.granite.text.TextBlobCache;
 import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;

@@ -274,18 +274,16 @@ public abstract class Device extends RefCnt {
                                        SamplingOptions sampling, Paint paint,
                                        int constraint);
 
-    public final void drawGlyphRunList(Canvas canvas,
-                                       GlyphRunList glyphRunList,
+    public final void drawGlyphRunList(GlyphRunList glyphRunList,
                                        Paint paint) {
         if (!getLocalToDevice33().isFinite()) {
             return;
         }
 
-        onDrawGlyphRunList(canvas, glyphRunList, paint);
+        onDrawGlyphRunList(glyphRunList, paint);
     }
 
-    protected abstract void onDrawGlyphRunList(Canvas canvas,
-                                               GlyphRunList glyphRunList,
+    protected abstract void onDrawGlyphRunList(GlyphRunList glyphRunList,
                                                Paint paint);
 
     public abstract void drawVertices(Vertices vertices, Blender blender,
