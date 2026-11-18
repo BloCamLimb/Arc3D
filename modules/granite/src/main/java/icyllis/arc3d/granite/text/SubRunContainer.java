@@ -68,7 +68,7 @@ public class SubRunContainer {
 
         final int[] mAcceptedGlyphs;
         final float[] mAcceptedPositions;
-        // Mask::Format
+        // Glyph::Format
         final byte[] mAcceptedFormats;
 
         int mAcceptedGlyphCount;
@@ -113,8 +113,12 @@ public class SubRunContainer {
         int acceptedSize = 0,
                 rejectedSize = 0;
         var runBounds = Rect2f.makeInfiniteInverted();
-        float subpixelRounding = strike.getSubpixelRounding();
-        int subpixelFieldMask = strike.getSubpixelFieldMask();
+
+        float subpixelRoundingX = strike.getSubpixelRoundingX();
+        float subpixelRoundingY = strike.getSubpixelRoundingY();
+        int subpixelFieldMaskX = strike.getSubpixelFieldMaskX();
+        int subpixelFieldMaskY = strike.getSubpixelFieldMaskY();
+
         var bounds = new Rect2f();
         var mappedPos = new float[2];
         strike.lock();
@@ -131,9 +135,10 @@ public class SubRunContainer {
                         buffers.mSourcePositions, j,
                         mappedPos, 0, 1
                 );
-                mappedPos[0] += subpixelRounding;
-                mappedPos[1] += 0.5f;
-                int packedGlyphID = Glyph.packGlyphID(glyphID, mappedPos[0], subpixelFieldMask);
+                mappedPos[0] += subpixelRoundingX;
+                mappedPos[1] += subpixelRoundingY;
+                int packedGlyphID = Glyph.packGlyphID(glyphID, mappedPos[0], mappedPos[1],
+                        subpixelFieldMaskX, subpixelFieldMaskY);
                 var glyph = strike.digestFor(Glyph.kDirectMask, packedGlyphID);
                 switch (glyph.actionFor(Glyph.kDirectMask)) {
                     case Glyph.kAccept_Action -> {
@@ -283,13 +288,6 @@ public class SubRunContainer {
                 // Direct Mask case
                 // Handle all the directly mapped mask subruns.
                 if (buffers.mSourceGlyphCount > 0 && !positionMatrix.hasPerspective()) {
-                    // No actual subpixel positioning support, you can also think that there is
-                    // always subpixel positioning support. As long as the draw origin mapped by
-                    // the matrix is not an integer, bilinear sampling will be used. Pixel grid
-                    // alignment is always done in the sub run space without fractional offset.
-                    // If clients use linear metrics and want grid alignment, they should align
-                    // the origin instead of having us align the position of each glyph, which can
-                    // greatly improve the cache hit rate.
                     strikeDesc.updateForMask(
                             runFont, runPaint, positionMatrix
                     );

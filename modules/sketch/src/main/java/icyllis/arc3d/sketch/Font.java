@@ -36,12 +36,16 @@ public class Font {
      */
     public static final int
             kAlias_Edging = 0,
-            kAntiAlias_Edging = 1;
+            kAntiAlias_Edging = 1,
+            kDistanceField_Edging = 3;
 
     // private flags
+    // embedded bitmaps are included only when not AntiAlias, not LinearMetrics, no rotation, uniform scaling
+    // embolden should be handled by user at upper level
     private static final int
-            kSubpixelPositioning_Flag = 0x2,
-            kLinearMetrics_Flag = 0x4;
+            kSubpixelPositioning_Flag = 0x4,
+            kLinearMetrics_Flag = 0x8,
+            kBaselineSnap_Flag = 0x20;
 
     private Typeface mTypeface;
     private float mSize;
@@ -50,6 +54,7 @@ public class Font {
 
     public Font() {
         mSize = 12;
+        mFlags = kBaselineSnap_Flag;
     }
 
     public Font(@NonNull Font other) {
@@ -107,7 +112,7 @@ public class Font {
     /**
      * Whether edge pixels draw opaque or with partial transparency.
      */
-    @MagicConstant(intValues = {kAlias_Edging, kAntiAlias_Edging})
+    @MagicConstant(intValues = {kAlias_Edging, kAntiAlias_Edging, kDistanceField_Edging})
     public int getEdging() {
         return mEdging;
     }
@@ -116,7 +121,7 @@ public class Font {
      * Requests, but does not require, that edge pixels draw opaque or with
      * partial transparency.
      */
-    public void setEdging(@MagicConstant(intValues = {kAlias_Edging, kAntiAlias_Edging}) int edging) {
+    public void setEdging(@MagicConstant(intValues = {kAlias_Edging, kAntiAlias_Edging, kDistanceField_Edging}) int edging) {
         mEdging = (byte) edging;
     }
 
@@ -136,6 +141,16 @@ public class Font {
      */
     public boolean isLinearMetrics() {
         return (mFlags & kLinearMetrics_Flag) != 0;
+    }
+
+    /**
+     * Returns true if baselines will be snapped to pixel positions when the current transformation
+     * matrix is axis aligned.
+     *
+     * @return baselines may be snapped to pixels
+     */
+    public boolean isBaselineSnap() {
+        return (mFlags & kBaselineSnap_Flag) != 0;
     }
 
     /**
@@ -164,6 +179,20 @@ public class Font {
             mFlags |= kLinearMetrics_Flag;
         } else {
             mFlags &= ~kLinearMetrics_Flag;
+        }
+    }
+
+    /**
+     * Requests that baselines be snapped to pixels when the current transformation matrix is axis
+     * aligned.
+     *
+     * @param baselineSnap setting for baseline snapping to pixels
+     */
+    public void setBaselineSnap(boolean baselineSnap) {
+        if (baselineSnap) {
+            mFlags |= kBaselineSnap_Flag;
+        } else {
+            mFlags &= ~kBaselineSnap_Flag;
         }
     }
 

@@ -21,13 +21,13 @@ package icyllis.arc3d.sketch.test;
 
 import icyllis.arc3d.sketch.Font;
 import icyllis.arc3d.sketch.TextBlob;
-import icyllis.arc3d.sketch.j2d.Typeface_JDK;
+import icyllis.arc3d.sketch.j2d.FreetypeTypeface;
 
 public class TestTextBlob {
 
     public static void main(String[] args) {
 
-        Typeface_JDK typeface = new Typeface_JDK(
+        FreetypeTypeface typeface = new FreetypeTypeface(
                 new java.awt.Font("STXingKai", java.awt.Font.PLAIN, 1));
 
         Font font1 = new Font();

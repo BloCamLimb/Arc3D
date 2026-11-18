@@ -37,8 +37,10 @@ public final class Strike {
     private final StrikeDesc mStrikeDesc;
     private final StrikeCache mStrikeCache;
 
-    private final float mSubpixelRounding;
-    private final int mSubpixelFieldMask;
+    private final float mSubpixelRoundingX;
+    private final float mSubpixelRoundingY;
+    private final int mSubpixelFieldMaskX;
+    private final int mSubpixelFieldMaskY;
 
     private final ReentrantLock mLock = new ReentrantLock();
 
@@ -66,14 +68,34 @@ public final class Strike {
         mStrikeCache = strikeCache;
         mScalerContext = scalerContext;
         if (scalerContext.isSubpixel()) {
-            mSubpixelRounding = 1.0f / (1 << (Glyph.kSubPixelPosLen + 1)); // 1/8
-            mSubpixelFieldMask = Glyph.kSubPixelXMask;
+            switch (scalerContext.computeAxisAlignmentForHText()) {
+                case StrikeDesc.kX_AxisAlignment -> {
+                    mSubpixelRoundingX = 1.0f / (1 << (Glyph.kSubPixelPosLen + 1)); // 1/8
+                    mSubpixelRoundingY = 0.5f; // 1/2
+                    mSubpixelFieldMaskX = Glyph.kSubPixelXMask;
+                    mSubpixelFieldMaskY = 0;
+                }
+                case StrikeDesc.kY_AxisAlignment -> {
+                    mSubpixelRoundingX = 0.5f; // 1/2
+                    mSubpixelRoundingY = 1.0f / (1 << (Glyph.kSubPixelPosLen + 1)); // 1/8
+                    mSubpixelFieldMaskX = 0;
+                    mSubpixelFieldMaskY = Glyph.kSubPixelYMask;
+                }
+                default -> {
+                    mSubpixelRoundingX = 1.0f / (1 << (Glyph.kSubPixelPosLen + 1)); // 1/8
+                    mSubpixelRoundingY = 1.0f / (1 << (Glyph.kSubPixelPosLen + 1)); // 1/8
+                    mSubpixelFieldMaskX = Glyph.kSubPixelXMask;
+                    mSubpixelFieldMaskY = Glyph.kSubPixelYMask;
+                }
+            }
         } else {
-            mSubpixelRounding = 0.5f; // 1/2
-            mSubpixelFieldMask = 0;
+            mSubpixelRoundingX = 0.5f; // 1/2
+            mSubpixelRoundingY = 0.5f; // 1/2
+            mSubpixelFieldMaskX = 0;
+            mSubpixelFieldMaskY = 0;
         }
         // approximate bytes used
-        mMemoryUsed = 16 + 56 + 8 + 8 + 8 + 8 + 80 + 8 + 8 + 8 + 8 + 8 + 8;
+        mMemoryUsed = 16 + 56 + 8 + 8 + 8 + 8 + 80 + 8 + 8 + 8 + 8 + 8 + 8 + 8;
     }
 
     public void lock() {
@@ -201,11 +223,19 @@ public final class Strike {
         return mStrikeDesc;
     }
 
-    public float getSubpixelRounding() {
-        return mSubpixelRounding;
+    public float getSubpixelRoundingX() {
+        return mSubpixelRoundingX;
     }
 
-    public int getSubpixelFieldMask() {
-        return mSubpixelFieldMask;
+    public float getSubpixelRoundingY() {
+        return mSubpixelRoundingY;
+    }
+
+    public int getSubpixelFieldMaskX() {
+        return mSubpixelFieldMaskX;
+    }
+
+    public int getSubpixelFieldMaskY() {
+        return mSubpixelFieldMaskY;
     }
 }

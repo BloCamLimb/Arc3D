@@ -29,16 +29,17 @@ import java.awt.Font;
 /**
  * Wraps a JDK Font2D.
  */
-public class Typeface_JDK extends Typeface {
+public class FreetypeTypeface extends Typeface {
 
     private final Font mFont;
 
     /**
+     * This method should take Font2D as input, but it's private.
      * The AWT font object must represent only a family and style,
      * its size should be 1 by default. The font style may be algorithmic
      * that is provided by JDK.
      */
-    public Typeface_JDK(Font font) {
+    public FreetypeTypeface(Font font) {
         mFont = font;
     }
 
@@ -49,7 +50,7 @@ public class Typeface_JDK extends Typeface {
     @NonNull
     @Override
     protected ScalerContext onCreateScalerContext(StrikeDesc desc) {
-        return new ScalerContext_JDK(this, desc);
+        return new FreetypeScalerContext(this, desc);
     }
 
     @Override

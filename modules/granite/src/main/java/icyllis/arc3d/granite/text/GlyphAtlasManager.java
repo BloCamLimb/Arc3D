@@ -28,7 +28,6 @@ import icyllis.arc3d.granite.DrawAtlas;
 import icyllis.arc3d.granite.RecordingContext;
 import icyllis.arc3d.granite.SurfaceDrawContext;
 import icyllis.arc3d.sketch.Glyph;
-import icyllis.arc3d.sketch.Mask;
 import org.jspecify.annotations.NonNull;
 import org.lwjgl.system.MemoryUtil;
 
@@ -144,7 +143,7 @@ public class GlyphAtlasManager extends DrawAtlas.AtlasGenerationCounter
 
         int srcRB = src.getRowBytes();
         // Notice this comparison is with the glyphs raw mask format, and not its GPU MaskFormat.
-        if (src.getMaskFormat() != Mask.kBW_Format) {
+        if (src.getMaskFormat() != Glyph.kBW_Format) {
             assert srcRB == Engine.maskFormatBytesPerPixel(maskFormat) * width;
             PixelUtils.copyImage(
                     srcBase, srcAddr, srcRB,

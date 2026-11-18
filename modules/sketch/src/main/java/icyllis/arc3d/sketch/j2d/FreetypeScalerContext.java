@@ -21,7 +21,6 @@ package icyllis.arc3d.sketch.j2d;
 
 import icyllis.arc3d.core.*;
 import icyllis.arc3d.sketch.Glyph;
-import icyllis.arc3d.sketch.Mask;
 import icyllis.arc3d.sketch.PathBuilder;
 import icyllis.arc3d.sketch.ScalerContext;
 import icyllis.arc3d.sketch.StrikeDesc;
@@ -40,12 +39,12 @@ import java.awt.image.DataBufferByte;
 /**
  * Wraps Java2D's freetype scaler.
  */
-public class ScalerContext_JDK extends ScalerContext {
+public class FreetypeScalerContext extends ScalerContext {
 
     private final Font mFont;
     private final FontRenderContext mFRC;
 
-    public ScalerContext_JDK(Typeface_JDK typeface, StrikeDesc desc) {
+    public FreetypeScalerContext(FreetypeTypeface typeface, StrikeDesc desc) {
         super(typeface, desc);
         // init the device transform, AA hint, and FM hint
         var transform = new AffineTransform(
@@ -61,7 +60,7 @@ public class ScalerContext_JDK extends ScalerContext {
         // because JDK returns metrics back to user space, not in device space
         mFRC = new FontRenderContext(
                 null,
-                getMaskFormat() != Mask.kBW_Format,
+                getMaskFormat() != Glyph.kBW_Format,
                 isLinearMetrics()
         );
     }
@@ -86,8 +85,11 @@ public class ScalerContext_JDK extends ScalerContext {
             metrics.mBottom = (float) bounds.getMaxY();
             if (metrics.mLeft < metrics.mRight && subpixel) {
                 float subX = glyph.getSubX();
+                float subY = glyph.getSubY();
                 metrics.mLeft += subX;
+                metrics.mTop += subY;
                 metrics.mRight += subX;
+                metrics.mBottom += subY;
             }
         } else {
             metrics.mLeft = (float) pixelBounds.getMinX();
@@ -108,13 +110,14 @@ public class ScalerContext_JDK extends ScalerContext {
         g2d.setColor(Color.WHITE);
         g2d.setComposite(AlphaComposite.Src);
         float subX = glyph.getSubX();
-        if (subX == 0) {
+        float subY = glyph.getSubY();
+        if (subX == 0 && subY == 0) {
             // JDK will use freetype if text size < 100, otherwise use outline
             g2d.drawGlyphVector(gv, -glyph.getLeft(), -glyph.getTop());
         } else {
             var outline = gv.getOutline(subX, 0);
             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
-                    glyph.getMaskFormat() != Mask.kBW_Format
+                    glyph.getMaskFormat() != Glyph.kBW_Format
                             ? RenderingHints.VALUE_ANTIALIAS_ON
                             : RenderingHints.VALUE_ANTIALIAS_OFF);
             g2d.setRenderingHint(RenderingHints.KEY_RENDERING,
@@ -130,7 +133,7 @@ public class ScalerContext_JDK extends ScalerContext {
         var data = ((DataBufferByte) bufferedImage.getRaster().getDataBuffer()).getData();
 
         switch (glyph.getMaskFormat()) {
-            case Mask.kBW_Format -> {
+            case Glyph.kBW_Format -> {
                 PixelUtils.packA8ToBW(
                         data,
                         0,
@@ -142,7 +145,7 @@ public class ScalerContext_JDK extends ScalerContext {
                         glyph.getHeight()
                 );
             }
-            case Mask.kA8_Format -> {
+            case Glyph.kA8_Format -> {
                 PixelUtils.copyImage(
                         data,
                         0,

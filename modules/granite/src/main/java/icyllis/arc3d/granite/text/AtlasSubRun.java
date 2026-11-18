@@ -54,7 +54,7 @@ public abstract class AtlasSubRun extends SubRun {
     /**
      * All params are read-only, copy will be made.
      *
-     * @param acceptedGlyphs packed glyph IDs, see {@link Glyph#packGlyphID(int, float, int)}
+     * @param acceptedGlyphs packed glyph IDs, see {@link Glyph#packGlyphID(int, float, float, int, int)}
      */
     @Contract(pure = true)
     AtlasSubRun(StrikeDesc strikeDesc,
@@ -298,6 +298,7 @@ public abstract class AtlasSubRun extends SubRun {
             outSubRunToDevice.set(localToDevice);
             outSubRunToDevice.preConcat(outSubRunToLocal);
         }
+        //assert !mCanDrawDirect; // should not happen
         return SamplerDesc.FILTER_LINEAR;
     }
 

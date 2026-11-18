@@ -43,12 +43,19 @@ import org.jspecify.annotations.NonNull;
  *
  * <ul>
  * <li>0-16 bits: glyph index</li>
- * <li>16-22 bits: reserved</li>
+ * <li>16-20 bits: reserved (by GPU)</li>
+ * <li>20-22 bits: sub-pixel Y position</li>
  * <li>22-24 bits: sub-pixel X position</li>
  * <li>24-32 bits: slot index</li>
  * </ul>
  */
 public final class Glyph {
+
+    public static final byte
+            kBW_Format = 0, // 1bit per pixel mask (e.g. monochrome)
+            kA8_Format = 1, // 8bits per pixel mask (e.g. antialiasing)
+            kARGB32_Format = 3, // 0xAARRGGBB, premultiplied color, sRGB color space
+            kSDF_Format = 4; // 8bits representing signed distance field
 
     // we have 4 sub-pixel positions, use two bits
     // 0.0~0.25, 0.25~0.5, 0.5~0.75, 0.75~1.0
@@ -56,27 +63,37 @@ public final class Glyph {
     public static final int kSubPixelPosMask = (1 << kSubPixelPosLen) - 1;
     public static final int kSubPixelXShift = 22;
     public static final int kSubPixelXMask = kSubPixelPosMask << kSubPixelXShift;
+    public static final int kSubPixelYShift = 20;
+    public static final int kSubPixelYMask = kSubPixelPosMask << kSubPixelYShift;
 
-    public static int packGlyphID(int glyphID, float xPos, int mask) {
-        final float magic = 1.0f * (1 << (kSubPixelPosLen + kSubPixelXShift));
+    public static int packGlyphID(int glyphID, float xPos, float yPos,
+                                  int maskX, int maskY) {
+        final float magicX = 1.0f * (1 << (kSubPixelPosLen + kSubPixelXShift));
+        final float magicY = 1.0f * (1 << (kSubPixelPosLen + kSubPixelYShift));
 
         xPos = (xPos - (float) Math.floor(xPos)) + 1.0f;
-        int subX = (int) (xPos * magic) & mask;
+        yPos = (yPos - (float) Math.floor(yPos)) + 1.0f;
+        int subX = (int) (xPos * magicX) & maskX;
+        int subY = (int) (yPos * magicY) & maskY;
 
-        assert (glyphID & kSubPixelXMask) == 0;
+        assert (glyphID & (kSubPixelXMask | kSubPixelYMask)) == 0;
         assert subX / (1 << kSubPixelXShift) < (1 << kSubPixelPosLen);
-        return glyphID | subX;
+        assert subY / (1 << kSubPixelYShift) < (1 << kSubPixelPosLen);
+        return glyphID | subX | subY;
     }
 
     public static int getGlyphID(int packedID) {
-        return packedID & ~kSubPixelXMask;
+        return packedID & ~(kSubPixelXMask | kSubPixelYMask);
     }
 
     public static float getSubX(int packedID) {
-        final float magic = 1.0f / (1 << kSubPixelPosLen);
-
         int subX = (packedID >> kSubPixelXShift) & kSubPixelPosMask;
-        return subX * magic;
+        return subX * (1.0f / (1 << kSubPixelPosLen));
+    }
+
+    public static float getSubY(int packedID) {
+        int subY = (packedID >> kSubPixelYShift) & kSubPixelPosMask;
+        return subY * (1.0f / (1 << kSubPixelPosLen));
     }
 
     /**
@@ -146,7 +163,7 @@ public final class Glyph {
     boolean mPathIsHairline;
     boolean mPathIsRequested;
 
-    // Mask::Format
+    // Glyph::Format
     byte mMaskFormat;
 
     // 12 bits in total
@@ -167,6 +184,10 @@ public final class Glyph {
 
     public float getSubX() {
         return getSubX(mID);
+    }
+
+    public float getSubY() {
+        return getSubY(mID);
     }
 
     /**
@@ -222,13 +243,13 @@ public final class Glyph {
         return mWidth == 0 || mHeight == 0;
     }
 
-    // Mask::Format
+    // Glyph::Format
     public byte getMaskFormat() {
         return mMaskFormat;
     }
 
     public boolean isColor() {
-        return mMaskFormat == Mask.kARGB32_Format;
+        return mMaskFormat == kARGB32_Format;
     }
 
     public boolean imageIsTooLarge() {
@@ -244,13 +265,13 @@ public final class Glyph {
             int size = getImageSize();
             assert size > 0;
             // use corresponding array type to ensure the alignment
-            if (mMaskFormat == Mask.kARGB32_Format) {
+            if (mMaskFormat == kARGB32_Format) {
                 assert MathUtil.isAlign4(size);
                 mImage = new int[size >> 2];
             } else {
-                assert mMaskFormat == Mask.kBW_Format ||
-                        mMaskFormat == Mask.kA8_Format ||
-                        mMaskFormat == Mask.kSDF_Format;
+                assert mMaskFormat == kBW_Format ||
+                        mMaskFormat == kA8_Format ||
+                        mMaskFormat == kSDF_Format;
                 mImage = new byte[size];
             }
             scalerContext.getImage(this);
@@ -281,9 +302,9 @@ public final class Glyph {
     public int getRowBytes() {
         int width = getWidth();
         return switch (mMaskFormat) {
-            case Mask.kBW_Format -> (width + 7) >> 3;
-            case Mask.kA8_Format, Mask.kSDF_Format -> width;
-            case Mask.kARGB32_Format -> width << 2;
+            case kBW_Format -> (width + 7) >> 3;
+            case kA8_Format, kSDF_Format -> width;
+            case kARGB32_Format -> width << 2;
             default -> {
                 assert false;
                 yield 0;
@@ -382,7 +403,7 @@ public final class Glyph {
                 case kSDF -> {
                     // SDF has 2-pixel border padding, but it's already included in image
                     if (getMaxDimension() <= kMaxDimensionForAtlas &&
-                            mMaskFormat == Mask.kSDF_Format) {
+                            mMaskFormat == kSDF_Format) {
                         action = kAccept_Action;
                     }
                 }

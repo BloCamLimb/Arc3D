@@ -59,7 +59,7 @@ public abstract class ScalerContext {
         return mTypeface;
     }
 
-    // Mask::Format
+    // Glyph::Format
     public final byte getMaskFormat() {
         return mDesc.getMaskFormat();
     }
@@ -70,6 +70,10 @@ public abstract class ScalerContext {
 
     public final boolean isLinearMetrics() {
         return (mDesc.mFlags & StrikeDesc.kLinearMetrics_Flag) != 0;
+    }
+
+    public final int computeAxisAlignmentForHText() {
+        return mDesc.computeAxisAlignmentForHText();
     }
 
     private static void saturate_glyph_bounds(
@@ -101,9 +105,9 @@ public abstract class ScalerContext {
             Path devPath = glyph.getPath();
             if (devPath != null) {
                 // other formats can not be produced from paths.
-                if (glyph.mMaskFormat != Mask.kBW_Format &&
-                        glyph.mMaskFormat != Mask.kA8_Format) {
-                    glyph.mMaskFormat = Mask.kA8_Format;
+                if (glyph.mMaskFormat != Glyph.kBW_Format &&
+                        glyph.mMaskFormat != Glyph.kA8_Format) {
+                    glyph.mMaskFormat = Glyph.kA8_Format;
                 }
 
                 var bounds = new Rect2f();
@@ -141,7 +145,7 @@ public abstract class ScalerContext {
             if (devPath == null) {
                 generateImage(glyph, glyph.getImageBase(), glyph.getImageAddress());
             } else {
-                assert glyph.getMaskFormat() != Mask.kARGB32_Format;
+                assert glyph.getMaskFormat() != Glyph.kARGB32_Format;
                 generateImageFromPath(glyph, devPath);
             }
         }
@@ -149,8 +153,8 @@ public abstract class ScalerContext {
 
     private static void generateImageFromPath(
             Glyph glyph, Path path) {
-        assert glyph.getMaskFormat() == Mask.kBW_Format ||
-                glyph.getMaskFormat() == Mask.kA8_Format;
+        assert glyph.getMaskFormat() == Glyph.kBW_Format ||
+                glyph.getMaskFormat() == Glyph.kA8_Format;
 
         Matrix matrix = Matrix.makeTranslate(-glyph.getLeft(), -glyph.getTop());
 
@@ -161,7 +165,7 @@ public abstract class ScalerContext {
         } else {
             paint.setStyle(Paint.FILL);
         }
-        paint.setAntiAlias(glyph.getMaskFormat() != Mask.kBW_Format);
+        paint.setAntiAlias(glyph.getMaskFormat() != Glyph.kBW_Format);
         paint.setBlendMode(BlendMode.SRC);
 
         BufferedImage bufferedImage = new BufferedImage(glyph.getWidth(), glyph.getHeight(),
@@ -174,7 +178,7 @@ public abstract class ScalerContext {
         var data = ((DataBufferByte) bufferedImage.getRaster().getDataBuffer()).getData();
 
         switch (glyph.getMaskFormat()) {
-            case Mask.kBW_Format -> {
+            case Glyph.kBW_Format -> {
                 PixelUtils.packA8ToBW(
                         data,
                         0,
@@ -186,7 +190,7 @@ public abstract class ScalerContext {
                         glyph.getHeight()
                 );
             }
-            case Mask.kA8_Format -> {
+            case Glyph.kA8_Format -> {
                 PixelUtils.copyImage(
                         data,
                         0,
@@ -220,8 +224,9 @@ public abstract class ScalerContext {
 
         if (isSubpixel()) {
             float subX = glyph.getSubX();
-            if (subX != 0) {
-                builder.offset(subX, 0);
+            float subY = glyph.getSubY();
+            if (subX != 0 || subY != 0) {
+                builder.offset(subX, subY);
             }
         }
 

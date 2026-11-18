@@ -23,12 +23,11 @@ import icyllis.arc3d.core.*;
 import icyllis.arc3d.sketch.Matrix;
 import icyllis.arc3d.sketch.Font;
 import icyllis.arc3d.sketch.Glyph;
-import icyllis.arc3d.sketch.Mask;
 import icyllis.arc3d.sketch.Paint;
 import icyllis.arc3d.sketch.Strike;
 import icyllis.arc3d.sketch.StrikeCache;
 import icyllis.arc3d.sketch.StrikeDesc;
-import icyllis.arc3d.sketch.j2d.Typeface_JDK;
+import icyllis.arc3d.sketch.j2d.FreetypeTypeface;
 import org.lwjgl.stb.STBImageWrite;
 import org.lwjgl.system.MemoryUtil;
 import org.slf4j.Logger;
@@ -41,7 +40,7 @@ public class TestStrike {
     public static final Logger LOGGER = LoggerFactory.getLogger("Arc3D");
 
     public static void main(String[] args) {
-        Typeface_JDK typeface = new Typeface_JDK(
+        FreetypeTypeface typeface = new FreetypeTypeface(
                 new java.awt.Font(java.awt.Font.SANS_SERIF, java.awt.Font.BOLD, 1));
         // map a character to glyphID
         int glyphID = typeface.getFont().createGlyphVector(
@@ -81,7 +80,7 @@ public class TestStrike {
                 int size = glyph.getWidth() * glyph.getHeight();
                 assert size > 0;
                 long dst = MemoryUtil.nmemAlloc(size);
-                if (glyph.getMaskFormat() == Mask.kBW_Format) {
+                if (glyph.getMaskFormat() == Glyph.kBW_Format) {
                     PixelUtils.unpackBWToA8(
                             glyph.getImageBase(), glyph.getImageAddress(), glyph.getRowBytes(),
                             null, dst, glyph.getWidth(), glyph.getWidth(), glyph.getHeight()

@@ -35,8 +35,14 @@ public sealed class StrikeDesc {
 
     public static final int
             kFrameAndFill_Flag = 0x01,
-            kSubpixelPositioning_Flag = 0x02,
-            kLinearMetrics_Flag = 0x04;
+            kSubpixelPositioning_Flag = 0x10,
+            kLinearMetrics_Flag = 0x1000,
+            kBaselineSnap_Flag = 0x2000;
+
+    public static final int
+            kNone_AxisAlignment = 0,
+            kX_AxisAlignment = 1,
+            kY_AxisAlignment = 2;
 
     private Typeface mTypeface;
 
@@ -139,11 +145,12 @@ public sealed class StrikeDesc {
         }
 
         mMaskFormat = switch (font.getEdging()) {
-            case Font.kAlias_Edging -> Mask.kBW_Format;
-            case Font.kAntiAlias_Edging -> Mask.kA8_Format;
+            case Font.kAlias_Edging -> Glyph.kBW_Format;
+            case Font.kAntiAlias_Edging -> Glyph.kA8_Format;
+            case Font.kDistanceField_Edging -> Glyph.kSDF_Format;
             default -> {
                 assert false;
-                yield Mask.kA8_Format;
+                yield Glyph.kA8_Format;
             }
         };
 
@@ -152,6 +159,9 @@ public sealed class StrikeDesc {
         }
         if (font.isLinearMetrics()) {
             flags |= kLinearMetrics_Flag;
+        }
+        if (font.isBaselineSnap()) {
+            flags |= kBaselineSnap_Flag;
         }
 
         mFlags = flags;
@@ -245,7 +255,7 @@ public sealed class StrikeDesc {
         return mMiterLimit;
     }
 
-    // Mask::Format
+    // Glyph::Format
     public byte getMaskFormat() {
         return mMaskFormat;
     }
@@ -257,6 +267,22 @@ public sealed class StrikeDesc {
 
     public int getFlags() {
         return mFlags & 0xFFFF;
+    }
+
+    public int computeAxisAlignmentForHText() {
+        if ((mFlags & kBaselineSnap_Flag) == 0) {
+            return kNone_AxisAlignment;
+        }
+
+        if (mPostShearY == 0) {
+            // The x axis is mapped onto the x axis.
+            return kX_AxisAlignment;
+        }
+        if (mPostScaleX == 0) {
+            // The x axis is mapped onto the y axis.
+            return kY_AxisAlignment;
+        }
+        return kNone_AxisAlignment;
     }
 
     public @Nullable PathEffect getPathEffect() {
