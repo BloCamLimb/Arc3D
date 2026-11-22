@@ -173,7 +173,7 @@ public final class StrikeCache {
     @NonNull
     private Strike internalCreateStrike(@NonNull StrikeDesc desc) {
         assert desc.isImmutable();
-        var scalerContext = desc.createScalerContext();
+        var scalerContext = desc.mTypeface.onCreateScalerContext(desc);
         var strike = new Strike(this, desc, scalerContext);
 
         var old = mStrikes.put(desc, strike);

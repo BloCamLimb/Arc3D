@@ -58,7 +58,7 @@ public class TestStrike {
 
         Matrix devMatrix = new Matrix();
 
-        StrikeDesc strikeDesc = StrikeDesc.makeMask(font, paint, devMatrix);
+        StrikeDesc strikeDesc = new StrikeDesc.Lookup().update(font, paint, devMatrix);
 
         Strike strike = strikeDesc.findOrCreateStrike();
 

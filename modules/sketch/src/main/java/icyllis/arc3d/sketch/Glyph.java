@@ -57,43 +57,21 @@ public final class Glyph {
             kARGB32_Format = 3, // 0xAARRGGBB, premultiplied color, sRGB color space
             kSDF_Format = 4; // 8bits representing signed distance field
 
-    // we have 4 sub-pixel positions, use two bits
-    // 0.0~0.25, 0.25~0.5, 0.5~0.75, 0.75~1.0
+    // we have 3 sub-pixel positions, use two bits
+    // 0.0~0.33, 0.33~0.67, 0.67~1.0
     public static final int kSubPixelPosLen = 2;
     public static final int kSubPixelPosMask = (1 << kSubPixelPosLen) - 1;
     public static final int kSubPixelXShift = 22;
     public static final int kSubPixelXMask = kSubPixelPosMask << kSubPixelXShift;
     public static final int kSubPixelYShift = 20;
     public static final int kSubPixelYMask = kSubPixelPosMask << kSubPixelYShift;
+    public static final int kSubPixelPosCount = 3;
 
-    public static int packGlyphID(int glyphID, float xPos, float yPos,
-                                  int maskX, int maskY) {
-        final float magicX = 1.0f * (1 << (kSubPixelPosLen + kSubPixelXShift));
-        final float magicY = 1.0f * (1 << (kSubPixelPosLen + kSubPixelYShift));
-
-        xPos = (xPos - (float) Math.floor(xPos)) + 1.0f;
-        yPos = (yPos - (float) Math.floor(yPos)) + 1.0f;
-        int subX = (int) (xPos * magicX) & maskX;
-        int subY = (int) (yPos * magicY) & maskY;
-
+    public static int packGlyphID(int glyphID, int subXIndex, int subYIndex) {
         assert (glyphID & (kSubPixelXMask | kSubPixelYMask)) == 0;
-        assert subX / (1 << kSubPixelXShift) < (1 << kSubPixelPosLen);
-        assert subY / (1 << kSubPixelYShift) < (1 << kSubPixelPosLen);
-        return glyphID | subX | subY;
-    }
-
-    public static int getGlyphID(int packedID) {
-        return packedID & ~(kSubPixelXMask | kSubPixelYMask);
-    }
-
-    public static float getSubX(int packedID) {
-        int subX = (packedID >> kSubPixelXShift) & kSubPixelPosMask;
-        return subX * (1.0f / (1 << kSubPixelPosLen));
-    }
-
-    public static float getSubY(int packedID) {
-        int subY = (packedID >> kSubPixelYShift) & kSubPixelPosMask;
-        return subY * (1.0f / (1 << kSubPixelPosLen));
+        assert subXIndex >= 0 && subXIndex < kSubPixelPosCount;
+        assert subYIndex >= 0 && subYIndex < kSubPixelPosCount;
+        return glyphID | (subXIndex << kSubPixelXShift) | (subYIndex << kSubPixelYShift);
     }
 
     /**
@@ -175,7 +153,7 @@ public final class Glyph {
     }
 
     public int getGlyphID() {
-        return getGlyphID(mID);
+        return mID & ~(kSubPixelXMask | kSubPixelYMask);
     }
 
     public int getPackedID() {
@@ -183,11 +161,19 @@ public final class Glyph {
     }
 
     public float getSubX() {
-        return getSubX(mID);
+        return getSubXIndex() * (1f/kSubPixelPosCount);
     }
 
     public float getSubY() {
-        return getSubY(mID);
+        return getSubYIndex() * (1f/kSubPixelPosCount);
+    }
+
+    public int getSubXIndex() {
+        return (mID >> kSubPixelXShift) & kSubPixelPosMask;
+    }
+
+    public int getSubYIndex() {
+        return (mID >> kSubPixelYShift) & kSubPixelPosMask;
     }
 
     /**

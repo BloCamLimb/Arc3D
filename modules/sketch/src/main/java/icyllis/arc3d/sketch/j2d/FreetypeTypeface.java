@@ -19,6 +19,7 @@
 
 package icyllis.arc3d.sketch.j2d;
 
+import icyllis.arc3d.sketch.Glyph;
 import icyllis.arc3d.sketch.ScalerContext;
 import icyllis.arc3d.sketch.StrikeDesc;
 import icyllis.arc3d.sketch.Typeface;
@@ -55,9 +56,16 @@ public class FreetypeTypeface extends Typeface {
 
     @Override
     protected void onFilterStrikeDesc(StrikeDesc.Lookup desc) {
-        // subpixel positioning requires linear metrics (no font hinting)
-        if ((desc.getFlags() & StrikeDesc.kLinearMetrics_Flag) == 0) {
-            desc.setFlags(desc.getFlags() & ~StrikeDesc.kSubpixelPositioning_Flag);
+        if (desc.getMaskFormat() == Glyph.kBW_Format) {
+            desc.setFlags(desc.getFlags() & ~StrikeDesc.kSubpixel_Flag);
+            desc.setFlags(desc.getFlags() | StrikeDesc.kHinting_Flag);
+        } else if ((desc.getFlags() & StrikeDesc.kHinting_Flag) != 0) {
+            // font hinting requires baseline snap
+            desc.setFlags(desc.getFlags() | StrikeDesc.kBaselineSnap_Flag);
+            // subpixel positioning requires axis aligned if hinting
+            if (desc.computeAxisAlignmentForHText() == StrikeDesc.kNone_AxisAlignment) {
+                desc.setFlags(desc.getFlags() & ~StrikeDesc.kSubpixel_Flag);
+            }
         }
     }
 }

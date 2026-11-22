@@ -34,9 +34,9 @@ import java.util.Objects;
 public sealed class StrikeDesc {
 
     public static final int
-            kFrameAndFill_Flag = 0x01,
-            kSubpixelPositioning_Flag = 0x10,
-            kLinearMetrics_Flag = 0x1000,
+            kFrameAndFill_Flag = 0x0001,
+            kSubpixel_Flag = 0x0010,
+            kHinting_Flag = 0x0100,
             kBaselineSnap_Flag = 0x2000;
 
     public static final int
@@ -44,24 +44,24 @@ public sealed class StrikeDesc {
             kX_AxisAlignment = 1,
             kY_AxisAlignment = 2;
 
-    private Typeface mTypeface;
+    Typeface mTypeface;
 
-    private float mTextSize;
+    float mTextSize;
 
-    private float mPostScaleX;
-    private float mPostScaleY;
-    private float mPostShearX;
-    private float mPostShearY;
+    float mPostScaleX;
+    float mPostScaleY;
+    float mPostShearX;
+    float mPostShearY;
 
-    private float mFrameWidth;
-    private float mMiterLimit;
+    float mFrameWidth;
+    float mMiterLimit;
 
-    private byte mMaskFormat;
-    private byte mStrokeJoin;
+    byte mMaskFormat;
+    byte mStrokeJoin;
     short mFlags;
 
     @Nullable
-    private PathEffect mPathEffect;
+    PathEffect mPathEffect;
 
     private transient int mHash;
 
@@ -84,11 +84,6 @@ public sealed class StrikeDesc {
         mHash = other.mHash;
     }
 
-    public static StrikeDesc makeMask(Font font, @Nullable Paint paint,
-                                      Matrixc deviceMatrix) {
-        return new StrikeDesc().update(font, paint, deviceMatrix);
-    }
-
     /**
      * Return the scalar with only limited fractional precision. Used to consolidate matrices
      * that vary only slightly when we create our key into the font cache, since the font scaler
@@ -96,103 +91,6 @@ public sealed class StrikeDesc {
      */
     static float relax(float x) {
         return Math.round(x * 1024) / 1024.0f;
-    }
-
-    private StrikeDesc update(Font font, @Nullable Paint paint,
-                              Matrixc deviceMatrix) {
-        if (deviceMatrix.hasPerspective()) {
-            throw new IllegalArgumentException();
-        }
-
-        mTypeface = font.getTypeface();
-        mTextSize = font.getSize();
-
-        int typeMask = deviceMatrix.getType();
-        if ((typeMask & Matrixc.kScale_Mask) != 0) {
-            mPostScaleX = relax(deviceMatrix.getScaleX());
-            mPostScaleY = relax(deviceMatrix.getScaleY());
-        } else {
-            mPostScaleX = mPostScaleY = 1;
-        }
-        if ((typeMask & Matrixc.kAffine_Mask) != 0) {
-            mPostShearX = relax(deviceMatrix.getShearX());
-            mPostShearY = relax(deviceMatrix.getShearY());
-        } else {
-            mPostShearX = mPostShearY = 0;
-        }
-
-        int style = paint != null ? paint.getStyle() : Paint.FILL;
-        float strokeWidth = paint != null ? paint.getStrokeWidth() : 0;
-
-        short flags = 0;
-
-        if (style != Paint.FILL && strokeWidth >= 0) {
-            mFrameWidth = strokeWidth;
-            if (paint.getStrokeJoin() == Paint.JOIN_MITER) {
-                mMiterLimit = paint.getStrokeMiter();
-            } else {
-                mMiterLimit = 0;
-            }
-            mStrokeJoin = (byte) paint.getStrokeJoin();
-
-            if (style == Paint.STROKE_AND_FILL) {
-                flags |= kFrameAndFill_Flag;
-            }
-        } else {
-            mFrameWidth = -1;
-            mMiterLimit = 0;
-            mStrokeJoin = 0;
-        }
-
-        mMaskFormat = switch (font.getEdging()) {
-            case Font.kAlias_Edging -> Glyph.kBW_Format;
-            case Font.kAntiAlias_Edging -> Glyph.kA8_Format;
-            case Font.kDistanceField_Edging -> Glyph.kSDF_Format;
-            default -> {
-                assert false;
-                yield Glyph.kA8_Format;
-            }
-        };
-
-        if (font.isSubpixel()) {
-            flags |= kSubpixelPositioning_Flag;
-        }
-        if (font.isLinearMetrics()) {
-            flags |= kLinearMetrics_Flag;
-        }
-        if (font.isBaselineSnap()) {
-            flags |= kBaselineSnap_Flag;
-        }
-
-        mFlags = flags;
-
-        mPathEffect = paint != null ? paint.getPathEffect() : null;
-
-        computeHashCode();
-        return this;
-    }
-
-    // Create a strike spec for mask style cache entries.
-    private StrikeDesc updateForMask(Font font, Paint paint,
-                                     Matrixc deviceMatrix) {
-        return update(font, paint, deviceMatrix);
-    }
-
-    // Create a strike spec for device-less measurements.
-    // The computed metrics does not consider thick strokes.
-    private float updateForCanonicalized(Font font, @Nullable Paint paint) {
-        Font canonicalizedFont = font;
-        float strikeToSourceScale = 1;
-        if (shouldDrawAsPath(paint, font, Matrix.identity())) {
-            // for strokes, disable hinting and it's uniformly scaled
-            canonicalizedFont = new Font(font);
-            strikeToSourceScale = canonicalizedFont.setupForPaths(null);
-            // compute metrics from filling
-            paint = null;
-        }
-
-        update(canonicalizedFont, paint, Matrix.identity());
-        return strikeToSourceScale;
     }
 
     @Contract(pure = true)
@@ -293,32 +191,23 @@ public sealed class StrikeDesc {
         return StrikeCache.getGlobalStrikeCache().findOrCreateStrike(this);
     }
 
-    public Strike findOrCreateStrike(StrikeCache cache) {
-        return cache.findOrCreateStrike(this);
-    }
-
-    public ScalerContext createScalerContext() {
-        return mTypeface.createScalerContext(this);
-    }
-
-    void computeHashCode() {
-        int h = mTypeface.hashCode();
-        h = 31 * h + Float.floatToIntBits(mTextSize);
-        h = 31 * h + Float.floatToIntBits(mPostScaleX);
-        h = 31 * h + Float.floatToIntBits(mPostScaleY);
-        h = 31 * h + Float.floatToIntBits(mPostShearX);
-        h = 31 * h + Float.floatToIntBits(mPostShearY);
-        h = 31 * h + Float.floatToIntBits(mFrameWidth);
-        h = 31 * h + Float.floatToIntBits(mMiterLimit);
-        h = 31 * h + (int) mMaskFormat;
-        h = 31 * h + (int) mStrokeJoin;
-        h = 31 * h + (int) mFlags;
-        h = 31 * h + Objects.hashCode(mPathEffect);
-        mHash = h;
-    }
-
     @Override
     public int hashCode() {
+        if (mHash == 0) {
+            int h = mTypeface.hashCode();
+            h = 31 * h + Float.floatToIntBits(mTextSize);
+            h = 31 * h + Float.floatToIntBits(mPostScaleX);
+            h = 31 * h + Float.floatToIntBits(mPostScaleY);
+            h = 31 * h + Float.floatToIntBits(mPostShearX);
+            h = 31 * h + Float.floatToIntBits(mPostShearY);
+            h = 31 * h + Float.floatToIntBits(mFrameWidth);
+            h = 31 * h + Float.floatToIntBits(mMiterLimit);
+            h = 31 * h + (int) mMaskFormat;
+            h = 31 * h + (int) mStrokeJoin;
+            h = 31 * h + (int) mFlags;
+            h = 31 * h + Objects.hashCode(mPathEffect);
+            mHash = h;
+        }
         return mHash;
     }
 
@@ -367,22 +256,111 @@ public sealed class StrikeDesc {
         }
 
         public StrikeDesc update(Font font, @Nullable Paint paint,
-                                 Matrixc deviceMatrix) {
-            return super.update(font, paint, deviceMatrix);
+                                  Matrixc deviceMatrix) {
+            if (deviceMatrix.hasPerspective()) {
+                throw new IllegalArgumentException();
+            }
+
+            mTypeface = font.getTypeface();
+            mTextSize = font.getSize();
+
+            int typeMask = deviceMatrix.getType();
+            if ((typeMask & Matrixc.kScale_Mask) != 0) {
+                mPostScaleX = relax(deviceMatrix.getScaleX());
+                mPostScaleY = relax(deviceMatrix.getScaleY());
+            } else {
+                mPostScaleX = mPostScaleY = 1;
+            }
+            if ((typeMask & Matrixc.kAffine_Mask) != 0) {
+                mPostShearX = relax(deviceMatrix.getShearX());
+                mPostShearY = relax(deviceMatrix.getShearY());
+            } else {
+                mPostShearX = mPostShearY = 0;
+            }
+
+            int style = paint != null ? paint.getStyle() : Paint.FILL;
+            float strokeWidth = paint != null ? paint.getStrokeWidth() : 0;
+
+            short flags = 0;
+
+            if (style != Paint.FILL && strokeWidth >= 0) {
+                mFrameWidth = strokeWidth;
+                if (paint.getStrokeJoin() == Paint.JOIN_MITER) {
+                    mMiterLimit = paint.getStrokeMiter();
+                } else {
+                    mMiterLimit = 0;
+                }
+                mStrokeJoin = (byte) paint.getStrokeJoin();
+
+                if (style == Paint.STROKE_AND_FILL) {
+                    flags |= kFrameAndFill_Flag;
+                }
+            } else {
+                mFrameWidth = -1;
+                mMiterLimit = 0;
+                mStrokeJoin = 0;
+            }
+
+            mMaskFormat = switch (font.getEdging()) {
+                case Font.kAlias_Edging -> Glyph.kBW_Format;
+                case Font.kAntiAlias_Edging -> Glyph.kA8_Format;
+                case Font.kDistanceField_Edging -> Glyph.kSDF_Format;
+                default -> {
+                    assert false;
+                    yield Glyph.kA8_Format;
+                }
+            };
+
+            if (font.isSubpixel()) {
+                flags |= kSubpixel_Flag;
+            }
+            if (font.isHinting()) {
+                flags |= kHinting_Flag;
+            }
+            if (font.isBaselineSnap()) {
+                flags |= kBaselineSnap_Flag;
+            }
+
+            mFlags = flags;
+
+            mPathEffect = paint != null ? paint.getPathEffect() : null;
+
+            // Allow the typeface to adjust the rec.
+            mTypeface.onFilterStrikeDesc(this);
+
+            // baseline snap is meaningless if not subpixel
+            if ((mFlags & kSubpixel_Flag) == 0) {
+                mFlags &= ~kBaselineSnap_Flag;
+            }
+
+            return this;
         }
 
+        // Create a strike spec for mask style cache entries.
         public StrikeDesc updateForMask(Font font, Paint paint,
                                         Matrixc deviceMatrix) {
-            return super.updateForMask(font, paint, deviceMatrix);
+            return update(font, paint, deviceMatrix);
         }
 
+        // Create a strike spec for device-less measurements.
+        // The computed metrics does not consider thick strokes.
         public float updateForCanonicalized(Font font, @Nullable Paint paint) {
-            return super.updateForCanonicalized(font, paint);
+            Font canonicalizedFont = font;
+            float strikeToSourceScale = 1;
+            if (shouldDrawAsPath(paint, font, Matrix.identity())) {
+                // for strokes, disable hinting and it's uniformly scaled
+                canonicalizedFont = new Font(font);
+                strikeToSourceScale = canonicalizedFont.setupForPaths(null);
+                // compute metrics from filling
+                paint = null;
+            }
+
+            update(canonicalizedFont, paint, Matrix.identity());
+            return strikeToSourceScale;
         }
 
         public void setFlags(int flags) {
             mFlags = (short) flags;
-            computeHashCode();
         }
     }
 }

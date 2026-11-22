@@ -35,6 +35,7 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
+import java.nio.ByteBuffer;
 
 /**
  * Wraps Java2D's freetype scaler.
@@ -43,6 +44,9 @@ public class FreetypeScalerContext extends ScalerContext {
 
     private final Font mFont;
     private final FontRenderContext mFRC;
+
+    private final BufferedImage mBufferedImage;
+    private final Graphics2D mG2D;
 
     public FreetypeScalerContext(FreetypeTypeface typeface, StrikeDesc desc) {
         super(typeface, desc);
@@ -53,6 +57,29 @@ public class FreetypeScalerContext extends ScalerContext {
                 mDesc.getPostShearX(),
                 mDesc.getPostScaleY(),
                 0, 0);
+        Object aa;
+        Object fm;
+        if (isHinting() && isSubpixel() && getMaskFormat() != Glyph.kBW_Format) {
+            // we rely on FreeType Harmony LCD rendering
+            aa = switch (computeAxisAlignmentForHText()) {
+                case StrikeDesc.kX_AxisAlignment -> RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_HRGB;
+                case StrikeDesc.kY_AxisAlignment -> RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_VRGB;
+                default -> {
+                    // captured by Typeface
+                    assert false;
+                    yield RenderingHints.VALUE_TEXT_ANTIALIAS_ON;
+                }
+            };
+        } else if (getMaskFormat() != Glyph.kBW_Format) {
+            aa = RenderingHints.VALUE_TEXT_ANTIALIAS_ON;
+        } else {
+            aa = RenderingHints.VALUE_TEXT_ANTIALIAS_OFF;
+        }
+        if (!isHinting()) {
+            fm = RenderingHints.VALUE_FRACTIONALMETRICS_ON;
+        } else {
+            fm = RenderingHints.VALUE_FRACTIONALMETRICS_OFF;
+        }
         mFont = typeface.getFont()
                 .deriveFont(transform)
                 .deriveFont(mDesc.getTextSize());
@@ -60,30 +87,53 @@ public class FreetypeScalerContext extends ScalerContext {
         // because JDK returns metrics back to user space, not in device space
         mFRC = new FontRenderContext(
                 null,
-                getMaskFormat() != Glyph.kBW_Format,
-                isLinearMetrics()
+                aa,
+                fm
         );
+        int imageType;
+        if (mFRC.getAntiAliasingHint() == RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_HRGB ||
+                mFRC.getAntiAliasingHint() == RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_VRGB) {
+            imageType = BufferedImage.TYPE_INT_RGB;
+        } else {
+            imageType = BufferedImage.TYPE_BYTE_GRAY;
+        }
+        mBufferedImage = new BufferedImage(Glyph.kMaxDimensionForAtlas, Glyph.kMaxDimensionForAtlas,
+                imageType);
+        var g2d = mBufferedImage.createGraphics();
+        g2d.setColor(Color.WHITE);
+        g2d.setBackground(Color.BLACK);
+        g2d.setComposite(AlphaComposite.Src);
+        g2d.setRenderingHint(RenderingHints.KEY_RENDERING,
+                RenderingHints.VALUE_RENDER_QUALITY);
+        g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING,
+                RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+        g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
+                RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
+        g2d.setRenderingHint(RenderingHints.KEY_TEXT_LCD_CONTRAST, 100);
+        mG2D = g2d;
     }
 
     @Override
     protected GlyphMetrics generateMetrics(Glyph glyph) {
         GlyphMetrics metrics = new GlyphMetrics(glyph.getMaskFormat());
         GlyphVector gv = mFont.createGlyphVector(mFRC, new int[]{glyph.getGlyphID()});
-        final boolean subpixel = isSubpixel();
+        final boolean hinting = isHinting();
         Rectangle pixelBounds = null;
-        if (!subpixel) {
+        if (hinting) {
             // JDK has a rasterization limit of 1024x1024 for getPixelBounds,
             // gv.getVisualBounds() is equivalent to FT_Outline_Get_BBox
             pixelBounds = gv.getPixelBounds(null, 0, 0);
         }
-        // use floating-point bounds if subpixel or large
-        if (subpixel || pixelBounds.isEmpty()) {
+        // use floating-point bounds if not hinting or large
+        if (!hinting || pixelBounds.isEmpty()) {
             var bounds = gv.getVisualBounds();
             metrics.mLeft = (float) bounds.getMinX();
             metrics.mTop = (float) bounds.getMinY();
             metrics.mRight = (float) bounds.getMaxX();
             metrics.mBottom = (float) bounds.getMaxY();
-            if (metrics.mLeft < metrics.mRight && subpixel) {
+            if (isSubpixel() &&
+                    metrics.mLeft < metrics.mRight &&
+                    metrics.mTop < metrics.mBottom) {
                 float subX = glyph.getSubX();
                 float subY = glyph.getSubY();
                 metrics.mLeft += subX;
@@ -92,70 +142,107 @@ public class FreetypeScalerContext extends ScalerContext {
                 metrics.mBottom += subY;
             }
         } else {
+            // use pixel bounds if hinting, this includes subpixel
+            // 2/3 subpixel is -1/3 shifted by 1
             metrics.mLeft = (float) pixelBounds.getMinX();
             metrics.mTop = (float) pixelBounds.getMinY();
-            metrics.mRight = (float) pixelBounds.getMaxX();
-            metrics.mBottom = (float) pixelBounds.getMaxY();
+            metrics.mRight = (float) pixelBounds.getMaxX() + (glyph.getSubXIndex() == 2 ? 1 : 0);
+            metrics.mBottom = (float) pixelBounds.getMaxY() + (glyph.getSubYIndex() == 2 ? 1 : 0);
         }
         return metrics;
     }
 
     @Override
     protected void generateImage(Glyph glyph, Object imageBase, long imageAddress) {
-        BufferedImage bufferedImage = new BufferedImage(glyph.getWidth(), glyph.getHeight(),
-                BufferedImage.TYPE_BYTE_GRAY);
-        var g2d = bufferedImage.createGraphics();
-
         GlyphVector gv = mFont.createGlyphVector(mFRC, new int[]{glyph.getGlyphID()});
-        g2d.setColor(Color.WHITE);
-        g2d.setComposite(AlphaComposite.Src);
-        float subX = glyph.getSubX();
-        float subY = glyph.getSubY();
-        if (subX == 0 && subY == 0) {
-            // JDK will use freetype if text size < 100, otherwise use outline
+        var g2d = mG2D;
+        if (mFRC.getAntiAliasingHint() == RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_HRGB ||
+                mFRC.getAntiAliasingHint() == RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_VRGB) {
+            g2d.clearRect(0, 0, glyph.getWidth(), glyph.getHeight());
             g2d.drawGlyphVector(gv, -glyph.getLeft(), -glyph.getTop());
-        } else {
-            var outline = gv.getOutline(subX, 0);
-            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
-                    glyph.getMaskFormat() != Glyph.kBW_Format
-                            ? RenderingHints.VALUE_ANTIALIAS_ON
-                            : RenderingHints.VALUE_ANTIALIAS_OFF);
-            g2d.setRenderingHint(RenderingHints.KEY_RENDERING,
-                    RenderingHints.VALUE_RENDER_QUALITY);
-            g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING,
-                    RenderingHints.VALUE_COLOR_RENDER_QUALITY);
-            g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
-                    RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
-            g2d.translate(-glyph.getLeft(), -glyph.getTop());
-            g2d.fill(outline);
-        }
 
-        var data = ((DataBufferByte) bufferedImage.getRaster().getDataBuffer()).getData();
-
-        switch (glyph.getMaskFormat()) {
-            case Glyph.kBW_Format -> {
-                PixelUtils.packA8ToBW(
-                        data,
-                        0,
-                        glyph.getWidth(),
-                        imageBase,
-                        imageAddress,
-                        glyph.getRowBytes(),
-                        glyph.getWidth(),
-                        glyph.getHeight()
-                );
+            // we rely on FreeType Harmony LCD rendering, so extract subpixel data
+            int shift = 8;
+            int offsetX = 0;
+            int offsetY = 0;
+            if (mFRC.getAntiAliasingHint() == RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_HRGB) {
+                switch (glyph.getSubXIndex()) {
+                    case 1:
+                        shift = 16;
+                        break;
+                    case 2:
+                        shift = 0;
+                        // 2/3 subpixel is -1/3 shifted by 1
+                        offsetX = 1;
+                        break;
+                }
+            } else {
+                switch (glyph.getSubYIndex()) {
+                    case 1:
+                        shift = 16;
+                        break;
+                    case 2:
+                        shift = 0;
+                        // 2/3 subpixel is -1/3 shifted by 1
+                        offsetY = 1;
+                        break;
+                }
             }
-            case Glyph.kA8_Format -> {
-                PixelUtils.copyImage(
-                        data,
-                        0,
-                        glyph.getWidth(),
-                        imageBase,
-                        imageAddress,
-                        glyph.getRowBytes(),
-                        glyph.getRowBytes(),
-                        glyph.getHeight()
-                );
+
+            ByteBuffer dst = PixelUtils.toByteBufferUncapped(imageBase, imageAddress);
+            int dstOffset = offsetY * glyph.getRowBytes() + offsetX;
+            for (int y = 0; y < glyph.getHeight() - offsetY; y++) {
+                for (int x = 0; x < glyph.getWidth() - offsetX; x++) {
+                    dst.put(dstOffset + x, (byte) ((mBufferedImage.getRGB(x, y) >> shift) & 0xFF));
+                }
+                dstOffset += glyph.getRowBytes();
+            }
+        } else {
+            float subX = glyph.getSubX();
+            float subY = glyph.getSubY();
+            g2d.setTransform(new AffineTransform());
+            g2d.clearRect(0, 0, glyph.getWidth(), glyph.getHeight());
+            if (subX == 0 && subY == 0) {
+                // JDK will use freetype if text size < 100, otherwise use outline
+                g2d.drawGlyphVector(gv, -glyph.getLeft(), -glyph.getTop());
+            } else {
+                // outline rendering, no hinting
+                var outline = gv.getOutline(subX, subY);
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                        glyph.getMaskFormat() != Glyph.kBW_Format
+                                ? RenderingHints.VALUE_ANTIALIAS_ON
+                                : RenderingHints.VALUE_ANTIALIAS_OFF);
+                g2d.translate(-glyph.getLeft(), -glyph.getTop());
+                g2d.fill(outline);
+            }
+
+            var data = ((DataBufferByte) mBufferedImage.getRaster().getDataBuffer()).getData();
+
+            switch (glyph.getMaskFormat()) {
+                case Glyph.kBW_Format -> {
+                    PixelUtils.packA8ToBW(
+                            data,
+                            0,
+                            mBufferedImage.getWidth(),
+                            imageBase,
+                            imageAddress,
+                            glyph.getRowBytes(),
+                            glyph.getWidth(),
+                            glyph.getHeight()
+                    );
+                }
+                case Glyph.kA8_Format, Glyph.kSDF_Format -> {
+                    PixelUtils.copyImage(
+                            data,
+                            0,
+                            mBufferedImage.getWidth(),
+                            imageBase,
+                            imageAddress,
+                            glyph.getRowBytes(),
+                            glyph.getWidth(),
+                            glyph.getHeight()
+                    );
+                }
             }
         }
     }

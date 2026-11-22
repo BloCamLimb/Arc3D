@@ -116,8 +116,8 @@ public class SubRunContainer {
 
         float subpixelRoundingX = strike.getSubpixelRoundingX();
         float subpixelRoundingY = strike.getSubpixelRoundingY();
-        int subpixelFieldMaskX = strike.getSubpixelFieldMaskX();
-        int subpixelFieldMaskY = strike.getSubpixelFieldMaskY();
+        int subpixelMaskX = strike.getSubpixelMaskX();
+        int subpixelMaskY = strike.getSubpixelMaskY();
 
         var bounds = new Rect2f();
         var mappedPos = new float[2];
@@ -137,13 +137,15 @@ public class SubRunContainer {
                 );
                 mappedPos[0] += subpixelRoundingX;
                 mappedPos[1] += subpixelRoundingY;
-                int packedGlyphID = Glyph.packGlyphID(glyphID, mappedPos[0], mappedPos[1],
-                        subpixelFieldMaskX, subpixelFieldMaskY);
+                float roundedPosX = (float) Math.floor(mappedPos[0]);
+                float roundedPosY = (float) Math.floor(mappedPos[1]);
+                int packedGlyphID = Glyph.packGlyphID(glyphID,
+                        subpixelMaskX & (int) ((mappedPos[0] - roundedPosX) * Glyph.kSubPixelPosCount),
+                        subpixelMaskY & (int) ((mappedPos[1] - roundedPosY) * Glyph.kSubPixelPosCount)
+                );
                 var glyph = strike.digestFor(Glyph.kDirectMask, packedGlyphID);
                 switch (glyph.actionFor(Glyph.kDirectMask)) {
                     case Glyph.kAccept_Action -> {
-                        float roundedPosX = (float) Math.floor(mappedPos[0]);
-                        float roundedPosY = (float) Math.floor(mappedPos[1]);
                         glyph.getBounds(bounds);
                         bounds.offset(roundedPosX, roundedPosY);
                         runBounds.joinNoCheck(bounds);

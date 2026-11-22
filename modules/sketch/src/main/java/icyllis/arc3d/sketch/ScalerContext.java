@@ -46,13 +46,12 @@ public abstract class ScalerContext {
 
     public ScalerContext(Typeface typeface,
                          StrikeDesc desc) {
-        var mutableDesc = new StrikeDesc.Lookup(desc);
-        // Allow the typeface to adjust the rec.
-        typeface.onFilterStrikeDesc(mutableDesc);
-        mDesc = mutableDesc.immutable();
+        mDesc = desc.immutable();
 
         mTypeface = typeface;
-        mGenerateImageFromPath = mDesc.getFrameWidth() >= 0;
+        // stroking and SDF is generated from vector data
+        mGenerateImageFromPath = mDesc.getFrameWidth() >= 0 ||
+                mDesc.getMaskFormat() == Glyph.kSDF_Format;
     }
 
     public final Typeface getTypeface() {
@@ -65,11 +64,11 @@ public abstract class ScalerContext {
     }
 
     public final boolean isSubpixel() {
-        return (mDesc.mFlags & StrikeDesc.kSubpixelPositioning_Flag) != 0;
+        return (mDesc.mFlags & StrikeDesc.kSubpixel_Flag) != 0;
     }
 
-    public final boolean isLinearMetrics() {
-        return (mDesc.mFlags & StrikeDesc.kLinearMetrics_Flag) != 0;
+    public final boolean isHinting() {
+        return (mDesc.mFlags & StrikeDesc.kHinting_Flag) != 0;
     }
 
     public final int computeAxisAlignmentForHText() {
@@ -153,6 +152,7 @@ public abstract class ScalerContext {
 
     private static void generateImageFromPath(
             Glyph glyph, Path path) {
+        //TODO SDF
         assert glyph.getMaskFormat() == Glyph.kBW_Format ||
                 glyph.getMaskFormat() == Glyph.kA8_Format;
 
@@ -260,9 +260,8 @@ public abstract class ScalerContext {
         if (mDesc.getFrameWidth() >= 0) {
             strokeRec.setStrokeStyle(mDesc.getFrameWidth(),
                     (mDesc.mFlags & StrikeDesc.kFrameAndFill_Flag) != 0);
-            // glyphs are always closed contours, so cap type is ignored,
-            // so we just pass something.
-            //TODO pass user-supplied cap, custom font may have open contours
+            // glyphs consist of only closed contours, so cap type is ignored,
+            // we just pass something.
             strokeRec.setStrokeParams(Paint.CAP_BUTT,
                     mDesc.getStrokeJoin(),
                     Paint.ALIGN_CENTER,

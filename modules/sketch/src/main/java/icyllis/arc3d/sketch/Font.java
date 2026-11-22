@@ -41,11 +41,11 @@ public class Font {
 
     // private flags
     // embedded bitmaps are included only when not AntiAlias, not LinearMetrics, no rotation, uniform scaling
-    // embolden should be handled by user at upper level
+    // embolden and linear metrics should be handled by user at upper level
     private static final int
-            kSubpixelPositioning_Flag = 0x4,
-            kLinearMetrics_Flag = 0x8,
-            kBaselineSnap_Flag = 0x20;
+            kSubpixel_Flag = 0x4,
+            kBaselineSnap_Flag = 0x20,
+            kHinting_Flag = 0x40;
 
     private Typeface mTypeface;
     private float mSize;
@@ -54,7 +54,8 @@ public class Font {
 
     public Font() {
         mSize = 12;
-        mFlags = kBaselineSnap_Flag;
+        mFlags = kBaselineSnap_Flag | kHinting_Flag;
+        mEdging = kAntiAlias_Edging;
     }
 
     public Font(@NonNull Font other) {
@@ -131,16 +132,7 @@ public class Font {
      * @return true if glyphs may be drawn at sub-pixel offsets.
      */
     public boolean isSubpixel() {
-        return (mFlags & kSubpixelPositioning_Flag) != 0;
-    }
-
-    /**
-     * Returns true if font and glyph metrics are requested to be linearly scalable.
-     *
-     * @return true if font and glyph metrics are requested to be linearly scalable.
-     */
-    public boolean isLinearMetrics() {
-        return (mFlags & kLinearMetrics_Flag) != 0;
+        return (mFlags & kSubpixel_Flag) != 0;
     }
 
     /**
@@ -160,25 +152,9 @@ public class Font {
      */
     public void setSubpixel(boolean subpixel) {
         if (subpixel) {
-            mFlags |= kSubpixelPositioning_Flag;
+            mFlags |= kSubpixel_Flag;
         } else {
-            mFlags &= ~kSubpixelPositioning_Flag;
-        }
-    }
-
-    /**
-     * Requests, but does not require, linearly scalable font and glyph metrics.
-     * <p>
-     * For outline fonts 'true' means font and glyph metrics should ignore hinting and rounding.
-     * Note that some bitmap formats may not be able to scale linearly and will ignore this flag.
-     *
-     * @param linearMetrics setting for linearly scalable font and glyph metrics.
-     */
-    public void setLinearMetrics(boolean linearMetrics) {
-        if (linearMetrics) {
-            mFlags |= kLinearMetrics_Flag;
-        } else {
-            mFlags &= ~kLinearMetrics_Flag;
+            mFlags &= ~kSubpixel_Flag;
         }
     }
 
@@ -194,6 +170,24 @@ public class Font {
         } else {
             mFlags &= ~kBaselineSnap_Flag;
         }
+    }
+
+    /**
+     * Sets level of glyph outline adjustment.
+     */
+    public void setHinting(boolean hinting) {
+        if (hinting) {
+            mFlags |= kHinting_Flag;
+        } else {
+            mFlags &= ~kHinting_Flag;
+        }
+    }
+
+    /**
+     * Returns level of glyph outline adjustment.
+     */
+    public boolean isHinting() {
+        return (mFlags & kHinting_Flag) != 0;
     }
 
     /**
@@ -224,7 +218,7 @@ public class Font {
 
     @ApiStatus.Internal
     public float setupForPaths(Paint paint) {
-        setLinearMetrics(true);
+        setHinting(false);
         if (paint != null) {
             paint.setStyle(Paint.FILL);
             paint.setPathEffect(null);

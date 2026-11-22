@@ -37,11 +37,6 @@ public abstract class Typeface {
     }
 
     @NonNull
-    public final ScalerContext createScalerContext(StrikeDesc desc) {
-        return Objects.requireNonNull(onCreateScalerContext(desc));
-    }
-
-    @NonNull
     protected abstract ScalerContext onCreateScalerContext(StrikeDesc desc);
 
     protected abstract void onFilterStrikeDesc(StrikeDesc.Lookup desc);
