@@ -24,6 +24,8 @@ import icyllis.arc3d.core.Size;
 
 import java.util.Arrays;
 
+import static icyllis.arc3d.core.MathUtil.lerp;
+
 /**
  * Geometry solvers.
  *
@@ -1020,6 +1022,170 @@ public class GeometryUtils {
                 level
         );
         return ret - off;
+    }
+
+    @FunctionalInterface
+    public interface QuadConsumer {
+
+        void addQuad(final float x0, final float y0,
+                     final float x1, final float y1,
+                     final float x2, final float y2);
+    }
+
+    public static void convertCubicToQuads(
+            final float x0, final float y0,
+            final float x1, final float y1,
+            final float x2, final float y2,
+            final float x3, final float y3,
+            final float tolScale,
+            final QuadConsumer consumer
+    ) {
+        if (!MathUtil.isFinite(x0, y0, x1, y2, x2, y2, x3, y3, tolScale)) {
+            return;
+        }
+
+        float[] tValues = new float[2];
+        int count = findCubicInflectionPoints(
+                x0, y0, x1, y2, x2, y2, x3, y3, tValues, 0
+        );
+        float tolSq = tolScale * tolScale;
+
+        if (count == 0 || (count == 1 && tValues[0] == 1)) {
+            convert_noninflect_cubic_to_quads(x0, y0, x1, y1, x2, y2, x3, y3,
+                    tolSq, consumer, 0, true, true);
+        } else {
+            float t1 = tValues[0];
+            final float a01x = lerp(x0, x1, t1), a01y = lerp(y0, y1, t1);
+            final float a12x = lerp(x1, x2, t1), a12y = lerp(y1, y2, t1);
+            final float a23x = lerp(x2, x3, t1), a23y = lerp(y2, y3, t1);
+            final float a012x = lerp(a01x, a12x, t1), a012y = lerp(a01y, a12y, t1);
+            final float a123x = lerp(a12x, a23x, t1), a123y = lerp(a12y, a23y, t1);
+            final float amx = lerp(a012x, a123x, t1), amy = lerp(a012y, a123y, t1);
+
+            convert_noninflect_cubic_to_quads(x0, y0, a01x, a01y, a012x, a012y, amx, amy,
+                    tolSq, consumer, 0, true, true);
+
+            if (count == 1 || tValues[1] == 1) {
+                convert_noninflect_cubic_to_quads(amx, amy, a123x, a123y, a23x, a23y, x3, y3,
+                        tolSq, consumer, 0, true, true);
+                return;
+            }
+
+            final float u = (tValues[1] - t1) / (1f - t1);
+
+            final float b01x = lerp(amx, a123x, u), b01y = lerp(amy, a123y, u);
+            final float b12x = lerp(a123x, a23x, u), b12y = lerp(a123y, a23y, u);
+            final float b23x = lerp(a23x, x3, u),   b23y = lerp(a23y, y3, u);
+            final float b012x = lerp(b01x, b12x, u), b012y = lerp(b01y, b12y, u);
+            final float b123x = lerp(b12x, b23x, u), b123y = lerp(b12y, b23y, u);
+            final float bmx = lerp(b012x, b123x, u), bmy = lerp(b012y, b123y, u);
+
+            convert_noninflect_cubic_to_quads(amx, amy, b01x, b01y, b012x, b012y, bmx, bmy,
+                    tolSq, consumer, 0, true, true);
+            convert_noninflect_cubic_to_quads(bmx, bmy, b123x, b123y, b23x, b23y, x3, y3,
+                    tolSq, consumer, 0, true, true);
+        }
+    }
+
+    static void convert_noninflect_cubic_to_quads(
+            final float x0, final float y0,
+            final float x1, final float y1,
+            final float x2, final float y2,
+            final float x3, final float y3,
+            float tolSq, QuadConsumer consumer,
+            int level, boolean preserveFirstTangent, boolean preserveLastTangent) {
+        {
+            // Notation: Point a is always p[0]. Point b is p[1] unless p[1] == p[0], in which case it is
+            // p[2]. Point d is always p[3]. Point c is p[2] unless p[2] == p[3], in which case it is p[1].
+            float abx = x1 - x0;
+            float aby = y1 - y0;
+            float dcx = x2 - x3;
+            float dcy = y2 - y3;
+
+            if (Point.lengthSq(abx, aby) < MathUtil.PATH_TOLERANCE) {
+                if (Point.lengthSq(dcx, dcy) < MathUtil.PATH_TOLERANCE) {
+                    // degenerate quad
+                    consumer.addQuad(x0, y0, x0, y0,
+                            x3, y3);
+                    return;
+                }
+                abx = x2 - x0;
+                aby = y2 - y0;
+            }
+            if (Point.lengthSq(dcx, dcy) < MathUtil.PATH_TOLERANCE) {
+                dcx = x1 - x3;
+                dcy = y1 - y3;
+            }
+
+            abx *= 1.5f;
+            aby *= 1.5f;
+            dcx *= 1.5f;
+            dcy *= 1.5f;
+
+            // c0 and c1 are extrapolations along vectors ab and dc.
+            float c0x = x0 + abx;
+            float c0y = y0 + aby;
+            float c1x = x3 + dcx;
+            float c1y = y3 + dcy;
+
+            float dSq = level > 10 ? 0 : // guard max subdivide level
+                    Point.distanceToSq(c0x, c0y, c1x, c1y);
+            if (dSq < tolSq) {
+                float newCx;
+                float newCy;
+                if (preserveFirstTangent == preserveLastTangent) {
+                    newCx = (c0x + c1x) * 0.5f;
+                    newCy = (c0y + c1y) * 0.5f;
+                } else if (preserveFirstTangent) {
+                    newCx = c0x;
+                    newCy = c0y;
+                } else {
+                    newCx = c1x;
+                    newCy = c1y;
+                }
+
+                consumer.addQuad(x0, y0, newCx, newCy, x3, y3);
+                return;
+            }
+        }
+
+        float abx   = x0 * 0.5f +   x1 * 0.5f;
+        float aby   = y0 * 0.5f +   y1 * 0.5f;
+        float bcx   = x1 * 0.5f +   x2 * 0.5f;
+        float bcy   = y1 * 0.5f +   y2 * 0.5f;
+        float cdx   = x2 * 0.5f +   x3 * 0.5f;
+        float cdy   = y2 * 0.5f +   y3 * 0.5f;
+        float abcx  = abx * 0.5f +  bcx * 0.5f;
+        float abcy  = aby * 0.5f +  bcy * 0.5f;
+        float bcdx  = bcx * 0.5f +  cdx * 0.5f;
+        float bcdy  = bcy * 0.5f +  cdy * 0.5f;
+        float abcdx = abcx * 0.5f + bcdx * 0.5f;
+        float abcdy = abcy * 0.5f + bcdy * 0.5f;
+
+        convert_noninflect_cubic_to_quads(
+                x0,
+                y0,
+                abx,
+                aby,
+                abcx,
+                abcy,
+                abcdx,
+                abcdy,
+                tolSq, consumer,
+                level + 1, preserveFirstTangent, false
+        );
+        convert_noninflect_cubic_to_quads(
+                abcdx,
+                abcdy,
+                bcdx,
+                bcdy,
+                cdx,
+                cdy,
+                x3,
+                y3,
+                tolSq, consumer,
+                level + 1, false, preserveLastTangent
+        );
     }
 
     protected GeometryUtils() {

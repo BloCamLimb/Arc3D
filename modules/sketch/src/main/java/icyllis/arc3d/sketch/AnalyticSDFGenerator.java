@@ -67,7 +67,7 @@ import java.util.ArrayList;
  * See
  * <a href="https://dl.acm.org/doi/10.1145/2897839.2927417">Practical analytic 2D signed distance field generation</a>
  */
-public final class AnalyticSDFGenerator {
+public final class AnalyticSDFGenerator implements GeometryUtils.QuadConsumer {
 
     // -- RowData intersection types --------------------------------------------
     private static final int RD_NO_INTERSECTION       = 0;
@@ -377,7 +377,8 @@ public final class AnalyticSDFGenerator {
         segments.add(seg);
     }
 
-    private void addQuad(float x0, float y0, float x1, float y1,
+    @Override
+    public void addQuad(float x0, float y0, float x1, float y1,
                          float x2, float y2) {
         double dx01 = x0-x1, dy01 = y0-y1;
         double dx12 = x1-x2, dy12 = y1-y2;
@@ -752,7 +753,11 @@ public final class AnalyticSDFGenerator {
                     lastY = coords[3];
                 }
                 case PathIterator.SEG_CUBICTO -> {
-                    //TODO find inflection points and subdivide
+                    GeometryUtils.convertCubicToQuads(
+                            lastX, lastY, coords[0], coords[1], coords[2], coords[3],
+                            coords[4], coords[5],
+                            1, this
+                    );
                     lastX = coords[4];
                     lastY = coords[5];
                 }
