@@ -20,6 +20,7 @@
 package icyllis.arc3d.sketch.test;
 
 import icyllis.arc3d.sketch.AnalyticSDFGenerator;
+import icyllis.arc3d.sketch.GeometryUtils;
 import icyllis.arc3d.sketch.Paint;
 import icyllis.arc3d.sketch.Path;
 import icyllis.arc3d.sketch.PathBuilder;
@@ -65,11 +66,24 @@ public class TestPath {
         System.out.println("Empty path bytes: " + new Path().estimatedByteSize());
 
         try {
-            Font font = new Font("Microsoft YaHei UI", Font.PLAIN, 1);
+            //Font font = new Font("Microsoft YaHei UI", Font.PLAIN, 1);
+            Font font = Font.createFont(Font.TRUETYPE_FONT, new File("E:/Free Fonts/biliw.otf"));
             font = font.deriveFont(32f);
 
             var gv = font.layoutGlyphVector(new FontRenderContext(null, true, true),
-                    new char[]{'♂'}, 0, 1, Font.LAYOUT_LEFT_TO_RIGHT);
+                    new char[]{'我'}, 0, 1, Font.LAYOUT_LEFT_TO_RIGHT);
+
+            /*Path path = new PathBuilder()
+                    .moveTo(84.187500f, 5.000000f)
+                    //.cubicTo(65.531250f, 11.562500f, 35.062500f, 17.656250f, 8.343750f, 21.687500f)
+                    //.quadTo(73.574646f, 8.733163f, 58.713863f, 12.177143f)
+                    .lineTo(*//*43.853081f, 15.621124f, *//*28.139744f, 18.428200f)
+                    .quadTo(18.078072f, 20.221468f, 8.343750f, 21.687500f)
+                    //.lineTo(8.343750f, 21.687500f)
+                    .lineTo(13.875000f, 36.500000f)
+                    .close()
+                    .build();*/
+            
             testSDF(gv.getOutline(), 6);
 
         } catch (Exception e) {
@@ -85,9 +99,8 @@ public class TestPath {
 
         var generator = new AnalyticSDFGenerator();
 
-        //generator.setDistanceFieldPad(32);
-        //generator.setDistanceFieldMagnitude(32);
-        int distanceFieldPad = generator.getDistanceFieldPad();
+        //generator.setDistanceFieldMagnitude(8);
+        int distanceFieldPad = generator.getDistanceFieldMagnitude();
 
         AffineTransform drawMatrix = AffineTransform.getTranslateInstance(-dx, -dy);
         drawMatrix.scale(scale, scale);
@@ -102,6 +115,14 @@ public class TestPath {
         int height = devBounds.height + 2 * distanceFieldPad;
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
         byte[] sdf = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
+
+        GeometryUtils.convertCubicToQuads(
+                84.187500f, 5.000000f,
+                65.531250f, 11.562500f, 35.062500f, 17.656250f, 8.343750f, 21.687500f,
+                1, (x0, y0, x1, y1, x2, y2) -> {
+                    System.out.printf("addQuad(%f, %f, %f, %f, %f, %f);\n", x0, y0, x1, y1, x2, y2);
+                }
+        );
 
         Area processed = new Area(devPath);
         System.out.println("Processed path");

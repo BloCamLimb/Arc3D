@@ -109,7 +109,6 @@ public final class AnalyticSDFGenerator implements GeometryUtils.QuadConsumer {
 
 
     // configs
-    int distanceFieldPad = 4;
     int distanceFieldMagnitude = 4;
 
 
@@ -117,7 +116,6 @@ public final class AnalyticSDFGenerator implements GeometryUtils.QuadConsumer {
     private static final double kCloseSqd         = kClose * kClose;
     private static final double kNearlyZero       = 1.0 / (1 << 18);
     private static final double kTangentTolerance = 1.0 / (1 << 11);
-    private static final float  kConicTolerance   = 0.25f;
 
     static final class PathSegment {
         // These enum values are assumed in member functions below.
@@ -155,12 +153,9 @@ public final class AnalyticSDFGenerator implements GeometryUtils.QuadConsumer {
 
             // bounding box
             fBB_left   = Math.min(fPts[0], (float)p2x);
-            fBB_left   = Math.min(fPts[2], fBB_left);
             fBB_right  = Math.max(fPts[0], (float)p2x);
-            fBB_right  = Math.max(fPts[2], fBB_right);
             fBB_top    = Math.min(fPts[1], (float)p2y);
             fBB_bottom = Math.max(fPts[1], (float)p2y);
-            //TODO need exact bounding box for quad, currently we overestimate
 
             if (fType == kLine) {
                 fScalingFactorSqd = fScalingFactor = 1.0;
@@ -181,14 +176,11 @@ public final class AnalyticSDFGenerator implements GeometryUtils.QuadConsumer {
                 assert (fType == kQuad);
 
                 // grow bounding box to include midpoint
-                float mx = fPts[0]*0.25f + fPts[2]*0.5f + fPts[4]*0.25f; // midpoint of curve
-                float my = fPts[1]*0.25f + fPts[3]*0.5f + fPts[5]*0.25f;
-                //TODO need exact bounding box for quad, midpoint method from Skia is wrong
-                // use workaround above
-                fBB_left   = Math.min(fBB_left,   mx);
-                fBB_right  = Math.max(fBB_right,  mx);
-                fBB_top    = Math.min(fBB_top,    my);
-                fBB_bottom = Math.max(fBB_bottom, my);
+                //TODO do we need exact bounding box by computing extrema? currently we overestimate
+                fBB_left   = Math.min(fBB_left,   fPts[2]);
+                fBB_right  = Math.max(fBB_right,  fPts[2]);
+                fBB_top    = Math.min(fBB_top,    fPts[3]);
+                fBB_bottom = Math.max(fBB_bottom, fPts[3]);
 
                 final double p1x = fPts[2];
                 final double p1y = fPts[3];
@@ -379,7 +371,7 @@ public final class AnalyticSDFGenerator implements GeometryUtils.QuadConsumer {
 
     @Override
     public void addQuad(float x0, float y0, float x1, float y1,
-                         float x2, float y2) {
+                        float x2, float y2) {
         double dx01 = x0-x1, dy01 = y0-y1;
         double dx12 = x1-x2, dy12 = y1-y2;
         if (dx01*dx01+dy01*dy01 < kCloseSqd ||
@@ -402,29 +394,29 @@ public final class AnalyticSDFGenerator implements GeometryUtils.QuadConsumer {
         return nearlyZero(v, kCloseSqd);
     }
 
-    private static float calcNearestPointForQuad(PathSegment seg, double xfX, double xfY) {
-        final float kThird        = 0.33333333333f;
-        final float kTwentySeventh= 0.037037037f;
+    private static double calcNearestPointForQuad(PathSegment seg, double xfX, double xfY) {
+        final double kThird        = 1/3.;
+        final double kTwentySeventh= 1/27.;
 
-        float a = 0.5f - (float)xfY;
-        float b = -0.5f * (float)xfX;
+        double a = 0.5 - xfY;
+        double b = -0.5 * xfX;
 
-        float a3 = a*a*a;
-        float b2 = b*b;
-        float c  = b2*0.25f + a3*kTwentySeventh;
+        double a3 = a*a*a;
+        double b2 = b*b;
+        double c  = b2*0.25 + a3*kTwentySeventh;
 
-        if (c >= 0f) {
-            float sqrtC = (float)Math.sqrt(c);
-            return (float)Math.cbrt(-b*0.5f + sqrtC) + (float)Math.cbrt(-b*0.5f - sqrtC);
+        if (c >= 0) {
+            double sqrtC = Math.sqrt(c);
+            return Math.cbrt(-b*0.5 + sqrtC) + Math.cbrt(-b*0.5 - sqrtC);
         } else {
-            float cosPhi = (float)Math.sqrt(b2*0.25f * (-27f/a3)) * (b > 0 ? -1f : 1f);
-            float phi    = (float)Math.acos(cosPhi);
-            float result;
-            float base1  = 2f * (float)Math.sqrt(-a*kThird);
-            float base2a = (float)Math.cos(phi*kThird);
-            float base2b = (float)Math.cos(phi*kThird + (float)Math.PI*2f*kThird);
+            double cosPhi = Math.sqrt(b2*0.25 * (-27./a3)) * (b > 0 ? -1. : 1.);
+            double phi    = Math.acos(cosPhi);
+            double result;
+            double base1  = 2 * Math.sqrt(-a*kThird);
+            double base2a = Math.cos(phi*kThird);
+            double base2b = Math.cos(phi*kThird + Math.PI*2*kThird);
 
-            if (xfX > 0f) {
+            if (xfX > 0) {
                 result = base1 * base2a;
                 if (!betweenClosed(result, seg.fP0T_x, seg.fP2T_x, 0, false)) {
                     result = base1 * base2b;
@@ -547,32 +539,32 @@ public final class AnalyticSDFGenerator implements GeometryUtils.QuadConsumer {
         double xfX = tmp[0], xfY = tmp[1];
 
         if (seg.fType == PathSegment.kLine) {
-            float result;
+            double result;
             if (betweenClosed(xfX, seg.fP0T_x, seg.fP2T_x, 0, false)) {
-                result = (float)(xfY*xfY);
+                result = (xfY*xfY);
             } else if (xfX < seg.fP0T_x) {
-                result = (float)(xfX*xfX + xfY*xfY);
+                result = (xfX*xfX + xfY*xfY);
             } else {
                 double dx = xfX - seg.fP2T_x;
-                result = (float)(dx*dx + xfY*xfY);
+                result = (dx*dx + xfY*xfY);
             }
             if (betweenClosedOpen(pointY, seg.fBB_top, seg.fBB_bottom, 0, false)) {
                 outSide = (int)signOf(xfY);
             } else {
                 outSide = kNA_SegSide;
             }
-            return result;
+            return (float)result;
         } else {
             assert (seg.fType == PathSegment.kQuad);
 
-            float nearest = calcNearestPointForQuad(seg, xfX, xfY);
-            float dist;
+            double nearest = calcNearestPointForQuad(seg, xfX, xfY);
+            double dist;
             if (betweenClosed(nearest, seg.fP0T_x, seg.fP2T_x, 0, false)) {
-                double nx = nearest, ny = (double)nearest*nearest;
-                dist = (float)distanceSquared(xfX, xfY, nx, ny);
+                double nx = nearest, ny = nearest*nearest;
+                dist = distanceSquared(xfX, xfY, nx, ny);
             } else {
-                float d0 = (float)distanceSquared(xfX, xfY, seg.fP0T_x, seg.fP0T_y);
-                float d2 = (float)distanceSquared(xfX, xfY, seg.fP2T_x, seg.fP2T_y);
+                double d0 = distanceSquared(xfX, xfY, seg.fP0T_x, seg.fP0T_y);
+                double d2 = distanceSquared(xfX, xfY, seg.fP2T_x, seg.fP2T_y);
                 dist = Math.min(d0, d2);
             }
             if (betweenClosedOpen(pointY, seg.fBB_top, seg.fBB_bottom, 0, false)) {
@@ -592,10 +584,10 @@ public final class AnalyticSDFGenerator implements GeometryUtils.QuadConsumer {
                     bbR = seg.fBB_right, bbB = seg.fBB_bottom;
             // get the bounding box, outset by distance field pad, and clip to total bounds
             // Clip inside the distance field to avoid overflow
-            int startCol = Math.max(0,     (int)(bbL - distanceFieldPad));
-            int endCol   = Math.min(width,  (int)Math.ceil(bbR + distanceFieldPad));
-            int startRow = Math.max(0,     (int)(bbT - distanceFieldPad));
-            int endRow   = Math.min(height, (int)Math.ceil(bbB + distanceFieldPad));
+            int startCol = Math.max(0,     (int)(bbL - distanceFieldMagnitude));
+            int endCol   = Math.min(width,  (int)Math.ceil(bbR + distanceFieldMagnitude));
+            int startRow = Math.max(0,     (int)(bbT - distanceFieldMagnitude));
+            int endRow   = Math.min(height, (int)Math.ceil(bbB + distanceFieldMagnitude));
 
             for (int row = startRow; row < endRow; row++) {
                 int prevSide = kNA_SegSide;
@@ -666,14 +658,6 @@ public final class AnalyticSDFGenerator implements GeometryUtils.QuadConsumer {
     @FunctionalInterface
     public interface DistanceConsumer {
         void acceptDistance(int x, int y, float dist);
-    }
-
-    public int getDistanceFieldPad() {
-        return distanceFieldPad;
-    }
-
-    public void setDistanceFieldPad(int distanceFieldPad) {
-        this.distanceFieldPad = distanceFieldPad;
     }
 
     public int getDistanceFieldMagnitude() {
