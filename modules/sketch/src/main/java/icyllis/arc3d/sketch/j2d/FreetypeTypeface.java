@@ -60,11 +60,25 @@ public class FreetypeTypeface extends Typeface {
             desc.setFlags(desc.getFlags() & ~StrikeDesc.kSubpixel_Flag);
             desc.setFlags(desc.getFlags() | StrikeDesc.kHinting_Flag);
         } else if ((desc.getFlags() & StrikeDesc.kHinting_Flag) != 0) {
-            // font hinting requires baseline snap
-            desc.setFlags(desc.getFlags() | StrikeDesc.kBaselineSnap_Flag);
-            // subpixel positioning requires axis aligned if hinting
-            if (desc.computeAxisAlignmentForHText() == StrikeDesc.kNone_AxisAlignment) {
-                desc.setFlags(desc.getFlags() & ~StrikeDesc.kSubpixel_Flag);
+            // JDK will use freetype if text size < 100, otherwise use outline
+            // since we rely on freetype Harmony LCD rendering for subpixel + hinting
+            // we have to disable hinting and fallback to path rendering if big
+            // the following logic is similar to SunGraphics2D
+            float shearX = desc.getPostShearX();
+            float scaleY = desc.getPostScaleY();
+            if (shearX != 0) {
+                scaleY = (float) Math.sqrt(shearX * shearX + scaleY * scaleY);
+            }
+            int pixelHeight = (int) (Math.abs(scaleY * desc.getTextSize()) + 0.5);
+            if (pixelHeight > 95) {
+                desc.setFlags(desc.getFlags() & ~StrikeDesc.kHinting_Flag);
+            } else {
+                // font hinting requires baseline snap
+                desc.setFlags(desc.getFlags() | StrikeDesc.kBaselineSnap_Flag);
+                // subpixel positioning requires axis aligned if hinting
+                if (desc.computeAxisAlignmentForHText() == StrikeDesc.kNone_AxisAlignment) {
+                    desc.setFlags(desc.getFlags() & ~StrikeDesc.kSubpixel_Flag);
+                }
             }
         }
     }

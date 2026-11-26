@@ -39,6 +39,8 @@ import java.nio.ByteBuffer;
 
 /**
  * Wraps Java2D's freetype scaler.
+ * <p>
+ * Only suitable for outline fonts, bitmap fonts are not supported.
  */
 public class FreetypeScalerContext extends ScalerContext {
 
@@ -121,7 +123,9 @@ public class FreetypeScalerContext extends ScalerContext {
         Rectangle pixelBounds = null;
         if (hinting) {
             // JDK has a rasterization limit of 1024x1024 for getPixelBounds,
+            // which can cause pixel bounds to be empty if glyph large. Switch to
             // gv.getVisualBounds() is equivalent to FT_Outline_Get_BBox
+            // However, it's fixed in jdk-8328896: Fontmetrics for large Fonts has zero width
             pixelBounds = gv.getPixelBounds(null, 0, 0);
         }
         // use floating-point bounds if not hinting or large
@@ -231,7 +235,7 @@ public class FreetypeScalerContext extends ScalerContext {
                             glyph.getHeight()
                     );
                 }
-                case Glyph.kA8_Format, Glyph.kSDF_Format -> {
+                case Glyph.kA8_Format -> {
                     PixelUtils.copyImage(
                             data,
                             0,
