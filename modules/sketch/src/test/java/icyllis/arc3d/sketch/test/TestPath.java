@@ -66,12 +66,12 @@ public class TestPath {
         System.out.println("Empty path bytes: " + new Path().estimatedByteSize());
 
         try {
-            //Font font = new Font("Microsoft YaHei UI", Font.PLAIN, 1);
-            Font font = Font.createFont(Font.TRUETYPE_FONT, new File("E:/Free Fonts/biliw.otf"));
+            Font font = new Font("Microsoft YaHei UI", Font.PLAIN, 1);
+            //Font font = Font.createFont(Font.TRUETYPE_FONT, new File("E:/Free Fonts/biliw.otf"));
             font = font.deriveFont(32f);
 
             var gv = font.layoutGlyphVector(new FontRenderContext(null, true, true),
-                    new char[]{'我'}, 0, 1, Font.LAYOUT_LEFT_TO_RIGHT);
+                    new char[]{'活'}, 0, 1, Font.LAYOUT_LEFT_TO_RIGHT);
 
             /*Path path = new PathBuilder()
                     .moveTo(84.187500f, 5.000000f)
@@ -83,8 +83,17 @@ public class TestPath {
                     .lineTo(13.875000f, 36.500000f)
                     .close()
                     .build();*/
+
+            Path path = new PathBuilder()
+                    .moveTo(22.312500f, 4.781250f)
+                    .lineTo(12.937500f, 15.843750f)
+                    .quadTo(28.312500f, 27.468750f, 45.750000f, 42.656250f)
+                    .quadTo(51.000000f, 36.281250f, 56.062500f, 29.906250f)
+                    .quadTo(40.312500f, 17.156250f, 22.312500f, 4.781250f)
+                    .close()
+                    .build();
             
-            testSDF(gv.getOutline(), 6);
+            testSDF(path, 6);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -92,27 +101,25 @@ public class TestPath {
     }
 
     public static void testSDF(java.awt.Shape path, float scale) {
-        Rectangle2D bounds = path.getBounds2D();
-        float dx = (float) Math.floor(bounds.getX() * scale);
-        float dy = (float) Math.floor(bounds.getY() * scale);
-        bounds.setRect(bounds.getX() * scale - dx, bounds.getY() * scale - dy, bounds.getWidth() * scale, bounds.getHeight() * scale);
-
         var generator = new AnalyticSDFGenerator();
 
         //generator.setDistanceFieldMagnitude(8);
         int distanceFieldPad = generator.getDistanceFieldMagnitude();
 
-        AffineTransform drawMatrix = AffineTransform.getTranslateInstance(-dx, -dy);
-        drawMatrix.scale(scale, scale);
-        drawMatrix.preConcatenate(AffineTransform.getTranslateInstance(
-                distanceFieldPad, distanceFieldPad
-        ));
+        Rectangle2D bounds = path.getBounds2D();
+        bounds.setRect(bounds.getX() * scale, bounds.getY() * scale, bounds.getWidth() * scale, bounds.getHeight() * scale);
         Rectangle devBounds = bounds.getBounds();
-        Path2D.Float devPath = new Path2D.Float(path, drawMatrix);
-        assert devBounds.x == 0 && devBounds.y == 0;
-
         int width = devBounds.width + 2 * distanceFieldPad;
         int height = devBounds.height + 2 * distanceFieldPad;
+        int dx = devBounds.x;
+        int dy = devBounds.y;
+
+        AffineTransform drawMatrix = AffineTransform.getScaleInstance(scale, scale);
+        drawMatrix.preConcatenate(AffineTransform.getTranslateInstance(
+                distanceFieldPad - dx, distanceFieldPad - dy
+        ));
+        Path2D.Float devPath = new Path2D.Float(path, drawMatrix);
+
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
         byte[] sdf = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
 

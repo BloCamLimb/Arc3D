@@ -306,7 +306,7 @@ public final class AnalyticSDFGenerator implements GeometryUtils.QuadConsumer {
     //  Math helpers
     // =========================================================================
     private static double signOf(double val) {
-        return Math.signum(val);
+        return Math.copySign(1.0, val);
     }
 
     private static double distanceSquared(double ax, double ay, double bx, double by) {
