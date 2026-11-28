@@ -93,7 +93,7 @@ public class TestPath {
                     .close()
                     .build();
             
-            testSDF(path, 6);
+            testSDF(gv.getOutline(), 6);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -138,7 +138,7 @@ public class TestPath {
 
 
         generator.generateDistanceFieldFromPath(
-                processed, false,
+                processed, false, 0, 0,
                 width, height, sdf, 0, width
         );
 

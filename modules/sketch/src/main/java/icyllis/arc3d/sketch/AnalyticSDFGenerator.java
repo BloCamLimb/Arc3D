@@ -57,6 +57,7 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
 
+import java.awt.geom.AffineTransform;
 import java.awt.geom.PathIterator;
 import java.util.ArrayList;
 
@@ -394,10 +395,10 @@ public final class AnalyticSDFGenerator implements GeometryUtils.QuadConsumer {
         return nearlyZero(v, kCloseSqd);
     }
 
-    private static double calcNearestPointForQuad(PathSegment seg, double xfX, double xfY) {
-        final double kThird        = 1/3.;
-        final double kTwentySeventh= 1/27.;
+    private static final double kThird        = 1/3.;
+    private static final double kTwentySeventh= 1/27.;
 
+    private static double calcNearestPointForQuad(PathSegment seg, double xfX, double xfY) {
         double a = 0.5 - xfY;
         double b = -0.5 * xfX;
 
@@ -671,13 +672,16 @@ public final class AnalyticSDFGenerator implements GeometryUtils.QuadConsumer {
     /**
      * @param distanceBase    dst heap array, if any
      * @param distanceAddress array offset if dst is heap, or memory address if dst is native
-     * @param shape           device shape, at padded location
+     * @param shape           device shape
      * @param inverse         invert the sdf
+     * @param transX          move the shape to padded location
+     * @param transY          move the shape to padded location
      * @param width           padded width
      * @param height          padded height
      * @param rowBytes        row stride in bytes
      */
     public void generateDistanceFieldFromPath(java.awt.@NonNull Shape shape, boolean inverse,
+                                              float transX, float transY,
                                               int width, int height,
                                               byte @Nullable [] distanceBase, long distanceAddress,
                                               int rowBytes) {
@@ -685,8 +689,11 @@ public final class AnalyticSDFGenerator implements GeometryUtils.QuadConsumer {
         assert width > 0 && height > 0 && rowBytes >= width;
         DistanceConsumer consumer = (x, y, dist) -> putDistanceFieldVal(dist,
                 distanceBase, distanceAddress + (long)y * rowBytes + x);
-        generateDistanceFieldFromPath(shape, inverse, width, height, consumer);
+        generateDistanceFieldFromPath(shape, inverse, transX, transY, width, height, consumer);
     }
+
+    private static final int kInside  = -1;
+    private static final int kOutside =  1;
 
     /**
      * At least ((num segments * 200) + (width * height * 9)) bytes are needed.
@@ -698,23 +705,30 @@ public final class AnalyticSDFGenerator implements GeometryUtils.QuadConsumer {
      * <p>
      * NON_ZERO requires caller to use {@link java.awt.geom.Area} to resolve first, then use EVEN_ODD.
      *
-     * @param shape   device shape, at padded location
+     * @param shape   device shape
      * @param inverse invert the sdf
+     * @param transX  move the shape to padded location
+     * @param transY  move the shape to padded location
      * @param width   padded width
      * @param height  padded height
      */
     public void generateDistanceFieldFromPath(java.awt.@NonNull Shape shape, boolean inverse,
+                                              float transX, float transY,
                                               int width, int height, @NonNull DistanceConsumer consumer) {
         assert width > 0 && height > 0;
 
         assert shape.getBounds().isEmpty() ||
-                new java.awt.Rectangle(width, height).contains(shape.getBounds());
+                new java.awt.geom.Rectangle2D.Float(-transX, -transY, width, height).contains(shape.getBounds2D());
 
         // create initial distance data (init to "far away")
         initDistances(width, height);
 
         // polygonize path into line and quad segments
-        PathIterator iter = shape.getPathIterator(null);
+        PathIterator iter = shape.getPathIterator(
+                transX != 0 || transY != 0
+                        ? AffineTransform.getTranslateInstance(transX, transY)
+                        : null
+        );
         int windingRule = iter.getWindingRule();
         float[] coords = pts;
         float lastX = 0, lastY = 0;
@@ -755,9 +769,6 @@ public final class AnalyticSDFGenerator implements GeometryUtils.QuadConsumer {
         // do all the work
         calculateDistanceFieldData(width, height);
 
-        final int kInside  = -1;
-        final int kOutside =  1;
-
         // adjust distance based on winding
         int[] dfData = this.dfData;
         for (int row = 0; row < height; row++) {
@@ -787,7 +798,7 @@ public final class AnalyticSDFGenerator implements GeometryUtils.QuadConsumer {
                 // fallback: re-derive sign via contains
                 for (int col = 0; col < width; col++) {
                     int idx = row * width + col;
-                    int dfSign = shape.contains(col + 0.5, row + 0.5) ^ inverse ? kInside : kOutside;
+                    int dfSign = shape.contains(col + 0.5 - transX, row + 0.5 - transY) ^ inverse ? kInside : kOutside;
                     float minDist = (float)Math.sqrt(dfDistSq(dfData, idx));
                     float dist     = dfSign * minDist;
 
